@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "scheduler"
     POSTGRES_USER: str = "scheduler"
     POSTGRES_PASSWORD: str = Field(..., env="POSTGRES_PASSWORD")
+    DATABASE_URL: str = Field(..., env="DATABASE_URL") 
 
     class Config:
         env_file = ".env"

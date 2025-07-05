@@ -28,7 +28,7 @@ class UserRead(UserBase):
     is_manager: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class FacilityCreate(BaseModel):
