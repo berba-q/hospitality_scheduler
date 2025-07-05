@@ -7,7 +7,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.requests import Request
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
-import aioredis
+from redis import asyncio as redis_async
 import os
 
 settings = get_settings()
@@ -16,7 +16,7 @@ app = FastAPI()
 
 @app.on_event("startup")
 async def startup():
-    redis = aioredis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
+    redis = redis_async.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
     await FastAPILimiter.init(redis)
 
 # Example: protect login route

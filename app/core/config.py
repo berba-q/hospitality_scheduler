@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "scheduler"
     POSTGRES_PASSWORD: str = Field(..., env="POSTGRES_PASSWORD")
     DATABASE_URL: str = Field(..., env="DATABASE_URL") 
+    REDIS_URL: str = Field("redis://redis:6379/0", env="REDIS_URL")
 
     class Config:
         env_file = ".env"

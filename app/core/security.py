@@ -29,3 +29,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
+
+# ------------------------------------------------------------------
+# Back‑compat: older code imports `hash_password`
+hash_password = get_password_hash
+# ------------------------------------------------------------------

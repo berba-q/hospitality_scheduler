@@ -40,7 +40,7 @@ class FacilityRead(FacilityCreate):
     id: uuid.UUID
 
     class Config:
-        orm_mode = True
+        from_attributes=True
 
 
 class StaffCreate(BaseModel):
@@ -55,4 +55,4 @@ class StaffRead(StaffCreate):
     id: uuid.UUID
 
     class Config:
-        orm_mode = True
+        from_attributes=True
