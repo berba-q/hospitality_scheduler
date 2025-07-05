@@ -6,7 +6,11 @@ from passlib.context import CryptContext
 
 from .config import get_settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["argon2"],           
+    deprecated="auto",
+    argon2__rounds=4               # fast dev setting; TODO: raise in prod 
+)
 ALGORITHM = "HS256"
 
 
@@ -19,9 +23,9 @@ def create_access_token(subject: str, expires_delta: Optional[int] = None) -> st
     return encoded_jwt
 
 
-def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
 
 
-def hash_password(password: str) -> str:
+def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
