@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Literal, Optional, List
 import uuid
 
 from pydantic import BaseModel, EmailStr, ConfigDict, Field, validator
@@ -203,3 +203,108 @@ class QuickUnavailabilityCreate(BaseModel):
             if v <= values['custom_start_hour']:
                 raise ValueError('End hour must be after start hour')
         return v
+
+# Base swap request schemas
+class SwapRequestCreate(BaseModel):
+    schedule_id: uuid.UUID
+    original_day: int = Field(ge=0, le=6, description="Day of week (0=Monday)")
+    original_shift: int = Field(ge=0, le=2, description="Shift number (0=morning, 1=afternoon, 2=evening)")
+    reason: str = Field(min_length=1, max_length=500)
+    urgency: Literal["low", "normal", "high", "emergency"] = "normal"
+    expires_at: Optional[datetime] = None
+
+class SpecificSwapRequestCreate(SwapRequestCreate):
+    """Request to swap with a specific staff member"""
+    target_staff_id: uuid.UUID
+    target_day: int = Field(ge=0, le=6)
+    target_shift: int = Field(ge=0, le=2)
+    swap_type: Literal["specific"] = "specific"
+
+class AutoSwapRequestCreate(SwapRequestCreate):
+    """Request for system to auto-assign coverage"""
+    swap_type: Literal["auto"] = "auto"
+    
+    # For managers to specify which staff member is requesting
+    requesting_staff_id: Optional[uuid.UUID] = None
+    
+    # Optional preferences for auto-assignment
+    preferred_skills: Optional[list[str]] = None
+    avoid_staff_ids: Optional[list[uuid.UUID]] = None
+
+class SwapRequestUpdate(BaseModel):
+    reason: Optional[str] = None
+    urgency: Optional[Literal["low", "normal", "high", "emergency"]] = None
+    expires_at: Optional[datetime] = None
+
+class SwapRequestRead(BaseModel):
+    id: uuid.UUID
+    schedule_id: uuid.UUID
+    requesting_staff_id: uuid.UUID
+    original_day: int
+    original_shift: int
+    swap_type: str
+    
+    # Optional fields based on swap type
+    target_staff_id: Optional[uuid.UUID] = None
+    target_day: Optional[int] = None
+    target_shift: Optional[int] = None
+    assigned_staff_id: Optional[uuid.UUID] = None
+    
+    reason: str
+    urgency: str
+    status: str
+    
+    target_staff_accepted: Optional[bool] = None
+    manager_approved: Optional[bool] = None
+    manager_notes: Optional[str] = None
+    
+    created_at: datetime
+    expires_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class SwapRequestWithDetails(SwapRequestRead):
+    """Swap request with related staff info"""
+    requesting_staff: "StaffRead"
+    target_staff: Optional["StaffRead"] = None
+    assigned_staff: Optional["StaffRead"] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+# Manager action schemas
+class ManagerSwapDecision(BaseModel):
+    approved: bool
+    notes: Optional[str] = None
+
+class StaffSwapResponse(BaseModel):
+    """Staff response to a specific swap request"""
+    accepted: bool
+    notes: Optional[str] = None
+
+# Auto-assignment result
+class AutoAssignmentResult(BaseModel):
+    success: bool
+    assigned_staff_id: Optional[uuid.UUID] = None
+    assigned_staff_name: Optional[str] = None
+    reason: Optional[str] = None  # Why assignment failed
+    alternatives: Optional[list[dict]] = None  # Alternative staff suggestions
+
+# Swap summary for dashboards
+class SwapSummary(BaseModel):
+    facility_id: uuid.UUID
+    pending_swaps: int
+    urgent_swaps: int
+    auto_swaps_needing_assignment: int
+    specific_swaps_awaiting_response: int
+    recent_completions: int
+
+class SwapHistoryRead(BaseModel):
+    id: uuid.UUID
+    swap_request_id: uuid.UUID
+    action: str
+    actor_staff_id: Optional[uuid.UUID] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)

@@ -105,3 +105,50 @@ class ScheduleConfig(SQLModel, table=True):
     weekend_restrictions: bool = Field(default=False)
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class SwapRequest(SQLModel, table=True):
+    
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    schedule_id: uuid.UUID = Field(foreign_key="schedule.id")
+    requesting_staff_id: uuid.UUID = Field(foreign_key="staff.id")
+    
+    # Original shift details
+    original_day: int
+    original_shift: int
+    
+    # Swap type: "specific" or "auto"
+    swap_type: str = Field(description="specific or auto")
+    
+    # For specific swaps
+    target_staff_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staff.id")
+    target_day: Optional[int] = None
+    target_shift: Optional[int] = None
+    
+    # For auto swaps - system will fill this when approved
+    assigned_staff_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staff.id")
+    
+    # Request details
+    reason: str
+    urgency: str = Field(default="normal", description="low, normal, high, emergency")
+    
+    # Status tracking
+    status: str = Field(default="pending", description="pending, approved, declined, completed, cancelled")
+    
+    # Approval workflow
+    target_staff_accepted: Optional[bool] = None  # For specific swaps
+    manager_approved: Optional[bool] = None
+    manager_notes: Optional[str] = None
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: Optional[datetime] = None  # Auto-expire requests
+    completed_at: Optional[datetime] = None
+
+class SwapHistory(SQLModel, table=True):
+    """Track all swap actions for audit trail"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    swap_request_id: uuid.UUID = Field(foreign_key="swaprequest.id")
+    action: str = Field(description="requested, accepted, declined, approved, auto_assigned, completed")
+    actor_staff_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staff.id")
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)

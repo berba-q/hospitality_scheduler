@@ -3,7 +3,8 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
-
+from sqlalchemy import desc
+ 
 from app.schemas import (
     ScheduleRead, ScheduleDetail, PreviewRequestWithConfig, 
     ScheduleValidationResult
@@ -213,3 +214,24 @@ def check_scheduling_conflicts(
         "staff_count": len(staff),
         "estimated_feasibility": "high" if len(conflicts) == 0 else "low"
     }
+    
+@router.get("/facility/{facility_id}", response_model=List[ScheduleRead])
+def list_facility_schedules(
+    facility_id: str, 
+    db: Session = Depends(get_db), 
+    current_user = Depends(get_current_user)
+):
+    """List all schedules for a facility"""
+    # Verify facility access
+    facility = db.get(Facility, facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Invalid facility")
+    
+    # Get schedules for this facility
+    schedules = db.exec(
+        select(Schedule)
+        .where(Schedule.facility_id == facility_id)
+        .order_by(desc(Schedule.week_start))
+    ).all()
+    
+    return schedules
