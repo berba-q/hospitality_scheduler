@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import uuid
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column, JSON
 
 
 class Tenant(SQLModel, table=True):
@@ -45,12 +45,14 @@ class Staff(SQLModel, table=True):
 
     facility: Facility = Relationship(back_populates="staff")
 
+
 class StaffUnavailability(SQLModel, table=True):
     id: uuid.UUID | None = Field(default_factory=uuid.uuid4, primary_key=True)
     staff_id: uuid.UUID = Field(foreign_key="staff.id")
     start: datetime
     end: datetime
     
+
 class Schedule(SQLModel, table=True):
     id: uuid.UUID | None = Field(default_factory=uuid.uuid4, primary_key=True)
     facility_id: uuid.UUID = Field(foreign_key="facility.id")
@@ -58,6 +60,7 @@ class Schedule(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     assignments: list["ShiftAssignment"] = Relationship(back_populates="schedule")
+
 
 class ShiftAssignment(SQLModel, table=True):
     id: uuid.UUID | None = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -67,4 +70,32 @@ class ShiftAssignment(SQLModel, table=True):
     staff_id: uuid.UUID = Field(foreign_key="staff.id")
 
     schedule: Schedule = Relationship(back_populates="assignments")
+
+
+# New constraint models
+class ScheduleConfig(SQLModel, table=True):
+    """Manager-configurable scheduling constraints"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    facility_id: uuid.UUID = Field(foreign_key="facility.id")
     
+    # Hour constraints
+    min_rest_hours: int = Field(default=8)
+    max_consecutive_days: int = Field(default=5)
+    max_weekly_hours: int = Field(default=40)
+    
+    # Shift requirements
+    min_staff_per_shift: int = Field(default=1)
+    max_staff_per_shift: int = Field(default=10)
+    require_manager_per_shift: bool = Field(default=False)
+    
+    # Role and skill constraints stored as JSON
+    shift_role_requirements: Dict[str, Any] = Field(
+        default_factory=dict, 
+        sa_column=Column(JSON)
+    )
+    
+    # Business rules
+    allow_overtime: bool = Field(default=False)
+    weekend_restrictions: bool = Field(default=False)
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
