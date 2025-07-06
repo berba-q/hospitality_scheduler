@@ -7,9 +7,12 @@ python-jose[cryptography]
 passlib[argon2]
 fastapi-limiter[redis]>=0.1.5
 redis>=5
+slowapi>=0.1.8 
 pydantic-settings>=2.1.0
 email-validator>=2.1.0
 alembic>=1.13
 python-dotenv
 pandas
 openpyxl
+faker>=25
+ortools>=9.9
