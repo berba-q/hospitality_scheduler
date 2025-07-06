@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List
 import uuid
-from pydantic import BaseModel, EmailStr
+
+from pydantic import BaseModel, EmailStr, ConfigDict
 
 
 class Token(BaseModel):
@@ -27,8 +28,7 @@ class UserRead(UserBase):
     id: uuid.UUID
     is_manager: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FacilityCreate(BaseModel):
@@ -39,8 +39,7 @@ class FacilityCreate(BaseModel):
 class FacilityRead(FacilityCreate):
     id: uuid.UUID
 
-    class Config:
-        from_attributes=True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StaffCreate(BaseModel):
@@ -54,5 +53,26 @@ class StaffCreate(BaseModel):
 class StaffRead(StaffCreate):
     id: uuid.UUID
 
-    class Config:
-        from_attributes=True
+    model_config = ConfigDict(from_attributes=True)
+        
+class ShiftAssignmentRead(BaseModel):
+    id: uuid.UUID
+    day: int
+    shift: int
+    staff_id: uuid.UUID
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ScheduleRead(BaseModel):
+    id: uuid.UUID
+    facility_id: uuid.UUID
+    week_start: date
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ScheduleDetail(ScheduleRead):
+    assignments: List[ShiftAssignmentRead]
+
+    model_config = ConfigDict(from_attributes=True)
