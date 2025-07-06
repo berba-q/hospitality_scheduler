@@ -42,15 +42,21 @@ class Staff(SQLModel, table=True):
     weekly_hours_max: int | None = Field(default=40)
     phone: Optional[str] = None
     is_active: bool = True
-
+    unavailability: List["StaffUnavailability"] = Relationship(back_populates="staff")
     facility: Facility = Relationship(back_populates="staff")
 
 
 class StaffUnavailability(SQLModel, table=True):
-    id: uuid.UUID | None = Field(default_factory=uuid.uuid4, primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     staff_id: uuid.UUID = Field(foreign_key="staff.id")
     start: datetime
     end: datetime
+    reason: Optional[str] = None
+    is_recurring: bool = Field(default=False)  # For weekly recurring unavailability
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Add relationship back to staff
+    staff: Optional["Staff"] = Relationship(back_populates="unavailability")
     
 
 class Schedule(SQLModel, table=True):
