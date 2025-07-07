@@ -9,7 +9,6 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Hospitality Scheduler',
   description: 'Modern PWA for hospitality staff scheduling',
-  manifest: '/manifest.json', // We'll add this next for PWA
 }
 
 export default function RootLayout({
