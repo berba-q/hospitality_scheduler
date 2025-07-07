@@ -9,10 +9,23 @@ from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 from redis import asyncio as redis_async
 import os
+from fastapi.middleware.cors import CORSMiddleware
 
 settings = get_settings()
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Next.js development server
+        "http://127.0.0.1:3000",
+        #"https://your-production-domain.com",  # Add production domain later
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 
 @app.on_event("startup")
 async def startup():

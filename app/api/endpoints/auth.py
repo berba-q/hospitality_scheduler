@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from fastapi.security import OAuth2PasswordRequestForm
 
-from ...deps import get_db
+from ...deps import get_current_user, get_db
 from ...models import User, Tenant
 from ...schemas import Token, UserCreate, UserRead
 from ...core.security import verify_password, hash_password, create_access_token
@@ -27,6 +27,17 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     return user
+
+@router.get("/me")
+def get_current_user_info(current_user = Depends(get_current_user)):
+    """Get current user information"""
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "is_manager": current_user.is_manager,
+        "is_active": current_user.is_active,
+        "tenant_id": str(current_user.tenant_id)
+    }
 
 
 @router.post("/login", response_model=Token)
