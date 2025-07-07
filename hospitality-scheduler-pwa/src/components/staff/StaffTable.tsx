@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Edit, Trash2, Phone, MapPin, Star } from 'lucide-react'
+import { Edit, Trash2, Phone, MapPin, Star, Mail } from 'lucide-react'
 import { EditStaffModal } from './EditStaffModal'
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog'
 import { useApiClient } from '@/hooks/useApi'
@@ -143,6 +143,14 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
                 {/* Contact */}
                 <td className="p-4">
                   <div className="space-y-1">
+                    {member.email && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Mail className="w-3 h-3" />
+                        <a href={`mailto:${member.email}`} className="hover:text-blue-600 transition-colors">
+                          {member.email}
+                        </a>
+                      </div>
+                    )}
                     {member.phone && (
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Phone className="w-3 h-3" />

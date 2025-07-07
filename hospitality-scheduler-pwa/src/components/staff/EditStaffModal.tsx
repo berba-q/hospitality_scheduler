@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Star, User, MapPin, Phone, Clock, Save } from 'lucide-react'
+import { Star, User, MapPin, Phone, Clock, Save, Mail } from 'lucide-react'
 import { useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
 
@@ -30,6 +30,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
   const [originalData, setOriginalData] = useState<any>(null)
   const [formData, setFormData] = useState({
     full_name: '',
+    email: '',
     role: '',
     skill_level: 3,
     phone: '',
@@ -43,6 +44,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
     if (staff) {
       const data = {
         full_name: staff.full_name || '',
+        email: staff.email || '',
         role: staff.role || '',
         skill_level: staff.skill_level || 3,
         phone: staff.phone || '',
@@ -169,6 +171,21 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
                   className="bg-white"
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="john.doe@company.com"
+                    className="pl-10 bg-white"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">

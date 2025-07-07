@@ -97,16 +97,59 @@ export default function StaffPage() {
       setImportProgress(50)
 
       // Process and validate data
-      const staffToImport = jsonData.map((row: any) => ({
-        full_name: row['Name'] || row['Full Name'] || row['name'] || row['full_name'] || '',
-        role: row['Role'] || row['Position'] || row['role'] || row['position'] || '',
-        phone: row['Phone'] || row['phone'] || row['Phone Number'] || '',
-        skill_level: parseInt(row['Skill Level'] || row['skill_level'] || '3'),
-        facility_id: facilities.find(f => 
-          f.name.toLowerCase().includes((row['Facility'] || row['facility'] || '').toLowerCase())
-        )?.id || facilities[0]?.id || '',
-        weekly_hours_max: parseInt(row['Weekly Hours'] || row['weekly_hours_max'] || '40')
-      })).filter(staff => staff.full_name && staff.role && staff.facility_id)
+      const staffToImport = jsonData.map((row: any) => {
+        // Extract skill level properly
+        let skillLevel = 3 // default
+        const skillValue = row['Skill Level'] || row['skill_level'] || row['Skill'] || row['Level']
+        if (skillValue !== undefined && skillValue !== null && skillValue !== '') {
+          const parsed = parseInt(skillValue.toString())
+          if (!isNaN(parsed) && parsed >= 1 && parsed <= 5) {
+            skillLevel = parsed
+          }
+        }
+
+        // Extract active status properly
+        let isActive = true // default to active
+        const statusValue = row['Status'] || row['status'] || row['Active'] || row['active'] || row['Is Active']
+        if (statusValue !== undefined) {
+          if (typeof statusValue === 'boolean') {
+            isActive = statusValue
+          } else if (typeof statusValue === 'string') {
+            const lowerStatus = statusValue.toLowerCase()
+            isActive = lowerStatus === 'active' || lowerStatus === 'true' || lowerStatus === 'yes' || lowerStatus === '1'
+          }
+        }
+
+        // Extract phone number properly
+        let phoneNumber = ''
+        const phoneValue = row['Phone'] || row['phone'] || row['Phone Number'] || ''
+        if (phoneValue !== undefined && phoneValue !== null && phoneValue !== '') {
+          phoneNumber = phoneValue.toString().trim()
+        }
+
+        // Extract weekly hours properly
+        let weeklyHours = 40 // default
+        const hoursValue = row['Weekly Hours'] || row['weekly_hours_max'] || row['Hours'] || row['Max Hours']
+        if (hoursValue !== undefined && hoursValue !== null && hoursValue !== '') {
+          const parsed = parseInt(hoursValue.toString())
+          if (!isNaN(parsed) && parsed > 0 && parsed <= 80) {
+            weeklyHours = parsed
+          }
+        }
+
+        return {
+          full_name: (row['Name'] || row['Full Name'] || row['name'] || row['full_name'] || '').toString().trim(),
+          email: (row['Email'] || row['email'] || row['Email Address'] || row['E-mail'] || '').toString().trim(),
+          role: (row['Role'] || row['Position'] || row['role'] || row['position'] || '').toString().trim(),
+          phone: phoneNumber,
+          skill_level: skillLevel,
+          facility_id: facilities.find(f => 
+            f.name.toLowerCase().includes((row['Facility'] || row['facility'] || '').toString().toLowerCase())
+          )?.id || facilities[0]?.id || '',
+          weekly_hours_max: weeklyHours,
+          is_active: isActive
+        }
+      }).filter(staff => staff.full_name && staff.role && staff.facility_id)
 
       setImportProgress(70)
       setImportStatus('importing')
@@ -171,6 +214,10 @@ export default function StaffPage() {
     const matchesFacility = selectedFacility === 'all' || member.facility_id === selectedFacility
     
     return matchesSearch && matchesFacility
+  })
+  .sort((a: any, b: any) => {
+    // Sort alphabetically by full name
+    return a.full_name.localeCompare(b.full_name)
   })
 
   // Loading state
@@ -267,7 +314,7 @@ export default function StaffPage() {
                 <FileSpreadsheet className="w-5 h-5 text-blue-600" />
                 <p className="text-blue-800 text-sm">
                   <strong>Drag & Drop Excel files anywhere</strong> to instantly import staff members. 
-                  We support .xlsx and .csv files with columns: Name, Role, Phone, Facility, Skill Level.
+                  We support .xlsx and .csv files with columns: Name, Email, Role, Phone, Facility, Skill Level, Status.
                 </p>
               </div>
             </CardContent>
