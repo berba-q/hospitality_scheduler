@@ -1,6 +1,7 @@
 'use client'
+// Modal to edit staff member details
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,9 +11,10 @@ import { Star, User, MapPin, Phone, Clock } from 'lucide-react'
 import { useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
 
-interface AddStaffModalProps {
+interface EditStaffModalProps {
   open: boolean
   onClose: () => void
+  staff: any
   facilities: any[]
   onSuccess: () => void
 }
@@ -23,7 +25,7 @@ const COMMON_ROLES = [
   'Security', 'Waiter', 'Waitress', 'Bartender', 'Host/Hostess'
 ]
 
-export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaffModalProps) {
+export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: EditStaffModalProps) {
   const apiClient = useApiClient()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -32,8 +34,24 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
     skill_level: 3,
     phone: '',
     facility_id: '',
-    weekly_hours_max: 40
+    weekly_hours_max: 40,
+    is_active: true
   })
+
+  // Populate form when staff changes
+  useEffect(() => {
+    if (staff) {
+      setFormData({
+        full_name: staff.full_name || '',
+        role: staff.role || '',
+        skill_level: staff.skill_level || 3,
+        phone: staff.phone || '',
+        facility_id: staff.facility_id || '',
+        weekly_hours_max: staff.weekly_hours_max || 40,
+        is_active: staff.is_active !== false
+      })
+    }
+  }, [staff])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,33 +62,17 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
     }
 
     setLoading(true)
-    
     try {
-      // Check for duplicate staff member
-      const duplicateCheck = await apiClient.checkStaffExists(formData.full_name, formData.facility_id)
-      if (duplicateCheck.exists) {
-        toast.error(`A staff member named "${formData.full_name}" already exists at this facility`)
-        return
-      }
-      await apiClient.createStaff(formData)
-      toast.success(`${formData.full_name} added successfully!`)
+      // Update staff via API
+      await apiClient.updateStaff(staff.id, formData)
+      toast.success(`${formData.full_name} updated successfully!`)
       onSuccess()
       onClose()
-      
-      // Reset form
-      setFormData({
-        full_name: '',
-        role: '',
-        skill_level: 3,
-        phone: '',
-        facility_id: '',
-        weekly_hours_max: 40
-      })
     } catch (error: any) {
-      if (error.message.includes('409') || error.message.includes('duplicate')) {
-        toast.error('A staff member with this information already exists')
+      if (error.message.includes('409') || error.message.includes('already exists')) {
+        toast.error('A staff member with this name already exists')
       } else {
-        toast.error('Failed to add staff member')
+        toast.error('Failed to update staff member')
       }
       console.error(error)
     } finally {
@@ -114,15 +116,17 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
     </div>
   )
 
+  if (!staff) return null
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
               <User className="w-4 h-4 text-white" />
             </div>
-            Add New Staff Member
+            Edit Staff Member
           </DialogTitle>
         </DialogHeader>
 
@@ -176,7 +180,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
                     variant={formData.role === role ? 'default' : 'outline'}
                     className={`cursor-pointer transition-all duration-200 ${
                       formData.role === role 
-                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700' 
+                        ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700' 
                         : 'hover:bg-gray-100'
                     }`}
                     onClick={() => handleRoleSelect(role)}
@@ -214,7 +218,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
                   id="facility_id"
                   value={formData.facility_id}
                   onChange={(e) => setFormData(prev => ({ ...prev, facility_id: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200"
                   required
                 >
                   <option value="">Select a facility</option>
@@ -242,6 +246,18 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
                 </div>
               </div>
             </div>
+
+            {/* Active Status */}
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="is_active"
+                checked={formData.is_active}
+                onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                className="w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500"
+              />
+              <Label htmlFor="is_active">Active staff member</Label>
+            </div>
           </div>
 
           {/* Actions */}
@@ -258,15 +274,15 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
             <Button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              className="flex-1 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
             >
               {loading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Adding...
+                  Updating...
                 </div>
               ) : (
-                'Add Staff Member'
+                'Update Staff Member'
               )}
             </Button>
           </div>
