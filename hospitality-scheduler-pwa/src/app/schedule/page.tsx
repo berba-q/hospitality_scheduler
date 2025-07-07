@@ -115,6 +115,14 @@ export default function SchedulePage() {
     }
   }, [authLoading, isAuthenticated])
 
+  // DEBUG: check current schedule state
+  useEffect(() => {
+  console.log('🔄 Schedule state changed:', currentSchedule)
+  if (currentSchedule === null) {
+    console.trace('Schedule set to null - stack trace:')
+  }
+}, [currentSchedule])
+
   const loadData = async () => {
     try {
       setLoading(true)
@@ -149,20 +157,45 @@ export default function SchedulePage() {
   }, [selectedFacility, currentDate, viewPeriod])
 
   const loadSchedules = async () => {
-    if (!selectedFacility) return
+    console.log('🔄 loadSchedules called')
+    
+    if (!selectedFacility) {
+      console.log('❌ No facility selected, skipping schedule load')
+      return
+    }
     
     try {
+      console.log('📡 Loading schedules for facility:', selectedFacility.id)
+      
       const schedulesData = await apiClient.getFacilitySchedules(selectedFacility.id)
+      console.log('📥 Schedules loaded:', schedulesData)
+      
       setSchedules(schedulesData)
       
-      // Find schedule for current period
+      // Check if we're accidentally resetting currentSchedule here
+      console.log('🔍 Current schedule before potential reset:', currentSchedule)
+      console.log('🔍 Unsaved changes:', unsavedChanges)
+      
+      // Find current period schedule
       const periodStart = getPeriodStart(currentDate, viewPeriod)
-      const existingSchedule = schedulesData.find(s => 
-        new Date(s.week_start).getTime() === periodStart.getTime()
-      )
-      setCurrentSchedule(existingSchedule || null)
+      const currentPeriodSchedule = schedulesData.find(s => {
+        const scheduleDate = new Date(s.week_start)
+        return scheduleDate.toDateString() === periodStart.toDateString()
+      })
+      
+      console.log('🎯 Found schedule for current period:', currentPeriodSchedule)
+      
+      // Only update if we don't have unsaved changes
+      if (!unsavedChanges) {
+        console.log('💾 Setting current schedule (no unsaved changes)')
+        setCurrentSchedule(currentPeriodSchedule || null)
+      } else {
+        console.log('⚠️ Skipping schedule update - unsaved changes exist')
+      }
+      
     } catch (error) {
-      console.error('Failed to load schedules:', error)
+      console.error('💥 Failed to load schedules:', error)
+      setSchedules([])
     }
   }
 
@@ -221,28 +254,235 @@ export default function SchedulePage() {
     }
   }
 
+  // Handle assignments
+  const handleAssignmentChange = (day: number, shift: number, staffId: string) => {
+  console.log('Assignment change called:', { day, shift, staffId })
+  console.log(' Current schedule before update:', currentSchedule)
+  
+  setUnsavedChanges(true)
+  
+  // Check if we have a schedule to update
+  if (!currentSchedule) {
+    console.warn(' No current schedule - creating new one')
+    
+    // Create a new schedule structure
+    const newSchedule = {
+      id: `temp-schedule-${Date.now()}`,
+      facility_id: selectedFacility?.id,
+      week_start: getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0],
+      assignments: []
+    }
+
+    // Add the new assignment
+    const newAssignment = {
+      id: `temp-assignment-${Date.now()}`,
+      day,
+      shift,
+      staff_id: staffId
+    }
+    
+    newSchedule.assignments.push(newAssignment)
+    console.log('➕ Creating new schedule with assignment:', newSchedule)
+    
+    setCurrentSchedule(newSchedule)
+    // Show success message
+    const staffMember = staff.find(s => s.id === staffId)
+    const shiftName = SHIFTS.find(s => s.id === shift)?.name || 'Shift'
+    const dayName = DAYS[day] || 'Day'
+    
+    if (staffMember) {
+      toast.success(`${staffMember.full_name} assigned to ${dayName} ${shiftName}`)
+    }
+    
+    return
+  }
+
+  // Check if staff is already assigned to this day/shift
+  const existingAssignment = currentSchedule.assignments?.find(a => 
+    a.day === day && a.shift === shift && a.staff_id === staffId
+  )
+  
+  if (existingAssignment) {
+    toast.error('Staff member is already assigned to this shift')
+    return
+  }
+  
+  // Create new assignment
+  const newAssignment = {
+    id: `temp-assignment-${Date.now()}`,
+    day,
+    shift,
+    staff_id: staffId
+  }
+  
+  console.log(' Adding assignment to existing schedule:', newAssignment)
+  
+  // Update the current schedule immutably
+  setCurrentSchedule(prevSchedule => {
+    if (!prevSchedule) {
+      console.warn(' Previous schedule is null in setter')
+      return prevSchedule
+    }
+    
+    const updatedSchedule = {
+      ...prevSchedule,
+      assignments: [...(prevSchedule.assignments || []), newAssignment]
+    }
+    
+    console.log(' Updated schedule:', updatedSchedule)
+    return updatedSchedule
+  })
+  
+  // Show success message
+  const staffMember = staff.find(s => s.id === staffId)
+  const shiftName = SHIFTS.find(s => s.id === shift)?.name || 'Shift'
+  const dayName = DAYS[day] || 'Day'
+  
+  if (staffMember) {
+    toast.success(`${staffMember.full_name} assigned to ${dayName} ${shiftName}`)
+    }
+  }
+
+  // Fix the remove assignment handler
+const handleRemoveAssignment = (assignmentId: string) => {
+  console.log('🗑️ Remove assignment called:', assignmentId)
+  console.log('📋 Current schedule before removal:', currentSchedule)
+  
+  setUnsavedChanges(true)
+  
+  if (!currentSchedule) {
+    console.warn('❌ No current schedule to remove from')
+    return
+  }
+  
+  // Find the assignment to get staff info for success message
+  const assignmentToRemove = currentSchedule.assignments?.find(a => a.id === assignmentId)
+  
+  setCurrentSchedule(prevSchedule => {
+    if (!prevSchedule) {
+      console.warn('⚠️ Previous schedule is null in remove setter')
+      return prevSchedule
+    }
+    
+    const updatedSchedule = {
+      ...prevSchedule,
+      assignments: prevSchedule.assignments?.filter(a => a.id !== assignmentId) || []
+    }
+    
+    console.log('✅ Schedule after removal:', updatedSchedule)
+    return updatedSchedule
+  })
+  
+  // Show success message
+  if (assignmentToRemove) {
+    const staffMember = staff.find(s => s.id === assignmentToRemove.staff_id)
+    if (staffMember) {
+      toast.success(`${staffMember.full_name} removed from schedule`)
+    }
+  }
+}
+
   const handleSmartGenerate = async (config) => {
+    console.log('Smart generate started with config:', config)
+    
+    if (!selectedFacility) {
+      console.error(' No facility selected')
+      toast.error('Please select a facility first')
+      return
+    }
+    
     try {
       const periodStart = getPeriodStart(currentDate, viewPeriod)
-      const result = await apiClient.generateSmartSchedule({
+      console.log(' Period start calculated:', periodStart)
+      
+      const requestData = {
         facility_id: selectedFacility.id,
         period_start: periodStart.toISOString().split('T')[0],
         period_type: viewPeriod,
         zones: selectedZones,
-        role_mapping: config.role_mapping,
+        role_mapping: config.role_mapping || {},
         use_constraints: config.use_constraints,
         ...config
-      })
+      }
       
-      setCurrentSchedule(result)
-      toast.success(`${viewPeriod.charAt(0).toUpperCase() + viewPeriod.slice(1)} schedule generated successfully!`)
-      await loadSchedules()
+      console.log(' Making API request:', requestData)
+      
+      const result = await apiClient.generateSmartSchedule(requestData)
+      console.log(' API response received:', result)
+      
+      // The API might be returning a different format than expected
+      // Let's handle different response formats
+      let scheduleData = null
+      
+      if (result && result.assignments) {
+        // If the result directly has assignments
+        scheduleData = {
+          id: result.schedule_id || `generated-${Date.now()}`,
+          facility_id: selectedFacility.id,
+          week_start: periodStart.toISOString().split('T')[0],
+          assignments: result.assignments,
+          created_at: new Date().toISOString(),
+          ...result
+        }
+      } else if (result && result.schedule_id) {
+        // If the result has a schedule_id, we might need to fetch the actual schedule
+        console.log('🔍 Result has schedule_id, fetching schedule details...')
+        try {
+          scheduleData = await apiClient.getSchedule(result.schedule_id)
+          console.log(' Fetched schedule details:', scheduleData)
+        } catch (fetchError) {
+          console.warn(' Could not fetch schedule details, using result directly')
+          scheduleData = result
+        }
+      } else {
+        // Use the result as-is
+        console.log(' Using result as schedule data')
+        scheduleData = result
+      }
+      
+      console.log(' Final schedule data to set:', scheduleData)
+      
+      // Update the current schedule state
+      setCurrentSchedule(scheduleData)
+      
+      // Mark as having unsaved changes if this is a temporary schedule
+      if (scheduleData && scheduleData.id && scheduleData.id.includes('temp')) {
+        setUnsavedChanges(true)
+      }
+      
+      // Show success message
+      const periodName = viewPeriod.charAt(0).toUpperCase() + viewPeriod.slice(1)
+      const assignmentCount = scheduleData?.assignments?.length || 0
+      
+      console.log(' Showing success toast')
+      toast.success(`${periodName} schedule generated successfully! ${assignmentCount} assignments created.`)
+      
+      // Optionally reload schedules to get the latest from backend
+      setTimeout(() => {
+        console.log(' Reloading schedules after generation')
+        loadSchedules()
+      }, 1000)
+      
     } catch (error) {
-      console.error('Failed to generate schedule:', error)
-      toast.error('Failed to generate schedule')
+      console.error(' Smart generate failed:', error)
+      
+      // Better error handling
+      let errorMessage = 'Failed to generate schedule'
+      
+      if (error.message?.includes('fetch')) {
+        errorMessage = 'Network error - check if backend is running'
+      } else if (error.message?.includes('404')) {
+        errorMessage = 'Smart scheduling endpoint not found'
+      } else if (error.message?.includes('422')) {
+        errorMessage = 'Invalid scheduling parameters'
+      } else if (error.message) {
+        errorMessage = `Generation failed: ${error.message}`
+      }
+      
+      console.log('🚨 Showing error toast:', errorMessage)
+      toast.error(errorMessage)
     }
   }
-
   const handleSaveSchedule = async () => {
     if (!currentSchedule) return
     
@@ -551,13 +791,10 @@ export default function SchedulePage() {
                   isManager={isManager}
                   draggedStaff={draggedStaff}
                   onAssignmentChange={(shift, staffId) => {
-                    setUnsavedChanges(true)
-                    console.log('Daily assignment change:', { shift, staffId })
+                  // For daily calendar, day is always 0
+                  handleAssignmentChange(0, shift, staffId)
                   }}
-                  onRemoveAssignment={(assignmentId) => {
-                    setUnsavedChanges(true)
-                    console.log('Remove assignment:', assignmentId)
-                  }}
+                  onRemoveAssignment={handleRemoveAssignment}
                 />
               )}
               
@@ -571,14 +808,8 @@ export default function SchedulePage() {
                   days={DAYS}
                   isManager={isManager}
                   draggedStaff={draggedStaff}
-                  onAssignmentChange={(day, shift, staffId) => {
-                    setUnsavedChanges(true)
-                    console.log('Weekly assignment change:', { day, shift, staffId })
-                  }}
-                  onRemoveAssignment={(assignmentId) => {
-                    setUnsavedChanges(true)
-                    console.log('Remove assignment:', assignmentId)
-                  }}
+                  onAssignmentChange={handleAssignmentChange}
+                  onRemoveAssignment={handleRemoveAssignment}
                 />
               )}
               

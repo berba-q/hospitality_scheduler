@@ -70,6 +70,9 @@ export function WeeklyCalendar({
   const handleDrop = (e: React.DragEvent, day: number, shift: number) => {
     e.preventDefault()
     
+    //DEBUG
+    console.log('Drop event triggered:', { day, shift, draggedStaff, isManager })
+
     if (!isManager || !draggedStaff) return
     
     // Check if staff is already assigned to this day
@@ -82,6 +85,8 @@ export function WeeklyCalendar({
       return
     }
     
+    //DEBUG
+    console.log(' Calling onAssignmentChange:', { day, shift, staffId: draggedStaff.id })
     onAssignmentChange(day, shift, draggedStaff.id)
     toast.success(`${draggedStaff.full_name} assigned to ${days[day]} ${shifts[shift].name}`)
   }
