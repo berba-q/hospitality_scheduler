@@ -55,6 +55,7 @@ export default function StaffPage() {
         apiClient.getStaff(),
         apiClient.getFacilities()
       ])
+
       setStaff(staffData)
       setFacilities(facilitiesData)
     } catch (error) {

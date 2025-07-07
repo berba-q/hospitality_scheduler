@@ -1,6 +1,7 @@
 'use client'
 // Staff table component to display and manage staff members
-import { useState } from 'react'
+
+import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Edit, Trash2, Phone, MapPin, Star } from 'lucide-react'
@@ -16,6 +17,16 @@ interface StaffTableProps {
 }
 
 export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
+  // DEBUG: Log each staff member's is_active value
+  console.log('StaffTable received staff:', staff)
+  staff.forEach((member: any) => {
+    console.log(`${member.full_name}:`, {
+      is_active: member.is_active,
+      type: typeof member.is_active,
+      raw_object: member
+    })
+  })
+
   const apiClient = useApiClient()
   const [editingStaff, setEditingStaff] = useState<any>(null)
   const [deletingStaff, setDeletingStaff] = useState<any>(null)
@@ -146,9 +157,12 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
 
                 {/* Status */}
                 <td className="p-4">
-                  <Badge variant={member.is_active ? 'default' : 'secondary'}>
-                    {member.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
+                  <div className="space-y-1">
+                    <Badge variant={member.is_active === true ? 'default' : 'secondary'}>
+                      {member.is_active === true ? 'Active' : 'Inactive'}
+                    </Badge>
+                    
+                  </div>
                 </td>
 
                 {/* Actions */}
