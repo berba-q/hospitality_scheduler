@@ -54,6 +54,19 @@ class StaffRead(StaffCreate):
     id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
+    
+class StaffUpdate(BaseModel):
+    full_name: Optional[str] = None
+    role: Optional[str] = None
+    skill_level: Optional[int] = None
+    phone: Optional[str] = None
+    facility_id: Optional[str] = None
+    weekly_hours_max: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class StaffDuplicateCheck(BaseModel):
+    full_name: str
+    facility_id: str
         
 class ShiftAssignmentRead(BaseModel):
     id: uuid.UUID
