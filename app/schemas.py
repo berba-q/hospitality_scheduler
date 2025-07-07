@@ -44,12 +44,19 @@ class FacilityRead(FacilityCreate):
 
 class StaffCreate(BaseModel):
     full_name: str
+    email: Optional[str] = None
     role: str
     skill_level: int = 1
     phone: Optional[str] = None
     facility_id: uuid.UUID
     weekly_hours_max: int = 40
     is_active: bool = True
+    
+    @validator('email')
+    def validate_email(cls, v):
+            if v and '@' not in v:
+                raise ValueError('Invalid email format')
+            return v
 
 
 class StaffRead(StaffCreate):

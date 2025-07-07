@@ -37,6 +37,7 @@ class Staff(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     facility_id: uuid.UUID = Field(foreign_key="facility.id")
     full_name: str
+    email: Optional[str] = None
     role: str
     skill_level: int | None = Field(default=1)
     weekly_hours_max: int | None = Field(default=40)

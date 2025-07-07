@@ -67,6 +67,7 @@ def seed():
             
             staff = Staff(
                 full_name=fake.name(),
+                email=fake.email(),
                 role=role,
                 skill_level=skill_level,
                 facility_id=facility.id,
