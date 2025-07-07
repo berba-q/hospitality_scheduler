@@ -32,7 +32,6 @@ class User(SQLModel, table=True):
 
     tenant: Tenant = Relationship(back_populates="managers")
 
-
 class Staff(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     facility_id: uuid.UUID = Field(foreign_key="facility.id")
@@ -77,7 +76,6 @@ class ShiftAssignment(SQLModel, table=True):
     staff_id: uuid.UUID = Field(foreign_key="staff.id")
 
     schedule: Schedule = Relationship(back_populates="assignments")
-
 
 # New constraint models
 class ScheduleConfig(SQLModel, table=True):
@@ -153,3 +151,49 @@ class SwapHistory(SQLModel, table=True):
     actor_staff_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staff.id")
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+# Schedule managment models
+class ZoneAssignment(SQLModel, table=True):
+    """Track which staff are assigned to which zones"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    schedule_id: uuid.UUID = Field(foreign_key="schedule.id")
+    staff_id: uuid.UUID = Field(foreign_key="staff.id")
+    zone_id: str  # Zone identifier (e.g., 'front-desk', 'kitchen', etc.)
+    day: int  # Day of the week (0-6)
+    shift: int  # Shift number (0-2)
+    priority: int = Field(default=1)  # Assignment priority
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Relationships
+    schedule: "Schedule" = Relationship()
+    staff: "Staff" = Relationship()
+
+class ScheduleTemplate(SQLModel, table=True):
+    """Store reusable schedule templates"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    facility_id: uuid.UUID = Field(foreign_key="facility.id")
+    name: str
+    description: Optional[str] = None
+    template_data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    tags: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    is_public: bool = Field(default=False)
+    created_by: uuid.UUID = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    used_count: int = Field(default=0)
+    
+    # Relationships
+    facility: "Facility" = Relationship()
+
+class ScheduleOptimization(SQLModel, table=True):
+    """Track schedule optimization requests and results"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    schedule_id: uuid.UUID = Field(foreign_key="schedule.id")
+    optimization_type: str  # 'smart', 'balanced', 'minimal', 'maximum'
+    parameters: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    results: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    status: str = Field(default="pending")  # pending, completed, failed
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[datetime] = None
+    
+    # Relationships
+    schedule: "Schedule" = Relationship()

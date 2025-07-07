@@ -58,7 +58,6 @@ class StaffCreate(BaseModel):
                 raise ValueError('Invalid email format')
             return v
 
-
 class StaffRead(StaffCreate):
     id: uuid.UUID
 
@@ -151,14 +150,6 @@ class PreviewRequestWithConfig(BaseModel):
     max_consecutive_days: Optional[int] = None
     require_manager_per_shift: Optional[bool] = None
     shift_role_requirements: Optional[Dict[str, Any]] = None
-
-class ScheduleValidationResult(BaseModel):
-    """Result of schedule validation"""
-    is_valid: bool
-    issues: List[str] = []
-    warnings: List[str] = []
-    staff_hours: Dict[str, int] = {}  # staff_id -> total_hours
-    constraint_violations: List[str] = []
     
 class StaffUnavailabilityCreate(BaseModel):
     start: datetime
@@ -330,3 +321,249 @@ class SwapHistoryRead(BaseModel):
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+    
+# Smart Scheduling Schemas
+class ZoneConfiguration(BaseModel):
+    zone_id: str
+    required_staff: Dict[str, int]  # {"min": 1, "max": 3}
+    assigned_roles: List[str]
+    priority: int = Field(ge=1, le=10)
+    coverage_hours: Dict[str, bool]  # {"morning": True, "afternoon": True, "evening": False}
+
+class SmartScheduleConfiguration(BaseModel):
+    facility_id: uuid.UUID
+    period_start: datetime
+    period_type: Literal['daily', 'weekly', 'monthly']
+    zones: List[str]
+    zone_assignments: Dict[str, ZoneConfiguration]
+    role_mapping: Dict[str, List[str]]  # role -> zones
+    use_constraints: bool = True
+    auto_assign_by_zone: bool = True
+    balance_workload: bool = True
+    prioritize_skill_match: bool = True
+    coverage_priority: Literal['minimal', 'balanced', 'maximum'] = 'balanced'
+    shift_preferences: Optional[Dict[str, float]] = None
+    total_days: Optional[int] = None
+    shifts_per_day: int = Field(default=3, ge=1, le=5)
+
+class ScheduleGenerationResult(BaseModel):
+    schedule_id: uuid.UUID
+    period_type: str
+    period_start: str
+    assignments: List[Dict[str, Any]]
+    zone_coverage: Dict[str, Any]
+    optimization_metrics: Dict[str, float]
+    success: bool
+    warnings: List[str] = []
+
+# Zone Management Schemas
+class ZoneAssignmentCreate(BaseModel):
+    schedule_id: uuid.UUID
+    zone_id: str
+    staff_id: uuid.UUID
+    day: int = Field(ge=0, le=6)
+    shift: int = Field(ge=0, le=4)
+    auto_balance: bool = False
+    priority: int = Field(default=1, ge=1, le=10)
+
+class ZoneAssignmentRead(BaseModel):
+    id: uuid.UUID
+    schedule_id: uuid.UUID
+    staff_id: uuid.UUID
+    zone_id: str
+    day: int
+    shift: int
+    priority: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class ZoneScheduleRead(BaseModel):
+    facility_id: uuid.UUID
+    zone_id: str
+    period_start: str
+    period_type: str
+    assignments: List[Dict[str, Any]]
+    summary: Dict[str, int]
+
+# Multi-period Schemas
+class DailyScheduleRead(BaseModel):
+    schedule_id: Optional[uuid.UUID] = None
+    facility_id: uuid.UUID
+    date: str
+    day_of_week: int
+    shifts: Dict[str, List[Dict[str, Any]]]  # shift_number -> staff assignments
+
+class MonthlyScheduleOverview(BaseModel):
+    facility_id: uuid.UUID
+    month: int
+    year: int
+    days: Dict[str, Dict[str, List[Dict[str, Any]]]]  # date -> shift -> staff
+    summary: Dict[str, Any]
+
+# Role Requirements Schemas
+class ShiftRequirement(BaseModel):
+    min_staff: int = Field(ge=1, le=20)
+    max_staff: Optional[int] = Field(None, ge=1, le=50)
+    required_roles: List[str] = []
+    min_skill_level: int = Field(default=1, ge=1, le=5)
+    preferred_roles: List[str] = []
+
+class ZoneRoleMapping(BaseModel):
+    zone_id: str
+    required_roles: List[str]
+    optional_roles: List[str] = []
+    min_skill_level: int = Field(default=1, ge=1, le=5)
+
+class RoleRequirementsRead(BaseModel):
+    facility_id: uuid.UUID
+    zone_role_mapping: Dict[str, List[str]]
+    shift_requirements: Dict[str, ShiftRequirement]
+    skill_requirements: Dict[str, int]
+    config_id: Optional[uuid.UUID] = None
+
+class RoleRequirementsUpdate(BaseModel):
+    zone_role_mapping: Dict[str, List[str]]
+    shift_requirements: Dict[str, ShiftRequirement]
+    skill_requirements: Dict[str, int]
+
+# Analytics Schemas
+class StaffUtilizationMetrics(BaseModel):
+    name: str
+    role: str
+    total_shifts: int
+    shifts_by_type: Dict[str, int]  # shift_number -> count
+    utilization_percentage: float
+    workload_score: float
+
+class WorkloadBalanceMetrics(BaseModel):
+    balance_score: float
+    average_shifts_per_staff: float
+    standard_deviation: float
+    most_utilized_staff: str
+    least_utilized_staff: str
+
+class CoverageMetrics(BaseModel):
+    coverage_percentage: float
+    total_days: int
+    days_with_assignments: int
+    shifts_per_day_average: float
+    peak_coverage_day: str
+    low_coverage_days: List[str]
+
+class ScheduleAnalytics(BaseModel):
+    facility_id: uuid.UUID
+    period: Dict[str, str]  # start and end dates
+    total_schedules: int
+    total_assignments: int
+    staff_utilization: Dict[str, StaffUtilizationMetrics]
+    shift_distribution: Dict[str, int]
+    role_distribution: Dict[str, int]
+    workload_balance: WorkloadBalanceMetrics
+    coverage_metrics: CoverageMetrics
+    efficiency_score: float
+    recommendations: List[str] = []
+
+# Schedule Template Schemas
+class ScheduleTemplateCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+    tags: List[str] = []
+    is_public: bool = False
+
+class ScheduleTemplateRead(BaseModel):
+    id: uuid.UUID
+    facility_id: uuid.UUID
+    name: str
+    description: Optional[str]
+    tags: List[str]
+    is_public: bool
+    created_by: uuid.UUID
+    created_at: datetime
+    used_count: int
+    
+    class Config:
+        from_attributes = True
+
+class ScheduleCopyRequest(BaseModel):
+    target_facility_id: Optional[uuid.UUID] = None
+    target_start_date: date
+    period_type: Literal['daily', 'weekly', 'monthly']
+    adapt_staff: bool = True
+    include_unavailability: bool = True
+
+# Optimization Schemas
+class OptimizationGoal(BaseModel):
+    goal_type: Literal['minimize_overtime', 'balance_workload', 'maximize_coverage', 'respect_preferences']
+    weight: float = Field(ge=0.0, le=1.0)
+    parameters: Dict[str, Any] = {}
+
+class ScheduleOptimizationRequest(BaseModel):
+    optimization_goals: List[OptimizationGoal]
+    constraints: Dict[str, Any] = {}
+    preserve_assignments: List[uuid.UUID] = []  # Assignment IDs to keep unchanged
+    max_iterations: int = Field(default=100, ge=1, le=1000)
+
+class OptimizationResult(BaseModel):
+    success: bool
+    iterations_used: int
+    improvement_score: float
+    changes_made: int
+    preserved_assignments: int
+    new_schedule_id: Optional[uuid.UUID] = None
+    metrics_before: Dict[str, float]
+    metrics_after: Dict[str, float]
+    recommendations: List[str] = []
+
+# Export Schemas
+class ScheduleExportOptions(BaseModel):
+    include_staff_details: bool = True
+    include_contact_info: bool = False
+    group_by: Literal['day', 'staff', 'zone'] = 'day'
+    date_format: str = 'YYYY-MM-DD'
+    include_zone_assignments: bool = True
+    include_skill_levels: bool = True
+
+class ScheduleExportRequest(BaseModel):
+    format: Literal['pdf', 'excel', 'csv']
+    options: ScheduleExportOptions
+
+# Validation Schemas
+class ConstraintViolation(BaseModel):
+    violation_type: str
+    severity: Literal['error', 'warning', 'info']
+    staff_id: Optional[uuid.UUID] = None
+    staff_name: Optional[str] = None
+    day: Optional[int] = None
+    shift: Optional[int] = None
+    message: str
+    suggested_fix: Optional[str] = None
+
+class ScheduleValidationResult(BaseModel):
+    is_valid: bool
+    overall_score: float  # 0-100
+    violations: List[ConstraintViolation]
+    summary: Dict[str, int]  # violation_type -> count
+    recommendations: List[str]
+    
+# Conflict Detection Schemas
+class SchedulingConflict(BaseModel):
+    conflict_type: str  # 'double_booking', 'unavailable', 'overtime', 'skill_mismatch'
+    severity: Literal['critical', 'major', 'minor']
+    staff_id: uuid.UUID
+    staff_name: str
+    day: int
+    shift: int
+    message: str
+    auto_resolvable: bool = False
+    resolution_suggestions: List[str] = []
+
+class ConflictCheckResult(BaseModel):
+    facility_id: uuid.UUID
+    week_start: str
+    has_conflicts: bool
+    conflicts: List[SchedulingConflict]
+    existing_schedule_id: Optional[uuid.UUID] = None
+    total_assignments: int
+    conflicted_assignments: int

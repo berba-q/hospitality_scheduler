@@ -64,7 +64,8 @@ export function WeeklyCalendar({
     if (!schedule?.assignments) return []
     return schedule.assignments.filter(a => a.day === day && a.shift === shift)
   }
-
+  //DEBUG
+  console.log('WeeklyCalendar props:', { schedule, staff, shifts, days })
   // Handle drop event
   const handleDrop = (e: React.DragEvent, day: number, shift: number) => {
     e.preventDefault()
@@ -135,7 +136,7 @@ export function WeeklyCalendar({
                 <span className="text-sm font-medium text-gray-600">Shift / Day</span>
               </div>
               {days.map((day, index) => (
-                <div key={day} className="p-4 border-r border-gray-200 text-center">
+                <div key={`header-${day}-${index}`} className="p-4 border-r border-gray-200 text-center">
                   <div className="font-medium text-gray-900">{day}</div>
                   <div className="text-sm text-gray-500">
                     {formatDate(index)}
@@ -146,7 +147,7 @@ export function WeeklyCalendar({
 
             {/* Schedule Grid */}
             {shifts.map((shift) => (
-              <div key={shift.id} className="grid grid-cols-8 border-b border-gray-100">
+              <div key={`shift-${shift.id}`} className="grid grid-cols-8 border-b border-gray-100">
                 {/* Shift Header */}
                 <div className={`p-4 border-r border-gray-200 ${shift.color} border-l-4`}>
                   <div className="font-medium">{shift.name}</div>
@@ -160,7 +161,7 @@ export function WeeklyCalendar({
                   
                   return (
                     <div
-                      key={`${dayIndex}-${shift.id}`}
+                      key={`day-${shift.id}-${dayIndex}`}
                       className={`p-2 border-r border-gray-200 min-h-[120px] transition-all duration-200 ${
                         isManager ? 'cursor-pointer hover:bg-blue-50' : ''
                       } ${isSelected ? 'bg-blue-100 ring-2 ring-blue-300' : ''} ${
@@ -172,7 +173,10 @@ export function WeeklyCalendar({
                     >
                       <div className="space-y-2">
                         {assignments.length === 0 ? (
-                          <div className="flex items-center justify-center h-full">
+                          <div 
+                            key={`empty-${shift.id}-${dayIndex}`}
+                            className="flex items-center justify-center h-full"
+                          >
                             {isManager ? (
                               <div className="text-center">
                                 <Plus className="w-6 h-6 text-gray-300 mx-auto mb-1" />
@@ -185,13 +189,24 @@ export function WeeklyCalendar({
                             )}
                           </div>
                         ) : (
-                          assignments.map((assignment) => {
+                          assignments.map((assignment, assignmentIndex) => {
                             const staffMember = getStaffMember(assignment.staff_id)
-                            if (!staffMember) return null
-
+                            
+                            if (!staffMember) {
+                              console.warn(`Staff member not found for assignment ${assignment.id}`)
+                              return (
+                                <div 
+                                  key={`missing-${assignment.id}-${assignmentIndex}`} 
+                                  className="text-xs text-red-500 p-1 border border-red-200 rounded"
+                                >
+                                  ⚠ Staff not found (ID: {assignment.staff_id})
+                                </div>
+                              )
+                            }
+                            
                             return (
                               <div
-                                key={assignment.id}
+                                key={`assignment-${assignment.id}-${assignmentIndex}`}
                                 className={`p-2 rounded-lg border ${getRoleColor(staffMember.role)} 
                                   hover:shadow-md transition-all duration-200 group relative`}
                               >
@@ -225,8 +240,8 @@ export function WeeklyCalendar({
                                   <div className="flex items-center justify-between">
                                     <span className="text-xs opacity-75">{staffMember.role}</span>
                                     <div className="flex items-center gap-0.5">
-                                      {Array.from({ length: staffMember.skill_level }, (_, i) => (
-                                        <Star key={i} className="w-2.5 h-2.5 fill-current" />
+                                      {Array.from({ length: staffMember.skill_level }, (_, starIndex) => (
+                                        <Star key={`star-${assignment.id}-${starIndex}`} className="w-2.5 h-2.5 fill-current" />
                                       ))}
                                     </div>
                                   </div>

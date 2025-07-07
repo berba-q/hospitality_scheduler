@@ -543,6 +543,7 @@ export default function SchedulePage() {
             <div className={showStaffPanel ? 'lg:col-span-3' : 'lg:col-span-4'}>
               {viewPeriod === 'daily' && (
                 <DailyCalendar
+                  key={`daily-${currentDate.getTime()}`}
                   currentDate={currentDate}
                   schedule={currentSchedule}
                   staff={facilityStaff}
@@ -562,6 +563,7 @@ export default function SchedulePage() {
               
               {viewPeriod === 'weekly' && (
                 <WeeklyCalendar
+                  key={`weekly-${currentDate.getTime()}`} 
                   currentWeek={getPeriodStart(currentDate, 'weekly')}
                   schedule={currentSchedule}
                   staff={facilityStaff}
@@ -582,6 +584,7 @@ export default function SchedulePage() {
               
               {viewPeriod === 'monthly' && (
                 <MonthlyCalendar
+                  key={`monthly-${getPeriodStart(currentDate, 'monthly').getTime()}`}
                   currentMonth={getPeriodStart(currentDate, 'monthly')}
                   schedules={schedules}
                   staff={facilityStaff}
