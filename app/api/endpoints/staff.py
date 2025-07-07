@@ -30,6 +30,7 @@ def list_staff(db: Session = Depends(get_db), current_user = Depends(get_current
         .join(Facility)
         .where(Facility.tenant_id == current_user.tenant_id)
     )
+    #staff_list = db.exec(statement).all()
     return db.exec(statement).all()
 
 @router.put("/{staff_id}", response_model=StaffRead)

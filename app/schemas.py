@@ -48,6 +48,8 @@ class StaffCreate(BaseModel):
     skill_level: int = 1
     phone: Optional[str] = None
     facility_id: uuid.UUID
+    weekly_hours_max: int = 40
+    is_active: bool = True
 
 
 class StaffRead(StaffCreate):
