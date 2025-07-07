@@ -1,13 +1,12 @@
 'use client'
-// Modal to edit staff member details
-
+// Edit staff modal component
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Star, User, MapPin, Phone, Clock } from 'lucide-react'
+import { Star, User, MapPin, Phone, Clock, Save } from 'lucide-react'
 import { useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
 
@@ -28,6 +27,7 @@ const COMMON_ROLES = [
 export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: EditStaffModalProps) {
   const apiClient = useApiClient()
   const [loading, setLoading] = useState(false)
+  const [originalData, setOriginalData] = useState<any>(null)
   const [formData, setFormData] = useState({
     full_name: '',
     role: '',
@@ -41,7 +41,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
   // Populate form when staff changes
   useEffect(() => {
     if (staff) {
-      setFormData({
+      const data = {
         full_name: staff.full_name || '',
         role: staff.role || '',
         skill_level: staff.skill_level || 3,
@@ -49,9 +49,14 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
         facility_id: staff.facility_id || '',
         weekly_hours_max: staff.weekly_hours_max || 40,
         is_active: staff.is_active !== false
-      })
+      }
+      setFormData(data)
+      setOriginalData(data) // Store original data for comparison
     }
   }, [staff])
+
+  // Check if form has been modified
+  const hasChanges = originalData && JSON.stringify(formData) !== JSON.stringify(originalData)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,8 +66,23 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
       return
     }
 
+    if (!hasChanges) {
+      toast.info('No changes to save')
+      return
+    }
+
     setLoading(true)
     try {
+      // Check for duplicates if name or facility changed
+      if (formData.full_name !== originalData.full_name || formData.facility_id !== originalData.facility_id) {
+        const duplicateCheck = await apiClient.checkStaffExists(formData.full_name, formData.facility_id)
+        if (duplicateCheck.exists) {
+          toast.error(`A staff member named "${formData.full_name}" already exists at this facility`)
+          setLoading(false)
+          return
+        }
+      }
+
       // Update staff via API
       await apiClient.updateStaff(staff.id, formData)
       toast.success(`${formData.full_name} updated successfully!`)
@@ -126,7 +146,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
             <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
               <User className="w-4 h-4 text-white" />
             </div>
-            Edit Staff Member
+            Edit {staff.full_name}
           </DialogTitle>
         </DialogHeader>
 
@@ -260,8 +280,18 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
             </div>
           </div>
 
+          {/* Change indicator */}
+          {hasChanges && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-blue-800">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium">You have unsaved changes</span>
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-4 border-t">
             <Button
               type="button"
               variant="outline"
@@ -273,8 +303,12 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
             </Button>
             <Button
               type="submit"
-              disabled={loading}
-              className="flex-1 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+              disabled={loading || !hasChanges}
+              className={`flex-1 transition-all duration-200 ${
+                hasChanges 
+                  ? 'bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 shadow-lg' 
+                  : 'bg-gray-300 cursor-not-allowed'
+              }`}
             >
               {loading ? (
                 <div className="flex items-center gap-2">
@@ -282,7 +316,10 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
                   Updating...
                 </div>
               ) : (
-                'Update Staff Member'
+                <div className="flex items-center gap-2">
+                  <Save className="w-4 h-4" />
+                  {hasChanges ? 'Save Changes' : 'No Changes'}
+                </div>
               )}
             </Button>
           </div>
