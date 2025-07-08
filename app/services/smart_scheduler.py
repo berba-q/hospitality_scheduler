@@ -100,17 +100,23 @@ class SmartScheduler:
     
     def _calculate_total_days(self, period_type: str, total_days: Optional[int]) -> int:
         """Calculate total days based on period type"""
+        print(f" Calculating total days: period_type={period_type}, total_days={total_days}")
+        
         if total_days:
+            print(f" Using provided total_days: {total_days}")
             return total_days
         
         if period_type == 'daily':
-            return 1
+            result = 1
         elif period_type == 'weekly':
-            return 7
+            result = 7
         elif period_type == 'monthly':
-            return 30  # Approximate
+            result = 30
         else:
-            return 7  # Default to weekly
+            result = 7  # Default to weekly
+        
+        print(f" Calculated total_days: {result} for period_type: {period_type}")
+        return result
     
     def _generate_initial_assignments(
         self, 
@@ -139,35 +145,54 @@ class SmartScheduler:
     ) -> List[Dict[str, Any]]:
         """Assign staff to a specific shift across zones"""
         shift_assignments = []
-        available_staff = self.staff_pool.copy()
+        
+        # DON'T remove staff from available pool within the same shift
+        # Staff can work multiple zones in the same shift if needed
         
         # Sort zones by priority
         sorted_zones = self._sort_zones_by_priority(zones, config)
         
+        # Track staff assignments for this specific shift to avoid double-booking
+        # within the same shift (but allow them to work other shifts)
+        shift_staff_assignments = {}
+        
         for zone_id in sorted_zones:
-            # Get ZoneConfiguration object (not dict!)
+            # Get ZoneConfiguration object
             zone_config = config.zone_assignments.get(zone_id)
             
             if not zone_config:
                 continue
                 
-            # Access Pydantic model attributes directly (not .get()!)
-            required_staff = zone_config.required_staff  # This is already a dict
-            assigned_roles = zone_config.assigned_roles  # This is already a list
+            # Access Pydantic model attributes directly
+            required_staff = zone_config.required_staff  # {"min": 1, "max": 2}
+            assigned_roles = zone_config.assigned_roles  # List of allowed roles
             
-            # Filter staff by role if specified
+            # Filter staff by role for this zone
             zone_staff = self._filter_staff_by_role(
-                available_staff, assigned_roles, config.role_mapping.get(zone_id, [])
+                self.staff_pool, assigned_roles, config.role_mapping.get(zone_id, [])
             )
             
-            # Select optimal staff for this zone
+            if not zone_staff:
+                continue
+            
+            # Select optimal staff for this zone, avoiding double-booking in the same shift
+            available_for_zone = [
+                s for s in zone_staff 
+                if str(s.id) not in shift_staff_assignments
+            ]
+            
+            if not available_for_zone:
+                # If all zone staff are busy, allow overlap for critical zones
+                # or use any available staff from the zone
+                available_for_zone = zone_staff
+            
             selected_staff = self._select_optimal_staff_for_zone(
-                zone_staff, required_staff, shift, day, config
+                available_for_zone, required_staff, shift, day, config
             )
             
             # Create assignments
             for staff_member in selected_staff:
-                shift_assignments.append({
+                assignment = {
                     "day": day,
                     "shift": shift,
                     "staff_id": str(staff_member.id),
@@ -175,11 +200,11 @@ class SmartScheduler:
                     "staff_name": staff_member.full_name,
                     "staff_role": staff_member.role,
                     "skill_level": staff_member.skill_level
-                })
+                }
+                shift_assignments.append(assignment)
                 
-                # Remove from available staff to avoid double booking
-                if staff_member in available_staff:
-                    available_staff.remove(staff_member)
+                # Track that this staff member is assigned in this shift
+                shift_staff_assignments[str(staff_member.id)] = zone_id
         
         return shift_assignments
     
@@ -226,28 +251,33 @@ class SmartScheduler:
         day: int,
         config: SmartScheduleConfiguration
     ) -> List[Staff]:
-        """Select optimal staff for a zone based on various criteria"""
+        """Select optimal staff for a zone, respecting min/max requirements"""
+        
         if not zone_staff:
             return []
         
         min_staff = required_staff.get('min', 1)
-        max_staff = required_staff.get('max', len(zone_staff))
+        max_staff = required_staff.get('max', 2)
         
-        # Apply selection criteria
-        scored_staff = []
+        # Ensure we don't exceed available staff
+        max_staff = min(max_staff, len(zone_staff))
+        min_staff = min(min_staff, len(zone_staff))
         
-        for staff_member in zone_staff:
-            score = self._calculate_staff_score(
-                staff_member, shift, day, config
-            )
-            scored_staff.append((staff_member, score))
+        # For better distribution, sort by skill level and current workload
+        # In a more sophisticated version, you'd track actual workload
+        sorted_staff = sorted(zone_staff, key=lambda s: s.skill_level, reverse=True)
         
-        # Sort by score (higher is better)
-        scored_staff.sort(key=lambda x: x[1], reverse=True)
+        # Select between min and max staff
+        if config.coverage_priority == 'maximum':
+            selected_count = max_staff
+        elif config.coverage_priority == 'minimal':
+            selected_count = min_staff
+        else:  # balanced
+            selected_count = min(max_staff, max(min_staff, len(zone_staff) // 2))
         
-        # Select staff based on requirements
-        selected_count = min(max_staff, max(min_staff, len(scored_staff)))
-        return [staff for staff, _ in scored_staff[:selected_count]]
+        selected_count = max(min_staff, min(selected_count, len(sorted_staff)))
+        
+        return sorted_staff[:selected_count]
     
     def _calculate_staff_score(
         self, 
