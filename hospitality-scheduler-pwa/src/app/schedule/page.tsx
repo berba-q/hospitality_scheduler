@@ -160,16 +160,16 @@ export default function SchedulePage() {
     console.log('🔄 loadSchedules called')
     
     if (!selectedFacility) {
-      console.log('❌ No facility selected, skipping schedule load')
+      console.log(' No facility selected, skipping schedule load')
       return
     }
     
     try {
-      console.log('📡 Loading schedules for facility:', selectedFacility.id)
+      console.log(' Loading schedules for facility:', selectedFacility.id)
       
       const schedulesData = await apiClient.getFacilitySchedules(selectedFacility.id)
-      console.log('📥 Schedules loaded:', schedulesData)
-      
+      console.log(' Schedules loaded:', schedulesData)
+
       setSchedules(schedulesData)
       
       // Check if we're accidentally resetting currentSchedule here
@@ -185,16 +185,24 @@ export default function SchedulePage() {
       
       console.log('🎯 Found schedule for current period:', currentPeriodSchedule)
       
-      // Only update if we don't have unsaved changes
-      if (!unsavedChanges) {
-        console.log('💾 Setting current schedule (no unsaved changes)')
+      // Only update if we don't have unsaved changes AND we don't already have a current schedule
+      // This prevents overwriting generated schedules that haven't been saved yet
+      if (!unsavedChanges && !currentSchedule) {
+        console.log(' Setting current schedule (no unsaved changes and no current schedule)')
         setCurrentSchedule(currentPeriodSchedule || null)
+      } else if (!unsavedChanges && currentSchedule) {
+        console.log(' Current schedule exists, checking if we should update with saved version')
+        // Only update if the found schedule is different from current (e.g., if it was saved)
+        if (currentPeriodSchedule && currentPeriodSchedule.id !== currentSchedule.id) {
+          console.log('Updating with saved schedule version')
+          setCurrentSchedule(currentPeriodSchedule)
+        }
       } else {
-        console.log('⚠️ Skipping schedule update - unsaved changes exist')
+        console.log(' Skipping schedule update - unsaved changes exist or current schedule exists')
       }
       
     } catch (error) {
-      console.error('💥 Failed to load schedules:', error)
+      console.error(' Failed to load schedules:', error)
       setSchedules([])
     }
   }
@@ -417,11 +425,12 @@ const handleRemoveAssignment = (assignmentId: string) => {
       if (result && result.assignments) {
         // If the result directly has assignments
         scheduleData = {
-          id: result.schedule_id || `generated-${Date.now()}`,
+          id: result.schedule_id || `temp-generated-${Date.now()}`,
           facility_id: selectedFacility.id,
           week_start: periodStart.toISOString().split('T')[0],
           assignments: result.assignments,
           created_at: new Date().toISOString(),
+          is_generated: true, // Mark as generated schedule
           ...result
         }
       } else if (result && result.schedule_id) {
@@ -429,15 +438,26 @@ const handleRemoveAssignment = (assignmentId: string) => {
         console.log('🔍 Result has schedule_id, fetching schedule details...')
         try {
           scheduleData = await apiClient.getSchedule(result.schedule_id)
+          scheduleData.is_generated = true // Mark as generated
           console.log(' Fetched schedule details:', scheduleData)
         } catch (fetchError) {
           console.warn(' Could not fetch schedule details, using result directly')
-          scheduleData = result
+          scheduleData = {
+            ...result,
+            is_generated: true,
+            id: result.schedule_id || `temp-generated-${Date.now()}`
+          }
         }
       } else {
         // Use the result as-is
         console.log(' Using result as schedule data')
-        scheduleData = result
+        scheduleData = {
+          ...result,
+          id: `temp-generated-${Date.now()}`,
+          facility_id: selectedFacility.id,
+          week_start: periodStart.toISOString().split('T')[0],
+          is_generated: true
+        }
       }
       
       console.log(' Final schedule data to set:', scheduleData)
@@ -445,23 +465,17 @@ const handleRemoveAssignment = (assignmentId: string) => {
       // Update the current schedule state
       setCurrentSchedule(scheduleData)
       
-      // Mark as having unsaved changes if this is a temporary schedule
-      if (scheduleData && scheduleData.id && scheduleData.id.includes('temp')) {
-        setUnsavedChanges(true)
-      }
+      // Always mark as having unsaved changes for generated schedules
+      // This ensures the save button appears
+      setUnsavedChanges(true)
+      console.log('✅ Marked as unsaved changes - save button should appear')
       
       // Show success message
       const periodName = viewPeriod.charAt(0).toUpperCase() + viewPeriod.slice(1)
       const assignmentCount = scheduleData?.assignments?.length || 0
       
       console.log(' Showing success toast')
-      toast.success(`${periodName} schedule generated successfully! ${assignmentCount} assignments created.`)
-      
-      // Optionally reload schedules to get the latest from backend
-      setTimeout(() => {
-        console.log(' Reloading schedules after generation')
-        loadSchedules()
-      }, 1000)
+      toast.success(`${periodName} schedule generated successfully! ${assignmentCount} assignments created. Click "Save Changes" to persist.`)
       
     } catch (error) {
       console.error(' Smart generate failed:', error)
@@ -483,16 +497,69 @@ const handleRemoveAssignment = (assignmentId: string) => {
       toast.error(errorMessage)
     }
   }
+  // Save schedule changes
   const handleSaveSchedule = async () => {
-    if (!currentSchedule) return
+    if (!currentSchedule) {
+      toast.error('No schedule to save')
+      return
+    }
     
     try {
-      // Save schedule changes
-      toast.success('Schedule saved successfully!')
+      console.log('💾 Saving schedule:', currentSchedule)
+      
+      let savedSchedule
+      
+      // Check if this is a new/generated schedule (temp ID or no real ID from backend)
+      const isNewSchedule = !currentSchedule.id || 
+                          currentSchedule.id.includes('temp') || 
+                          currentSchedule.id.includes('generated') ||
+                          currentSchedule.is_generated
+      
+      if (isNewSchedule) {
+        console.log('📝 Creating new schedule')
+        
+        // Create new schedule
+        const scheduleToSave = {
+          facility_id: currentSchedule.facility_id,
+          week_start: currentSchedule.week_start,
+          assignments: currentSchedule.assignments || []
+        }
+        
+        savedSchedule = await apiClient.createSchedule(scheduleToSave)
+        console.log('✅ New schedule created:', savedSchedule)
+        
+      } else {
+        console.log('📝 Updating existing schedule')
+        
+        // Update existing schedule
+        savedSchedule = await apiClient.updateSchedule(currentSchedule.id, {
+          assignments: currentSchedule.assignments || []
+        })
+        console.log('✅ Schedule updated:', savedSchedule)
+      }
+      
+      // Update the current schedule with the saved version
+      setCurrentSchedule(savedSchedule)
       setUnsavedChanges(false)
+      
+      // Reload schedules to get the latest data
+      await loadSchedules()
+      
+      toast.success('Schedule saved successfully!')
+      
     } catch (error) {
-      console.error('Failed to save schedule:', error)
-      toast.error('Failed to save schedule')
+      console.error('💥 Failed to save schedule:', error)
+      
+      let errorMessage = 'Failed to save schedule'
+      if (error.message?.includes('404')) {
+        errorMessage = 'Schedule save endpoint not found'
+      } else if (error.message?.includes('422')) {
+        errorMessage = 'Invalid schedule data'
+      } else if (error.message) {
+        errorMessage = `Save failed: ${error.message}`
+      }
+      
+      toast.error(errorMessage)
     }
   }
 
