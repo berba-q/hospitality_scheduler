@@ -1515,3 +1515,133 @@ def check_scheduling_conflicts(
         "conflicts": conflicts,
         "existing_schedule_id": existing_schedule.id if existing_schedule else None
     }
+    
+# Add these endpoints to your app/api/endpoints/schedule.py
+
+@router.post("/create")
+async def create_schedule(
+    request: dict,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Create a new schedule from scratch or from generated data"""
+    
+    facility_id = request.get('facility_id')
+    week_start = request.get('week_start')
+    assignments = request.get('assignments', [])
+    
+    # Verify facility access
+    facility = db.get(Facility, facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Invalid facility")
+    
+    try:
+        # Parse week_start date
+        week_start_date = datetime.fromisoformat(week_start).date()
+        
+        # Create new schedule
+        schedule = Schedule(
+            facility_id=UUID(facility_id),
+            week_start=week_start_date
+        )
+        db.add(schedule)
+        db.commit()
+        db.refresh(schedule)
+        
+        # Save assignments
+        saved_assignments = []
+        for assignment_data in assignments:
+            assignment = ShiftAssignment(
+                schedule_id=schedule.id,
+                day=assignment_data.get('day', 0),
+                shift=assignment_data.get('shift', 0),
+                staff_id=UUID(assignment_data['staff_id'])
+            )
+            db.add(assignment)
+            saved_assignments.append({
+                'id': f"{schedule.id}-{assignment.day}-{assignment.shift}-{assignment.staff_id}",
+                'day': assignment.day,
+                'shift': assignment.shift,
+                'staff_id': str(assignment.staff_id),
+                'schedule_id': str(schedule.id)
+            })
+        
+        db.commit()
+        
+        return {
+            "id": str(schedule.id),
+            "facility_id": str(schedule.facility_id),
+            "week_start": schedule.week_start.isoformat(),
+            "assignments": saved_assignments,
+            "created_at": schedule.created_at.isoformat() if schedule.created_at else None,
+            "success": True
+        }
+        
+    except Exception as e:
+        print(f"Failed to create schedule: {str(e)}")
+        raise HTTPException(status_code=422, detail=f"Schedule creation failed: {str(e)}")
+
+@router.put("/{schedule_id}")
+async def update_schedule(
+    schedule_id: UUID,
+    request: dict,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Update an existing schedule"""
+    
+    # Get existing schedule
+    schedule = db.get(Schedule, schedule_id)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    
+    # Verify facility access
+    facility = db.get(Facility, schedule.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Invalid facility")
+    
+    try:
+        assignments = request.get('assignments', [])
+        
+        # Delete existing assignments
+        db.exec(
+            select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule_id)
+        ).all()
+        for assignment in db.exec(
+            select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule_id)
+        ).all():
+            db.delete(assignment)
+        
+        # Add new assignments
+        saved_assignments = []
+        for assignment_data in assignments:
+            assignment = ShiftAssignment(
+                schedule_id=schedule.id,
+                day=assignment_data.get('day', 0),
+                shift=assignment_data.get('shift', 0),
+                staff_id=UUID(assignment_data['staff_id'])
+            )
+            db.add(assignment)
+            saved_assignments.append({
+                'id': f"{schedule.id}-{assignment.day}-{assignment.shift}-{assignment.staff_id}",
+                'day': assignment.day,
+                'shift': assignment.shift,
+                'staff_id': str(assignment.staff_id),
+                'schedule_id': str(schedule.id)
+            })
+        
+        db.commit()
+        db.refresh(schedule)
+        
+        return {
+            "id": str(schedule.id),
+            "facility_id": str(schedule.facility_id),
+            "week_start": schedule.week_start.isoformat(),
+            "assignments": saved_assignments,
+            "updated_at": datetime.now().isoformat(),
+            "success": True
+        }
+        
+    except Exception as e:
+        print(f"Failed to update schedule: {str(e)}")
+        raise HTTPException(status_code=422, detail=f"Schedule update failed: {str(e)}")

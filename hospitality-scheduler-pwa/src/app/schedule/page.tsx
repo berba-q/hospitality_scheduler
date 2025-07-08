@@ -156,6 +156,26 @@ export default function SchedulePage() {
     }
   }, [selectedFacility, currentDate, viewPeriod])
 
+    // normalise data returned from API
+  const normalizeAssignments = (assignments: any[]): any[] => {
+    if (!assignments) return []
+    
+    return assignments.map((assignment, index) => {
+      // Ensure consistent format
+      return {
+        id: assignment.id || `assignment-${assignment.schedule_id || 'temp'}-${assignment.day}-${assignment.shift}-${assignment.staff_id}-${index}`,
+        day: Number(assignment.day),
+        shift: Number(assignment.shift),
+        staff_id: String(assignment.staff_id),
+        // Include any other fields that might be present
+        schedule_id: assignment.schedule_id,
+        zone_id: assignment.zone_id,
+        staff_name: assignment.staff_name,
+        staff_role: assignment.staff_role
+      }
+    })
+  }
+
   const loadSchedules = async () => {
     console.log('🔄 loadSchedules called')
     
@@ -168,42 +188,58 @@ export default function SchedulePage() {
       console.log(' Loading schedules for facility:', selectedFacility.id)
       
       const schedulesData = await apiClient.getFacilitySchedules(selectedFacility.id)
-      console.log(' Schedules loaded:', schedulesData)
-
-      setSchedules(schedulesData)
+      console.log(' Raw schedules loaded:', schedulesData)
       
-      // Check if we're accidentally resetting currentSchedule here
-      console.log('🔍 Current schedule before potential reset:', currentSchedule)
-      console.log('🔍 Unsaved changes:', unsavedChanges)
+      // NORMALIZE ASSIGNMENTS: Ensure all schedules have properly formatted assignments
+      const normalizedSchedules = schedulesData.map(schedule => ({
+        ...schedule,
+        assignments: normalizeAssignments(schedule.assignments || [])
+      }))
+      
+      console.log(' Normalized schedules:', normalizedSchedules)
+      
+      setSchedules(normalizedSchedules)
       
       // Find current period schedule
       const periodStart = getPeriodStart(currentDate, viewPeriod)
-      const currentPeriodSchedule = schedulesData.find(s => {
+      const currentPeriodSchedule = normalizedSchedules.find(s => {
         const scheduleDate = new Date(s.week_start)
         return scheduleDate.toDateString() === periodStart.toDateString()
       })
       
       console.log('🎯 Found schedule for current period:', currentPeriodSchedule)
+      console.log('🔍 Current date:', currentDate.toDateString())
+      console.log('🔍 Period start:', periodStart.toDateString())
+      console.log('🔍 Available schedules:', normalizedSchedules.map(s => ({ 
+        id: s.id, 
+        week_start: s.week_start,
+        assignments_count: s.assignments?.length || 0 
+      })))
       
-      // Only update if we don't have unsaved changes AND we don't already have a current schedule
-      // This prevents overwriting generated schedules that haven't been saved yet
-      if (!unsavedChanges && !currentSchedule) {
-        console.log(' Setting current schedule (no unsaved changes and no current schedule)')
+      // FIXED LOGIC: Always update the current schedule based on the period
+      // Only skip if we have unsaved changes to prevent losing user work
+      if (!unsavedChanges) {
+        console.log(' Setting current schedule (no unsaved changes)')
         setCurrentSchedule(currentPeriodSchedule || null)
-      } else if (!unsavedChanges && currentSchedule) {
-        console.log(' Current schedule exists, checking if we should update with saved version')
-        // Only update if the found schedule is different from current (e.g., if it was saved)
-        if (currentPeriodSchedule && currentPeriodSchedule.id !== currentSchedule.id) {
-          console.log('Updating with saved schedule version')
-          setCurrentSchedule(currentPeriodSchedule)
+        
+        if (currentPeriodSchedule) {
+          console.log('✅ Schedule loaded for current period:', currentPeriodSchedule.id)
+          console.log('📋 Assignments loaded:', currentPeriodSchedule.assignments)
+        } else {
+          console.log('📝 No schedule found for current period - creating empty state')
         }
       } else {
-        console.log(' Skipping schedule update - unsaved changes exist or current schedule exists')
+        console.log('⚠️ Skipping schedule update - unsaved changes exist')
       }
       
     } catch (error) {
       console.error(' Failed to load schedules:', error)
       setSchedules([])
+      
+      // Only clear current schedule if we don't have unsaved changes
+      if (!unsavedChanges) {
+        setCurrentSchedule(null)
+      }
     }
   }
 
@@ -353,13 +389,13 @@ export default function SchedulePage() {
 
   // Fix the remove assignment handler
 const handleRemoveAssignment = (assignmentId: string) => {
-  console.log('🗑️ Remove assignment called:', assignmentId)
-  console.log('📋 Current schedule before removal:', currentSchedule)
+  console.log('Remove assignment called:', assignmentId)
+  console.log(' Current schedule before removal:', currentSchedule)
   
   setUnsavedChanges(true)
   
   if (!currentSchedule) {
-    console.warn('❌ No current schedule to remove from')
+    console.warn(' No current schedule to remove from')
     return
   }
   
@@ -368,7 +404,7 @@ const handleRemoveAssignment = (assignmentId: string) => {
   
   setCurrentSchedule(prevSchedule => {
     if (!prevSchedule) {
-      console.warn('⚠️ Previous schedule is null in remove setter')
+      console.warn(' Previous schedule is null in remove setter')
       return prevSchedule
     }
     
@@ -377,7 +413,7 @@ const handleRemoveAssignment = (assignmentId: string) => {
       assignments: prevSchedule.assignments?.filter(a => a.id !== assignmentId) || []
     }
     
-    console.log('✅ Schedule after removal:', updatedSchedule)
+    console.log(' Schedule after removal:', updatedSchedule)
     return updatedSchedule
   })
   
@@ -499,13 +535,16 @@ const handleRemoveAssignment = (assignmentId: string) => {
   }
   // Save schedule changes
   const handleSaveSchedule = async () => {
+    console.log('SAVE SCHEDULE STARTED')
+    
     if (!currentSchedule) {
+      console.log(' No current schedule')
       toast.error('No schedule to save')
       return
     }
     
     try {
-      console.log('Saving schedule:', currentSchedule)
+      console.log('Current schedule being saved:', currentSchedule)
       
       let savedSchedule
       
@@ -515,8 +554,14 @@ const handleRemoveAssignment = (assignmentId: string) => {
                           currentSchedule.id.includes('generated') ||
                           currentSchedule.is_generated
       
+      console.log('Schedule type check:', {
+        id: currentSchedule.id,
+        isNewSchedule,
+        is_generated: currentSchedule.is_generated
+      })
+      
       if (isNewSchedule) {
-        console.log(' Creating new schedule')
+        console.log('Creating new schedule')
         
         // Create new schedule
         const scheduleToSave = {
@@ -525,34 +570,62 @@ const handleRemoveAssignment = (assignmentId: string) => {
           assignments: currentSchedule.assignments || []
         }
         
+        console.log('Data being sent to createSchedule:', scheduleToSave)
+        
         savedSchedule = await apiClient.createSchedule(scheduleToSave)
-        console.log('New schedule created:', savedSchedule)
+        console.log(' New schedule created:', savedSchedule)
         
       } else {
-        console.log(' Updating existing schedule')
+        console.log('Updating existing schedule')
         
         // Update existing schedule
-        savedSchedule = await apiClient.updateSchedule(currentSchedule.id, {
+        const updateData = {
           assignments: currentSchedule.assignments || []
-        })
+        }
+        
+        console.log(' Data being sent to updateSchedule:', updateData)
+        
+        savedSchedule = await apiClient.updateSchedule(currentSchedule.id, updateData)
         console.log('Schedule updated:', savedSchedule)
       }
+      
+      console.log('API call successful, processing response...')
+
+      // Ensure the saved schedule has the correct format
+      savedSchedule = {
+        ...savedSchedule,
+        assignments: normalizeAssignments(savedSchedule.assignments || [])
+      }
+
+      console.log('✅ Normalized saved schedule:', savedSchedule)
       
       // Update the current schedule with the saved version
       setCurrentSchedule(savedSchedule)
       setUnsavedChanges(false)
       
+      console.log(' Reloading schedules...')
+      
       // Reload schedules to get the latest data
       await loadSchedules()
       
+      console.log(' Everything completed successfully!')
       toast.success('Schedule saved successfully!')
       
     } catch (error) {
-      console.error('Failed to save schedule:', error)
+      console.error(' SAVE FAILED:', error)
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response
+      })
       
+      // Better error handling
       let errorMessage = 'Failed to save schedule'
-      if (error.message?.includes('404')) {
-        errorMessage = 'Schedule save endpoint not found'
+      
+      if (error.message?.includes('405')) {
+        errorMessage = 'Save endpoint not available - check backend configuration'
+      } else if (error.message?.includes('403')) {
+        errorMessage = 'Permission denied - check authentication'
       } else if (error.message?.includes('422')) {
         errorMessage = 'Invalid schedule data'
       } else if (error.message) {
@@ -561,7 +634,7 @@ const handleRemoveAssignment = (assignmentId: string) => {
       
       toast.error(errorMessage)
     }
-  }
+  } // end save function
 
   // Filter staff based on facility, zones, and roles
   const facilityStaff = staff.filter(member => 
