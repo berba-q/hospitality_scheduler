@@ -123,16 +123,64 @@ class SmartScheduler:
         config: SmartScheduleConfiguration, 
         total_days: int
     ) -> List[Dict[str, Any]]:
-        """Generate initial assignments without optimization"""
+        """Generate initial assignments without optimization - DEBUG VERSION"""
+        print(f"🏗️ === STARTING ASSIGNMENT GENERATION ===")
+        print(f"📊 Config: total_days={total_days}, shifts_per_day={config.shifts_per_day}")
+        print(f"🏢 Zones: {config.zones}")
+        print(f"👥 Available staff: {len(self.staff_pool)}")
+        for staff in self.staff_pool:
+            print(f"  - {staff.full_name} ({staff.role})")
+        
         assignments = []
         
         for day in range(total_days):
+            print(f"\n📅 === DAY {day + 1}/{total_days} ===")
+            day_assignments = []
+            
             for shift in range(config.shifts_per_day):
+                print(f"\n  ⏰ SHIFT {shift + 1}/{config.shifts_per_day} (Day {day + 1})")
+                
                 # Assign staff to zones for this shift
                 shift_assignments = self._assign_shift(
                     day, shift, config.zones, config
                 )
+                
+                print(f"    📝 Shift assignments generated: {len(shift_assignments)}")
+                for assignment in shift_assignments:
+                    print(f"      - {assignment['staff_name']} ({assignment['staff_role']}) -> {assignment['zone_id']}")
+                
+                day_assignments.extend(shift_assignments)
                 assignments.extend(shift_assignments)
+            
+            print(f"  📊 Day {day + 1} total assignments: {len(day_assignments)}")
+            
+            # Check if we're getting no assignments for this day
+            if len(day_assignments) == 0:
+                print(f"  ⚠️ WARNING: No assignments generated for day {day + 1}!")
+                print(f"     This might indicate an issue with staff availability or zone config")
+                
+                # Debug zone configurations
+                for zone_id in config.zones:
+                    zone_config = config.zone_assignments.get(zone_id)
+                    if zone_config:
+                        print(f"     Zone {zone_id}: required_staff={zone_config.required_staff}, roles={zone_config.assigned_roles}")
+                    else:
+                        print(f"     Zone {zone_id}: NO CONFIG FOUND!")
+        
+        print(f"\n🎯 === FINAL RESULTS ===")
+        print(f"Total assignments generated: {len(assignments)}")
+        
+        # Group by day for summary
+        assignments_by_day = {}
+        for assignment in assignments:
+            day = assignment['day']
+            if day not in assignments_by_day:
+                assignments_by_day[day] = []
+            assignments_by_day[day].append(assignment)
+        
+        for day in range(total_days):
+            day_count = len(assignments_by_day.get(day, []))
+            print(f"  Day {day + 1}: {day_count} assignments")
         
         return assignments
     
@@ -143,17 +191,14 @@ class SmartScheduler:
         zones: List[str], 
         config: SmartScheduleConfiguration
     ) -> List[Dict[str, Any]]:
-        """Assign staff to a specific shift across zones"""
-        shift_assignments = []
+        """Assign staff to a specific shift across zones with proper rotation"""
         
-        # DON'T remove staff from available pool within the same shift
-        # Staff can work multiple zones in the same shift if needed
+        shift_assignments = []
         
         # Sort zones by priority
         sorted_zones = self._sort_zones_by_priority(zones, config)
         
         # Track staff assignments for this specific shift to avoid double-booking
-        # within the same shift (but allow them to work other shifts)
         shift_staff_assignments = {}
         
         for zone_id in sorted_zones:
@@ -164,8 +209,8 @@ class SmartScheduler:
                 continue
                 
             # Access Pydantic model attributes directly
-            required_staff = zone_config.required_staff  # {"min": 1, "max": 2}
-            assigned_roles = zone_config.assigned_roles  # List of allowed roles
+            required_staff = zone_config.required_staff
+            assigned_roles = zone_config.assigned_roles
             
             # Filter staff by role for this zone
             zone_staff = self._filter_staff_by_role(
@@ -175,16 +220,22 @@ class SmartScheduler:
             if not zone_staff:
                 continue
             
-            # Select optimal staff for this zone, avoiding double-booking in the same shift
+            # IMPROVED: Rotate staff selection based on day and shift
+            # This ensures different staff get assigned across days
+            staff_rotation_offset = (day * config.shifts_per_day + shift) % len(zone_staff)
+            
+            # Rotate the staff list so we start from a different person each time
+            rotated_zone_staff = zone_staff[staff_rotation_offset:] + zone_staff[:staff_rotation_offset]
+            
+            # Select staff not already assigned this shift
             available_for_zone = [
-                s for s in zone_staff 
+                s for s in rotated_zone_staff 
                 if str(s.id) not in shift_staff_assignments
             ]
             
             if not available_for_zone:
-                # If all zone staff are busy, allow overlap for critical zones
-                # or use any available staff from the zone
-                available_for_zone = zone_staff
+                # If all zone staff are busy, start over with rotation
+                available_for_zone = rotated_zone_staff
             
             selected_staff = self._select_optimal_staff_for_zone(
                 available_for_zone, required_staff, shift, day, config
@@ -202,8 +253,6 @@ class SmartScheduler:
                     "skill_level": staff_member.skill_level
                 }
                 shift_assignments.append(assignment)
-                
-                # Track that this staff member is assigned in this shift
                 shift_staff_assignments[str(staff_member.id)] = zone_id
         
         return shift_assignments
@@ -231,17 +280,24 @@ class SmartScheduler:
         assigned_roles: List[str],
         zone_roles: List[str]
     ) -> List[Staff]:
-        """Filter staff by role requirements"""
+        """Filter staff by role requirements - DEBUG VERSION"""
+        print(f"Filtering staff: assigned_roles={assigned_roles}, zone_roles={zone_roles}")
+        
         if not assigned_roles and not zone_roles:
+            print(f"No role restrictions, returning all {len(staff)} staff")
             return staff
         
         # Combine role requirements
         required_roles = set(assigned_roles + zone_roles)
         
         if not required_roles:
+            print(f"        ✅ No combined role restrictions, returning all {len(staff)} staff")
             return staff
         
-        return [s for s in staff if s.role in required_roles]
+        filtered_staff = [s for s in staff if s.role in required_roles]
+        print(f"        🎯 Filtered to {len(filtered_staff)} staff with roles: {required_roles}")
+        
+        return filtered_staff
     
     def _select_optimal_staff_for_zone(
         self, 
@@ -251,7 +307,7 @@ class SmartScheduler:
         day: int,
         config: SmartScheduleConfiguration
     ) -> List[Staff]:
-        """Select optimal staff for a zone, respecting min/max requirements"""
+        """Select optimal staff for a zone with better distribution"""
         
         if not zone_staff:
             return []
@@ -263,21 +319,25 @@ class SmartScheduler:
         max_staff = min(max_staff, len(zone_staff))
         min_staff = min(min_staff, len(zone_staff))
         
-        # For better distribution, sort by skill level and current workload
-        # In a more sophisticated version, you'd track actual workload
-        sorted_staff = sorted(zone_staff, key=lambda s: s.skill_level, reverse=True)
+        # IMPROVED: Better staff selection that considers workload distribution
+        # For now, use a simple rotation approach
+        # In the future, this could track actual workload across the week
         
-        # Select between min and max staff
+        # Select different combinations based on day to distribute workload
         if config.coverage_priority == 'maximum':
             selected_count = max_staff
         elif config.coverage_priority == 'minimal':
             selected_count = min_staff
         else:  # balanced
-            selected_count = min(max_staff, max(min_staff, len(zone_staff) // 2))
+            # Vary the count based on day to create some variation
+            base_count = (min_staff + max_staff) // 2
+            day_variation = day % 2  # Simple variation
+            selected_count = min(max_staff, base_count + day_variation)
         
-        selected_count = max(min_staff, min(selected_count, len(sorted_staff)))
+        selected_count = max(min_staff, min(selected_count, len(zone_staff)))
         
-        return sorted_staff[:selected_count]
+        # The staff list is already rotated in _assign_shift, so just take the first N
+        return zone_staff[:selected_count]
     
     def _calculate_staff_score(
         self, 
@@ -321,7 +381,24 @@ class SmartScheduler:
         schedule_config: ScheduleConfig,
         config: SmartScheduleConfiguration
     ) -> List[Dict[str, Any]]:
-        """Apply scheduling constraints to assignments"""
+        """Apply scheduling constraints with smarter consecutive days logic"""
+        
+        print(f"_apply_constraints called with {len(assignments)} assignments")
+        
+        if not assignments or not schedule_config:
+            print("No schedule config found, returning all assignments")
+            return assignments
+        
+        # Group by day to see what we're working with
+        day_groups = {}
+        for assignment in assignments:
+            day = assignment['day']
+            if day not in day_groups:
+                day_groups[day] = []
+            day_groups[day].append(assignment)
+        
+        print(f"Day groups before constraints: {[(day, len(assigns)) for day, assigns in day_groups.items()]}")
+        
         valid_assignments = []
         staff_workload = {}
         staff_consecutive_days = {}
@@ -329,23 +406,107 @@ class SmartScheduler:
         # Sort assignments by day and shift for constraint checking
         sorted_assignments = sorted(assignments, key=lambda x: (x['day'], x['shift']))
         
+        # Track assignments per day to ensure we don't eliminate entire days
+        day_assignment_counts = {day: 0 for day in range(7)}
+        
         for assignment in sorted_assignments:
             staff_id = assignment['staff_id']
             day = assignment['day']
             shift = assignment['shift']
+            zone_id = assignment['zone_id']
             
             # Initialize tracking
             if staff_id not in staff_workload:
                 staff_workload[staff_id] = []
                 staff_consecutive_days[staff_id] = set()
             
-            # Check constraints
-            if self._check_assignment_constraints(
-                assignment, staff_workload, staff_consecutive_days, schedule_config
-            ):
+            constraint_violated = False
+            
+            # REASONABLE constraint: Maximum shifts per week
+            current_shifts = len(staff_workload[staff_id])
+            reasonable_max_shifts = 15
+            
+            if hasattr(schedule_config, 'max_weekly_hours') and schedule_config.max_weekly_hours:
+                configured_max_shifts = (schedule_config.max_weekly_hours // 8) + 5
+                reasonable_max_shifts = max(reasonable_max_shifts, configured_max_shifts)
+            
+            if current_shifts >= reasonable_max_shifts:
+                print(f"Rejecting assignment for {staff_id} - too many hours ({current_shifts} shifts, limit: {reasonable_max_shifts})")
+                constraint_violated = True
+            
+            # SMARTER consecutive days constraint
+            reasonable_max_consecutive = 5  # Reduce to 5 consecutive days
+            
+            if hasattr(schedule_config, 'max_consecutive_days') and schedule_config.max_consecutive_days:
+                reasonable_max_consecutive = min(5, schedule_config.max_consecutive_days)  # Cap at 5
+            
+            consecutive_days = staff_consecutive_days[staff_id]
+            
+            # Only apply consecutive days constraint if:
+            # 1. Staff has worked many consecutive days AND
+            # 2. We have enough assignments for this day from other staff
+            if len(consecutive_days) >= reasonable_max_consecutive:
+                # Check if this extends a consecutive streak
+                extends_streak = any(consecutive_day in consecutive_days for consecutive_day in [day-1, day+1])
+                
+                # Count how many assignments this day already has
+                current_day_assignments = day_assignment_counts[day]
+                
+                # Get minimum assignments needed per day (rough estimate)
+                zones_count = len(set(a['zone_id'] for a in assignments if a['day'] == day))
+                min_assignments_per_day = zones_count  # At least one per zone
+                
+                # Only reject if this day already has enough coverage AND this extends a streak
+                if extends_streak and current_day_assignments >= min_assignments_per_day:
+                    print(f"Rejecting assignment for {staff_id} on day {day} - too many consecutive days (day has {current_day_assignments} assignments)")
+                    constraint_violated = True
+                else:
+                    # Allow this assignment even if it extends streak, if day needs coverage
+                    print(f"Allowing assignment for {staff_id} on day {day} despite consecutive days - day needs coverage")
+            
+            if not constraint_violated:
                 valid_assignments.append(assignment)
                 staff_workload[staff_id].append((day, shift))
                 staff_consecutive_days[staff_id].add(day)
+                day_assignment_counts[day] += 1
+            else:
+                print(f"Assignment rejected: staff {staff_id}, day {day}, shift {shift}")
+        
+        # SAFETY CHECK: Ensure every day has at least some assignments
+        final_day_groups = {}
+        for assignment in valid_assignments:
+            day = assignment['day']
+            if day not in final_day_groups:
+                final_day_groups[day] = []
+            final_day_groups[day].append(assignment)
+        
+        # If any day has zero assignments, add back some assignments from rejected ones
+        missing_days = []
+        for day in range(7):  # 0-6 for 7 days
+            if day not in final_day_groups or len(final_day_groups[day]) == 0:
+                missing_days.append(day)
+        
+        if missing_days:
+            print(f"WARNING: Days {missing_days} have no assignments. Adding back some assignments.")
+            
+            # Add back assignments for missing days (relax constraints)
+            for assignment in sorted_assignments:
+                if assignment['day'] in missing_days:
+                    # Only add if this day still needs assignments
+                    if assignment['day'] not in final_day_groups or len(final_day_groups[assignment['day']]) < 2:
+                        valid_assignments.append(assignment)
+                        print(f"Added back assignment for missing day {assignment['day']}: {assignment['staff_name']}")
+        
+        # Recalculate final day groups
+        final_day_groups = {}
+        for assignment in valid_assignments:
+            day = assignment['day']
+            if day not in final_day_groups:
+                final_day_groups[day] = []
+            final_day_groups[day].append(assignment)
+        
+        print(f"Day groups after constraints: {[(day, len(assigns)) for day, assigns in final_day_groups.items()]}")
+        print(f"Constraint filtering: {len(assignments)} -> {len(valid_assignments)} assignments")
         
         return valid_assignments
     
