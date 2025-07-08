@@ -8,6 +8,7 @@ from pydantic import BaseModel, EmailStr, ConfigDict, Field, validator
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    user: Optional[Dict[str, Any]] = None
 
 
 class TokenPayload(BaseModel):

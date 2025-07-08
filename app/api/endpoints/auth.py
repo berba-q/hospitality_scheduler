@@ -40,11 +40,25 @@ def get_current_user_info(current_user = Depends(get_current_user)):
     }
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login")  # Remove response_model=Token since we're returning a dict now
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     statement = select(User).where(User.email == form_data.username)
     user = db.exec(statement).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
+    
     token = create_access_token(str(user.id))
-    return Token(access_token=token)
+    
+    # Return both token AND user data
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "name": user.email,  # or add a name field if you have one
+            "is_manager": user.is_manager,
+            "is_active": user.is_active,
+            "tenant_id": str(user.tenant_id)
+        }
+    }
