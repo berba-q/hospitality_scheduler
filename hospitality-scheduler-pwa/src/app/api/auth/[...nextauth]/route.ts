@@ -1,11 +1,6 @@
-import NextAuth from "next-auth"
+// Route handler for NextAuth.js authentication
+// This file handles authentication requests for the Next.js application using NextAuth.js.
+// It exports GET and POST methods to handle authentication requests.
 import { handlers } from "@/lib/auth"
 
 export const { GET, POST } = handlers
-
-// Create the NextAuth handler with our configuration
-const handler = NextAuth(authOptions)
-
-// Export it for both GET and POST requests
-// NextAuth needs both to handle the OAuth flow
-export { handler as GET, handler as POST }
