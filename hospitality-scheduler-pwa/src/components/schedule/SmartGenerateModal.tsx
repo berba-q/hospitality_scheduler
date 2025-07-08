@@ -145,18 +145,50 @@ export function SmartGenerateModal({
     return priorities[zone.id] || 5
   }
 
+  // generate role mapping from zones
+  const generateRoleMappingFromZones = (selectedZones, zones, staff) => {
+    console.log('🔧 Generating role mapping from zones:', selectedZones)
+    
+    const roleMapping = {}
+    
+    selectedZones.forEach(zoneId => {
+      const zone = zones.find(z => z.id === zoneId)
+      if (zone) {
+        console.log(`📋 Zone ${zoneId} allows roles:`, zone.roles)
+        
+        if (zone.roles && zone.roles.length > 0) {
+          // Use the predefined roles for this zone
+          roleMapping[zoneId] = [...zone.roles]
+        } else {
+          // If no specific roles defined, use all available staff roles
+          const availableRoles = [...new Set(staff.map(s => s.role))]
+          roleMapping[zoneId] = availableRoles
+          console.log(` No specific roles for ${zoneId}, using all roles:`, availableRoles)
+        }
+      }
+    })
+    
+    console.log('Final role mapping:', roleMapping)
+    return roleMapping
+  }
+
   const handleGenerate = async () => {
     setGenerating(true)
     try {
+      // Generate proper role mapping based on selected zones
+      const properRoleMapping = generateRoleMappingFromZones(selectedZones, zones, staff)
+      
       const generateConfig = {
         ...config,
         period_type: periodType,
         zones: selectedZones,
         zone_assignments: zoneAssignments,
-        role_mapping: roleMapping,
+        role_mapping: properRoleMapping, // Use the generated mapping
         total_days: periodType === 'daily' ? 1 : periodType === 'weekly' ? 7 : 30,
         shifts_per_day: 3
       }
+      
+      console.log('Sending generate config with role mapping:', generateConfig)
       
       await onGenerate(generateConfig)
       onClose()

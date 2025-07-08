@@ -493,7 +493,7 @@ const handleRemoveAssignment = (assignmentId: string) => {
         errorMessage = `Generation failed: ${error.message}`
       }
       
-      console.log('🚨 Showing error toast:', errorMessage)
+      console.log(' Showing error toast:', errorMessage)
       toast.error(errorMessage)
     }
   }
@@ -505,7 +505,7 @@ const handleRemoveAssignment = (assignmentId: string) => {
     }
     
     try {
-      console.log('💾 Saving schedule:', currentSchedule)
+      console.log('Saving schedule:', currentSchedule)
       
       let savedSchedule
       
@@ -516,7 +516,7 @@ const handleRemoveAssignment = (assignmentId: string) => {
                           currentSchedule.is_generated
       
       if (isNewSchedule) {
-        console.log('📝 Creating new schedule')
+        console.log(' Creating new schedule')
         
         // Create new schedule
         const scheduleToSave = {
@@ -526,16 +526,16 @@ const handleRemoveAssignment = (assignmentId: string) => {
         }
         
         savedSchedule = await apiClient.createSchedule(scheduleToSave)
-        console.log('✅ New schedule created:', savedSchedule)
+        console.log('New schedule created:', savedSchedule)
         
       } else {
-        console.log('📝 Updating existing schedule')
+        console.log(' Updating existing schedule')
         
         // Update existing schedule
         savedSchedule = await apiClient.updateSchedule(currentSchedule.id, {
           assignments: currentSchedule.assignments || []
         })
-        console.log('✅ Schedule updated:', savedSchedule)
+        console.log('Schedule updated:', savedSchedule)
       }
       
       // Update the current schedule with the saved version
@@ -548,7 +548,7 @@ const handleRemoveAssignment = (assignmentId: string) => {
       toast.success('Schedule saved successfully!')
       
     } catch (error) {
-      console.error('💥 Failed to save schedule:', error)
+      console.error('Failed to save schedule:', error)
       
       let errorMessage = 'Failed to save schedule'
       if (error.message?.includes('404')) {

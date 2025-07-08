@@ -145,9 +145,15 @@ class SmartScheduler:
         sorted_zones = self._sort_zones_by_priority(zones, config)
         
         for zone_id in sorted_zones:
-            zone_config = config.zone_assignments.get(zone_id, {})
-            required_staff = zone_config.get('required_staff', {'min': 1, 'max': 2})
-            assigned_roles = zone_config.get('assigned_roles', [])
+            # Get ZoneConfiguration object (not dict!)
+            zone_config = config.zone_assignments.get(zone_id)
+            
+            if not zone_config:
+                continue
+                
+            # Access Pydantic model attributes directly (not .get()!)
+            required_staff = zone_config.required_staff  # This is already a dict
+            assigned_roles = zone_config.assigned_roles  # This is already a list
             
             # Filter staff by role if specified
             zone_staff = self._filter_staff_by_role(
@@ -186,8 +192,9 @@ class SmartScheduler:
         zone_priorities = {}
         
         for zone_id in zones:
-            zone_config = config.zone_assignments.get(zone_id, {})
-            priority = zone_config.get('priority', 5)
+            zone_config = config.zone_assignments.get(zone_id)
+            # Access priority attribute directly from Pydantic model
+            priority = zone_config.priority if zone_config else 5
             zone_priorities[zone_id] = priority
         
         # Sort by priority (higher first)
@@ -384,12 +391,15 @@ class SmartScheduler:
         
         # Optimize each zone individually
         for zone_id, zone_assigns in zone_assignments.items():
-            zone_config = config.zone_assignments.get(zone_id, {})
+            zone_config = config.zone_assignments.get(zone_id)
+            if not zone_config:
+                continue
+                
             coverage_priority = config.coverage_priority
             
             # Apply zone-specific optimizations
             optimized_zone = self._optimize_single_zone(
-                zone_assigns, zone_config, coverage_priority
+                zone_assigns, zone_config, coverage_priority  # Pass ZoneConfiguration object
             )
             optimized_assignments.extend(optimized_zone)
         
@@ -398,7 +408,7 @@ class SmartScheduler:
     def _optimize_single_zone(
         self, 
         assignments: List[Dict[str, Any]], 
-        zone_config: Dict[str, Any],
+        zone_config: ZoneConfiguration,  # Now expecting ZoneConfiguration object
         coverage_priority: str
     ) -> List[Dict[str, Any]]:
         """Optimize assignments for a single zone"""
@@ -407,7 +417,8 @@ class SmartScheduler:
             return assignments
         elif coverage_priority == 'minimal':
             # Reduce to minimum required staff
-            required_staff = zone_config.get('required_staff', {})
+            # Access required_staff directly from Pydantic model
+            required_staff = zone_config.required_staff
             min_staff = required_staff.get('min', 1)
             
             # Group by shift and keep only minimum staff per shift
@@ -420,13 +431,8 @@ class SmartScheduler:
             
             optimized = []
             for shift, shift_assigns in shift_assignments.items():
-                # Sort by skill level and keep top performers
-                sorted_assigns = sorted(
-                    shift_assigns, 
-                    key=lambda x: x.get('skill_level', 1), 
-                    reverse=True
-                )
-                optimized.extend(sorted_assigns[:min_staff])
+                # Keep only minimum required staff for this shift
+                optimized.extend(shift_assigns[:min_staff])
             
             return optimized
         else:  # balanced
