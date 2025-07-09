@@ -22,7 +22,8 @@ import {
   CheckCircle,
   Building,
   MapPin,
-  Layers
+  Layers,
+  List
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,6 +37,7 @@ import { WeeklyCalendar } from '@/components/schedule/WeeklyCalendar'
 import { MonthlyCalendar } from '@/components/schedule/MonthlyCalendar'
 import { SmartGenerateModal } from '@/components/schedule/SmartGenerateModal'
 import { ScheduleConfigModal } from '@/components/schedule/ScheduleConfigModal'
+import { ScheduleListModal } from '@/components/schedule/ScheduleListModal'
 import { StaffAssignmentPanel } from '@/components/schedule/StaffAssignmentPanel'
 import { FacilityZoneSelector } from '@/components/schedule/FacilityZoneSelector'
 import { toast } from 'sonner'
@@ -82,6 +84,7 @@ export default function SchedulePage() {
   const [schedules, setSchedules] = useState([])
   const [currentSchedule, setCurrentSchedule] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showScheduleListModal, setShowScheduleListModal] = useState(false)
   
   // View state
   const [viewPeriod, setViewPeriod] = useState<ViewPeriod>('weekly')
@@ -733,6 +736,56 @@ const handleRemoveAssignment = (assignmentId: string) => {
     }
   } // end save function
 
+  // Schedule deletions
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    try {
+      await apiClient.deleteSchedule(scheduleId)
+      
+      // Remove from local state
+      setSchedules(prev => prev.filter(s => s.id !== scheduleId))
+      
+      // If we deleted the current schedule, clear it
+      if (currentSchedule?.id === scheduleId) {
+        setCurrentSchedule(null)
+        setUnsavedChanges(false)
+      }
+      
+      toast.success('Schedule deleted successfully')
+    } catch (error) {
+      console.error('Failed to delete schedule:', error)
+      throw error // Re-throw so the ScheduleList component can handle it
+    }
+  }
+
+  // handel schedule selections
+  const handleScheduleSelect = (schedule: any) => {
+    // Check for unsaved changes first
+    if (unsavedChanges && currentSchedule) {
+      const shouldDiscard = window.confirm(
+        'You have unsaved changes. Do you want to discard them and switch to the selected schedule?'
+      )
+      
+      if (!shouldDiscard) {
+        return
+      }
+    }
+
+    // Update date to match week 
+  const scheduleDate = new Date(schedule.week_start)
+      setCurrentDate(scheduleDate)
+      
+      // Set the schedule as current
+      setCurrentSchedule(schedule)
+      setUnsavedChanges(false)
+      
+      // Switch to weekly view if not already there
+      if (viewPeriod !== 'weekly') {
+        setViewPeriod('weekly')
+      }
+      
+      toast.success(`Switched to schedule for ${scheduleDate.toLocaleDateString()}`)
+  }
+
   // Filter staff based on facility, zones, and roles
   const facilityStaff = staff.filter(member => 
     member.facility_id === selectedFacility?.id && member.is_active
@@ -829,6 +882,18 @@ const handleRemoveAssignment = (assignmentId: string) => {
                   >
                     <Zap className="w-4 h-4" />
                     Smart Generate
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowScheduleListModal(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <List className="w-4 h-4" />
+                    Manage Schedules
+                    <Badge variant="secondary" className="ml-1">
+                      {schedules.length}
+                    </Badge>
                   </Button>
                 </>
               )}
@@ -1065,6 +1130,16 @@ const handleRemoveAssignment = (assignmentId: string) => {
               )}
             </div>
           </div>
+          {/* Schedule List Modal */}
+            <ScheduleListModal
+              open={showScheduleListModal}
+              onClose={() => setShowScheduleListModal(false)}
+              schedules={schedules}
+              currentSchedule={currentSchedule}
+              onScheduleSelect={handleScheduleSelect}
+              onScheduleDelete={handleDeleteSchedule}
+              isManager={isManager}
+            />
 
           {/* No Facility Selected */}
           {!selectedFacility && (

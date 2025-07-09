@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session, select, text
 from sqlalchemy import desc, func
  
 from app.schemas import (
@@ -373,6 +373,112 @@ async def generate_monthly_schedule(
         
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Monthly scheduling failed: {str(e)}")
+    
+@router.delete("/{schedule_id}")
+async def delete_schedule(
+    schedule_id: UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Delete a schedule and all its assignments"""
+    
+    # Get the schedule
+    schedule = db.get(Schedule, schedule_id)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    
+    # Verify facility access
+    facility = db.get(Facility, schedule.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    try:
+        print(f" Deleting schedule {schedule_id}")
+        
+        # Get assignment count for logging
+        assignments = db.exec(
+            select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule_id)
+        ).all()
+        
+        assignment_count = len(assignments)
+        print(f" Found {assignment_count} assignments to delete")
+        
+        # Delete all assignments first
+        for assignment in assignments:
+            db.delete(assignment)
+        
+        print(f" Deleted {assignment_count} assignments")
+        
+        # Delete the schedule
+        db.delete(schedule)
+        db.commit()
+        
+        print(f" Successfully deleted schedule {schedule_id}")
+        
+        return {
+            "success": True,
+            "schedule_id": str(schedule_id),
+            "deleted_assignments": assignment_count,
+            "message": f"Schedule and {assignment_count} assignments deleted successfully"
+        }
+        
+    except Exception as e:
+        print(f"❌ Failed to delete schedule: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=422, detail=f"Failed to delete schedule: {str(e)}")
+    
+@router.get("/facility/{facility_id}/summary")
+async def get_facility_schedule_summary(
+    facility_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Get a summary of all schedules for a facility (useful for the schedule list)"""
+    
+    # Verify facility access
+    facility = db.get(Facility, facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Invalid facility")
+    
+    # Get schedules with assignment counts
+    schedules_query = text("""
+        SELECT 
+            s.id,
+            s.facility_id,
+            s.week_start,
+            s.created_at,
+            s.updated_at,
+            COALESCE(assignment_counts.assignment_count, 0) as assignment_count
+        FROM schedules s
+        LEFT JOIN (
+            SELECT 
+                schedule_id, 
+                COUNT(*) as assignment_count
+            FROM shift_assignments 
+            GROUP BY schedule_id
+        ) assignment_counts ON s.id = assignment_counts.schedule_id
+        WHERE s.facility_id = :facility_id
+        ORDER BY s.week_start DESC
+    """)
+    
+    result = db.execute(schedules_query, {"facility_id": facility_id})
+    schedules = result.fetchall()
+    
+    schedule_list = []
+    for schedule in schedules:
+        schedule_list.append({
+            "id": str(schedule.id),
+            "facility_id": str(schedule.facility_id),
+            "week_start": schedule.week_start.isoformat(),
+            "created_at": schedule.created_at.isoformat() if schedule.created_at else None,
+            "updated_at": schedule.updated_at.isoformat() if schedule.updated_at else None,
+            "assignment_count": schedule.assignment_count,
+            "assignments": []  # Empty for summary view
+        })
+    
+    return schedule_list
+
 
 # ==================== ZONE MANAGEMENT ====================
 
@@ -1350,7 +1456,7 @@ class GenerateRequest(BaseModel):
     week_start: date
     use_constraints: bool = True
 
-@router.post("/", response_model=ScheduleRead)
+@router.post("/generate", response_model=ScheduleRead)
 def generate(body: GenerateRequest, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     """Generate a schedule for a facility"""
     # Verify facility access
@@ -1482,15 +1588,14 @@ def check_scheduling_conflicts(
         "existing_schedule_id": existing_schedule.id if existing_schedule else None
     }
     
-# Add these endpoints to your app/api/endpoints/schedule.py
-
+# create schedule endpoint
 @router.post("/create")
 async def create_schedule(
     request: dict,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Create a new schedule from scratch or from generated data"""
+    """Create a new schedule"""
     
     facility_id = request.get('facility_id')
     week_start = request.get('week_start')
@@ -1502,6 +1607,8 @@ async def create_schedule(
         raise HTTPException(status_code=403, detail="Invalid facility")
     
     try:
+        print(f"🆕 Creating new schedule for facility {facility_id} with {len(assignments)} assignments")
+        
         # Parse week_start date
         week_start_date = datetime.fromisoformat(week_start).date()
         
@@ -1514,9 +1621,13 @@ async def create_schedule(
         db.commit()
         db.refresh(schedule)
         
+        print(f" Schedule created with ID: {schedule.id}")
+        
         # Save assignments
         saved_assignments = []
-        for assignment_data in assignments:
+        for i, assignment_data in enumerate(assignments):
+            print(f" Adding assignment {i+1}: day={assignment_data.get('day')}, shift={assignment_data.get('shift')}, staff_id={assignment_data.get('staff_id')}")
+            
             assignment = ShiftAssignment(
                 schedule_id=schedule.id,
                 day=assignment_data.get('day', 0),
@@ -1524,6 +1635,7 @@ async def create_schedule(
                 staff_id=UUID(assignment_data['staff_id'])
             )
             db.add(assignment)
+            
             saved_assignments.append({
                 'id': f"{schedule.id}-{assignment.day}-{assignment.shift}-{assignment.staff_id}",
                 'day': assignment.day,
@@ -1532,7 +1644,10 @@ async def create_schedule(
                 'schedule_id': str(schedule.id)
             })
         
+        # Commit all assignments
         db.commit()
+        
+        print(f" Successfully created schedule with {len(saved_assignments)} assignments")
         
         return {
             "id": str(schedule.id),
@@ -1544,7 +1659,9 @@ async def create_schedule(
         }
         
     except Exception as e:
-        print(f"Failed to create schedule: {str(e)}")
+        print(f" Failed to create schedule: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=422, detail=f"Schedule creation failed: {str(e)}")
 
 @router.put("/{schedule_id}")
@@ -1568,19 +1685,26 @@ async def update_schedule(
     
     try:
         assignments = request.get('assignments', [])
+        print(f"🔄 Updating schedule {schedule_id} with {len(assignments)} assignments")
         
-        # Delete existing assignments
-        db.exec(
+        # Properly delete existing assignments
+        existing_assignments = db.exec(
             select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule_id)
         ).all()
-        for assignment in db.exec(
-            select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule_id)
-        ).all():
+        
+        print(f" Deleting {len(existing_assignments)} existing assignments")
+        for assignment in existing_assignments:
             db.delete(assignment)
+        
+        # Commit the deletions first
+        db.commit()
+        print(" Existing assignments deleted")
         
         # Add new assignments
         saved_assignments = []
-        for assignment_data in assignments:
+        for i, assignment_data in enumerate(assignments):
+            print(f" Adding assignment {i+1}: day={assignment_data.get('day')}, shift={assignment_data.get('shift')}, staff_id={assignment_data.get('staff_id')}")
+            
             assignment = ShiftAssignment(
                 schedule_id=schedule.id,
                 day=assignment_data.get('day', 0),
@@ -1588,6 +1712,8 @@ async def update_schedule(
                 staff_id=UUID(assignment_data['staff_id'])
             )
             db.add(assignment)
+            
+            # Build response data
             saved_assignments.append({
                 'id': f"{schedule.id}-{assignment.day}-{assignment.shift}-{assignment.staff_id}",
                 'day': assignment.day,
@@ -1596,8 +1722,11 @@ async def update_schedule(
                 'schedule_id': str(schedule.id)
             })
         
+        # Commit all new assignments
         db.commit()
         db.refresh(schedule)
+        
+        print(f" Successfully saved {len(saved_assignments)} assignments")
         
         return {
             "id": str(schedule.id),
@@ -1609,5 +1738,7 @@ async def update_schedule(
         }
         
     except Exception as e:
-        print(f"Failed to update schedule: {str(e)}")
+        print(f" Failed to update schedule: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=422, detail=f"Schedule update failed: {str(e)}")
