@@ -47,7 +47,7 @@ async def generate_smart_schedule(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Generate an intelligent schedule using zone-based optimization"""
+    """Generate an intelligent schedule using zone-based optimization (NO AUTO-SAVE)"""
     
     # Verify facility access
     facility = db.get(Facility, request.facility_id)
@@ -71,45 +71,35 @@ async def generate_smart_schedule(
     ).first()
     
     try:
-        # Import the proper SmartScheduler class
+        # Initialize smart scheduler
         from app.services.smart_scheduler import SmartScheduler
         from app.schemas import SmartScheduleConfiguration, ZoneConfiguration
         
-        print(f" Using proper SmartScheduler for facility {request.facility_id}")
-        print(f"Request zones: {request.zones}")
-        print(f"Available staff: {len(staff)} - {[f'{s.full_name} ({s.role})' for s in staff]}")
-        print(f"Role mapping: {request.role_mapping}")
-        print(f" Zone assignments: {request.zone_assignments}")
-        
-        # Create SmartScheduler instance
         scheduler = SmartScheduler(db)
         
-        # Convert request to SmartScheduleConfiguration with correct schema
+        # Parse zone assignments from request with correct schema
         zone_assignments = {}
         for zone_id in request.zones:
-            zone_config = request.zone_assignments.get(zone_id, {})
-            
-            # Get required staff from zone config or set defaults
-            required_staff = zone_config.get('required_staff', {'min': 1, 'max': 2})
-            
             # Get assigned roles from role mapping
             assigned_roles = request.role_mapping.get(zone_id, [])
             
-            # Create proper coverage_hours dict (this was the bug!)
-            coverage_hours = {
-                'morning': True,
-                'afternoon': True, 
-                'evening': zone_id in ['security', 'front-desk']  # 24/7 zones
-            }
+            # Set default staff requirements
+            required_staff = {"min": 1, "max": 2}
             
-            print(f"🔧 Zone {zone_id}: required_staff={required_staff}, assigned_roles={assigned_roles}")
+            # Set coverage hours based on zone type
+            if zone_id in ['security', 'front-desk']:
+                # 24/7 zones
+                coverage_hours = {"morning": True, "afternoon": True, "evening": True}
+            else:
+                # Business hours zones
+                coverage_hours = {"morning": True, "afternoon": True, "evening": False}
             
             zone_assignments[zone_id] = ZoneConfiguration(
                 zone_id=zone_id,
                 required_staff=required_staff,
                 assigned_roles=assigned_roles,
-                priority=zone_config.get('priority', 5),
-                coverage_hours=coverage_hours  # Fixed format!
+                priority=5,  # Default priority
+                coverage_hours=coverage_hours
             )
         
         # Convert period_start string to datetime
@@ -122,13 +112,13 @@ async def generate_smart_schedule(
             zones=request.zones,
             zone_assignments=zone_assignments,
             role_mapping=request.role_mapping,
-            total_days=request.total_days or (7 if request.period_type == 'weekly' else 1),
-            shifts_per_day=request.shifts_per_day,
             use_constraints=request.use_constraints,
             auto_assign_by_zone=request.auto_assign_by_zone,
             balance_workload=request.balance_workload,
             prioritize_skill_match=request.prioritize_skill_match,
-            coverage_priority=request.coverage_priority
+            coverage_priority=request.coverage_priority,
+            total_days=request.total_days or (7 if request.period_type == 'weekly' else 1),
+            shifts_per_day=request.shifts_per_day
         )
         
         print(f"Smart config created with {len(zone_assignments)} zones")
@@ -140,20 +130,18 @@ async def generate_smart_schedule(
             schedule_config=schedule_config
         )
         
-        print(f"✅ SmartScheduler result: {schedule_result}")
+        print(f"SmartScheduler result: {schedule_result}")
         
         if not schedule_result.get('success', False):
             error_msg = schedule_result.get('error', 'Unknown scheduling error')
-            print(f" SmartScheduler failed: {error_msg}")
+            print(f"SmartScheduler failed: {error_msg}")
             raise HTTPException(status_code=422, detail=f"Smart scheduling failed: {error_msg}")
         
         assignments = schedule_result.get('assignments', [])
-        print(f" SmartScheduler generated {len(assignments)} assignments")
+        print(f"SmartScheduler generated {len(assignments)} assignments")
         
         if len(assignments) == 0:
-            print("No assignments generated - this might be a logic issue")
-            # Let's try to generate a simple fallback schedule
-            print(" Generating fallback schedule...")
+            print("No assignments generated - generating fallback schedule...")
             assignments = []
             
             # Simple fallback: assign available staff to shifts
@@ -184,64 +172,42 @@ async def generate_smart_schedule(
                                 "staff_role": selected_staff.role
                             })
             
-            print(f" Fallback generated {len(assignments)} assignments")
+            print(f"Fallback generated {len(assignments)} assignments")
         
-        # Save the schedule to database
-        period_start_date = datetime.fromisoformat(request.period_start).date()
+        # IMPORTANT: DO NOT SAVE TO DATABASE HERE
+        # Just return the generated assignments for frontend to handle
         
-        # For weekly/monthly, use week_start as the period start
-        if request.period_type == 'weekly':
-            week_start = period_start_date
-        elif request.period_type == 'monthly':
-            week_start = period_start_date.replace(day=1)
-        else:  # daily
-            week_start = period_start_date
-        
-        schedule = Schedule(
-            facility_id=UUID(request.facility_id),
-            week_start=week_start
-        )
-        db.add(schedule)
-        db.commit()
-        db.refresh(schedule)
-        
-        print(f" Schedule saved with ID: {schedule.id}")
-        
-        # Save assignments
-        saved_assignments = []
+        # Format assignments for frontend consistency
+        formatted_assignments = []
         for assignment_data in assignments:
-            assignment = ShiftAssignment(
-                schedule_id=schedule.id,
-                day=assignment_data['day'],
-                shift=assignment_data['shift'],
-                staff_id=UUID(assignment_data['staff_id'])
-            )
-            db.add(assignment)
-            saved_assignments.append({
-                'id': f"{schedule.id}-{assignment.day}-{assignment.shift}-{assignment.staff_id}",
-                'day': assignment.day,
-                'shift': assignment.shift,
-                'staff_id': str(assignment.staff_id)
+            formatted_assignments.append({
+                'id': f"temp-{assignment_data['day']}-{assignment_data['shift']}-{assignment_data['staff_id']}",
+                'day': assignment_data['day'],
+                'shift': assignment_data['shift'],
+                'staff_id': str(assignment_data['staff_id']),
+                'zone_id': assignment_data.get('zone_id'),
+                'staff_name': assignment_data.get('staff_name'),
+                'staff_role': assignment_data.get('staff_role')
             })
         
-        db.commit()
+        print(f"Returning {len(formatted_assignments)} assignments to frontend (NOT SAVED)")
         
-        print(f" Saved {len(saved_assignments)} assignments to database")
-        
+        # Return the generated schedule data WITHOUT saving to database
         return {
-            "schedule_id": str(schedule.id),
             "period_type": request.period_type,
             "period_start": request.period_start,
-            "assignments": saved_assignments,
+            "assignments": formatted_assignments,
             "zone_coverage": schedule_result.get('zone_coverage', {}),
             "optimization_metrics": schedule_result.get('metrics', {}),
-            "success": True
+            "success": True,
+            "generated": True,  # Flag to indicate this is generated, not saved
+            "total_assignments": len(formatted_assignments)
         }
         
     except Exception as e:
-        print(f" SmartScheduler failed: {str(e)}")
+        print(f"SmartScheduler failed: {str(e)}")
         import traceback
-        print(f" Traceback: {traceback.format_exc()}")
+        print(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=422, detail=f"Smart scheduling failed: {str(e)}")
 
 class DailyScheduleRequest(BaseModel):

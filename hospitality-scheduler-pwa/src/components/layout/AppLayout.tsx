@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { Navbar } from '@/components/navigation/Navbar'
+import { Toaster } from '@/components/ui/sonner'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -37,6 +38,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <main>
         {children}
       </main>
+      <Toaster />
     </div>
   )
 }
