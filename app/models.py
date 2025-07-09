@@ -64,6 +64,7 @@ class Schedule(SQLModel, table=True):
     facility_id: uuid.UUID = Field(foreign_key="facility.id")
     week_start: date
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
 
     assignments: list["ShiftAssignment"] = Relationship(back_populates="schedule")
 

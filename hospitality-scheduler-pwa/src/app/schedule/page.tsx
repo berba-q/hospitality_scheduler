@@ -161,23 +161,33 @@ export default function SchedulePage() {
 
     // normalise data returned from API
   const normalizeAssignments = (assignments: any[]): any[] => {
-    if (!assignments) return []
-    
-    return assignments.map((assignment, index) => {
-      // Ensure consistent format
-      return {
-        id: assignment.id || `assignment-${assignment.schedule_id || 'temp'}-${assignment.day}-${assignment.shift}-${assignment.staff_id}-${index}`,
-        day: Number(assignment.day),
-        shift: Number(assignment.shift),
-        staff_id: String(assignment.staff_id),
-        // Include any other fields that might be present
-        schedule_id: assignment.schedule_id,
-        zone_id: assignment.zone_id,
-        staff_name: assignment.staff_name,
-        staff_role: assignment.staff_role
-      }
-    })
+  if (!assignments) {
+    console.log('⚠️ No assignments provided, returning empty array')
+    return []
   }
+  
+  console.log('🔧 Normalizing assignments:', assignments.length)
+  
+  const normalized = assignments.map((assignment, index) => {
+    const normalized = {
+      id: assignment.id || `assignment-${assignment.schedule_id || 'temp'}-${assignment.day}-${assignment.shift}-${assignment.staff_id}-${index}`,
+      day: Number(assignment.day),
+      shift: Number(assignment.shift),
+      staff_id: String(assignment.staff_id),
+      // Include any other fields that might be present
+      schedule_id: assignment.schedule_id,
+      zone_id: assignment.zone_id,
+      staff_name: assignment.staff_name,
+      staff_role: assignment.staff_role
+    }
+    
+    console.log(` Assignment ${index}:`, normalized)
+    return normalized
+  })
+  
+  console.log(' Normalized assignments complete:', normalized.length)
+  return normalized
+}
 
   const loadSchedules = async () => {
     if (!selectedFacility) {
@@ -186,123 +196,257 @@ export default function SchedulePage() {
     }
     
     try {
-      console.log('Loading schedules for facility:', selectedFacility.name)
+      console.log('🔄 Loading schedules for facility:', selectedFacility.name)
+      console.log('📅 Current context:', {
+        currentDate: currentDate.toDateString(),
+        viewPeriod,
+        currentScheduleId: currentSchedule?.id
+      })
       
-      const periodStart = getPeriodStart(currentDate, viewPeriod)
       const schedulesData = await apiClient.getFacilitySchedules(selectedFacility.id)
       
-      // Normalize schedule data
-      const normalizedSchedules = schedulesData.map(schedule => ({
-        ...schedule,
-        week_start: schedule.week_start.split('T')[0],
-        assignments: normalizeAssignments(schedule.assignments || [])
-      }))
+      console.log('📊 Raw API response:', {
+        schedulesCount: schedulesData.length,
+        schedules: schedulesData.map(s => ({
+          id: s.id,
+          week_start: s.week_start,
+          assignments_count: s.assignments?.length || 0
+        }))
+      })
       
-      console.log('Raw schedules loaded:', schedulesData.length)
+      // Normalize schedule data and ensure assignments exist
+      const normalizedSchedules = schedulesData.map(schedule => {
+        const normalized = {
+          ...schedule,
+          week_start: schedule.week_start.split('T')[0],
+          assignments: normalizeAssignments(schedule.assignments || [])
+        }
+        
+        console.log(`📋 Normalized schedule ${schedule.id}:`, {
+          original_week_start: schedule.week_start,
+          normalized_week_start: normalized.week_start,
+          assignments_count: normalized.assignments.length
+        })
+        
+        return normalized
+      })
+      
+      console.log('✅ Schedules normalized:', normalizedSchedules.length)
       setSchedules(normalizedSchedules)
       
-      // Find schedule for current period
-      const currentPeriodSchedule = normalizedSchedules.find(s => {
-        const scheduleDate = new Date(s.week_start)
-        return scheduleDate.toDateString() === periodStart.toDateString()
+      // ENHANCED DEBUG: Before finding schedule
+      console.log('🔍 ABOUT TO FIND SCHEDULE FOR CURRENT PERIOD')
+      console.log('🎯 Search parameters:', {
+        currentDate: currentDate.toDateString(),
+        viewPeriod,
+        getPeriodStart: getPeriodStart(currentDate, viewPeriod).toDateString()
       })
       
-      console.log('Found schedule for current period:', currentPeriodSchedule)
-      console.log('Current date:', currentDate.toDateString())
-      console.log('Period start:', periodStart.toDateString())
-      console.log('Available schedules:', normalizedSchedules.map(s => ({ 
-        id: s.id, 
-        week_start: s.week_start,
-        assignments_count: s.assignments?.length || 0 
-      })))
+      // Find schedule for current period using improved logic
+      const currentPeriodSchedule = findScheduleForCurrentPeriod(normalizedSchedules, currentDate, viewPeriod)
       
-      // DEBUG: Log current state before decision
-      console.log('Current state check:', {
+      console.log('🔍 SEARCH RESULT:', currentPeriodSchedule ? {
+        found: true,
+        id: currentPeriodSchedule.id,
+        week_start: currentPeriodSchedule.week_start,
+        assignments_count: currentPeriodSchedule.assignments?.length || 0
+      } : {
+        found: false,
+        reason: 'No matching schedule found'
+      })
+      
+      // ENHANCED DEBUG: Check if we're in unsaved changes logic
+      console.log('💾 Unsaved changes check:', {
         unsavedChanges,
-        currentSchedule: currentSchedule?.id,
-        is_generated: currentSchedule?.is_generated,
-        foundScheduleId: currentPeriodSchedule?.id
+        hasCurrentSchedule: !!currentSchedule,
+        currentScheduleId: currentSchedule?.id,
+        isGenerated: currentSchedule?.is_generated
       })
       
-      // FIXED LOGIC: Handle unsaved changes more carefully
+      // Handle unsaved changes more carefully
       if (unsavedChanges && currentSchedule) {
-        console.log('Unsaved changes detected')
+        console.log('⚠️ UNSAVED CHANGES DETECTED - ENTERING SPECIAL LOGIC')
         
-        // Check if current schedule is a generated/temp schedule that should be preserved
         const isGeneratedSchedule = currentSchedule.id?.includes('temp') || 
                                   currentSchedule.id?.includes('generated') || 
                                   currentSchedule.is_generated === true
         
-        console.log('Is generated schedule?', isGeneratedSchedule)
+        console.log('🔧 Generated schedule check:', {
+          isGeneratedSchedule,
+          id: currentSchedule.id,
+          is_generated_flag: currentSchedule.is_generated
+        })
         
         // Check if we're navigating to a different period
         let isDifferentPeriod = false
         try {
           const currentPeriodStart = getPeriodStart(new Date(currentSchedule.week_start), viewPeriod)
-          const newPeriodStart = periodStart
+          const newPeriodStart = getPeriodStart(currentDate, viewPeriod)
           isDifferentPeriod = currentPeriodStart.toDateString() !== newPeriodStart.toDateString()
-          console.log('Period comparison:', {
-            currentPeriod: currentPeriodStart.toDateString(),
-            newPeriod: newPeriodStart.toDateString(),
-            isDifferent: isDifferentPeriod
+          console.log('📅 Period comparison DETAILED:', {
+            current_schedule_week_start: currentSchedule.week_start,
+            currentPeriodStart: currentPeriodStart.toDateString(),
+            newPeriodStart: newPeriodStart.toDateString(),
+            isDifferent: isDifferentPeriod,
+            strings_match: currentPeriodStart.toDateString() === newPeriodStart.toDateString()
           })
         } catch (error) {
-          console.error('Error comparing periods:', error)
+          console.error('❌ Error comparing periods:', error)
           isDifferentPeriod = false
         }
         
         if (isGeneratedSchedule && !isDifferentPeriod) {
-          console.log('PRESERVING generated schedule for same period - RETURNING EARLY')
-          // Keep the current generated schedule, don't replace it
-          return
+          console.log('✋ PRESERVING generated schedule for same period - RETURNING EARLY')
+          console.log('🚨 THIS MEANS CURRENT SCHEDULE WILL NOT BE UPDATED!')
+          return // ← This might be the problem!
         } else if (isDifferentPeriod) {
-          console.log('Period changed - prompting user for unsaved changes')
+          console.log('🔀 Period changed - prompting user for unsaved changes')
           
           const shouldDiscard = window.confirm(
             'You have unsaved changes. Do you want to discard them and view the other period?'
           )
           
           if (!shouldDiscard) {
-            console.log('User chose to keep unsaved changes - reverting navigation')
+            console.log('🚫 User chose to keep unsaved changes - reverting navigation')
             return
           } else {
-            console.log('User chose to discard unsaved changes')
+            console.log('✅ User chose to discard unsaved changes')
             setUnsavedChanges(false)
           }
         } else {
-          console.log('Unsaved changes but not generated or different period - continuing with load')
+          console.log('➡️ Continuing with normal flow - no special handling needed')
         }
       }
       
-      // Update the current schedule
-      console.log('SETTING current schedule to:', currentPeriodSchedule?.id || 'null')
+      // CRITICAL: Update the current schedule
+      console.log('📝 SETTING current schedule to:', currentPeriodSchedule?.id || 'null')
+      console.log('🔄 BEFORE setState - currentSchedule was:', currentSchedule?.id)
+      
       setCurrentSchedule(currentPeriodSchedule || null)
       
+      console.log('🔄 AFTER setState call (will update async)')
+      
       if (currentPeriodSchedule) {
-        console.log('Schedule loaded for current period:', currentPeriodSchedule.id)
-        console.log('Assignments loaded:', currentPeriodSchedule.assignments?.length || 0)
-        
-        // Clear unsaved changes when loading a saved schedule
         setUnsavedChanges(false)
+        console.log('✅ SUCCESS: Schedule found and should be set')
       } else {
-        console.log('No schedule found for current period - creating empty state')
-        
-        // Only clear unsaved changes if we don't have a generated schedule
+        console.log('❌ NO SCHEDULE FOUND for current period')
+        console.log('🧐 This means WeeklyCalendar will receive null schedule')
         if (!unsavedChanges) {
           setUnsavedChanges(false)
         }
       }
       
     } catch (error) {
-      console.error('Failed to load schedules:', error)
+      console.error('❌ Failed to load schedules:', error)
       setSchedules([])
       
-      // Only clear current schedule if we don't have unsaved changes or user confirmed
       if (!unsavedChanges) {
         setCurrentSchedule(null)
       }
     }
   }
+
+  // Helper function to find schedules
+  const findScheduleForCurrentPeriod = (schedules, currentDate, viewPeriod) => {
+    console.log('🔍 Finding schedule for:', {
+      currentDate: currentDate.toDateString(),
+      viewPeriod,
+      available_schedules: schedules.map(s => ({ 
+        id: s.id, 
+        week_start: s.week_start,
+        week_end: getWeekEndDate(s.week_start).toDateString()
+      }))
+    })
+    
+    // For daily and weekly views, find schedule that contains the current date
+    if (viewPeriod === 'daily' || viewPeriod === 'weekly') {
+      const targetDate = viewPeriod === 'weekly' ? getPeriodStart(currentDate, 'weekly') : currentDate
+      
+      return schedules.find(schedule => {
+        const scheduleStart = new Date(schedule.week_start)
+        const scheduleEnd = getWeekEndDate(schedule.week_start)
+        
+        // ✅ FIX: Compare dates using date strings instead of timestamp comparison
+        // This eliminates time-of-day differences that cause comparison failures
+        const targetDateStr = targetDate.toDateString()
+        const scheduleStartStr = scheduleStart.toDateString()
+        const scheduleEndStr = scheduleEnd.toDateString()
+        
+        // Check if target date is within the range (inclusive)
+        const isWithinRange = (
+          targetDateStr === scheduleStartStr || 
+          targetDateStr === scheduleEndStr || 
+          (targetDate > scheduleStart && targetDate < scheduleEnd)
+        )
+        
+        console.log(`📅 Checking schedule ${schedule.id}:`, {
+          schedule_start: scheduleStartStr,
+          schedule_end: scheduleEndStr,
+          target_date: targetDateStr,
+          exact_start_match: targetDateStr === scheduleStartStr,
+          exact_end_match: targetDateStr === scheduleEndStr,
+          is_between: targetDate > scheduleStart && targetDate < scheduleEnd,
+          is_within_range: isWithinRange,
+          RESULT: isWithinRange ? '✅ MATCH!' : '❌ No match'
+        })
+        
+        return isWithinRange
+      })
+    }
+    
+    // For monthly view, find any schedule that overlaps with the month
+    if (viewPeriod === 'monthly') {
+      const monthStart = getPeriodStart(currentDate, 'monthly')
+      const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
+      
+      console.log('🗓️ Monthly view - looking for schedules in range:', {
+        month_start: monthStart.toDateString(),
+        month_end: monthEnd.toDateString()
+      })
+      
+      return schedules.find(schedule => {
+        const scheduleStart = new Date(schedule.week_start)
+        const scheduleEnd = getWeekEndDate(schedule.week_start)
+        
+        // Use the same fixed date comparison for monthly
+        const overlaps = (scheduleStart <= monthEnd && scheduleEnd >= monthStart)
+        
+        console.log(`📅 Checking monthly schedule ${schedule.id}:`, {
+          schedule_start: scheduleStart.toDateString(),
+          schedule_end: scheduleEnd.toDateString(),
+          overlaps_month: overlaps
+        })
+        
+        return overlaps
+      })
+    }
+    
+    return null
+  }
+
+  // Helper function to get the end date of a week (6 days after start)
+const getWeekEndDate = (weekStartString) => {
+  const weekStart = new Date(weekStartString)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 6)
+  return weekEnd
+}
+
+// Helper function to calculate the correct day index for a specific date within a schedule
+const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
+  if (!schedule) return 0
+  
+  const scheduleStart = new Date(schedule.week_start)
+  
+  if (viewPeriod === 'daily') {
+    // Calculate which day of the week the current date is relative to the schedule start
+    const daysDiff = Math.floor((currentDate.getTime() - scheduleStart.getTime()) / (24 * 60 * 60 * 1000))
+    return Math.max(0, Math.min(6, daysDiff)) // Clamp between 0-6
+  }
+  
+  return 0 // For weekly view, we use the whole schedule
+}
 
   // Helper functions for date navigation
   const getPeriodStart = (date: Date, period: ViewPeriod) => {
@@ -1093,8 +1237,10 @@ const handleRemoveAssignment = (assignmentId: string) => {
                   isManager={isManager}
                   draggedStaff={draggedStaff}
                   onAssignmentChange={(shift, staffId) => {
-                  // For daily calendar, day is always 0
-                  handleAssignmentChange(0, shift, staffId)
+                    // Calculate the correct day index for the current date
+                    const dayIndex = currentSchedule ? getCurrentDayIndex(currentSchedule, currentDate, 'daily') : 0
+                    console.log(' Daily assignment change:', { dayIndex, shift, staffId })
+                    handleAssignmentChange(dayIndex, shift, staffId)
                   }}
                   onRemoveAssignment={handleRemoveAssignment}
                 />
@@ -1119,7 +1265,7 @@ const handleRemoveAssignment = (assignmentId: string) => {
                 <MonthlyCalendar
                   key={`monthly-${getPeriodStart(currentDate, 'monthly').getTime()}`}
                   currentMonth={getPeriodStart(currentDate, 'monthly')}
-                  schedules={schedules}
+                  schedules={schedules} // Pass ALL schedules so monthly view can find overlapping ones
                   staff={facilityStaff}
                   isManager={isManager}
                   onDayClick={(date) => {

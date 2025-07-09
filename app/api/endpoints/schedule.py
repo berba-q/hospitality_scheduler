@@ -441,40 +441,41 @@ async def get_facility_schedule_summary(
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Invalid facility")
     
-    # Get schedules with assignment counts
-    schedules_query = text("""
-        SELECT 
-            s.id,
-            s.facility_id,
-            s.week_start,
-            s.created_at,
-            s.updated_at,
-            COALESCE(assignment_counts.assignment_count, 0) as assignment_count
-        FROM schedules s
-        LEFT JOIN (
-            SELECT 
-                schedule_id, 
-                COUNT(*) as assignment_count
-            FROM shift_assignments 
-            GROUP BY schedule_id
-        ) assignment_counts ON s.id = assignment_counts.schedule_id
-        WHERE s.facility_id = :facility_id
-        ORDER BY s.week_start DESC
-    """)
-    
-    result = db.execute(schedules_query, {"facility_id": facility_id})
-    schedules = result.fetchall()
+    # Get schedules with assignment data
+    schedules = db.exec(
+        select(Schedule).where(Schedule.facility_id == facility_id).order_by(desc(Schedule.week_start))
+    ).all()
     
     schedule_list = []
     for schedule in schedules:
+        # Get assignments for this schedule (for summary, we just need count)
+        assignments_count = db.exec(
+            select(func.count(ShiftAssignment.id)).where(ShiftAssignment.schedule_id == schedule.id)
+        ).one()
+        
+        # Optionally include full assignment data for schedule list modal
+        assignments = db.exec(
+            select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule.id)
+        ).all()
+        
+        formatted_assignments = []
+        for assignment in assignments:
+            formatted_assignments.append({
+                'id': f"{schedule.id}-{assignment.day}-{assignment.shift}-{assignment.staff_id}",
+                'day': assignment.day,
+                'shift': assignment.shift,
+                'staff_id': str(assignment.staff_id),
+                'schedule_id': str(schedule.id)
+            })
+        
         schedule_list.append({
             "id": str(schedule.id),
             "facility_id": str(schedule.facility_id),
             "week_start": schedule.week_start.isoformat(),
             "created_at": schedule.created_at.isoformat() if schedule.created_at else None,
             "updated_at": schedule.updated_at.isoformat() if schedule.updated_at else None,
-            "assignment_count": schedule.assignment_count,
-            "assignments": []  # Empty for summary view
+            "assignment_count": assignments_count,
+            "assignments": formatted_assignments  # Include assignments for calendar display
         })
     
     return schedule_list
@@ -1493,17 +1494,49 @@ def get_schedule(schedule_id: str, db: Session = Depends(get_db), current_user =
 
 @router.get("/facility/{facility_id}")
 def get_facility_schedules(facility_id: str, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    """Get all schedules for a facility"""
+    """Get all schedules for a facility WITH assignments"""
     # Verify facility access
     facility = db.get(Facility, facility_id)
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Invalid facility")
     
+    # Get schedules
     schedules = db.exec(
         select(Schedule).where(Schedule.facility_id == facility_id).order_by(desc(Schedule.week_start))
     ).all()
     
-    return schedules
+    # Build response with assignments for each schedule
+    result = []
+    for schedule in schedules:
+        # Get assignments for this schedule
+        assignments = db.exec(
+            select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule.id)
+        ).all()
+        
+        # Format assignments
+        formatted_assignments = []
+        for assignment in assignments:
+            formatted_assignments.append({
+                'id': f"{schedule.id}-{assignment.day}-{assignment.shift}-{assignment.staff_id}",
+                'day': assignment.day,
+                'shift': assignment.shift,
+                'staff_id': str(assignment.staff_id),
+                'schedule_id': str(schedule.id)
+            })
+        
+        # Build schedule response
+        schedule_data = {
+            "id": str(schedule.id),
+            "facility_id": str(schedule.facility_id),
+            "week_start": schedule.week_start.isoformat(),
+            "created_at": schedule.created_at.isoformat() if schedule.created_at else None,
+            "updated_at": schedule.updated_at.isoformat() if schedule.updated_at else None,
+            "assignments": formatted_assignments  # ← Include assignments!
+        }
+        
+        result.append(schedule_data)
+    
+    return result
 
 @router.post("/{schedule_id}/validate")
 def validate_schedule(schedule_id: str, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
@@ -1687,6 +1720,9 @@ async def update_schedule(
         assignments = request.get('assignments', [])
         print(f"🔄 Updating schedule {schedule_id} with {len(assignments)} assignments")
         
+        # Update the schedule timestamp
+        schedule.updated_at = datetime.utcnow()  # Set updated timestamp
+        
         # Properly delete existing assignments
         existing_assignments = db.exec(
             select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule_id)
@@ -1733,7 +1769,7 @@ async def update_schedule(
             "facility_id": str(schedule.facility_id),
             "week_start": schedule.week_start.isoformat(),
             "assignments": saved_assignments,
-            "updated_at": datetime.now().isoformat(),
+            "updated_at": schedule.updated_at.isoformat() if schedule.updated_at else None,  # Now safe to access
             "success": True
         }
         
