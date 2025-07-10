@@ -1,6 +1,10 @@
 from faker import Faker
-from sqlmodel import SQLModel, Session, select, create_engine
-from app.models import Tenant, Facility, Staff, User
+from sqlmodel import SQLModel, Session, select, create_engine, delete
+from app.models import (
+    Tenant, Facility, Staff, User, Schedule, ShiftAssignment, 
+    ScheduleConfig, StaffUnavailability, SwapRequest, SwapHistory,
+    ZoneAssignment, ScheduleTemplate, ScheduleOptimization
+)
 from app.core.security import hash_password
 from app.core.config import get_settings
 from random import choice, randint, shuffle
@@ -9,15 +13,34 @@ fake = Faker()
 settings = get_settings()
 engine = create_engine(settings.DATABASE_URL, echo=False)
 
+def reset_database(session):
+    """Reset all tables before seeding"""
+    print("🗑️  Resetting database...")
+    
+    # Delete in reverse dependency order to respect foreign keys
+    session.execute(delete(SwapHistory))
+    session.execute(delete(SwapRequest))
+    session.execute(delete(ZoneAssignment))
+    session.execute(delete(ScheduleTemplate))
+    session.execute(delete(ScheduleOptimization))
+    session.execute(delete(ScheduleConfig))
+    session.execute(delete(StaffUnavailability))
+    session.execute(delete(ShiftAssignment))
+    session.execute(delete(Schedule))
+    session.execute(delete(Staff))
+    session.execute(delete(Facility))
+    session.execute(delete(User))
+    session.execute(delete(Tenant))
+    
+    session.commit()
+    print("✅ Database reset complete!")
+
 def seed():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        # Check if demo data already exists
-        existing_tenant = session.exec(select(Tenant).where(Tenant.name == "Demo Hospitality Group")).first()
-        if existing_tenant:
-            print("Demo data already exists. Skipping seed.")
-            return
-
+        # Reset database first
+        reset_database(session)
+        
         # Create tenant
         tenant = Tenant(name="Demo Hospitality Group")
         session.add(tenant)
@@ -211,22 +234,160 @@ def seed():
         # Create all users in database
         created_users = []
         for user_data in demo_users:
-            existing_user = session.exec(
-                select(User).where(User.email == user_data["email"])
-            ).first()
-            
-            if not existing_user:
-                user = User(
-                    email=user_data["email"],
-                    hashed_password=hash_password(user_data["password"]),
-                    tenant_id=tenant.id,
-                    is_manager=user_data["is_manager"],
-                    is_active=True
-                )
-                session.add(user)
-                created_users.append(user_data)
+            user = User(
+                email=user_data["email"],
+                hashed_password=hash_password(user_data["password"]),
+                tenant_id=tenant.id,
+                is_manager=user_data["is_manager"],
+                is_active=True
+            )
+            session.add(user)
+            created_users.append(user_data)
 
         session.commit()
+        
+        # 🆕 CREATE SAMPLE SCHEDULES AND SWAP REQUESTS FOR DEMO
+        print("📅 Creating sample schedules...")
+        
+        from datetime import date, timedelta
+        
+        # Create schedules for the past few weeks and upcoming weeks
+        base_date = date.today()
+        
+        # Get first 2 facilities for demo schedules
+        demo_facilities = facilities[:2]
+        
+        for facility in demo_facilities:
+            facility_staff = [s for s in staff_objs if s.facility_id == facility.id and s.is_active]
+            active_staff = facility_staff[:15]  # Use first 15 active staff
+            
+            # Create 4 weeks of schedules (2 past, 2 future)
+            for week_offset in range(-2, 3):
+                week_start = base_date + timedelta(weeks=week_offset)
+                # Ensure it's a Monday
+                week_start = week_start - timedelta(days=week_start.weekday())
+                
+                schedule = Schedule(
+                    facility_id=facility.id,
+                    week_start=week_start
+                )
+                session.add(schedule)
+                session.flush()  # Get the ID
+                
+                # Create realistic shift assignments
+                assignments = []
+                
+                for day in range(7):  # Monday to Sunday
+                    for shift in range(3):  # Morning, Afternoon, Evening
+                        # Determine how many staff needed per shift
+                        if "Hotel" in facility.name:
+                            staff_needed = randint(2, 4)
+                        else:  # Restaurant
+                            staff_needed = randint(2, 3)
+                        
+                        # Randomly assign staff to shifts
+                        shift_staff = choice(active_staff)
+                        for _ in range(staff_needed):
+                            if shift_staff and len(active_staff) > 0:
+                                assignment = ShiftAssignment(
+                                    schedule_id=schedule.id,
+                                    day=day,
+                                    shift=shift,
+                                    staff_id=shift_staff.id
+                                )
+                                assignments.append(assignment)
+                                
+                                # Rotate to next staff member
+                                current_index = active_staff.index(shift_staff)
+                                shift_staff = active_staff[(current_index + 1) % len(active_staff)]
+                
+                session.add_all(assignments)
+                print(f"   📋 Created schedule for {facility.name}, week of {week_start} ({len(assignments)} assignments)")
+        
+        session.commit()
+        
+        # 🆕 CREATE SAMPLE SWAP REQUESTS
+        print("🔄 Creating sample swap requests...")
+        
+        # Get some recent schedules to create swaps for
+        recent_schedules = session.exec(
+            select(Schedule).where(Schedule.week_start >= base_date)
+        ).all()
+        
+        swap_reasons = [
+            "Family emergency - need someone to cover",
+            "Doctor appointment that I can't reschedule", 
+            "Personal matter - willing to trade shifts",
+            "Childcare conflict, need coverage",
+            "Previously scheduled vacation",
+            "Medical appointment",
+            "Family commitment that came up",
+            "School event for my child",
+            "Transportation issues on this day",
+            "Requested time off for personal reasons"
+        ]
+        
+        urgency_levels = ["low", "normal", "high", "emergency"]
+        swap_statuses = ["pending", "approved", "declined", "completed"]
+        
+        created_swaps = 0
+        for schedule in recent_schedules[:3]:  # Create swaps for first 3 schedules
+            assignments = session.exec(
+                select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule.id)
+            ).all()
+            
+            if len(assignments) < 2:
+                continue
+                
+            # Create 3-5 swap requests per schedule
+            for _ in range(randint(3, 5)):
+                requesting_assignment = choice(assignments)
+                
+                # 60% chance of specific swap, 40% chance of auto swap
+                if randint(1, 10) <= 6:
+                    # Specific swap
+                    target_assignment = choice([a for a in assignments if a.id != requesting_assignment.id])
+                    
+                    swap_request = SwapRequest(
+                        schedule_id=schedule.id,
+                        requesting_staff_id=requesting_assignment.staff_id,
+                        original_day=requesting_assignment.day,
+                        original_shift=requesting_assignment.shift,
+                        swap_type="specific",
+                        target_staff_id=target_assignment.staff_id,
+                        target_day=target_assignment.day,
+                        target_shift=target_assignment.shift,
+                        reason=choice(swap_reasons),
+                        urgency=choice(urgency_levels),
+                        status=choice(swap_statuses),
+                        target_staff_accepted=choice([True, False, None]),
+                        manager_approved=choice([True, False, None])
+                    )
+                else:
+                    # Auto swap
+                    swap_request = SwapRequest(
+                        schedule_id=schedule.id,
+                        requesting_staff_id=requesting_assignment.staff_id,
+                        original_day=requesting_assignment.day,
+                        original_shift=requesting_assignment.shift,
+                        swap_type="auto",
+                        reason=choice(swap_reasons),
+                        urgency=choice(urgency_levels),
+                        status=choice(swap_statuses),
+                        manager_approved=choice([True, False, None])
+                    )
+                    
+                    # If approved, maybe assign someone
+                    if swap_request.status == "approved" and randint(1, 10) <= 7:
+                        other_staff = [s for s in staff_objs if s.facility_id == schedule.facility_id and s.id != requesting_assignment.staff_id]
+                        if other_staff:
+                            swap_request.assigned_staff_id = choice(other_staff).id
+                
+                session.add(swap_request)
+                created_swaps += 1
+        
+        session.commit()
+        print(f"✅ Created {created_swaps} sample swap requests")
         
         # Print comprehensive summary
         print("\n" + "="*80)
@@ -250,6 +411,11 @@ def seed():
         print("\n📊 Role Distribution:")
         for role, count in sorted(role_counts.items()):
             print(f"   • {role}: {count}")
+        
+        # Count schedules and swaps
+        total_schedules = len(recent_schedules)
+        print(f"\n📅 Sample Schedules: {total_schedules}")
+        print(f"🔄 Sample Swap Requests: {created_swaps}")
         
         managers = [u for u in created_users if u['is_manager']]
         staff_users_list = [u for u in created_users if not u['is_manager']]
@@ -279,6 +445,7 @@ def seed():
         print("   • API Docs: http://localhost:8000/docs")
         print("   • All manager passwords: manager123")
         print("   • All staff passwords: staff123")
+        print("   • Test swap functionality with sample data!")
         print("="*80)
 
 if __name__ == "__main__":

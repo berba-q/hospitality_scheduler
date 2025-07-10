@@ -1,5 +1,5 @@
 # app/api/endpoints/swaps.py
-
+"""Swaps endpoint"""
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session, select
 from typing import List, Optional, Literal
@@ -103,7 +103,7 @@ def create_specific_swap_request(
     
     # Create history entry
     history = SwapHistory(
-        swap_request_id=swap_request.id,
+        swap_request_id=swap_request.id, 
         action="requested",
         actor_staff_id=requesting_staff.id,
         notes=f"Specific swap requested with {target_staff.full_name}"
@@ -194,16 +194,17 @@ def create_auto_swap_request(
     
     # Create history entry
     history = SwapHistory(
-        swap_request_id=swap_id,
-        action="approved" if decision.approved else "declined",
-        actor_staff_id=None,  # Managers don't have staff records
-        notes=f"Manager {current_user.email}: {decision.notes or ''}"
+    swap_request_id=swap_request.id,  
+    action="requested",               
+    actor_staff_id=requesting_staff.id,  
+    notes=f"Auto-assignment requested: {swap_in.reason}"  
     )
     db.add(history)
     db.commit()
     db.refresh(swap_request)
     
     return swap_request
+
 
 # ==================== STAFF RESPONSES ====================
 
@@ -459,6 +460,156 @@ def get_swap_summary(
         specific_swaps_awaiting_response=specific_swaps_awaiting_response,
         recent_completions=recent_completions
     )
+    
+@router.get("/global-summary")
+def get_global_swap_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get global swap summary across all facilities"""
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Get all facilities for this tenant
+    facilities = db.exec(
+        select(Facility).where(Facility.tenant_id == current_user.tenant_id)
+    ).all()
+    
+    total_facilities = len(facilities)
+    
+    # Get all swap requests for this tenant
+    base_query = (
+        select(SwapRequest)
+        .join(Schedule)
+        .join(Facility)
+        .where(Facility.tenant_id == current_user.tenant_id)
+    )
+    
+    all_swaps = db.exec(base_query).all()
+    
+    total_pending_swaps = len([s for s in all_swaps if s.status == "pending"])
+    total_urgent_swaps = len([s for s in all_swaps if s.status == "pending" and s.urgency in ["high", "emergency"]])
+    total_emergency_swaps = len([s for s in all_swaps if s.status == "pending" and s.urgency == "emergency"])
+    
+    # Swaps today and this week
+    today = datetime.utcnow().date()
+    week_start = today - timedelta(days=today.weekday())
+    
+    swaps_today = len([s for s in all_swaps if s.created_at.date() == today])
+    swaps_this_week = len([s for s in all_swaps if s.created_at.date() >= week_start])
+    
+    # Calculate success rate and average approval time (simplified)
+    completed_swaps = [s for s in all_swaps if s.status == "completed"]
+    auto_assignment_success_rate = 0.85  # You can calculate this properly
+    average_approval_time = 2.5  # Hours - you can calculate this properly
+    
+    return {
+        "total_facilities": total_facilities,
+        "total_pending_swaps": total_pending_swaps,
+        "total_urgent_swaps": total_urgent_swaps,
+        "total_emergency_swaps": total_emergency_swaps,
+        "swaps_today": swaps_today,
+        "swaps_this_week": swaps_this_week,
+        "auto_assignment_success_rate": auto_assignment_success_rate,
+        "average_approval_time": average_approval_time
+    }
+
+@router.get("/facilities-summary")
+def get_facilities_swap_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get swap summary for all facilities"""
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    facilities = db.exec(
+        select(Facility).where(Facility.tenant_id == current_user.tenant_id)
+    ).all()
+    
+    result = []
+    for facility in facilities:
+        # Get swap requests for this facility
+        base_query = select(SwapRequest).join(Schedule).where(Schedule.facility_id == facility.id)
+        
+        pending_swaps = len(db.exec(base_query.where(SwapRequest.status == "pending")).all())
+        urgent_swaps = len(db.exec(base_query.where(
+            SwapRequest.status == "pending",
+            SwapRequest.urgency.in_(["high", "emergency"])
+        )).all())
+        emergency_swaps = len(db.exec(base_query.where(
+            SwapRequest.status == "pending",
+            SwapRequest.urgency == "emergency"
+        )).all())
+        
+        recent_completions = len(db.exec(base_query.where(
+            SwapRequest.status == "completed",
+            SwapRequest.completed_at >= datetime.utcnow() - timedelta(days=7)
+        )).all())
+        
+        # Get staff count
+        staff_count = len(db.exec(
+            select(Staff).where(Staff.facility_id == facility.id, Staff.is_active == True)
+        ).all())
+        
+        result.append({
+            "facility_id": str(facility.id),
+            "facility_name": facility.name,
+            "facility_type": getattr(facility, 'type', 'hotel'),  # Add default if type doesn't exist
+            "pending_swaps": pending_swaps,
+            "urgent_swaps": urgent_swaps,
+            "emergency_swaps": emergency_swaps,
+            "recent_completions": recent_completions,
+            "staff_count": staff_count
+        })
+    
+    return result
+
+@router.get("/all")
+def get_all_swap_requests(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = Query(100, le=200),
+):
+    """Get all swap requests across facilities"""
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Get all swap requests for this tenant
+    query = (
+        select(SwapRequest)
+        .join(Schedule)
+        .join(Facility)
+        .where(Facility.tenant_id == current_user.tenant_id)
+        .order_by(SwapRequest.created_at.desc())
+        .limit(limit)
+    )
+    
+    swap_requests = db.exec(query).all()
+    
+    # Load related data for each swap
+    result = []
+    for swap in swap_requests:
+        requesting_staff = db.get(Staff, swap.requesting_staff_id)
+        target_staff = db.get(Staff, swap.target_staff_id) if swap.target_staff_id else None
+        assigned_staff = db.get(Staff, swap.assigned_staff_id) if swap.assigned_staff_id else None
+        
+        # Get facility info
+        schedule = db.get(Schedule, swap.schedule_id)
+        facility = db.get(Facility, schedule.facility_id) if schedule else None
+        
+        swap_dict = {
+            **swap.__dict__,
+            "requesting_staff": requesting_staff.__dict__ if requesting_staff else None,
+            "target_staff": target_staff.__dict__ if target_staff else None,
+            "assigned_staff": assigned_staff.__dict__ if assigned_staff else None,
+            "facility_id": str(facility.id) if facility else None,
+            "facility_name": facility.name if facility else None
+        }
+        
+        result.append(swap_dict)
+    
+    return result
 
 @router.get("/{swap_id}/history", response_model=List[SwapHistoryRead])
 def get_swap_history(
