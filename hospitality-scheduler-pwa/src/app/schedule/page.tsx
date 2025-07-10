@@ -41,8 +41,14 @@ import { ScheduleListModal } from '@/components/schedule/ScheduleListModal'
 import { StaffAssignmentPanel } from '@/components/schedule/StaffAssignmentPanel'
 import { FacilityZoneSelector } from '@/components/schedule/FacilityZoneSelector'
 import { toast } from 'sonner'
+import { SwapRequestModal } from '@/components/swap/SwapRequestModal'
+import { SwapManagementDashboard } from '@/components/swap/SwapManagementDashboard'
+import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
+import { useSwapRequests } from '@/hooks/useSwapRequests'
+import { ArrowLeftRight } from 'lucide-react'
 
-type ViewPeriod = 'daily' | 'weekly' | 'monthly'
+
+type ViewPeriod = 'daily' | 'weekly' | 'monthly' | 'swaps'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const SHIFTS = [
@@ -101,6 +107,11 @@ export default function SchedulePage() {
   const [draggedStaff, setDraggedStaff] = useState(null)
   const [unsavedChanges, setUnsavedChanges] = useState(false)
 
+  // Swaps states
+  const [showSwapModal, setShowSwapModal] = useState(false)
+  const [selectedAssignmentForSwap, setSelectedAssignmentForSwap] = useState(null)
+  const [showSwapDashboard, setShowSwapDashboard] = useState(false)
+
   // Get facility zones based on facility type
   const getFacilityZones = (facility) => {
     if (!facility) return FACILITY_ZONES.default
@@ -118,13 +129,15 @@ export default function SchedulePage() {
     }
   }, [authLoading, isAuthenticated])
 
-  // DEBUG: check current schedule state
-  useEffect(() => {
-  console.log('🔄 Schedule state changed:', currentSchedule)
-  if (currentSchedule === null) {
-    console.trace('Schedule set to null - stack trace:')
-  }
-}, [currentSchedule])
+  // SWAP hooks
+  const {
+    swapRequests,
+    swapSummary,
+    createSwapRequest,
+    approveSwap,
+    retryAutoAssignment,
+    refresh: refreshSwaps
+  } = useSwapRequests(selectedFacility?.id)
 
   const loadData = async () => {
     try {
@@ -930,6 +943,21 @@ const handleRemoveAssignment = (assignmentId: string) => {
       toast.success(`Switched to schedule for ${scheduleDate.toLocaleDateString()}`)
   }
 
+  // SWAP MANAGEMENT
+  // handle swap requests
+  const handleSwapRequest = (day: number, shift: number, staffId: string) => {
+    setSelectedAssignmentForSwap({ day, shift, staffId })
+    setShowSwapModal(true)
+  }
+
+  // SWAP history
+  const handleViewSwapHistory = (swapId: string) => {
+  // TODO: implement a swap history modal here
+    console.log('View swap history for:', swapId)
+  }
+
+
+
   // Filter staff based on facility, zones, and roles
   const facilityStaff = staff.filter(member => 
     member.facility_id === selectedFacility?.id && member.is_active
@@ -1105,6 +1133,17 @@ const handleRemoveAssignment = (assignmentId: string) => {
                     <TabsTrigger value="daily">Daily</TabsTrigger>
                     <TabsTrigger value="weekly">Weekly</TabsTrigger>
                     <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                    {isManager && (
+                    <TabsTrigger value="swaps" className="flex items-center gap-1">
+                      <ArrowLeftRight className="w-3 h-3" />
+                      Swaps
+                      {swapSummary?.pending_swaps > 0 && (
+                        <Badge className="bg-red-500 text-white ml-1 text-xs">
+                          {swapSummary.pending_swaps}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  )}
                   </TabsList>
                 </Tabs>
                 
@@ -1236,6 +1275,8 @@ const handleRemoveAssignment = (assignmentId: string) => {
                   shifts={SHIFTS}
                   isManager={isManager}
                   draggedStaff={draggedStaff}
+                  swapRequests={swapRequests}
+                  onSwapRequest={handleSwapRequest}
                   onAssignmentChange={(shift, staffId) => {
                     // Calculate the correct day index for the current date
                     const dayIndex = currentSchedule ? getCurrentDayIndex(currentSchedule, currentDate, 'daily') : 0
@@ -1256,6 +1297,8 @@ const handleRemoveAssignment = (assignmentId: string) => {
                   days={DAYS}
                   isManager={isManager}
                   draggedStaff={draggedStaff}
+                  swapRequests={swapRequests}
+                  onSwapRequest={handleSwapRequest}
                   onAssignmentChange={handleAssignmentChange}
                   onRemoveAssignment={handleRemoveAssignment}
                 />
@@ -1268,12 +1311,40 @@ const handleRemoveAssignment = (assignmentId: string) => {
                   schedules={schedules} // Pass ALL schedules so monthly view can find overlapping ones
                   staff={facilityStaff}
                   isManager={isManager}
+                  swapRequests={swapRequests} 
                   onDayClick={(date) => {
                     setCurrentDate(date)
                     setViewPeriod('daily')
                   }}
                 />
               )}
+
+                {/* Swaps View */}
+                {viewPeriod === 'swaps' && isManager && (
+                  <div className="space-y-6">
+                    {selectedFacility && swapSummary ? (
+                      <SwapManagementDashboard
+                        facility={selectedFacility}
+                        swapRequests={swapRequests}
+                        swapSummary={swapSummary}
+                        days={DAYS}
+                        shifts={SHIFTS}
+                        onApproveSwap={approveSwap}
+                        onRetryAutoAssignment={retryAutoAssignment}
+                        onViewSwapHistory={handleViewSwapHistory}
+                        onRefresh={refreshSwaps}
+                      />
+                    ) : (
+                      <Card>
+                        <CardContent className="p-8 text-center">
+                          <ArrowLeftRight className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                          <h3 className="text-lg font-medium mb-2">No facility selected</h3>
+                          <p className="text-gray-500">Select a facility to manage swap requests.</p>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                )}
             </div>
           </div>
           {/* Schedule List Modal */}
@@ -1324,6 +1395,23 @@ const handleRemoveAssignment = (assignmentId: string) => {
           </>
         )}
       </div>
+      
+      {/* Swap Request Modal */}
+      <SwapRequestModal
+        open={showSwapModal}
+        onClose={() => {
+          setShowSwapModal(false)
+          setSelectedAssignmentForSwap(null)
+        }}
+        schedule={currentSchedule}
+        currentAssignment={selectedAssignmentForSwap}
+        staff={facilityStaff}
+        shifts={SHIFTS}
+        days={DAYS}
+        isManager={isManager}
+        onSwapRequest={createSwapRequest}
+      />
+
     </AppLayout>
   )
 }

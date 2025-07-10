@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { X, Plus, Clock, User, Star } from 'lucide-react'
 import { toast } from 'sonner'
+import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
+import { ArrowLeftRight } from 'lucide-react'
 
 interface Assignment {
   id: string
@@ -20,6 +22,7 @@ interface Staff {
   role: string
   skill_level: number
   is_active: boolean
+  email?: string
 }
 
 interface Shift {
@@ -39,6 +42,8 @@ interface WeeklyCalendarProps {
   draggedStaff: Staff | null
   onAssignmentChange: (day: number, shift: number, staffId: string) => void
   onRemoveAssignment: (assignmentId: string) => void
+  swapRequests?: any[]
+  onSwapRequest?: (day: number, shift: number, staffId: string) => void
 }
 
 export function WeeklyCalendar({
@@ -50,7 +55,9 @@ export function WeeklyCalendar({
   isManager,
   draggedStaff,
   onAssignmentChange,
-  onRemoveAssignment
+  onRemoveAssignment,
+  swapRequests = [], // ADD THIS - with default value
+  onSwapRequest      // ADD THIS
 }: WeeklyCalendarProps) {
   const [selectedCell, setSelectedCell] = useState<{day: number, shift: number} | null>(null)
 
@@ -64,13 +71,11 @@ export function WeeklyCalendar({
     if (!schedule?.assignments) return []
     return schedule.assignments.filter(a => a.day === day && a.shift === shift)
   }
-  //DEBUG
-  console.log('WeeklyCalendar props:', { schedule, staff, shifts, days })
+
   // Handle drop event
   const handleDrop = (e: React.DragEvent, day: number, shift: number) => {
     e.preventDefault()
     
-    //DEBUG
     console.log('Drop event triggered:', { day, shift, draggedStaff, isManager })
 
     if (!isManager || !draggedStaff) return
@@ -85,8 +90,7 @@ export function WeeklyCalendar({
       return
     }
     
-    //DEBUG
-    console.log(' Calling onAssignmentChange:', { day, shift, staffId: draggedStaff.id })
+    console.log('Calling onAssignmentChange:', { day, shift, staffId: draggedStaff.id })
     onAssignmentChange(day, shift, draggedStaff.id)
     toast.success(`${draggedStaff.full_name} assigned to ${days[day]} ${shifts[shift].name}`)
   }
@@ -194,63 +198,87 @@ export function WeeklyCalendar({
                             )}
                           </div>
                         ) : (
-                          assignments.map((assignment, assignmentIndex) => {
+                          assignments.map((assignment) => {
                             const staffMember = getStaffMember(assignment.staff_id)
-                            
-                            if (!staffMember) {
-                              console.warn(`Staff member not found for assignment ${assignment.id}`)
-                              return (
-                                <div 
-                                  key={`missing-${assignment.id}-${assignmentIndex}`} 
-                                  className="text-xs text-red-500 p-1 border border-red-200 rounded"
-                                >
-                                  ⚠ Staff not found (ID: {assignment.staff_id})
-                                </div>
-                              )
-                            }
                             
                             return (
                               <div
-                                key={`assignment-${assignment.id}-${assignmentIndex}`}
-                                className={`p-2 rounded-lg border ${getRoleColor(staffMember.role)} 
-                                  hover:shadow-md transition-all duration-200 group relative`}
+                                key={assignment.id}
+                                className={`p-3 rounded-lg border ${
+                                  staffMember ? getRoleColor(staffMember.role) : 'bg-red-100 text-red-800 border-red-200'
+                                } relative group transition-all duration-200 hover:shadow-sm`}
                               >
-                                {/* Remove button for managers */}
-                                {isManager && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      onRemoveAssignment(assignment.id)
-                                    }}
-                                    className="absolute -top-1 -right-1 w-5 h-5 p-0 opacity-0 group-hover:opacity-100 
-                                      transition-opacity duration-200 bg-red-500 hover:bg-red-600 text-white rounded-full"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </Button>
-                                )}
-
-                                {/* Staff Info */}
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1">
-                                    <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center text-xs font-semibold">
-                                      {staffMember.full_name.split(' ').map(n => n[0]).join('')}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className="flex-shrink-0">
+                                      <User className="w-5 h-5" />
                                     </div>
-                                    <span className="text-xs font-medium truncate flex-1">
-                                      {staffMember.full_name}
-                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-medium truncate">
+                                        {staffMember?.full_name || `Missing Staff (${assignment.staff_id})`}
+                                      </p>
+                                      <p className="text-sm opacity-75">
+                                        {staffMember?.role || 'Unknown Role'}
+                                      </p>
+                                    </div>
+                                    {staffMember?.skill_level && staffMember.skill_level > 2 && (
+                                      <div className="flex-shrink-0">
+                                        <Star className="w-4 h-4 text-yellow-500" />
+                                      </div>
+                                    )}
                                   </div>
                                   
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs opacity-75">{staffMember.role}</span>
-                                    <div className="flex items-center gap-0.5">
-                                      {Array.from({ length: staffMember.skill_level }, (_, starIndex) => (
-                                        <Star key={`star-${assignment.id}-${starIndex}`} className="w-2.5 h-2.5 fill-current" />
-                                      ))}
+                                  {/* Action buttons container */}
+                                  <div className="flex items-center gap-2">
+                                    {/* Swap Status Indicator */}
+                                    <SwapStatusIndicator
+                                      swapRequests={swapRequests}
+                                      day={dayIndex} // FIXED: Use dayIndex from the loop, not calculateDayIndex()
+                                      shift={shift.id}
+                                      staffId={assignment.staff_id}
+                                      size="sm"
+                                    />
+
+                                    {/* Action Buttons - only show on hover */}
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                      {/* Swap Request Button */}
+                                      {onSwapRequest && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            onSwapRequest(dayIndex, shift.id, assignment.staff_id) // FIXED: Use dayIndex
+                                          }}
+                                          className="h-7 w-7 p-0"
+                                          title="Request shift swap"
+                                        >
+                                          <ArrowLeftRight className="h-3 w-3" />
+                                        </Button>
+                                      )}
+
+                                      {/* Remove Assignment Button */}
+                                      {isManager && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            onRemoveAssignment(assignment.id)
+                                          }}
+                                        >
+                                          <X className="w-4 h-4" />
+                                        </Button>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
+                                {staffMember && 'email' in staffMember && staffMember.email && (
+                                  <p className="text-xs opacity-60 mt-1">
+                                    {staffMember.email}
+                                  </p>
+                                )}
                               </div>
                             )
                           })

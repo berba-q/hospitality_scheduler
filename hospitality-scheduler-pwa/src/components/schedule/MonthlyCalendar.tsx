@@ -12,6 +12,7 @@ interface MonthlyCalendarProps {
   staff: any[]
   isManager: boolean
   onDayClick: (date: Date) => void
+  swapRequests?: any[]
 }
 
 export function MonthlyCalendar({
@@ -19,7 +20,8 @@ export function MonthlyCalendar({
   schedules,
   staff,
   isManager,
-  onDayClick
+  onDayClick,
+  swapRequests = []
 }: MonthlyCalendarProps) {
   console.log('🗓️ MonthlyCalendar render:', {
     currentMonth: currentMonth.toDateString(),
@@ -89,6 +91,22 @@ export function MonthlyCalendar({
       })
       
       return isWithinRange
+    })
+  }
+
+  // Helper function to check for swaps
+  const hasSwapsOnDate = (date: Date, swapRequests: any[] = []) => {
+    return swapRequests.some(swap => {
+      // Check if this date matches any swap activity
+      const schedule = getDateSchedule(date)
+      if (!schedule) return false
+      
+      const scheduleStart = new Date(schedule.week_start)
+      const dayIndex = Math.floor((date.getTime() - scheduleStart.getTime()) / (24 * 60 * 60 * 1000))
+      
+      // Check if swap affects this day
+      return (swap.original_day === dayIndex) || 
+            (swap.target_day === dayIndex && swap.swap_type === 'specific')
     })
   }
 
@@ -289,6 +307,11 @@ export function MonthlyCalendar({
                     <div className="text-xs text-gray-400">
                       No schedule
                     </div>
+                  )}
+                  
+                  {/* Swap activity indicator */}
+                  {hasSwapsOnDate(date, swapRequests) && (
+                    <div className="absolute bottom-1 right-1 w-2 h-2 bg-orange-500 rounded-full" title="Swap activity"></div>
                   )}
 
                   {/* Today indicator */}

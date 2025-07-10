@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { X, Plus, Clock, User, Star, MapPin, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
+import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
+import { ArrowLeftRight } from 'lucide-react'
 
 interface DailyCalendarProps {
   currentDate: Date
@@ -18,6 +20,8 @@ interface DailyCalendarProps {
   onAssignmentChange: (shift: number, staffId: string) => void
   onRemoveAssignment: (assignmentId: string) => void
   getShiftAssignments?: (shift: number) => any[] // Optional override
+  swapRequests?: any[]
+  onSwapRequest?: (day: number, shift: number, staffId: string) => void
 }
 
 export function DailyCalendar({
@@ -29,11 +33,13 @@ export function DailyCalendar({
   draggedStaff,
   onAssignmentChange,
   onRemoveAssignment,
-  getShiftAssignments: customGetShiftAssignments
+  getShiftAssignments: customGetShiftAssignments,
+  swapRequests = [],
+  onSwapRequest
 }: DailyCalendarProps) {
   const [selectedShift, setSelectedShift] = useState<number | null>(null)
 
-  console.log('📅 DailyCalendar render:', {
+  console.log('DailyCalendar render:', {
     currentDate: currentDate.toDateString(),
     schedule: schedule ? {
       id: schedule.id,
@@ -270,20 +276,53 @@ export function DailyCalendar({
                                     </div>
                                   )}
                                 </div>
-                                {isManager && (
-                                  <Button
-                                    variant="ghost"
+                                
+                                {/* Action buttons */}
+                                <div className="flex items-center gap-2">
+                                  {/* Swap Status Indicator */}
+                                  <SwapStatusIndicator
+                                    swapRequests={swapRequests}
+                                    day={calculateDayIndex()}
+                                    shift={shift.id}
+                                    staffId={assignment.staff_id}
                                     size="sm"
-                                    className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      console.log('🗑️ Removing daily assignment:', assignment.id)
-                                      onRemoveAssignment(assignment.id)
-                                    }}
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                )}
+                                  />
+
+                                  {/* Action Buttons - only show on hover */}
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                    {/* Swap Request Button */}
+                                    {onSwapRequest && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          onSwapRequest(calculateDayIndex(), shift.id, assignment.staff_id)
+                                        }}
+                                        className="h-7 w-7 p-0"
+                                        title="Request shift swap"
+                                      >
+                                        <ArrowLeftRight className="h-3 w-3" />
+                                      </Button>
+                                    )}
+
+                                    {/* Remove Assignment Button */}
+                                    {isManager && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          console.log('🗑️ Removing daily assignment:', assignment.id)
+                                          onRemoveAssignment(assignment.id)
+                                        }}
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                               {staffMember?.email && (
                                 <p className="text-xs opacity-60 mt-1">
@@ -292,7 +331,7 @@ export function DailyCalendar({
                               )}
                             </div>
                           )
-                        })}
+                    })}
                       </div>
                     )}
                   </CardContent>
