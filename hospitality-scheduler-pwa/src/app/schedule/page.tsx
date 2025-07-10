@@ -23,7 +23,8 @@ import {
   Building,
   MapPin,
   Layers,
-  List
+  List,
+  RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -48,7 +49,7 @@ import { useSwapRequests } from '@/hooks/useSwapRequests'
 import { ArrowLeftRight } from 'lucide-react'
 
 
-type ViewPeriod = 'daily' | 'weekly' | 'monthly' | 'swaps'
+type ViewPeriod = 'daily' | 'weekly' | 'monthly'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const SHIFTS = [
@@ -1067,6 +1068,19 @@ const handleRemoveAssignment = (assignmentId: string) => {
                       {schedules.length}
                     </Badge>
                   </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowSwapDashboard(true)} 
+                    className="relative"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Swaps
+                    {swapSummary?.pending_swaps > 0 && (
+                      <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5">
+                        {swapSummary.pending_swaps}
+                      </Badge>
+                    )}
+                </Button>
                 </>
               )}
             </div>
@@ -1133,17 +1147,6 @@ const handleRemoveAssignment = (assignmentId: string) => {
                     <TabsTrigger value="daily">Daily</TabsTrigger>
                     <TabsTrigger value="weekly">Weekly</TabsTrigger>
                     <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                    {isManager && (
-                    <TabsTrigger value="swaps" className="flex items-center gap-1">
-                      <ArrowLeftRight className="w-3 h-3" />
-                      Swaps
-                      {swapSummary?.pending_swaps > 0 && (
-                        <Badge className="bg-red-500 text-white ml-1 text-xs">
-                          {swapSummary.pending_swaps}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                  )}
                   </TabsList>
                 </Tabs>
                 
