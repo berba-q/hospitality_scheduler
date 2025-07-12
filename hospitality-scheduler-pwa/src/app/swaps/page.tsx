@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import { SwapManagementDashboard } from '@/components/swap/SwapManagementDashboard'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select } from '@/components/ui/select'
 import { toast } from 'sonner'
 
 interface GlobalSwapSummary {
@@ -312,31 +312,23 @@ export default function GlobalSwapsPage() {
                       className="w-full"
                     />
                   </div>
-                  <Select value={selectedFacility || ''} onValueChange={setSelectedFacility}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="All Facilities" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All Facilities</SelectItem>
-                      {facilitySummaries.map((facility) => (
-                        <SelectItem key={facility.facility_id} value={facility.facility_id}>
-                          {facility.facility_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                  {/* Facilities selection */}
+                  <Select value={selectedFacility || ''} onValueChange={setSelectedFacility} className="w-48">
+                    <option value="">All Facilities</option>
+                    {facilitySummaries.map((facility) => (
+                      <option key={facility.facility_id} value={facility.facility_id}>
+                        {facility.facility_name}
+                      </option>
+                    ))}
                   </Select>
-                  <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Urgency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">All</SelectItem>
-                      <SelectItem value="emergency">Emergency</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {/* Urgency filters */}
+                  <Select value={urgencyFilter} onValueChange={setUrgencyFilter} className="w-32">
+                    <option value="">All</option>
+                    <option value="emergency">Emergency</option>
+                    <option value="high">High</option>
+                    <option value="normal">Normal</option>
+                    <option value="low">Low</option>
+                </Select>
                 </div>
               </CardContent>
             </Card>

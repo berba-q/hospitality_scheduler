@@ -32,23 +32,47 @@ export function Select({ onValueChange, onChange, className, children, ...props 
   )
 }
 
-export function SelectTrigger({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div {...props}>{children}</div>
+// These components are for compatibility with shadcn/ui API but render as simple elements
+// since we're using native HTML select
+export function SelectTrigger({ 
+  children: _children, 
+  className: _className,
+  ..._props 
+}: React.HTMLAttributes<HTMLDivElement>) {
+  // Don't render anything - the Select component handles the trigger
+  return null
 }
 
-export function SelectValue({ placeholder }: { placeholder?: string }) {
-  return <option value="" disabled>{placeholder}</option>
+export function SelectValue({ placeholder: _placeholder }: { placeholder?: string }) {
+  // Don't render anything - this will be handled by the native select
+  return null
 }
 
 export function SelectContent({ children }: { children: React.ReactNode }) {
+  // Don't render wrapper - children (SelectItems) will render directly
   return <>{children}</>
 }
 
-export function SelectItem({ value, children }: { value: string; children: React.ReactNode }) {
-  return <option value={value}>{children}</option>
+export function SelectItem({ 
+  value, 
+  children,
+  className,
+  ...props 
+}: { 
+  value: string
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <option value={value} className={className} {...props}>
+      {children}
+    </option>
+  )
 }
 
 // For compatibility
 export const SelectGroup = ({ children }: { children: React.ReactNode }) => <>{children}</>
-export const SelectLabel = ({ children }: { children: React.ReactNode }) => <optgroup label={children?.toString()}></optgroup>
+export const SelectLabel = ({ children }: { children: React.ReactNode }) => (
+  <optgroup label={children?.toString()}></optgroup>
+)
 export const SelectSeparator = () => null

@@ -1,3 +1,4 @@
+// schedule/page.tsx
 'use client'
 // Main schedule management page
 import { useState, useEffect } from 'react'
@@ -46,6 +47,7 @@ import { SwapRequestModal } from '@/components/swap/SwapRequestModal'
 import { SwapManagementDashboard } from '@/components/swap/SwapManagementDashboard'
 import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
 import { FacilitySwapModal } from '@/components/swap/FacilitySwapModal'
+import { Select } from '@/components/ui/select'
 import { useSwapRequests } from '@/hooks/useSwapRequests'
 import { ArrowLeftRight } from 'lucide-react'
 
@@ -1101,10 +1103,10 @@ const handleRemoveAssignment = (assignmentId: string) => {
                 {/* Facility Selector */}
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-2 block">Facility</label>
-                  <select
-                    value={selectedFacility?.id || ''}
-                    onChange={(e) => {
-                      const facility = facilities.find(f => f.id === e.target.value)
+                  <Select 
+                    value={selectedFacility?.id || ''} 
+                    onValueChange={(value) => {
+                      const facility = facilities.find(f => f.id === value)
                       setSelectedFacility(facility)
                       if (facility) {
                         const zones = getFacilityZones(facility)
@@ -1119,7 +1121,7 @@ const handleRemoveAssignment = (assignmentId: string) => {
                         {facility.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
 
                 {/* Zone Selection */}

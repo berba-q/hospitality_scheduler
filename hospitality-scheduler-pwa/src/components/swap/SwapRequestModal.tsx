@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   ArrowLeftRight, 
@@ -207,21 +207,12 @@ export function SwapRequestModal({
             <div className="space-y-2">
               <Label>Staff Member Requesting Swap</Label>
               <Select value={requestingStaffId} onValueChange={setRequestingStaffId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select staff member..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {staff.filter(s => s.is_active).map(staffMember => (
-                    <SelectItem key={staffMember.id} value={staffMember.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{staffMember.full_name}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {staffMember.role}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                <option value="" disabled>Select staff member...</option>
+                {staff.filter(s => s.is_active).map(staffMember => (
+                  <option key={staffMember.id} value={staffMember.id}>
+                    {staffMember.full_name} - {staffMember.role}
+                  </option>
+                ))}
               </Select>
             </div>
           )}
@@ -248,16 +239,12 @@ export function SwapRequestModal({
               <div className="space-y-2">
                 <Label>Target Day</Label>
                 <Select value={selectedTargetDay} onValueChange={setSelectedTargetDay}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select day..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {days.map((day, index) => (
-                      <SelectItem key={index} value={index.toString()}>
-                        {day}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                  <option value="" disabled>Select day...</option>
+                  {days.map((day, index) => (
+                    <option key={index} value={index.toString()}>
+                      {day}
+                    </option>
+                  ))}
                 </Select>
               </div>
 
@@ -265,16 +252,12 @@ export function SwapRequestModal({
               <div className="space-y-2">
                 <Label>Target Shift</Label>
                 <Select value={selectedTargetShift} onValueChange={setSelectedTargetShift}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select shift..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {shifts.map((shift, index) => (
-                      <SelectItem key={index} value={index.toString()}>
-                        {shift.name} ({shift.time})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
+                  <option value="" disabled>Select shift...</option>
+                  {shifts.map((shift, index) => (
+                    <option key={index} value={index.toString()}>
+                      {shift.name} ({shift.time})
+                    </option>
+                  ))}
                 </Select>
               </div>
 
@@ -283,16 +266,12 @@ export function SwapRequestModal({
                 <div className="space-y-2">
                   <Label>Staff Member to Swap With</Label>
                   <Select value={selectedTargetStaff} onValueChange={setSelectedTargetStaff}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select staff member..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getAvailableStaff().map(staffMember => (
-                        <SelectItem key={staffMember.id} value={staffMember.id}>
-                          {staffMember.full_name} - {staffMember.role} ⭐{staffMember.skill_level || 'N/A'}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>   
+                    <option value="" disabled>Select staff member...</option>
+                    {getAvailableStaff().map(staffMember => (
+                      <option key={staffMember.id} value={staffMember.id}>
+                        {staffMember.full_name} - {staffMember.role} ⭐{staffMember.skill_level || 'N/A'}
+                      </option>
+                    ))}
                   </Select>
                   {getAvailableStaff().length === 0 && (
                     <p className="text-xs text-gray-500">
@@ -357,18 +336,14 @@ export function SwapRequestModal({
                     }
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select staff to avoid..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {staff
-                      .filter(s => s.is_active && s.id !== currentAssignment?.staffId && !avoidStaffIds.includes(s.id))
-                      .map(staffMember => (
-                        <SelectItem key={staffMember.id} value={staffMember.id}>
-                          {staffMember.full_name} - {staffMember.role}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
+                  <option value="" disabled>Select staff to avoid...</option>
+                  {staff
+                    .filter(s => s.is_active && s.id !== currentAssignment?.staffId && !avoidStaffIds.includes(s.id))
+                    .map(staffMember => (
+                      <option key={staffMember.id} value={staffMember.id}>
+                        {staffMember.full_name} - {staffMember.role}
+                      </option>
+                    ))}
                 </Select>
                 {avoidStaffIds.length > 0 && (
                   <div className="flex flex-wrap gap-2">
@@ -411,25 +386,26 @@ export function SwapRequestModal({
           <div className="space-y-2">
             <Label>Urgency Level</Label>
             <Select value={urgency} onValueChange={setUrgency}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {URGENCY_LEVELS.map(level => (
-                  <SelectItem key={level.value} value={level.value}>
-                    <div className="flex items-center gap-2">
-                      <level.icon className="h-4 w-4" />
-                      <span>{level.label}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              <option value="" disabled>Select urgency...</option>
+              {URGENCY_LEVELS.map(level => (
+                <option key={level.value} value={level.value}>
+                  {level.label}
+                </option>
+              ))}
             </Select>
             <div className="flex items-center gap-2 mt-2">
-              <UrgencyIcon className="h-4 w-4" />
-              <Badge className={urgencyLevel?.color}>
-                {urgencyLevel?.label}
-              </Badge>
+              {(() => {
+                const urgencyLevel = URGENCY_LEVELS.find(l => l.value === urgency)
+                const UrgencyIcon = urgencyLevel?.icon || Clock
+                return (
+                  <>
+                    <UrgencyIcon className="h-4 w-4" />
+                    <Badge className={urgencyLevel?.color}>
+                      {urgencyLevel?.label}
+                    </Badge>
+                  </>
+                )
+              })()}
             </div>
           </div>
 
