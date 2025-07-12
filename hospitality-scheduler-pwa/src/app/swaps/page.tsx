@@ -40,6 +40,8 @@ export default function GlobalSwapsPage() {
   const [urgencyFilter, setUrgencyFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
+  const [selectedSwaps, setSelectedSwaps] = useState<string[]>([])
+  const [showBulkActions, setShowBulkActions] = useState(false)
 
   // Modal states
   const [showFacilityDetail, setShowFacilityDetail] = useState(false)
@@ -107,6 +109,31 @@ export default function GlobalSwapsPage() {
       console.error('Failed to load swap history:', error)
       toast.error('Failed to load swap history')
       return { swap: null, history: [] }
+    }
+  }
+
+  // BUlk actions
+  const handleSelectSwap = (swapId: string, selected: boolean) => {
+    if (selected) {
+      setSelectedSwaps([...selectedSwaps, swapId])
+    } else {
+      setSelectedSwaps(selectedSwaps.filter(id => id !== swapId))
+    }
+  }
+
+  const handleSelectAll = (swaps: any[]) => {
+    const eligibleSwaps = swaps.filter(swap => swap.status === 'pending').map(swap => swap.id)
+    setSelectedSwaps(eligibleSwaps)
+  }
+
+  const handleBulkApprove = async (approved: boolean, notes?: string) => {
+    try {
+      await apiClient.bulkApproveSwaps(selectedSwaps, approved, notes)
+      await loadGlobalSwapData()
+      setSelectedSwaps([])
+      toast.success(`${selectedSwaps.length} swaps ${approved ? 'approved' : 'declined'}`)
+    } catch (error) {
+      toast.error('Failed to process bulk operation')
     }
   }
 
@@ -296,6 +323,46 @@ export default function GlobalSwapsPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* BUlk actions */}
+              {selectedSwaps.length > 0 && (
+                <Card className="border-blue-200 bg-blue-50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        {selectedSwaps.length} swap{selectedSwaps.length > 1 ? 's' : ''} selected
+                      </span>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleBulkApprove(true)}
+                          className="text-green-700 border-green-200 hover:bg-green-100"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve All
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleBulkApprove(false)}
+                          className="text-red-700 border-red-200 hover:bg-red-100"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Decline All
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => setSelectedSwaps([])}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Enhanced Swap Management Dashboard */}
               <SwapManagementDashboard
