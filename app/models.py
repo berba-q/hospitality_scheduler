@@ -132,7 +132,10 @@ class SwapRequest(SQLModel, table=True):
     urgency: str = Field(default="normal", description="low, normal, high, emergency")
     
     # Status tracking
-    status: str = Field(default="pending", description="pending, approved, declined, completed, cancelled")
+    status: str = Field(
+        default="pending", 
+        description="pending, manager_approved, staff_accepted, staff_declined, assigned, assignment_failed, executed, declined, cancelled"
+    )
     
     # Approval workflow
     target_staff_accepted: Optional[bool] = None  # For specific swaps
