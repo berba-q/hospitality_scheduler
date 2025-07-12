@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from typing import Any, Dict, Literal, Optional, List
+from enum import Enum
 import uuid
 
 from pydantic import BaseModel, EmailStr, ConfigDict, Field, validator
@@ -219,6 +220,16 @@ class QuickUnavailabilityCreate(BaseModel):
         return v
 
 # Base swap request schemas
+
+class SwapStatus(str, Enum):
+    PENDING = "pending"
+    MANAGER_APPROVED = "manager_approved"
+    STAFF_ACCEPTED = "staff_accepted"
+    STAFF_DECLINED = "staff_declined"
+    ASSIGNED = "assigned"
+    ASSIGNMENT_FAILED = "assignment_failed"
+    EXECUTED = "executed"
+    DECLINED = "declined"
 class SwapRequestCreate(BaseModel):
     schedule_id: uuid.UUID
     original_day: int = Field(ge=0, le=6, description="Day of week (0=Monday)")
@@ -266,7 +277,7 @@ class SwapRequestRead(BaseModel):
     
     reason: str
     urgency: str
-    status: str
+    status: SwapStatus
     
     target_staff_accepted: Optional[bool] = None
     manager_approved: Optional[bool] = None

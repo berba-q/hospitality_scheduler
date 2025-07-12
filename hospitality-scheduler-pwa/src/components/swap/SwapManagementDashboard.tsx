@@ -88,11 +88,56 @@ const URGENCY_CONFIG = {
 }
 
 const STATUS_CONFIG = {
-  pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-  approved: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
-  declined: { color: 'bg-red-100 text-red-800', icon: XCircle },
-  completed: { color: 'bg-blue-100 text-blue-800', icon: CheckCircle },
-  cancelled: { color: 'bg-gray-100 text-gray-800', icon: XCircle }
+  pending: { 
+    color: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
+    icon: Clock,
+    label: 'Pending Review',
+    description: 'Waiting for manager review'
+  },
+  manager_approved: { 
+    color: 'bg-blue-100 text-blue-800 border-blue-200', 
+    icon: CheckCircle,
+    label: 'Manager Approved',
+    description: (swap) => swap.swap_type === 'specific' 
+      ? `Approved - waiting for ${swap.target_staff?.full_name || 'staff'} response`
+      : 'Approved - finding coverage'
+  },
+  staff_accepted: { 
+    color: 'bg-green-100 text-green-800 border-green-200', 
+    icon: CheckCircle,
+    label: 'Staff Accepted',
+    description: 'Ready to execute'
+  },
+  staff_declined: { 
+    color: 'bg-orange-100 text-orange-800 border-orange-200', 
+    icon: XCircle,
+    label: 'Staff Declined',
+    description: 'Staff member declined the swap'
+  },
+  assigned: { 
+    color: 'bg-green-100 text-green-800 border-green-200', 
+    icon: Users,
+    label: 'Coverage Assigned',
+    description: (swap) => `Coverage found: ${swap.assigned_staff?.full_name || 'Staff assigned'}`
+  },
+  assignment_failed: { 
+    color: 'bg-orange-100 text-orange-800 border-orange-200', 
+    icon: AlertTriangle,
+    label: 'No Coverage Found',
+    description: 'System could not find replacement'
+  },
+  executed: { 
+    color: 'bg-emerald-100 text-emerald-800 border-emerald-200', 
+    icon: CheckCircle,
+    label: 'Completed',
+    description: 'Swap executed successfully'
+  },
+  declined: { 
+    color: 'bg-red-100 text-red-800 border-red-200', 
+    icon: XCircle,
+    label: 'Declined',
+    description: 'Manager rejected the request'
+  }
 }
 
 export function SwapManagementDashboard({
@@ -120,13 +165,24 @@ export function SwapManagementDashboard({
       await onApproveSwap(swapId, approved, approvalNotes)
       setSelectedSwap(null)
       setApprovalNotes('')
-      toast.success(`Swap request ${approved ? 'approved' : 'declined'}`)
+      
+      if (approved) {
+        // Find the swap to customize message
+        const swap = swapRequests.find(s => s.id === swapId)
+        if (swap?.swap_type === 'specific') {
+          toast.success(`Swap approved! Waiting for ${swap.target_staff?.full_name || 'staff'} to respond.`)
+        } else {
+          toast.success('Swap approved! Finding coverage...')
+        }
+      } else {
+        toast.success('Swap request declined.')
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to process approval')
     } finally {
       setLoading('')
     }
-  }
+}
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -138,146 +194,140 @@ export function SwapManagementDashboard({
   }
 
   const SwapCard = ({ swap }: { swap: SwapRequest }) => {
-    const urgencyConfig = URGENCY_CONFIG[swap.urgency]
-    const statusConfig = STATUS_CONFIG[swap.status]
-    const UrgencyIcon = urgencyConfig.icon
-    const StatusIcon = statusConfig.icon
+  const urgencyConfig = URGENCY_CONFIG[swap.urgency]
+  const statusConfig = STATUS_CONFIG[swap.status]
+  const UrgencyIcon = urgencyConfig.icon
+  const StatusIcon = statusConfig.icon
 
-    return (
-      <Card className={`cursor-pointer transition-all hover:shadow-md ${
-        swap.urgency === 'emergency' ? 'border-red-300 bg-red-50' : 
-        swap.urgency === 'high' ? 'border-orange-300 bg-orange-50' : ''
-      }`}>
-        <CardContent className="p-4">
-          <div className="space-y-3">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ArrowLeftRight className="h-4 w-4 text-gray-500" />
-                <Badge className={statusConfig.color}>
-                  <StatusIcon className="h-3 w-3 mr-1" />
-                  {swap.status}
-                </Badge>
-                <Badge className={urgencyConfig.color}>
-                  <UrgencyIcon className="h-3 w-3 mr-1" />
-                  {swap.urgency}
-                </Badge>
-              </div>
-              <div className="text-xs text-gray-500">
-                {formatDate(swap.created_at)}
-              </div>
-            </div>
-
-            {/* Staff Info */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-500" />
-                <span className="font-medium">{swap.requesting_staff.full_name}</span>
-                <Badge variant="outline" className="text-xs">
-                  {swap.requesting_staff.role}
-                </Badge>
-              </div>
-
-              {/* Original Assignment */}
-              <div className="text-sm text-gray-600 ml-6">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-3 w-3" />
-                  <span>{days[swap.original_day]} - {shifts[swap.original_shift]?.name}</span>
-                </div>
-              </div>
-
-              {/* Swap Details */}
-              {swap.swap_type === 'specific' && swap.target_staff && (
-                <div className="ml-6 pt-2 border-t border-gray-100">
-                  <div className="flex items-center gap-2 text-sm">
-                    <ArrowLeftRight className="h-3 w-3 text-green-600" />
-                    <span>With {swap.target_staff.full_name}</span>
-                  </div>
-                  <div className="text-xs text-gray-500 ml-4">
-                    {days[swap.target_day!]} - {shifts[swap.target_shift!]?.name}
-                  </div>
-                  {swap.target_staff_accepted !== null && (
-                    <Badge className={swap.target_staff_accepted ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                      {swap.target_staff_accepted ? 'Accepted' : 'Declined'} by staff
-                    </Badge>
-                  )}
-                </div>
-              )}
-
-              {swap.swap_type === 'auto' && (
-                <div className="ml-6 pt-2 border-t border-gray-100">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Zap className="h-3 w-3 text-purple-600" />
-                    <span>Auto-assignment requested</span>
-                  </div>
-                  {swap.assigned_staff && (
-                    <div className="text-xs text-gray-600 ml-4">
-                      Assigned to: {swap.assigned_staff.full_name}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Reason */}
-            <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-              <span className="font-medium">Reason: </span>
-              {swap.reason}
-            </div>
-
-            {/* Manager Notes */}
-            {swap.manager_notes && (
-              <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded">
-                <span className="font-medium">Manager Notes: </span>
-                {swap.manager_notes}
-              </div>
-            )}
-
-            {/* Actions */}
-            {swap.status === 'pending' && (
-              <div className="flex gap-2 pt-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setSelectedSwap(swap)
-                  }}
-                  className="flex-1"
-                >
-                  Review
-                </Button>
-                {swap.swap_type === 'auto' && swap.manager_approved && !swap.assigned_staff && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onRetryAutoAssignment(swap.id)
-                    }}
-                    disabled={loading === swap.id}
-                  >
-                    <RotateCcw className="h-3 w-3 mr-1" />
-                    Retry
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onViewSwapHistory(swap.id)
-                  }}
-                >
-                  <History className="h-3 w-3" />
-                </Button>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    )
+  // Get status description (function or string)
+  const getStatusDescription = () => {
+    if (typeof statusConfig.description === 'function') {
+      return statusConfig.description(swap)
+    }
+    return statusConfig.description
   }
+
+  return (
+    <Card className={`cursor-pointer transition-all hover:shadow-md ${
+      swap.urgency === 'emergency' ? 'ring-2 ring-red-200' : ''
+    }`}>
+      <CardContent className="p-4">
+        <div className="space-y-3">
+          {/* Header with status and urgency */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <StatusIcon className="h-4 w-4" />
+              <Badge className={statusConfig.color}>
+                {statusConfig.label}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <UrgencyIcon className="h-3 w-3" />
+              <Badge variant="outline" className={urgencyConfig.color}>
+                {swap.urgency}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Status Description */}
+          <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+            {getStatusDescription()}
+          </div>
+
+          {/* Requesting Staff */}
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-gray-500" />
+            <span className="font-medium">{swap.requesting_staff.full_name}</span>
+            <Badge variant="outline" className="text-xs">
+              {swap.requesting_staff.role}
+            </Badge>
+          </div>
+
+          {/* Original Assignment */}
+          <div className="text-sm text-gray-600">
+            <span className="font-medium">Original: </span>
+            {days[swap.original_day]} - {shifts[swap.original_shift]?.name}
+          </div>
+
+          {/* Swap Details */}
+          {swap.swap_type === 'specific' && swap.target_staff && (
+            <div className="ml-4 p-2 bg-blue-50 rounded">
+              <div className="text-sm">
+                <span className="font-medium">Swap with: </span>
+                {swap.target_staff.full_name} ({swap.target_staff.role})
+              </div>
+              <div className="text-sm text-gray-600">
+                {days[swap.target_day!]} - {shifts[swap.target_shift!]?.name}
+              </div>
+            </div>
+          )}
+
+          {swap.swap_type === 'auto' && swap.assigned_staff && (
+            <div className="ml-4 p-2 bg-green-50 rounded">
+              <div className="text-sm">
+                <span className="font-medium">Assigned to: </span>
+                {swap.assigned_staff.full_name} ({swap.assigned_staff.role})
+              </div>
+            </div>
+          )}
+
+          {/* Reason */}
+          <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+            <span className="font-medium">Reason: </span>
+            {swap.reason}
+          </div>
+
+          {/* Manager Notes */}
+          {swap.manager_notes && (
+            <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded">
+              <span className="font-medium">Manager Notes: </span>
+              {swap.manager_notes}
+            </div>
+          )}
+
+          {/* Actions - only show for actionable statuses */}
+          {swap.status === 'pending' && (
+            <div className="flex gap-2 pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSelectedSwap(swap)
+                }}
+                className="flex-1"
+              >
+                Review & Decide
+              </Button>
+            </div>
+          )}
+
+          {swap.status === 'assignment_failed' && swap.swap_type === 'auto' && (
+            <div className="flex gap-2 pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onRetryAutoAssignment(swap.id, [])
+                }}
+                className="flex-1"
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Retry Assignment
+              </Button>
+            </div>
+          )}
+
+          {/* Timestamp */}
+          <div className="text-xs text-gray-500 border-t pt-2">
+            Created: {formatDate(swap.created_at)}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
   return (
     <div className="space-y-6">

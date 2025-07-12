@@ -17,8 +17,8 @@ export function useSwapRequests(facilityId?: string) {
     setLoading(true)
     try {
       const [requests, summary] = await Promise.all([
-        apiClient.get(`/swaps?facility_id=${facilityId}`),
-        apiClient.get(`/swaps/summary/${facilityId}`)
+        apiClient.getSwapRequests(facilityId),
+        apiClient.getSwapSummary(facilityId)
       ])
       setSwapRequests(requests)
       setSwapSummary(summary)
@@ -31,34 +31,27 @@ export function useSwapRequests(facilityId?: string) {
   }
 
   const createSwapRequest = async (swapData: any) => {
-    const endpoint = swapData.swap_type === 'specific' ? '/swaps/specific' : '/swaps/auto'
-    const response = await apiClient.post(endpoint, swapData)
+    //const endpoint = swapData.swap_type === 'specific' ? '/swaps/specific' : '/swaps/auto'
+    const response = await apiClient.createSwapRequest(swapData)
     await loadSwapRequests() // Refresh data
     return response
   }
 
   const approveSwap = async (swapId: string, approved: boolean, notes?: string) => {
-    const response = await apiClient.put(`/swaps/${swapId}/manager-decision`, {
-      approved,
-      notes
-    })
+    const response = await apiClient.approveSwap(swapId, approved, notes)
     await loadSwapRequests() // Refresh data
     return response
   }
 
-  const retryAutoAssignment = async (swapId: string, avoidStaffIds?: string[]) => {
-    const response = await apiClient.post(`/swaps/${swapId}/retry-auto-assignment`, {
-      avoid_staff_ids: avoidStaffIds || []
-    })
-    await loadSwapRequests() // Refresh data
-    return response
-  }
+    const retryAutoAssignment = async (swapId: string, avoidStaffIds?: string[]) => {
+      // Changed from: apiClient.post(`/swaps/${swapId}/retry-auto-assignment`, { avoid_staff_ids: avoidStaffIds })
+      const response = await apiClient.retryAutoAssignment(swapId, avoidStaffIds)
+      await loadSwapRequests() // Refresh data
+      return response
+    }
 
   const respondToSwap = async (swapId: string, accepted: boolean, notes?: string) => {
-    const response = await apiClient.put(`/swaps/${swapId}/staff-response`, {
-      accepted,
-      notes
-    })
+    const response = await apiClient.respondToSwap(swapId, accepted, notes)
     await loadSwapRequests() // Refresh data
     return response
   }

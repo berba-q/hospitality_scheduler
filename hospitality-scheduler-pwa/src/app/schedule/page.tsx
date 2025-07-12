@@ -45,6 +45,7 @@ import { toast } from 'sonner'
 import { SwapRequestModal } from '@/components/swap/SwapRequestModal'
 import { SwapManagementDashboard } from '@/components/swap/SwapManagementDashboard'
 import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
+import { FacilitySwapModal } from '@/components/swap/FacilitySwapModal'
 import { useSwapRequests } from '@/hooks/useSwapRequests'
 import { ArrowLeftRight } from 'lucide-react'
 
@@ -1069,8 +1070,8 @@ const handleRemoveAssignment = (assignmentId: string) => {
                     </Badge>
                   </Button>
                   <Button 
-                    variant="outline" 
-                    onClick={() => setShowSwapDashboard(true)} 
+                    variant={showSwapDashboard ? "default" : "outline"}
+                    onClick={() => setShowSwapDashboard(!showSwapDashboard)} 
                     className="relative"
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
@@ -1322,32 +1323,6 @@ const handleRemoveAssignment = (assignmentId: string) => {
                 />
               )}
 
-                {/* Swaps View */}
-                {viewPeriod === 'swaps' && isManager && (
-                  <div className="space-y-6">
-                    {selectedFacility && swapSummary ? (
-                      <SwapManagementDashboard
-                        facility={selectedFacility}
-                        swapRequests={swapRequests}
-                        swapSummary={swapSummary}
-                        days={DAYS}
-                        shifts={SHIFTS}
-                        onApproveSwap={approveSwap}
-                        onRetryAutoAssignment={retryAutoAssignment}
-                        onViewSwapHistory={handleViewSwapHistory}
-                        onRefresh={refreshSwaps}
-                      />
-                    ) : (
-                      <Card>
-                        <CardContent className="p-8 text-center">
-                          <ArrowLeftRight className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                          <h3 className="text-lg font-medium mb-2">No facility selected</h3>
-                          <p className="text-gray-500">Select a facility to manage swap requests.</p>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                )}
             </div>
           </div>
           {/* Schedule List Modal */}
@@ -1394,6 +1369,21 @@ const handleRemoveAssignment = (assignmentId: string) => {
               open={showConfigModal}
               onClose={() => setShowConfigModal(false)}
               facility={selectedFacility}
+            />
+
+             {/* Facility swap modal */}
+            <FacilitySwapModal
+              open={showSwapDashboard}
+              onClose={() => setShowSwapDashboard(false)}
+              facility={selectedFacility}
+              swapRequests={swapRequests}
+              swapSummary={swapSummary}
+              days={DAYS}
+              shifts={SHIFTS}
+              onApproveSwap={approveSwap}
+              onRetryAutoAssignment={retryAutoAssignment}
+              onViewSwapHistory={handleViewSwapHistory}
+              onRefresh={refreshSwaps}
             />
           </>
         )}

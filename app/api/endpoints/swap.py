@@ -225,18 +225,32 @@ def respond_to_swap_request(
     if swap_request.target_staff_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to respond to this swap")
     
-    # Verify request is still pending
-    if swap_request.status != "pending":
-        raise HTTPException(status_code=400, detail="Swap request is no longer pending")
+    # Verify request can still be responded to
+    if swap_request.status not in ["pending", "manager_approved"]:
+        raise HTTPException(status_code=400, detail="Swap request can no longer be responded to")
     
-    # Update the request
+    # Update staff response
     swap_request.target_staff_accepted = response.accepted
     
+    if response.accepted:
+        if swap_request.manager_approved:
+            # Both manager and staff approved - execute the swap
+            swap_request.status = "staff_accepted"
+            _execute_specific_swap(db, swap_request)
+            swap_request.status = "executed"
+        else:
+            # Staff accepted but manager hasn't approved yet
+            swap_request.status = "pending"  # Still waiting for manager
+    else:
+        # Staff declined
+        swap_request.status = "staff_declined"
+    
     # Create history entry
+    action = "staff_accepted" if response.accepted else "staff_declined"
     history = SwapHistory(
         swap_request_id=swap_id,
-        action="accepted" if response.accepted else "declined",
-        actor_staff_id=None,
+        action=action,
+        actor_staff_id=current_user.id,
         notes=response.notes
     )
     
@@ -271,37 +285,56 @@ def manager_swap_decision(
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
-    # Update the request
+    # Update manager decision
     swap_request.manager_approved = decision.approved
     swap_request.manager_notes = decision.notes
     
     if decision.approved:
         if swap_request.swap_type == "specific":
-            # For specific swaps, need staff acceptance first
+            # Manager approved specific swap
+            swap_request.status = "manager_approved"
+            
+            # Check if staff already responded
             if swap_request.target_staff_accepted is True:
-                swap_request.status = "approved"
-                # Execute the swap
+                # Staff already accepted - ready to execute
+                swap_request.status = "staff_accepted"
                 _execute_specific_swap(db, swap_request)
-            else:
-                swap_request.status = "pending"  # Still waiting for staff response
-        else:
-            # For auto swaps, try to assign coverage
-            assignment_result = assign_swap_coverage(db, swap_request)
-            if assignment_result.success:
-                swap_request.assigned_staff_id = assignment_result.assigned_staff_id
-                swap_request.status = "approved"
-                # Execute the assignment
-                _execute_auto_assignment(db, swap_request)
-            else:
-                swap_request.status = "pending"
-                swap_request.manager_notes = f"{decision.notes or ''} | Auto-assignment failed: {assignment_result.reason}"
+                swap_request.status = "executed"
+            elif swap_request.target_staff_accepted is False:
+                # Staff already declined
+                swap_request.status = "staff_declined"
+            # Otherwise stays "manager_approved" waiting for staff response
+            
+        else:  # auto swap
+            # Manager approved auto swap
+            swap_request.status = "manager_approved"
+            
+            # Try to assign coverage immediately
+            try:
+                assignment_result = assign_swap_coverage(db, swap_request)
+                if assignment_result.success and assignment_result.assigned_staff_id:
+                    swap_request.assigned_staff_id = assignment_result.assigned_staff_id
+                    swap_request.status = "assigned"
+                    
+                    # Execute the assignment
+                    _execute_auto_assignment(db, swap_request)
+                    swap_request.status = "executed"
+                else:
+                    # Auto-assignment failed
+                    swap_request.status = "assignment_failed"
+                    swap_request.manager_notes = f"{decision.notes or ''} | Auto-assignment failed: {assignment_result.reason if assignment_result else 'No suitable staff found'}"
+            except Exception as e:
+                swap_request.status = "assignment_failed"
+                swap_request.manager_notes = f"{decision.notes or ''} | Auto-assignment error: {str(e)}"
     else:
+        # Manager declined the request
         swap_request.status = "declined"
     
-    # Create history entry
+    # Create history entry with clear action
+    action = "manager_approved" if decision.approved else "manager_declined"
     history = SwapHistory(
         swap_request_id=swap_id,
-        action="approved" if decision.approved else "declined",
+        action=action,
         actor_staff_id=None,
         notes=decision.notes
     )
@@ -383,7 +416,14 @@ def list_swap_requests(
     
     # Apply filters
     if facility_id:
-        query = query.join(Schedule).where(Schedule.facility_id == facility_id)
+        # ✅ FIX: Don't join Schedule again, just filter on the existing join
+        if current_user.is_manager:
+            # Schedule is already joined above for managers
+            query = query.where(Schedule.facility_id == facility_id)
+        else:
+            # For staff, we need to join Schedule to filter by facility
+            query = query.join(Schedule).where(Schedule.facility_id == facility_id)
+    
     if status:
         query = query.where(SwapRequest.status == status)
     if urgency:
@@ -402,12 +442,15 @@ def list_swap_requests(
         target_staff = db.get(Staff, swap.target_staff_id) if swap.target_staff_id else None
         assigned_staff = db.get(Staff, swap.assigned_staff_id) if swap.assigned_staff_id else None
         
-        result.append(SwapRequestWithDetails(
-            **swap.dict(),
-            requesting_staff=requesting_staff,
-            target_staff=target_staff,
-            assigned_staff=assigned_staff
-        ))
+        # Convert Staff models to dictionaries and create SwapRequestWithDetails properly
+        swap_data = swap.dict()
+        
+        # Add staff data as dictionaries (which will be automatically converted to StaffRead)
+        swap_data["requesting_staff"] = requesting_staff.dict() if requesting_staff else None
+        swap_data["target_staff"] = target_staff.dict() if target_staff else None
+        swap_data["assigned_staff"] = assigned_staff.dict() if assigned_staff else None
+        
+        result.append(SwapRequestWithDetails(**swap_data))
     
     return result
 

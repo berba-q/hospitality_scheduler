@@ -78,9 +78,9 @@ export default function GlobalSwapsPage() {
     try {
       // Load global summary and all facility data
       const [summary, facilities, allSwaps] = await Promise.all([
-        apiClient.get('/swaps/global-summary'),
-        apiClient.get('/swaps/facilities-summary'),
-        apiClient.get('/swaps/all')
+        apiClient.getGlobalSwapSummary(),
+        apiClient.getFacilitiesSwapSummary(),
+        apiClient.getAllSwapRequests()
       ])
       
       setGlobalSummary(summary)
@@ -96,28 +96,34 @@ export default function GlobalSwapsPage() {
 
   const handleApproveSwap = async (swapId: string, approved: boolean, notes?: string) => {
     try {
-      await apiClient.put(`/swaps/${swapId}/manager-decision`, {
-        approved,
-        notes
+      await apiClient.approveSwap(swapId, approved, notes)
+      await loadGlobalSwapData() // or refreshSwaps()
+      
+      if (approved) {
+      toast.success('Request approved! Status updated.', {
+        description: 'Staff will be notified of your decision.'
       })
-      await loadGlobalSwapData() // Refresh all data
-      toast.success(`Swap request ${approved ? 'approved' : 'declined'}`)
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to process approval')
+    } else {
+      toast.success('Request declined.', {
+        description: 'Staff will be notified of your decision.'
+      })
     }
+  } catch (error: any) {
+    toast.error(error.message || 'Failed to process approval')
   }
+}
 
   const handleRetryAutoAssignment = async (swapId: string, avoidStaffIds?: string[]) => {
     try {
-      await apiClient.post(`/swaps/${swapId}/retry-auto-assignment`, {
-        avoid_staff_ids: avoidStaffIds || []
-      })
+      await apiClient.retryAutoAssignment(swapId, avoidStaffIds)
       await loadGlobalSwapData()
-      toast.success('Auto-assignment retried')
+      toast.success('Searching for coverage...', {
+        description: 'System will attempt to find replacement staff.'
+      })
     } catch (error: any) {
       toast.error(error.message || 'Failed to retry assignment')
     }
-  }
+}
 
   // Filter swap requests based on selected facility and filters
   const filteredSwapRequests = allSwapRequests.filter(swap => {

@@ -271,13 +271,10 @@ export function SwapRequestModal({
                   <SelectContent>
                     {shifts.map((shift, index) => (
                       <SelectItem key={index} value={index.toString()}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>{shift.name}</span>
-                          <span className="text-xs text-gray-500">{shift.time}</span>
-                        </div>
+                        {shift.name} ({shift.time})
                       </SelectItem>
                     ))}
-                  </SelectContent>
+                </SelectContent>
                 </Select>
               </div>
 
@@ -292,21 +289,10 @@ export function SwapRequestModal({
                     <SelectContent>
                       {getAvailableStaff().map(staffMember => (
                         <SelectItem key={staffMember.id} value={staffMember.id}>
-                          <div className="flex items-center gap-2">
-                            <span>{staffMember.full_name}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {staffMember.role}
-                            </Badge>
-                            {staffMember.skill_level && (
-                              <div className="flex items-center gap-1">
-                                <Star className="h-3 w-3 text-yellow-500" />
-                                <span className="text-xs">{staffMember.skill_level}</span>
-                              </div>
-                            )}
-                          </div>
+                          {staffMember.full_name} - {staffMember.role} ⭐{staffMember.skill_level || 'N/A'}
                         </SelectItem>
                       ))}
-                    </SelectContent>
+                  </SelectContent>   
                   </Select>
                   {getAvailableStaff().length === 0 && (
                     <p className="text-xs text-gray-500">
