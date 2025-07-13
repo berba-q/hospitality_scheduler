@@ -113,11 +113,17 @@ const STATUS_CONFIG = {
     label: 'In Progress',
     description: 'Staff accepted, swap being executed'
   },
-  assigned: { 
-    color: 'bg-purple-100 text-purple-800 border-purple-200', 
-    icon: Users,
-    label: 'Coverage Assigned',
-    description: 'Auto-assignment successful'
+  assigned: {
+  color: 'bg-blue-100 text-blue-800 border-blue-200',
+  icon: Clock,
+  label: 'Awaiting Staff Response',
+  description: 'Assigned staff needs to accept'
+  },
+  assignment_declined: {
+  color: 'bg-orange-100 text-orange-800 border-orange-200',
+  icon: XCircle,
+  label: 'Assignment Declined',
+  description: 'Assigned staff declined'
   },
   executed: { 
     color: 'bg-emerald-100 text-emerald-800 border-emerald-200', 

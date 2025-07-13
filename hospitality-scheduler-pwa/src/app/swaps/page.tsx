@@ -39,7 +39,6 @@ import { SwapManagementDashboard } from '@/components/swap/SwapManagementDashboa
 import { FacilityDetailModal } from '@/components/swap/FacilityDetailModal'
 import { SwapHistoryModal } from '@/components/swap/SwapHistoryModal'
 import { AdvancedSearchModal } from '@/components/swap/AdvancedSearchModal'
-import { AnalyticsTab } from '@/components/swap/AnalyticsTab'
 import { StaffAnalyticsDashboard } from '@/components/swap/StaffAnalyticsDashboard'
 import { ExportReportModal, useExportFunctionality } from '@/components/swap/ExportReportModal'
 
