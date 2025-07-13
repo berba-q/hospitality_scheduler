@@ -454,7 +454,7 @@ def list_swap_requests(
     
     return result
 
-@router.get("/summary/{facility_id}", response_model=SwapSummary)
+@router.get("/facility/{facility_id}/summary", response_model=SwapSummary)
 def get_swap_summary(
     facility_id: UUID,
     db: Session = Depends(get_db),
