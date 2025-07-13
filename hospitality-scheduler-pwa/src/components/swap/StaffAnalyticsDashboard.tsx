@@ -175,11 +175,22 @@ function TopRequestingStaffCard({ data }) {
 }
 
 function ProblemPatternsCard({ data }) {
-  // Based on the console logs, we can see the data structure
-  const problems = data?.problem_patterns || {}
+  console.log('🔍 ProblemPatternsCard received data:', data)
+  
+  // Safely access the data structure
+  const problems = data?.problem_patterns || data || {}
+  console.log('🔍 Problems extracted:', problems)
+  
+  // Handle both possible data structures
   const highFreqRequesters = problems.high_frequency_requesters || []
   const emergencyUsers = problems.frequent_emergency_users || []
   const lowSuccessStaff = problems.low_success_staff || []
+  
+  console.log('🔍 Arrays extracted:', {
+    highFreqRequesters: highFreqRequesters.length,
+    emergencyUsers: emergencyUsers.length,
+    lowSuccessStaff: lowSuccessStaff.length
+  })
   
   const hasProblems = highFreqRequesters.length > 0 || emergencyUsers.length > 0 || lowSuccessStaff.length > 0
   
@@ -209,14 +220,18 @@ function ProblemPatternsCard({ data }) {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* High Frequency Requesters */}
-        {highFreqRequesters.length > 0 && (
+        {Array.isArray(highFreqRequesters) && highFreqRequesters.length > 0 && (
           <div>
-            <h4 className="font-medium text-red-800 mb-2">High Frequency Requesters (>5 requests)</h4>
+            <h4 className="font-medium text-red-800 mb-2">High Frequency Requesters (&gt;5 requests)</h4>
             <div className="space-y-2">
               {highFreqRequesters.slice(0, 3).map((staff, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
-                  <span className="font-medium">{staff.staff_name} ({staff.role})</span>
-                  <Badge variant="destructive">{staff.total_requests} requests</Badge>
+                <div key={`high-freq-${index}`} className="flex items-center justify-between p-2 bg-white rounded border">
+                  <span className="font-medium">
+                    {staff?.staff_name || 'Unknown'} ({staff?.role || 'Unknown Role'})
+                  </span>
+                  <Badge variant="destructive">
+                    {staff?.total_requests || 0} requests
+                  </Badge>
                 </div>
               ))}
             </div>
@@ -224,14 +239,16 @@ function ProblemPatternsCard({ data }) {
         )}
 
         {/* Frequent Emergency Users */}
-        {emergencyUsers.length > 0 && (
+        {Array.isArray(emergencyUsers) && emergencyUsers.length > 0 && (
           <div>
             <h4 className="font-medium text-red-800 mb-2">Frequent Emergency Users</h4>
             <div className="space-y-2">
               {emergencyUsers.slice(0, 3).map((staff, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
-                  <span className="font-medium">{staff.staff_name}</span>
-                  <Badge variant="destructive">{staff.emergency_requests} emergencies</Badge>
+                <div key={`emergency-${index}`} className="flex items-center justify-between p-2 bg-white rounded border">
+                  <span className="font-medium">{staff?.staff_name || 'Unknown'}</span>
+                  <Badge variant="destructive">
+                    {staff?.emergency_requests || 0} emergencies
+                  </Badge>
                 </div>
               ))}
             </div>
@@ -239,14 +256,16 @@ function ProblemPatternsCard({ data }) {
         )}
 
         {/* Low Success Rate */}
-        {lowSuccessStaff.length > 0 && (
+        {Array.isArray(lowSuccessStaff) && lowSuccessStaff.length > 0 && (
           <div>
-            <h4 className="font-medium text-red-800 mb-2">Low Success Rate (<50%)</h4>
+            <h4 className="font-medium text-red-800 mb-2">Low Success Rate (&lt;50%)</h4>
             <div className="space-y-2">
               {lowSuccessStaff.slice(0, 3).map((staff, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
-                  <span className="font-medium">{staff.staff_name}</span>
-                  <Badge variant="destructive">{staff.success_rate.toFixed(0)}% approved</Badge>
+                <div key={`low-success-${index}`} className="flex items-center justify-between p-2 bg-white rounded border">
+                  <span className="font-medium">{staff?.staff_name || 'Unknown'}</span>
+                  <Badge variant="destructive">
+                    {staff?.success_rate ? staff.success_rate.toFixed(0) : 0}% approved
+                  </Badge>
                 </div>
               ))}
             </div>
