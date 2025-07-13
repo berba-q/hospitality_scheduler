@@ -1,4 +1,4 @@
-// Global swaps page
+// Global swaps page - FIXED VERSION
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -20,7 +20,10 @@ import {
   Filter,
   Search,
   Eye,
-  ChevronRight
+  ChevronRight,
+  X, // Added missing import
+  Download,
+  BarChart3
 } from 'lucide-react'
 import { SwapManagementDashboard } from '@/components/swap/SwapManagementDashboard'
 import { FacilityDetailModal } from '@/components/swap/FacilityDetailModal'
@@ -28,6 +31,11 @@ import { SwapHistoryModal } from '@/components/swap/SwapHistoryModal'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { toast } from 'sonner'
+
+// Import the new components we created
+import { AdvancedSearchModal } from '@/components/swap/AdvancedSearchModal'
+import { AnalyticsTab } from '@/components/swap/AnalyticsTab'
+import { ExportReportModal, useExportFunctionality } from '@/components/swap/ExportReportModal'
 
 export default function GlobalSwapsPage() {
   const { isManager, isAuthenticated, isLoading: authLoading } = useAuth()
@@ -41,7 +49,13 @@ export default function GlobalSwapsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
   const [selectedSwaps, setSelectedSwaps] = useState<string[]>([])
-  const [showBulkActions, setShowBulkActions] = useState(false)
+  
+  // Advanced search state
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
+  const [advancedFilters, setAdvancedFilters] = useState({})
+
+  // Export functionality
+  const { showExportModal, setShowExportModal, handleExport } = useExportFunctionality(apiClient)
 
   // Modal states
   const [showFacilityDetail, setShowFacilityDetail] = useState(false)
@@ -112,7 +126,7 @@ export default function GlobalSwapsPage() {
     }
   }
 
-  // BUlk actions
+  // Bulk actions
   const handleSelectSwap = (swapId: string, selected: boolean) => {
     if (selected) {
       setSelectedSwaps([...selectedSwaps, swapId])
@@ -164,7 +178,24 @@ export default function GlobalSwapsPage() {
     setShowSwapHistory(true)
   }
 
-  // Filter swaps based on facility and urgency
+  // Advanced search handler
+  const handleAdvancedSearch = async (filters: any) => {
+    try {
+      setAdvancedFilters(filters)
+      if (filters.query) {
+        const results = await apiClient.searchSwapsAdvanced(filters.query, filters)
+        setAllSwapRequests(results)
+      } else {
+        // If no query, just apply filters to existing data
+        await loadGlobalSwapData()
+      }
+    } catch (error) {
+      console.error('Advanced search failed:', error)
+      toast.error('Search failed')
+    }
+  }
+
+  // Filter swaps based on facility, urgency, and advanced filters
   const filteredSwapRequests = allSwapRequests.filter(swap => {
     const facilityMatch = !selectedFacility || swap.facility_id === selectedFacility
     const urgencyMatch = !urgencyFilter || swap.urgency === urgencyFilter
@@ -173,7 +204,13 @@ export default function GlobalSwapsPage() {
       swap.target_staff?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       swap.reason.toLowerCase().includes(searchTerm.toLowerCase())
     
-    return facilityMatch && urgencyMatch && searchMatch
+    // Apply advanced filters if any
+    const advancedMatch = Object.keys(advancedFilters).length === 0 || 
+      ((!advancedFilters.status || advancedFilters.status.includes(swap.status)) &&
+       (!advancedFilters.urgency || advancedFilters.urgency.includes(swap.urgency)) &&
+       (!advancedFilters.facility_id || swap.facility_id === advancedFilters.facility_id))
+    
+    return facilityMatch && urgencyMatch && searchMatch && advancedMatch
   })
 
   if (authLoading || loading) {
@@ -215,10 +252,20 @@ export default function GlobalSwapsPage() {
                 Manage shift swaps across all facilities from one central location
               </p>
             </div>
-            <Button onClick={loadGlobalSwapData} variant="outline" className="gap-2">
-              <RotateCcw className="h-4 w-4" />
-              Refresh
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => setShowExportModal(true)} 
+                variant="outline" 
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+              <Button onClick={loadGlobalSwapData} variant="outline" className="gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Refresh
+              </Button>
+            </div>
           </div>
 
           {/* Global Summary Stats */}
@@ -284,16 +331,17 @@ export default function GlobalSwapsPage() {
 
           {/* Main Content Tabs */}
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5"> {/* Updated to 5 columns */}
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="pending">Pending ({allSwapRequests.filter(s => s.status === 'pending').length})</TabsTrigger>
               <TabsTrigger value="urgent">Urgent ({allSwapRequests.filter(s => ['high', 'emergency'].includes(s.urgency)).length})</TabsTrigger>
               <TabsTrigger value="facilities">Facilities</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger> {/* New tab */}
             </TabsList>
 
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-6">
-              {/* Search and Filters */}
+              {/* Enhanced Search and Filters */}
               <Card>
                 <CardContent className="p-4">
                   <div className="flex gap-4 items-center">
@@ -320,11 +368,19 @@ export default function GlobalSwapsPage() {
                       <option value="normal">Normal</option>
                       <option value="low">Low</option>
                     </Select>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowAdvancedSearch(true)}
+                      className="gap-2"
+                    >
+                      <Search className="h-4 w-4" />
+                      Advanced
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* BUlk actions */}
+              {/* Bulk actions */}
               {selectedSwaps.length > 0 && (
                 <Card className="border-blue-200 bg-blue-50">
                   <CardContent className="p-4">
@@ -382,6 +438,9 @@ export default function GlobalSwapsPage() {
                 onRetryAutoAssignment={handleRetryAutoAssignment}
                 onViewSwapHistory={handleViewSwapHistory}
                 onRefresh={loadGlobalSwapData}
+                selectedSwaps={selectedSwaps}
+                onSelectSwap={handleSelectSwap}
+                onSelectAll={handleSelectAll}
               />
             </TabsContent>
 
@@ -404,6 +463,9 @@ export default function GlobalSwapsPage() {
                 onRetryAutoAssignment={handleRetryAutoAssignment}
                 onViewSwapHistory={handleViewSwapHistory}
                 onRefresh={loadGlobalSwapData}
+                selectedSwaps={selectedSwaps}
+                onSelectSwap={handleSelectSwap}
+                onSelectAll={handleSelectAll}
               />
             </TabsContent>
 
@@ -426,6 +488,9 @@ export default function GlobalSwapsPage() {
                 onRetryAutoAssignment={handleRetryAutoAssignment}
                 onViewSwapHistory={handleViewSwapHistory}
                 onRefresh={loadGlobalSwapData}
+                selectedSwaps={selectedSwaps}
+                onSelectSwap={handleSelectSwap}
+                onSelectAll={handleSelectAll}
               />
             </TabsContent>
 
@@ -500,6 +565,15 @@ export default function GlobalSwapsPage() {
                 ))}
               </div>
             </TabsContent>
+
+            {/* NEW: Analytics Tab */}
+            <TabsContent value="analytics" className="space-y-6">
+              <AnalyticsTab
+                facilitySummaries={facilitySummaries}
+                allSwapRequests={allSwapRequests}
+                apiClient={apiClient}
+              />
+            </TabsContent>
           </Tabs>
         </div>
       </div>
@@ -525,6 +599,23 @@ export default function GlobalSwapsPage() {
         onLoadSwapHistory={loadSwapHistory}
         days={DAYS}
         shifts={SHIFTS}
+      />
+
+      {/*  Advanced Search Modal */}
+      <AdvancedSearchModal
+        open={showAdvancedSearch}
+        onClose={() => setShowAdvancedSearch(false)}
+        onSearch={handleAdvancedSearch}
+        facilities={facilitySummaries}
+      />
+
+      {/* Export Report Modal */}
+      <ExportReportModal
+        open={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        facilitySummaries={facilitySummaries}
+        allSwapRequests={allSwapRequests}
+        onExport={handleExport}
       />
     </AppLayout>
   )

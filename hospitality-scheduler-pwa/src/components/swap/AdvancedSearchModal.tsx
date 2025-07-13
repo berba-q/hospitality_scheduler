@@ -1,53 +1,45 @@
-// Advanced Search Modal Component
+'use client'
+
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { CalendarIcon, Search, Filter } from 'lucide-react'
+import { Select } from '@/components/ui/select'
+import { Search } from 'lucide-react'
 
 interface AdvancedSearchProps {
   open: boolean
   onClose: () => void
-  onSearch: (filters: SearchFilters) => void
+  onSearch: (filters: any) => void
   facilities: any[]
 }
 
-interface SearchFilters {
-  query: string
-  facility_id?: string
-  status?: string
-  urgency?: string
-  swap_type?: string
-  date_from?: string
-  date_to?: string
-  requesting_staff?: string
-  target_staff?: string
-}
-
 export function AdvancedSearchModal({ open, onClose, onSearch, facilities }: AdvancedSearchProps) {
-  const [filters, setFilters] = useState<SearchFilters>({
+  const [filters, setFilters] = useState({
     query: '',
+    facility_id: '',
+    status: '',
+    urgency: '',
+    swap_type: '',
+    date_from: '',
+    date_to: ''
   })
-  const [dateFrom, setDateFrom] = useState<Date>()
-  const [dateTo, setDateTo] = useState<Date>()
 
   const handleSearch = () => {
-    const searchFilters = {
-      ...filters,
-      date_from: dateFrom?.toISOString().split('T')[0],
-      date_to: dateTo?.toISOString().split('T')[0],
-    }
-    onSearch(searchFilters)
+    onSearch(filters)
     onClose()
   }
 
   const handleReset = () => {
-    setFilters({ query: '' })
-    setDateFrom(undefined)
-    setDateTo(undefined)
+    setFilters({
+      query: '',
+      facility_id: '',
+      status: '',
+      urgency: '',
+      swap_type: '',
+      date_from: '',
+      date_to: ''
+    })
   }
 
   return (
@@ -75,8 +67,8 @@ export function AdvancedSearchModal({ open, onClose, onSearch, facilities }: Adv
           <div>
             <label className="text-sm font-medium mb-2 block">Facility</label>
             <Select 
-              value={filters.facility_id || ''} 
-              onValueChange={(value) => setFilters({ ...filters, facility_id: value || undefined })}
+              value={filters.facility_id} 
+              onValueChange={(value) => setFilters({ ...filters, facility_id: value })}
             >
               <option value="">All Facilities</option>
               {facilities.map((facility) => (
@@ -91,8 +83,8 @@ export function AdvancedSearchModal({ open, onClose, onSearch, facilities }: Adv
           <div>
             <label className="text-sm font-medium mb-2 block">Status</label>
             <Select 
-              value={filters.status || ''} 
-              onValueChange={(value) => setFilters({ ...filters, status: value || undefined })}
+              value={filters.status} 
+              onValueChange={(value) => setFilters({ ...filters, status: value })}
             >
               <option value="">All Statuses</option>
               <option value="pending">Pending</option>
@@ -108,8 +100,8 @@ export function AdvancedSearchModal({ open, onClose, onSearch, facilities }: Adv
           <div>
             <label className="text-sm font-medium mb-2 block">Urgency</label>
             <Select 
-              value={filters.urgency || ''} 
-              onValueChange={(value) => setFilters({ ...filters, urgency: value || undefined })}
+              value={filters.urgency} 
+              onValueChange={(value) => setFilters({ ...filters, urgency: value })}
             >
               <option value="">All Urgencies</option>
               <option value="emergency">Emergency</option>
@@ -123,8 +115,8 @@ export function AdvancedSearchModal({ open, onClose, onSearch, facilities }: Adv
           <div>
             <label className="text-sm font-medium mb-2 block">Swap Type</label>
             <Select 
-              value={filters.swap_type || ''} 
-              onValueChange={(value) => setFilters({ ...filters, swap_type: value || undefined })}
+              value={filters.swap_type} 
+              onValueChange={(value) => setFilters({ ...filters, swap_type: value })}
             >
               <option value="">All Types</option>
               <option value="specific">Specific Request</option>
@@ -132,45 +124,25 @@ export function AdvancedSearchModal({ open, onClose, onSearch, facilities }: Adv
             </Select>
           </div>
 
-          {/* Date Range */}
+          {/* Date Range - using simple date inputs */}
           <div>
             <label className="text-sm font-medium mb-2 block">From Date</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateFrom ? dateFrom.toLocaleDateString() : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={dateFrom}
-                  onSelect={setDateFrom}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <input
+              type="date"
+              value={filters.date_from}
+              onChange={(e) => setFilters({ ...filters, date_from: e.target.value })}
+              className="w-full p-2 border border-gray-300 rounded-md"
+            />
           </div>
 
           <div>
             <label className="text-sm font-medium mb-2 block">To Date</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateTo ? dateTo.toLocaleDateString() : "Select date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={dateTo}
-                  onSelect={setDateTo}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <input
+              type="date"
+              value={filters.date_to}
+              onChange={(e) => setFilters({ ...filters, date_to: e.target.value })}
+              className="w-full p-2 border border-gray-300 rounded-md"
+            />
           </div>
         </div>
 
