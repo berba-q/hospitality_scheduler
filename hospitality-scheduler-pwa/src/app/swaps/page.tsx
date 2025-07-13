@@ -1,4 +1,4 @@
-// Global swaps page - FIXED VERSION
+// main swaps page
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -6,8 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth, useApiClient } from '@/hooks/useApi'
+import { toast } from 'sonner'
+
+// ============================================================================
+// ICONS
+// ============================================================================
 import { 
   ArrowLeftRight, 
   AlertTriangle, 
@@ -17,52 +24,66 @@ import {
   Users,
   TrendingUp,
   RotateCcw,
-  Filter,
   Search,
   Eye,
   ChevronRight,
-  X, // Added missing import
+  X,
   Download,
   BarChart3
 } from 'lucide-react'
+
+// ============================================================================
+// COMPONENT IMPORTS
+// ============================================================================
 import { SwapManagementDashboard } from '@/components/swap/SwapManagementDashboard'
 import { FacilityDetailModal } from '@/components/swap/FacilityDetailModal'
 import { SwapHistoryModal } from '@/components/swap/SwapHistoryModal'
-import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
-import { toast } from 'sonner'
-
-// Import the new components we created
 import { AdvancedSearchModal } from '@/components/swap/AdvancedSearchModal'
 import { AnalyticsTab } from '@/components/swap/AnalyticsTab'
+import { StaffAnalyticsDashboard } from '@/components/swap/StaffAnalyticsDashboard'
 import { ExportReportModal, useExportFunctionality } from '@/components/swap/ExportReportModal'
 
 export default function GlobalSwapsPage() {
+  // ============================================================================
+  // HOOKS & AUTH
+  // ============================================================================
   const { isManager, isAuthenticated, isLoading: authLoading } = useAuth()
   const apiClient = useApiClient()
-  
+  const { showExportModal, setShowExportModal, handleExport } = useExportFunctionality(apiClient)
+
+  // ============================================================================
+  // MAIN DATA STATE
+  // ============================================================================
   const [globalSummary, setGlobalSummary] = useState(null)
   const [facilitySummaries, setFacilitySummaries] = useState([])
   const [allSwapRequests, setAllSwapRequests] = useState([])
-  const [selectedFacility, setSelectedFacility] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  // ============================================================================
+  // UI STATE & FILTERS
+  // ============================================================================
+  const [activeTab, setActiveTab] = useState('overview')
+  const [selectedFacility, setSelectedFacility] = useState('') // For filtering (string ID)
   const [urgencyFilter, setUrgencyFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [loading, setLoading] = useState(true)
   const [selectedSwaps, setSelectedSwaps] = useState<string[]>([])
-  
-  // Advanced search state
-  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
   const [advancedFilters, setAdvancedFilters] = useState({})
 
-  // Export functionality
-  const { showExportModal, setShowExportModal, handleExport } = useExportFunctionality(apiClient)
-
-  // Modal states
+  // ============================================================================
+  // MODAL STATES
+  // ============================================================================
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
   const [showFacilityDetail, setShowFacilityDetail] = useState(false)
-  const [selectedFacilityData, setSelectedFacilityData] = useState(null)
+  const [selectedFacilityData, setSelectedFacilityData] = useState(null) // For facility modal (object)
   const [showSwapHistory, setShowSwapHistory] = useState(false)
   const [selectedSwapId, setSelectedSwapId] = useState(null)
+  
+  // Staff Analytics specific state
+  const [staffAnalyticsFacility, setStaffAnalyticsFacility] = useState(null) // For staff analytics (object)
 
+  // ============================================================================
+  // CONSTANTS
+  // ============================================================================
   const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
   const SHIFTS = [
     { id: 0, name: 'Morning', time: '6:00 AM - 2:00 PM', color: 'bg-yellow-100 text-yellow-800' },
@@ -70,6 +91,9 @@ export default function GlobalSwapsPage() {
     { id: 2, name: 'Evening', time: '10:00 PM - 6:00 AM', color: 'bg-purple-100 text-purple-800' }
   ]
 
+  // ============================================================================
+  // DATA LOADING
+  // ============================================================================
   useEffect(() => {
     if (!authLoading && isAuthenticated && isManager) {
       loadGlobalSwapData()
@@ -96,6 +120,9 @@ export default function GlobalSwapsPage() {
     }
   }
 
+  // ============================================================================
+  // FACILITY HANDLERS
+  // ============================================================================
   const handleFacilityClick = (facility) => {
     setSelectedFacilityData(facility)
     setShowFacilityDetail(true)
@@ -112,6 +139,36 @@ export default function GlobalSwapsPage() {
     }
   }
 
+  // ============================================================================
+  // SWAP ACTION HANDLERS
+  // ============================================================================
+  const handleApproveSwap = async (swapId: string, approved: boolean, notes?: string) => {
+    try {
+      await apiClient.approveSwap(swapId, approved, notes)
+      await loadGlobalSwapData()
+      toast.success(approved ? 'Swap approved successfully!' : 'Swap declined')
+    } catch (error) {
+      console.error('Failed to approve swap:', error)
+      toast.error('Failed to process swap decision')
+    }
+  }
+
+  const handleRetryAutoAssignment = async (swapId: string, avoidStaffIds?: string[]) => {
+    try {
+      await apiClient.retryAutoAssignment(swapId, avoidStaffIds)
+      await loadGlobalSwapData()
+      toast.success('Auto-assignment retry initiated')
+    } catch (error) {
+      console.error('Failed to retry auto assignment:', error)
+      toast.error('Failed to retry auto assignment')
+    }
+  }
+
+  const handleViewSwapHistory = (swapId: string) => {
+    setSelectedSwapId(swapId)
+    setShowSwapHistory(true)
+  }
+
   const loadSwapHistory = async (swapId: string) => {
     try {
       const [swapDetail, history] = await Promise.all([
@@ -126,7 +183,9 @@ export default function GlobalSwapsPage() {
     }
   }
 
-  // Bulk actions
+  // ============================================================================
+  // BULK ACTIONS HANDLERS
+  // ============================================================================
   const handleSelectSwap = (swapId: string, selected: boolean) => {
     if (selected) {
       setSelectedSwaps([...selectedSwaps, swapId])
@@ -151,34 +210,9 @@ export default function GlobalSwapsPage() {
     }
   }
 
-  const handleApproveSwap = async (swapId: string, approved: boolean, notes?: string) => {
-    try {
-      await apiClient.approveSwap(swapId, approved, notes)
-      await loadGlobalSwapData() // Refresh all data
-      toast.success(approved ? 'Swap approved successfully!' : 'Swap declined')
-    } catch (error) {
-      console.error('Failed to approve swap:', error)
-      toast.error('Failed to process swap decision')
-    }
-  }
-
-  const handleRetryAutoAssignment = async (swapId: string, avoidStaffIds?: string[]) => {
-    try {
-      await apiClient.retryAutoAssignment(swapId, avoidStaffIds)
-      await loadGlobalSwapData()
-      toast.success('Auto-assignment retry initiated')
-    } catch (error) {
-      console.error('Failed to retry auto assignment:', error)
-      toast.error('Failed to retry auto assignment')
-    }
-  }
-
-  const handleViewSwapHistory = (swapId: string) => {
-    setSelectedSwapId(swapId)
-    setShowSwapHistory(true)
-  }
-
-  // Advanced search handler
+  // ============================================================================
+  // SEARCH & FILTER HANDLERS
+  // ============================================================================
   const handleAdvancedSearch = async (filters: any) => {
     try {
       setAdvancedFilters(filters)
@@ -186,7 +220,6 @@ export default function GlobalSwapsPage() {
         const results = await apiClient.searchSwapsAdvanced(filters.query, filters)
         setAllSwapRequests(results)
       } else {
-        // If no query, just apply filters to existing data
         await loadGlobalSwapData()
       }
     } catch (error) {
@@ -204,7 +237,6 @@ export default function GlobalSwapsPage() {
       swap.target_staff?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       swap.reason.toLowerCase().includes(searchTerm.toLowerCase())
     
-    // Apply advanced filters if any
     const advancedMatch = Object.keys(advancedFilters).length === 0 || 
       ((!advancedFilters.status || advancedFilters.status.includes(swap.status)) &&
        (!advancedFilters.urgency || advancedFilters.urgency.includes(swap.urgency)) &&
@@ -213,6 +245,93 @@ export default function GlobalSwapsPage() {
     return facilityMatch && urgencyMatch && searchMatch && advancedMatch
   })
 
+  // ============================================================================
+  // REUSABLE COMPONENTS
+  // ============================================================================
+  const BulkActionsCard = () => (
+    selectedSwaps.length > 0 && (
+      <Card className="border-blue-200 bg-blue-50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">
+              {selectedSwaps.length} swap{selectedSwaps.length > 1 ? 's' : ''} selected
+            </span>
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => handleBulkApprove(true)}
+                className="text-green-700 border-green-200 hover:bg-green-100"
+              >
+                <CheckCircle className="h-4 w-4 mr-1" />
+                Approve All
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => handleBulkApprove(false)}
+                className="text-red-700 border-red-200 hover:bg-red-100"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Decline All
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost"
+                onClick={() => setSelectedSwaps([])}
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  )
+
+  const SearchAndFiltersCard = () => (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex gap-4 items-center">
+          <div className="flex-1">
+            <Input
+              placeholder="Search by staff name, reason..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full"
+            />
+          </div>
+          <Select value={selectedFacility || ''} onValueChange={setSelectedFacility} className="w-48">
+            <option value="">All Facilities</option>
+            {facilitySummaries.map((facility) => (
+              <option key={facility.facility_id} value={facility.facility_id}>
+                {facility.facility_name}
+              </option>
+            ))}
+          </Select>
+          <Select value={urgencyFilter} onValueChange={setUrgencyFilter} className="w-32">
+            <option value="">All</option>
+            <option value="emergency">Emergency</option>
+            <option value="high">High</option>
+            <option value="normal">Normal</option>
+            <option value="low">Low</option>
+          </Select>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowAdvancedSearch(true)}
+            className="gap-2"
+          >
+            <Search className="h-4 w-4" />
+            Advanced
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  // ============================================================================
+  // LOADING & AUTH GUARDS
+  // ============================================================================
   if (authLoading || loading) {
     return (
       <AppLayout>
@@ -238,11 +357,17 @@ export default function GlobalSwapsPage() {
     )
   }
 
+  // ============================================================================
+  // MAIN RENDER
+  // ============================================================================
   return (
     <AppLayout>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
         <div className="max-w-7xl mx-auto p-6">
-          {/* Header */}
+          
+          {/* ================================================================ */}
+          {/* PAGE HEADER */}
+          {/* ================================================================ */}
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
@@ -268,7 +393,9 @@ export default function GlobalSwapsPage() {
             </div>
           </div>
 
-          {/* Global Summary Stats */}
+          {/* ================================================================ */}
+          {/* GLOBAL SUMMARY STATS */}
+          {/* ================================================================ */}
           {globalSummary && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
               <Card>
@@ -329,98 +456,29 @@ export default function GlobalSwapsPage() {
             </div>
           )}
 
-          {/* Main Content Tabs */}
+          {/* ================================================================ */}
+          {/* MAIN CONTENT TABS */}
+          {/* ================================================================ */}
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5"> {/* Updated to 5 columns */}
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="pending">Pending ({allSwapRequests.filter(s => s.status === 'pending').length})</TabsTrigger>
-              <TabsTrigger value="urgent">Urgent ({allSwapRequests.filter(s => ['high', 'emergency'].includes(s.urgency)).length})</TabsTrigger>
+              <TabsTrigger value="pending">
+                Pending ({allSwapRequests.filter(s => s.status === 'pending').length})
+              </TabsTrigger>
+              <TabsTrigger value="urgent">
+                Urgent ({allSwapRequests.filter(s => ['high', 'emergency'].includes(s.urgency)).length})
+              </TabsTrigger>
               <TabsTrigger value="facilities">Facilities</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger> {/* New tab */}
+              <TabsTrigger value="staff-analytics">Staff Analytics</TabsTrigger>
             </TabsList>
 
-            {/* Overview Tab */}
+            {/* ============================================================ */}
+            {/* OVERVIEW TAB */}
+            {/* ============================================================ */}
             <TabsContent value="overview" className="space-y-6">
-              {/* Enhanced Search and Filters */}
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex gap-4 items-center">
-                    <div className="flex-1">
-                      <Input
-                        placeholder="Search by staff name, reason..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-                    <Select value={selectedFacility || ''} onValueChange={setSelectedFacility} className="w-48">
-                      <option value="">All Facilities</option>
-                      {facilitySummaries.map((facility) => (
-                        <option key={facility.facility_id} value={facility.facility_id}>
-                          {facility.facility_name}
-                        </option>
-                      ))}
-                    </Select>
-                    <Select value={urgencyFilter} onValueChange={setUrgencyFilter} className="w-32">
-                      <option value="">All</option>
-                      <option value="emergency">Emergency</option>
-                      <option value="high">High</option>
-                      <option value="normal">Normal</option>
-                      <option value="low">Low</option>
-                    </Select>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowAdvancedSearch(true)}
-                      className="gap-2"
-                    >
-                      <Search className="h-4 w-4" />
-                      Advanced
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Bulk actions */}
-              {selectedSwaps.length > 0 && (
-                <Card className="border-blue-200 bg-blue-50">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        {selectedSwaps.length} swap{selectedSwaps.length > 1 ? 's' : ''} selected
-                      </span>
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleBulkApprove(true)}
-                          className="text-green-700 border-green-200 hover:bg-green-100"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve All
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleBulkApprove(false)}
-                          className="text-red-700 border-red-200 hover:bg-red-100"
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Decline All
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost"
-                          onClick={() => setSelectedSwaps([])}
-                        >
-                          Clear
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Enhanced Swap Management Dashboard */}
+              <SearchAndFiltersCard />
+              <BulkActionsCard />
+              
               <SwapManagementDashboard
                 facility={selectedFacility ? facilitySummaries.find(f => f.facility_id === selectedFacility) : null}
                 swapRequests={filteredSwapRequests}
@@ -444,8 +502,12 @@ export default function GlobalSwapsPage() {
               />
             </TabsContent>
 
-            {/* Pending Tab */}
+            {/* ============================================================ */}
+            {/* PENDING TAB */}
+            {/* ============================================================ */}
             <TabsContent value="pending" className="space-y-6">
+              <BulkActionsCard />
+              
               <SwapManagementDashboard
                 facility={null}
                 swapRequests={allSwapRequests.filter(swap => swap.status === 'pending')}
@@ -469,8 +531,12 @@ export default function GlobalSwapsPage() {
               />
             </TabsContent>
 
-            {/* Urgent Tab */}
+            {/* ============================================================ */}
+            {/* URGENT TAB */}
+            {/* ============================================================ */}
             <TabsContent value="urgent" className="space-y-6">
+              <BulkActionsCard />
+              
               <SwapManagementDashboard
                 facility={null}
                 swapRequests={allSwapRequests.filter(swap => ['high', 'emergency'].includes(swap.urgency))}
@@ -494,7 +560,9 @@ export default function GlobalSwapsPage() {
               />
             </TabsContent>
 
-            {/* Enhanced Facilities Tab with Click-to-Drill-Down */}
+            {/* ============================================================ */}
+            {/* FACILITIES TAB */}
+            {/* ============================================================ */}
             <TabsContent value="facilities" className="space-y-6">
               <div className="grid gap-6">
                 {facilitySummaries.map((facility) => (
@@ -539,7 +607,6 @@ export default function GlobalSwapsPage() {
                         </div>
                       </div>
                       
-                      {/* Quick Action Indicators */}
                       <div className="mt-4 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {facility.pending_swaps > 0 && (
@@ -566,18 +633,62 @@ export default function GlobalSwapsPage() {
               </div>
             </TabsContent>
 
-            {/* NEW: Analytics Tab */}
-            <TabsContent value="analytics" className="space-y-6">
-              <AnalyticsTab
-                facilitySummaries={facilitySummaries}
-                allSwapRequests={allSwapRequests}
-                apiClient={apiClient}
-              />
+            {/* ============================================================ */}
+            {/* STAFF ANALYTICS TAB */}
+            {/* ============================================================ */}
+            <TabsContent value="staff-analytics" className="space-y-6">
+              {staffAnalyticsFacility ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold">Analytics for {staffAnalyticsFacility.facility_name}</h2>
+                      <p className="text-gray-600">Staff-level insights and patterns</p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setStaffAnalyticsFacility(null)}
+                    >
+                      View All Facilities
+                    </Button>
+                  </div>
+                  
+                  <StaffAnalyticsDashboard 
+                    facilityId={staffAnalyticsFacility.facility_id}
+                    apiClient={apiClient}
+                  />
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <h2 className="text-xl font-semibold mb-4">Select a Facility for Staff Analytics</h2>
+                  <p className="text-gray-600 mb-6">Choose a facility to view detailed staff swap patterns and insights</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                    {facilitySummaries.map((facility) => (
+                      <div 
+                        key={facility.facility_id}
+                        className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => setStaffAnalyticsFacility(facility)}
+                      >
+                        <h3 className="font-medium text-gray-900">{facility.facility_name}</h3>
+                        <p className="text-sm text-gray-500">{facility.facility_type}</p>
+                        <div className="mt-2 flex items-center gap-4 text-xs text-gray-600">
+                          <span>{facility.pending_swaps} pending</span>
+                          <span>{facility.staff_count} staff</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
       </div>
 
+      {/* ================================================================ */}
+      {/* MODALS */}
+      {/* ================================================================ */}
+      
       {/* Facility Detail Modal */}
       <FacilityDetailModal
         open={showFacilityDetail}
@@ -601,7 +712,7 @@ export default function GlobalSwapsPage() {
         shifts={SHIFTS}
       />
 
-      {/*  Advanced Search Modal */}
+      {/* Advanced Search Modal */}
       <AdvancedSearchModal
         open={showAdvancedSearch}
         onClose={() => setShowAdvancedSearch(false)}
@@ -616,7 +727,7 @@ export default function GlobalSwapsPage() {
         facilitySummaries={facilitySummaries}
         allSwapRequests={allSwapRequests}
         onExport={handleExport}
-      />
-    </AppLayout>
-  )
+     />
+   </AppLayout>
+ )
 }
