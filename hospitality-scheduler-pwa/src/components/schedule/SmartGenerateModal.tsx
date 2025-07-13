@@ -251,7 +251,10 @@ export function SmartGenerateModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        style={{ width: '60vw', maxWidth: '60vw' }}
+        className="max-h-[90vh] overflow-y-auto"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
