@@ -1,4 +1,4 @@
-// swap management dash component
+// Swap management dashboard for schedules page
 'use client'
 
 import React, { useState } from 'react'
@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { 
   ArrowLeftRight, 
   Clock, 
@@ -26,7 +27,12 @@ import {
   PlayCircle,
   PauseCircle,
   StopCircle,
-  TrendingUp
+  TrendingUp,
+  Hourglass,
+  ExternalLink,
+  MessageCircle,
+  Award,
+  Building
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -83,74 +89,84 @@ interface SwapManagementDashboardProps {
   onRetryAutoAssignment: (swapId: string, avoidStaffIds?: string[]) => Promise<void>
   onViewSwapHistory: (swapId: string) => void
   onRefresh: () => void
-  onFacilityClick?: (facility: any) => void // Optional prop for facility drill-down
+  onFacilityClick?: (facility: any) => void
 }
 
 // Configuration objects
 const URGENCY_CONFIG = {
-  low: { color: 'bg-gray-100 text-gray-800', icon: Clock },
-  normal: { color: 'bg-blue-100 text-blue-800', icon: Clock },
-  high: { color: 'bg-orange-100 text-orange-800', icon: AlertTriangle },
-  emergency: { color: 'bg-red-100 text-red-800', icon: AlertTriangle }
+  low: { 
+    color: 'bg-gray-100 text-gray-700 border-gray-200', 
+    icon: Clock,
+    label: 'Low Priority'
+  },
+  normal: { 
+    color: 'bg-blue-100 text-blue-700 border-blue-200', 
+    icon: Clock,
+    label: 'Normal'
+  },
+  high: { 
+    color: 'bg-orange-100 text-orange-700 border-orange-200', 
+    icon: AlertTriangle,
+    label: 'High Priority'
+  },
+  emergency: { 
+    color: 'bg-red-100 text-red-700 border-red-200', 
+    icon: AlertTriangle,
+    label: 'Emergency'
+  }
 }
 
 const STATUS_CONFIG = {
   pending: { 
-    color: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
-    icon: Clock,
+    color: 'bg-amber-100 text-amber-700 border-amber-200', 
+    icon: Hourglass,
     label: 'Pending Review',
-    description: 'Waiting for manager review'
+    description: 'Waiting for manager decision'
   },
   manager_approved: { 
-    color: 'bg-blue-100 text-blue-800 border-blue-200', 
+    color: 'bg-blue-100 text-blue-700 border-blue-200', 
     icon: CheckCircle,
     label: 'Manager Approved',
-    description: 'Approved, waiting for staff response or auto-assignment'
+    description: 'Approved by manager'
   },
   staff_accepted: { 
-    color: 'bg-green-100 text-green-800 border-green-200', 
+    color: 'bg-green-100 text-green-700 border-green-200', 
     icon: PlayCircle,
-    label: 'In Progress',
-    description: 'Staff accepted, swap being executed'
+    label: 'Staff Accepted',
+    description: 'Staff agreed to swap'
   },
-  assigned: {
-  color: 'bg-blue-100 text-blue-800 border-blue-200',
-  icon: Clock,
-  label: 'Awaiting Staff Response',
-  description: 'Assigned staff needs to accept'
-  },
-  assignment_declined: {
-  color: 'bg-orange-100 text-orange-800 border-orange-200',
-  icon: XCircle,
-  label: 'Assignment Declined',
-  description: 'Assigned staff declined'
+  assigned: { 
+    color: 'bg-purple-100 text-purple-700 border-purple-200', 
+    icon: Users,
+    label: 'Coverage Assigned',
+    description: 'Auto-assignment successful'
   },
   executed: { 
-    color: 'bg-emerald-100 text-emerald-800 border-emerald-200', 
+    color: 'bg-emerald-100 text-emerald-700 border-emerald-200', 
     icon: CheckCircle,
     label: 'Completed',
-    description: 'Swap executed successfully'
+    description: 'Successfully executed'
   },
   declined: { 
-    color: 'bg-red-100 text-red-800 border-red-200', 
+    color: 'bg-red-100 text-red-700 border-red-200', 
     icon: XCircle,
     label: 'Declined',
-    description: 'Manager rejected the request'
+    description: 'Manager rejected request'
   },
   staff_declined: { 
-    color: 'bg-orange-100 text-orange-800 border-orange-200', 
+    color: 'bg-orange-100 text-orange-700 border-orange-200', 
     icon: PauseCircle,
     label: 'Staff Declined',
-    description: 'Staff member declined the swap'
+    description: 'Staff member declined'
   },
   assignment_failed: { 
-    color: 'bg-red-100 text-red-800 border-red-200', 
+    color: 'bg-red-100 text-red-700 border-red-200', 
     icon: AlertTriangle,
     label: 'Assignment Failed',
     description: 'Could not find coverage'
   },
   cancelled: { 
-    color: 'bg-gray-100 text-gray-800 border-gray-200', 
+    color: 'bg-gray-100 text-gray-700 border-gray-200', 
     icon: StopCircle,
     label: 'Cancelled',
     description: 'Request was cancelled'
@@ -197,6 +213,7 @@ export function SwapManagementDashboard({
       const matchesSearch = !searchTerm || 
         swap.requesting_staff?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         swap.target_staff?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        swap.assigned_staff?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         swap.reason.toLowerCase().includes(searchTerm.toLowerCase())
       
       const matchesStatus = statusFilter === 'all' || swap.status === statusFilter
@@ -213,7 +230,6 @@ export function SwapManagementDashboard({
       setApprovalNotes('')
       
       if (approved) {
-        // Find the swap to customize message
         const swap = swapRequests.find(s => s.id === swapId)
         if (swap?.swap_type === 'specific') {
           toast.success(`Swap approved! Waiting for ${swap.target_staff?.full_name || 'staff'} to respond.`)
@@ -238,19 +254,22 @@ export function SwapManagementDashboard({
     const UrgencyIcon = urgencyConfig.icon
 
     return (
-      <Card key={swap.id} className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between mb-3">
+      <Card key={swap.id} className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
+        <CardContent className="p-6">
+          {/* Header with Status and Actions */}
+          <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <StatusIcon className="h-4 w-4" />
-                <Badge className={statusConfig.color} variant="outline">
+                <div className="p-2 bg-gray-50 rounded-lg">
+                  <StatusIcon className="h-4 w-4 text-gray-600" />
+                </div>
+                <Badge className={`${statusConfig.color} border`} variant="outline">
                   {statusConfig.label}
                 </Badge>
               </div>
-              <Badge className={urgencyConfig.color} variant="outline">
+              <Badge className={`${urgencyConfig.color} border`} variant="outline">
                 <UrgencyIcon className="h-3 w-3 mr-1" />
-                {swap.urgency.toUpperCase()}
+                {urgencyConfig.label}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
@@ -258,338 +277,549 @@ export function SwapManagementDashboard({
                 variant="ghost"
                 size="sm"
                 onClick={() => onViewSwapHistory(swap.id)}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
               >
                 <History className="h-4 w-4" />
               </Button>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
                 {new Date(swap.created_at).toLocaleDateString()}
               </span>
             </div>
           </div>
 
-          {/* Swap Details */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-gray-500" />
-              <span className="font-medium">{swap.requesting_staff?.full_name}</span>
-              <Badge variant="outline" className="text-xs">
-                {swap.requesting_staff?.role}
-              </Badge>
+          {/* Staff Information */}
+          <div className="space-y-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <User className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900">{swap.requesting_staff?.full_name}</span>
+                  <Badge variant="outline" className="text-xs bg-gray-50">
+                    {swap.requesting_staff?.role}
+                  </Badge>
+                </div>
+                <p className="text-sm text-gray-600">Requesting staff member</p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Calendar className="h-4 w-4" />
-              <span>
-                {days[swap.original_day]} - {shifts[swap.original_shift]?.name}
-              </span>
-              {swap.swap_type === 'specific' && swap.target_staff && (
-                <>
-                  <ArrowLeftRight className="h-4 w-4 mx-2" />
-                  <span>
-                    {swap.target_staff.full_name} ({days[swap.target_day!]} - {shifts[swap.target_shift!]?.name})
-                  </span>
-                </>
-              )}
-              {swap.swap_type === 'auto' && swap.assigned_staff && (
-                <>
-                  <ChevronRight className="h-4 w-4 mx-2" />
-                  <span>Covered by {swap.assigned_staff.full_name}</span>
-                </>
-              )}
-            </div>
+            {/* Swap Type Specific Information */}
+            {swap.swap_type === 'specific' && swap.target_staff && (
+              <div className="flex items-center gap-3">
+                <ArrowLeftRight className="h-4 w-4 text-gray-400 ml-4" />
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900">{swap.target_staff.full_name}</span>
+                      <Badge variant="outline" className="text-xs bg-gray-50">
+                        {swap.target_staff.role}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-gray-600">Target staff member</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-            <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-              <span className="font-medium">Reason: </span>
-              {swap.reason}
-            </div>
-
-            {swap.manager_notes && (
-              <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded">
-                <span className="font-medium">Manager Notes: </span>
-                {swap.manager_notes}
+            {swap.swap_type === 'auto' && swap.assigned_staff && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center ml-4">
+                  <Users className="h-4 w-4 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900">{swap.assigned_staff.full_name}</span>
+                    <Badge variant="outline" className="text-xs bg-gray-50">
+                      {swap.assigned_staff.role}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">Auto-assigned coverage</p>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Actions based on status */}
-          {swap.status === 'pending' && (
-            <div className="flex gap-2 pt-3 border-t mt-3">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSelectedSwap(swap)}
-                className="flex-1"
-              >
-                Review & Decide
-              </Button>
+          {/* Shift Information */}
+          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <Calendar className="h-4 w-4 text-gray-500 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-medium text-gray-900">Shift Details</p>
+                <div className="mt-1 space-y-1">
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Original:</span> {days[swap.original_day]} - {shifts[swap.original_shift]?.name}
+                  </p>
+                  {swap.swap_type === 'specific' && swap.target_day !== undefined && swap.target_shift !== undefined && (
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Target:</span> {days[swap.target_day]} - {shifts[swap.target_shift]?.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Reason */}
+          <div className="mb-4">
+            <div className="flex items-start gap-2">
+              <MessageCircle className="h-4 w-4 text-gray-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Reason</p>
+                <p className="text-sm text-gray-600 mt-1">{swap.reason}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Manager Notes */}
+          {swap.manager_notes && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-200">
+              <p className="text-sm font-medium text-blue-900">Manager Notes</p>
+              <p className="text-sm text-blue-700 mt-1">{swap.manager_notes}</p>
             </div>
           )}
 
-          {swap.status === 'assignment_failed' && swap.swap_type === 'auto' && (
-            <div className="flex gap-2 pt-3 border-t mt-3">
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <div className="text-xs text-gray-500">
+              {statusConfig.description}
+            </div>
+            
+            {swap.status === 'pending' && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedSwap(swap)}
+                  disabled={loading === swap.id}
+                  className="text-red-600 border-red-200 hover:bg-red-50"
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Decline
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setSelectedSwap(swap)}
+                  disabled={loading === swap.id}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Approve
+                </Button>
+              </div>
+            )}
+
+            {swap.status === 'assignment_failed' && swap.swap_type === 'auto' && (
               <Button
-                size="sm"
                 variant="outline"
+                size="sm"
                 onClick={() => onRetryAutoAssignment(swap.id)}
-                className="flex-1"
+                disabled={loading === swap.id}
               >
                 <RotateCcw className="h-4 w-4 mr-1" />
                 Retry Assignment
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-yellow-600" />
-              <div>
-                <p className="text-2xl font-bold">{pendingSwaps.length}</p>
-                <p className="text-sm text-gray-600">Pending Review</p>
+    <div className="space-y-8">
+      {/* Improved Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
+          <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition-colors">
+                  <Hourglass className="h-6 w-6 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">{pendingSwaps.length}</p>
+                  <p className="text-sm font-medium text-amber-600 mt-1">Pending Review</p>
+                  <p className="text-xs text-gray-500">Awaiting manager decision</p>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-blue-600" />
-              <div>
-                <p className="text-2xl font-bold">{approvedSwaps.length}</p>
-                <p className="text-sm text-gray-600">Approved</p>
+        <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
+          <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
+                  <CheckCircle className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">{approvedSwaps.length}</p>
+                  <p className="text-sm font-medium text-blue-600 mt-1">Approved</p>
+                  <p className="text-xs text-gray-500">Ready for execution</p>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <PlayCircle className="h-5 w-5 text-purple-600" />
-              <div>
-                <p className="text-2xl font-bold">{inProgressSwaps.length}</p>
-                <p className="text-sm text-gray-600">In Progress</p>
+        <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
+          <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors">
+                  <PlayCircle className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">{inProgressSwaps.length}</p>
+                  <p className="text-sm font-medium text-purple-600 mt-1">In Progress</p>
+                  <p className="text-xs text-gray-500">Being executed</p>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="text-2xl font-bold">{completedSwaps.length}</p>
-                <p className="text-sm text-gray-600">Completed</p>
+        <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
+          <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
+                  <TrendingUp className="h-6 w-6 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-3xl font-bold text-gray-900">{completedSwaps.length}</p>
+                  <p className="text-sm font-medium text-emerald-600 mt-1">Completed</p>
+                  <p className="text-xs text-gray-500">Successfully executed</p>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search and Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex gap-4 items-center">
-            <div className="flex-1">
+      {/* Improved Search and Filters */}
+      <Card className="shadow-sm">
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div className="flex-1 max-w-md">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Search by staff name or reason..."
+                  placeholder="Search by staff name, reason, or notes..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter} className="w-48">
-              <option value="all">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="manager_approved">Approved</option>
-              <option value="staff_accepted">Staff Accepted</option>
-              <option value="executed">Completed</option>
-              <option value="declined">Declined</option>
-            </Select>
-            <Button variant="outline" onClick={onRefresh}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
+            <div className="flex gap-3">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="manager_approved">Approved</option>
+                <option value="staff_accepted">Staff Accepted</option>
+                <option value="executed">Completed</option>
+                <option value="declined">Declined</option>
+              </Select>
+              <Button variant="outline" onClick={onRefresh} className="h-10 border-gray-200">
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Enhanced Tabs */}
-      <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="pending">
-            Pending ({pendingSwaps.length})
-          </TabsTrigger>
-          <TabsTrigger value="approved">
-            Approved ({approvedSwaps.length})
-          </TabsTrigger>
-          <TabsTrigger value="in-progress">
-            In Progress ({inProgressSwaps.length})
-          </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed ({completedSwaps.length})
-          </TabsTrigger>
-          <TabsTrigger value="history">
-            History ({allHistorySwaps.length})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pending" className="space-y-4">
-          <div className="grid gap-4">
-            {filterSwaps(pendingSwaps).map(renderSwapCard)}
-            {filterSwaps(pendingSwaps).length === 0 && (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Pending Swaps</h3>
-                  <p className="text-gray-600">All caught up! No swap requests require your attention.</p>
-                </CardContent>
-              </Card>
+      {/* Improved Tabs */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+              <Building className="h-5 w-5 text-gray-600" />
+              Swap Requests for {facility?.name}
+            </CardTitle>
+            {facility && onFacilityClick && (
+              <Button variant="ghost" size="sm" onClick={() => onFacilityClick(facility)}>
+                <ExternalLink className="h-4 w-4 mr-1" />
+                View Details
+              </Button>
             )}
           </div>
-        </TabsContent>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <TabsList className="h-12 p-1 bg-gray-50 rounded-lg w-full grid grid-cols-5">
+                <TabsTrigger 
+                  value="pending" 
+                  className="flex items-center space-x-2 px-4 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+                >
+                  <span>Pending</span>
+                  {pendingSwaps.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 bg-amber-100 text-amber-700 text-xs px-1.5 py-0.5">
+                      {pendingSwaps.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                
+                <TabsTrigger 
+                  value="approved" 
+                  className="flex items-center space-x-2 px-4 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+                >
+                  <span>Approved</span>
+                  {approvedSwaps.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5">
+                      {approvedSwaps.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                
+                <TabsTrigger 
+                  value="in-progress" 
+                  className="flex items-center space-x-2 px-4 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+                >
+                  <span>In Progress</span>
+                  {inProgressSwaps.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-700 text-xs px-1.5 py-0.5">
+                      {inProgressSwaps.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                
+                <TabsTrigger 
+                  value="completed" 
+                  className="flex items-center space-x-2 px-4 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+                >
+                  <span>Completed</span>
+                  {completedSwaps.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 bg-emerald-100 text-emerald-700 text-xs px-1.5 py-0.5">
+                      {completedSwaps.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                
+                <TabsTrigger 
+                  value="history" 
+                  className="flex items-center space-x-2 px-4 py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all"
+                >
+                  <span>History</span>
+                  {allHistorySwaps.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 bg-gray-100 text-gray-700 text-xs px-1.5 py-0.5">
+                      {allHistorySwaps.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-        <TabsContent value="approved" className="space-y-4">
-          <div className="grid gap-4">
-            {filterSwaps(approvedSwaps).map(renderSwapCard)}
-            {filterSwaps(approvedSwaps).length === 0 && (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Approved Swaps</h3>
-                  <p className="text-gray-600">No swaps are currently approved and waiting for execution.</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
+            {/* Tab Content */}
+            <div className="p-6">
+              <TabsContent value="pending" className="mt-0">
+                <div className="space-y-4">
+                  {filterSwaps(pendingSwaps).map(renderSwapCard)}
+                  {filterSwaps(pendingSwaps).length === 0 && (
+                    <div className="text-center py-12">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Clock className="h-10 w-10 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Pending Swaps</h3>
+                      <p className="text-gray-600 max-w-sm mx-auto">
+                        All caught up! No swap requests require your attention at the moment.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
 
-        <TabsContent value="in-progress" className="space-y-4">
-          <div className="grid gap-4">
-            {filterSwaps(inProgressSwaps).map(renderSwapCard)}
-            {filterSwaps(inProgressSwaps).length === 0 && (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <PlayCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Swaps In Progress</h3>
-                  <p className="text-gray-600">No swaps are currently being executed.</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
+              <TabsContent value="approved" className="mt-0">
+                <div className="space-y-4">
+                  {filterSwaps(approvedSwaps).map(renderSwapCard)}
+                  {filterSwaps(approvedSwaps).length === 0 && (
+                    <div className="text-center py-12">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle className="h-10 w-10 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Approved Swaps</h3>
+                      <p className="text-gray-600 max-w-sm mx-auto">
+                        No swaps are currently approved and waiting for execution.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
 
-        <TabsContent value="completed" className="space-y-4">
-          <div className="grid gap-4">
-            {filterSwaps(completedSwaps).map(renderSwapCard)}
-            {filterSwaps(completedSwaps).length === 0 && (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Completed Swaps</h3>
-                  <p className="text-gray-600">No swaps have been completed recently.</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
+              <TabsContent value="in-progress" className="mt-0">
+                <div className="space-y-4">
+                  {filterSwaps(inProgressSwaps).map(renderSwapCard)}
+                  {filterSwaps(inProgressSwaps).length === 0 && (
+                    <div className="text-center py-12">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <PlayCircle className="h-10 w-10 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Swaps In Progress</h3>
+                      <p className="text-gray-600 max-w-sm mx-auto">
+                        No swaps are currently being executed or awaiting staff response.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
 
-        <TabsContent value="history" className="space-y-4">
-          <div className="grid gap-4">
-            {filterSwaps(allHistorySwaps).map(renderSwapCard)}
-            {filterSwaps(allHistorySwaps).length === 0 && (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No History</h3>
-                  <p className="text-gray-600">No completed or cancelled swaps to show.</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+              <TabsContent value="completed" className="mt-0">
+                <div className="space-y-4">
+                  {filterSwaps(completedSwaps).map(renderSwapCard)}
+                  {filterSwaps(completedSwaps).length === 0 && (
+                    <div className="text-center py-12">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Award className="h-10 w-10 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Completed Swaps</h3>
+                      <p className="text-gray-600 max-w-sm mx-auto">
+                        No swaps have been completed yet. Completed swaps will appear here.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
 
-      {/* Manager Decision Modal */}
-      {selectedSwap && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl mx-4">
-            <CardHeader>
-              <CardTitle>Review Swap Request</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Swap details display */}
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-2">Request Details</h4>
-                  <div className="p-3 bg-gray-50 rounded">
-                    <p className="text-sm">
-                      <strong>{selectedSwap.requesting_staff?.full_name}</strong> wants to swap their 
-                      <strong> {days[selectedSwap.original_day]} {shifts[selectedSwap.original_shift]?.name}</strong> shift
-                      {selectedSwap.swap_type === 'specific' && selectedSwap.target_staff && (
-                        <> with <strong>{selectedSwap.target_staff.full_name}</strong>'s 
-                        <strong> {days[selectedSwap.target_day!]} {shifts[selectedSwap.target_shift!]?.name}</strong> shift</>
-                      )}
-                    </p>
-                    <p className="text-sm mt-2"><strong>Reason:</strong> {selectedSwap.reason}</p>
-                  </div>
+              <TabsContent value="history" className="mt-0">
+                <div className="space-y-4">
+                  {filterSwaps(allHistorySwaps).map(renderSwapCard)}
+                  {filterSwaps(allHistorySwaps).length === 0 && (
+                    <div className="text-center py-12">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <History className="h-10 w-10 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Historical Data</h3>
+                      <p className="text-gray-600 max-w-sm mx-auto">
+                        Historical swap data will appear here once swaps are completed or declined.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </div>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Approval Dialog */}
+      <Dialog open={!!selectedSwap} onOpenChange={() => setSelectedSwap(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-blue-600" />
+              Review Swap Request
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedSwap && (
+            <div className="space-y-4">
+              {/* Swap Summary */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="h-4 w-4 text-gray-600" />
+                  <span className="font-medium text-gray-900">
+                    {selectedSwap.requesting_staff?.full_name}
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {selectedSwap.requesting_staff?.role}
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>
+                    {days[selectedSwap.original_day]} - {shifts[selectedSwap.original_shift]?.name}
+                  </span>
                 </div>
 
-                {/* Manager Notes */}
-                <div className="space-y-2">
-                  <Label>Manager Notes (Optional)</Label>
-                  <Textarea
-                    placeholder="Add any notes about this decision..."
-                    value={approvalNotes}
-                    onChange={(e) => setApprovalNotes(e.target.value)}
-                    rows={3}
-                  />
+                {selectedSwap.swap_type === 'specific' && selectedSwap.target_staff && (
+                  <>
+                    <div className="flex items-center gap-2 my-2">
+                      <ArrowLeftRight className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm text-gray-600">Swapping with</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-gray-600" />
+                      <span className="font-medium text-gray-900">
+                        {selectedSwap.target_staff.full_name}
+                      </span>
+                      <Badge variant="outline" className="text-xs">
+                        {selectedSwap.target_staff.role}
+                      </Badge>
+                    </div>
+                  </>
+                )}
+
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-sm font-medium text-gray-900 mb-1">Reason:</p>
+                  <p className="text-sm text-gray-600">{selectedSwap.reason}</p>
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-2 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedSwap(null)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleApproval(selectedSwap.id, false)}
-                  disabled={loading === selectedSwap.id}
-                  className="flex-1"
-                >
-                  {loading === selectedSwap.id ? 'Declining...' : 'Decline'}
-                </Button>
-                <Button
-                  onClick={() => handleApproval(selectedSwap.id, true)}
-                  disabled={loading === selectedSwap.id}
-                  className="flex-1"
-                >
-                  {loading === selectedSwap.id ? 'Approving...' : 'Approve'}
-                </Button>
+              {/* Urgency Badge */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700">Priority:</span>
+                <Badge className={URGENCY_CONFIG[selectedSwap.urgency].color} variant="outline">
+                  
+                  {URGENCY_CONFIG[selectedSwap.urgency].label}
+                </Badge>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+
+              {/* Notes Input */}
+              <div className="space-y-2">
+                <Label htmlFor="approval-notes" className="text-sm font-medium text-gray-700">
+                  Manager Notes (Optional)
+                </Label>
+                <Textarea
+                  id="approval-notes"
+                  placeholder="Add any notes about this decision..."
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  className="min-h-[80px] resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setSelectedSwap(null)}
+              className="border-gray-200"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => selectedSwap && handleApproval(selectedSwap.id, false)}
+              disabled={loading === selectedSwap?.id}
+              className="text-red-600 border-red-200 hover:bg-red-50"
+            >
+              <XCircle className="h-4 w-4 mr-1" />
+              Decline
+            </Button>
+            <Button
+              onClick={() => selectedSwap && handleApproval(selectedSwap.id, true)}
+              disabled={loading === selectedSwap?.id}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Approve
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

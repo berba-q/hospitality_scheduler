@@ -133,8 +133,8 @@ class SwapRequest(SQLModel, table=True):
     
     # Status tracking
     status: str = Field(
-        default="pending", 
-        description="pending, manager_approved, staff_accepted, staff_declined, assigned, assignment_failed, executed, declined, cancelled"
+    default="pending", 
+    description="pending, manager_approved, staff_accepted, staff_declined, assigned, assignment_declined, assignment_failed, executed, declined, cancelled"
     )
     
     # Approval workflow

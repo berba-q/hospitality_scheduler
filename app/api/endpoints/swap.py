@@ -5,6 +5,8 @@ from sqlmodel import Session, select
 from typing import List, Optional, Literal
 from datetime import datetime, timedelta
 from uuid import UUID
+from collections import Counter, defaultdict
+from typing import Dict, Any
 
 from ...deps import get_db, get_current_user
 from ...models import (
@@ -215,18 +217,27 @@ def respond_to_swap_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Staff response to a specific swap request"""
+    """Staff response to a specific swap request OR auto-assignment"""
     
     swap_request = db.get(SwapRequest, swap_id)
     if not swap_request:
         raise HTTPException(status_code=404, detail="Swap request not found")
     
-    # Verify this is the target staff member
-    if swap_request.target_staff_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to respond to this swap")
+    # Handle both specific and auto swaps
+    if swap_request.swap_type == "specific":
+        # Verify this is the target staff member for specific swaps
+        if swap_request.target_staff_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to respond to this swap")
+    elif swap_request.swap_type == "auto":
+        # Verify this is the assigned staff member for auto swaps
+        if swap_request.assigned_staff_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to respond to this auto-assignment")
+    else:
+        raise HTTPException(status_code=400, detail="Invalid swap type")
     
     # Verify request can still be responded to
-    if swap_request.status not in ["pending", "manager_approved"]:
+    valid_statuses = ["pending", "manager_approved", "assigned"]  # Added "assigned" for auto swaps
+    if swap_request.status not in valid_statuses:
         raise HTTPException(status_code=400, detail="Swap request can no longer be responded to")
     
     # Update staff response
@@ -236,17 +247,30 @@ def respond_to_swap_request(
         if swap_request.manager_approved:
             # Both manager and staff approved - execute the swap
             swap_request.status = "staff_accepted"
-            _execute_specific_swap(db, swap_request)
+            
+            if swap_request.swap_type == "specific":
+                _execute_specific_swap(db, swap_request)
+            else:  # auto swap
+                _execute_auto_assignment(db, swap_request)
+                
             swap_request.status = "executed"
         else:
-            # Staff accepted but manager hasn't approved yet
-            swap_request.status = "pending"  # Still waiting for manager
+            # Staff accepted but manager hasn't approved yet (shouldn't happen for auto)
+            swap_request.status = "pending"
     else:
         # Staff declined
-        swap_request.status = "staff_declined"
+        if swap_request.swap_type == "auto":
+            # For auto swaps, staff declined the assignment - need to find new coverage
+            swap_request.status = "assignment_declined"
+            swap_request.assigned_staff_id = None  # Clear the declined assignment
+        else:
+            swap_request.status = "staff_declined"
     
     # Create history entry
     action = "staff_accepted" if response.accepted else "staff_declined"
+    if swap_request.swap_type == "auto":
+        action = "assignment_accepted" if response.accepted else "assignment_declined"
+        
     history = SwapHistory(
         swap_request_id=swap_id,
         action=action,
@@ -315,10 +339,7 @@ def manager_swap_decision(
                 if assignment_result.success and assignment_result.assigned_staff_id:
                     swap_request.assigned_staff_id = assignment_result.assigned_staff_id
                     swap_request.status = "assigned"
-                    
-                    # Execute the assignment
-                    _execute_auto_assignment(db, swap_request)
-                    swap_request.status = "executed"
+                    swap_request.target_staff_accepted = None
                 else:
                     # Auto-assignment failed
                     swap_request.status = "assignment_failed"
@@ -679,6 +700,400 @@ def get_swap_history(
     ).all()
     
     return history
+
+# ==================== STAFF ANALYTICS ENDPOINTS ====================
+
+@router.get("/analytics/top-requesters/{facility_id}")
+def get_top_requesting_staff(
+    facility_id: UUID,
+    days: int = Query(30, le=180),
+    limit: int = Query(10, le=50),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get staff members who request swaps most frequently"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Verify facility access
+    facility = db.get(Facility, facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get cutoff date
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    
+    # Query swap requests for this facility in the time period
+    swap_requests = db.exec(
+        select(SwapRequest, Staff)
+        .join(Schedule, SwapRequest.schedule_id == Schedule.id)
+        .join(Staff, SwapRequest.requesting_staff_id == Staff.id)
+        .where(
+            Schedule.facility_id == facility_id,
+            SwapRequest.created_at >= cutoff_date
+        )
+    ).all()
+    
+    # Aggregate data by staff
+    staff_stats = defaultdict(lambda: {
+        'staff_id': None,
+        'staff_name': '',
+        'role': '',
+        'total_requests': 0,
+        'approved_requests': 0,
+        'declined_requests': 0,
+        'pending_requests': 0,
+        'success_rate': 0.0,
+        'avg_urgency_score': 0.0,
+        'most_common_reason': ''
+    })
+    
+    urgency_scores = {'low': 1, 'normal': 2, 'high': 3, 'emergency': 4}
+    staff_reasons = defaultdict(list)
+    
+    for swap_request, staff in swap_requests:
+        staff_id = staff.id
+        staff_stats[staff_id]['staff_id'] = str(staff_id)
+        staff_stats[staff_id]['staff_name'] = staff.full_name
+        staff_stats[staff_id]['role'] = staff.role
+        staff_stats[staff_id]['total_requests'] += 1
+        
+        # Count by status
+        if swap_request.status in ['approved', 'executed', 'staff_accepted']:
+            staff_stats[staff_id]['approved_requests'] += 1
+        elif swap_request.status in ['declined', 'staff_declined']:
+            staff_stats[staff_id]['declined_requests'] += 1
+        else:
+            staff_stats[staff_id]['pending_requests'] += 1
+        
+        # Track urgency
+        staff_stats[staff_id]['avg_urgency_score'] += urgency_scores.get(swap_request.urgency, 2)
+        
+        # Track reasons
+        staff_reasons[staff_id].append(swap_request.reason)
+    
+    # Calculate derived metrics
+    result = []
+    for staff_id, stats in staff_stats.items():
+        if stats['total_requests'] > 0:
+            stats['success_rate'] = (stats['approved_requests'] / stats['total_requests']) * 100
+            stats['avg_urgency_score'] = stats['avg_urgency_score'] / stats['total_requests']
+            
+            # Find most common reason
+            if staff_reasons[staff_id]:
+                reason_counter = Counter(staff_reasons[staff_id])
+                stats['most_common_reason'] = reason_counter.most_common(1)[0][0]
+            
+            result.append(stats)
+    
+    # Sort by total requests and limit
+    result.sort(key=lambda x: x['total_requests'], reverse=True)
+    
+    return {
+        "facility_id": str(facility_id),
+        "period_days": days,
+        "top_requesters": result[:limit],
+        "summary": {
+            "total_unique_requesters": len(result),
+            "total_requests_period": sum(s['total_requests'] for s in result),
+            "avg_success_rate": sum(s['success_rate'] for s in result) / len(result) if result else 0
+        }
+    }
+
+@router.get("/analytics/reasons/{facility_id}")
+def get_swap_reasons_analysis(
+    facility_id: UUID,
+    days: int = Query(30, le=180),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Analyze most common reasons for swap requests"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Verify facility access
+    facility = db.get(Facility, facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get cutoff date
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    
+    # Query swap requests for this facility
+    swap_requests = db.exec(
+        select(SwapRequest)
+        .join(Schedule, SwapRequest.schedule_id == Schedule.id)
+        .where(
+            Schedule.facility_id == facility_id,
+            SwapRequest.created_at >= cutoff_date
+        )
+    ).all()
+    
+    if not swap_requests:
+        return {
+            "facility_id": str(facility_id),
+            "period_days": days,
+            "reason_analysis": [],
+            "summary": {"total_requests": 0, "unique_reasons": 0}
+        }
+    
+    # Analyze reasons
+    reason_counter = Counter()
+    reason_urgency = defaultdict(list)
+    reason_success = defaultdict(lambda: {'approved': 0, 'total': 0})
+    
+    for swap in swap_requests:
+        reason = swap.reason.strip()
+        reason_counter[reason] += 1
+        reason_urgency[reason].append(swap.urgency)
+        
+        reason_success[reason]['total'] += 1
+        if swap.status in ['approved', 'executed', 'staff_accepted']:
+            reason_success[reason]['approved'] += 1
+    
+    # Build result
+    reason_analysis = []
+    for reason, count in reason_counter.most_common():
+        urgency_counts = Counter(reason_urgency[reason])
+        success_rate = (reason_success[reason]['approved'] / reason_success[reason]['total']) * 100
+        
+        reason_analysis.append({
+            "reason": reason,
+            "count": count,
+            "percentage": (count / len(swap_requests)) * 100,
+            "success_rate": success_rate,
+            "urgency_breakdown": dict(urgency_counts),
+            "most_common_urgency": urgency_counts.most_common(1)[0][0] if urgency_counts else "normal"
+        })
+    
+    return {
+        "facility_id": str(facility_id),
+        "period_days": days,
+        "reason_analysis": reason_analysis,
+        "summary": {
+            "total_requests": len(swap_requests),
+            "unique_reasons": len(reason_counter),
+            "avg_success_rate": sum(r['success_rate'] for r in reason_analysis) / len(reason_analysis) if reason_analysis else 0
+        }
+    }
+
+@router.get("/analytics/staff-performance/{facility_id}")
+def get_staff_performance_metrics(
+    facility_id: UUID,
+    days: int = Query(30, le=180),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get staff performance metrics for swaps"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Verify facility access
+    facility = db.get(Facility, facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    
+    # Get all swap requests where staff were targets or assigned
+    target_swaps = db.exec(
+        select(SwapRequest, Staff)
+        .join(Schedule, SwapRequest.schedule_id == Schedule.id)
+        .join(Staff, SwapRequest.target_staff_id == Staff.id)
+        .where(
+            Schedule.facility_id == facility_id,
+            SwapRequest.swap_type == "specific",
+            SwapRequest.created_at >= cutoff_date,
+            SwapRequest.target_staff_id.is_not(None)
+        )
+    ).all()
+    
+    assigned_swaps = db.exec(
+        select(SwapRequest, Staff)
+        .join(Schedule, SwapRequest.schedule_id == Schedule.id)
+        .join(Staff, SwapRequest.assigned_staff_id == Staff.id)
+        .where(
+            Schedule.facility_id == facility_id,
+            SwapRequest.swap_type == "auto",
+            SwapRequest.created_at >= cutoff_date,
+            SwapRequest.assigned_staff_id.is_not(None)
+        )
+    ).all()
+    
+    # Calculate performance metrics
+    staff_performance = defaultdict(lambda: {
+        'staff_id': None,
+        'staff_name': '',
+        'role': '',
+        'times_requested_as_target': 0,
+        'times_accepted_target': 0,
+        'times_assigned_auto': 0,
+        'times_completed_auto': 0,
+        'target_acceptance_rate': 0.0,
+        'auto_completion_rate': 0.0,
+        'overall_helpfulness_score': 0.0,
+        'avg_response_time_hours': 0.0  # Would need response timestamps
+    })
+    
+    # Process target swaps (specific)
+    for swap, staff in target_swaps:
+        staff_id = staff.id
+        staff_performance[staff_id]['staff_id'] = str(staff_id)
+        staff_performance[staff_id]['staff_name'] = staff.full_name
+        staff_performance[staff_id]['role'] = staff.role
+        staff_performance[staff_id]['times_requested_as_target'] += 1
+        
+        if swap.target_staff_accepted:
+            staff_performance[staff_id]['times_accepted_target'] += 1
+    
+    # Process auto assignments
+    for swap, staff in assigned_swaps:
+        staff_id = staff.id
+        if staff_id not in staff_performance:
+            staff_performance[staff_id]['staff_id'] = str(staff_id)
+            staff_performance[staff_id]['staff_name'] = staff.full_name
+            staff_performance[staff_id]['role'] = staff.role
+        
+        staff_performance[staff_id]['times_assigned_auto'] += 1
+        
+        if swap.status == 'executed':
+            staff_performance[staff_id]['times_completed_auto'] += 1
+    
+    # Calculate rates and scores
+    result = []
+    for staff_id, perf in staff_performance.items():
+        if perf['times_requested_as_target'] > 0:
+            perf['target_acceptance_rate'] = (perf['times_accepted_target'] / perf['times_requested_as_target']) * 100
+        
+        if perf['times_assigned_auto'] > 0:
+            perf['auto_completion_rate'] = (perf['times_completed_auto'] / perf['times_assigned_auto']) * 100
+        
+        # Overall helpfulness score (weighted combination)
+        total_opportunities = perf['times_requested_as_target'] + perf['times_assigned_auto']
+        if total_opportunities > 0:
+            total_helped = perf['times_accepted_target'] + perf['times_completed_auto']
+            perf['overall_helpfulness_score'] = (total_helped / total_opportunities) * 100
+            result.append(perf)
+    
+    # Sort by helpfulness score
+    result.sort(key=lambda x: x['overall_helpfulness_score'], reverse=True)
+    
+    return {
+        "facility_id": str(facility_id),
+        "period_days": days,
+        "staff_performance": result,
+        "summary": {
+            "total_staff_analyzed": len(result),
+            "avg_target_acceptance_rate": sum(s['target_acceptance_rate'] for s in result) / len(result) if result else 0,
+            "avg_auto_completion_rate": sum(s['auto_completion_rate'] for s in result) / len(result) if result else 0,
+            "most_helpful_staff": result[0]['staff_name'] if result else None
+        }
+    }
+
+@router.get("/analytics/problem-patterns/{facility_id}")
+def get_problem_patterns(
+    facility_id: UUID,
+    days: int = Query(30, le=180),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Identify problematic patterns in swap requests"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Verify facility access
+    facility = db.get(Facility, facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+    
+    # Get swap requests with staff data
+    swap_requests = db.exec(
+        select(SwapRequest, Staff)
+        .join(Schedule, SwapRequest.schedule_id == Schedule.id)
+        .join(Staff, SwapRequest.requesting_staff_id == Staff.id)
+        .where(
+            Schedule.facility_id == facility_id,
+            SwapRequest.created_at >= cutoff_date
+        )
+    ).all()
+    
+    # Analyze patterns
+    high_frequency_requesters = []
+    frequent_emergency_users = []
+    low_success_staff = []
+    
+    staff_stats = defaultdict(lambda: {
+        'name': '', 'role': '', 'total': 0, 'emergency': 0, 
+        'approved': 0, 'success_rate': 0
+    })
+    
+    for swap, staff in swap_requests:
+        staff_id = staff.id
+        staff_stats[staff_id]['name'] = staff.full_name
+        staff_stats[staff_id]['role'] = staff.role
+        staff_stats[staff_id]['total'] += 1
+        
+        if swap.urgency == 'emergency':
+            staff_stats[staff_id]['emergency'] += 1
+        
+        if swap.status in ['approved', 'executed', 'staff_accepted']:
+            staff_stats[staff_id]['approved'] += 1
+    
+    # Calculate rates and identify problems
+    for staff_id, stats in staff_stats.items():
+        stats['success_rate'] = (stats['approved'] / stats['total']) * 100 if stats['total'] > 0 else 0
+        
+        # High frequency (>5 requests in period)
+        if stats['total'] > 5:
+            high_frequency_requesters.append({
+                'staff_name': stats['name'],
+                'role': stats['role'],
+                'total_requests': stats['total'],
+                'success_rate': stats['success_rate']
+            })
+        
+        # Frequent emergency users (>2 emergency requests)
+        if stats['emergency'] > 2:
+            frequent_emergency_users.append({
+                'staff_name': stats['name'],
+                'role': stats['role'],
+                'emergency_requests': stats['emergency'],
+                'total_requests': stats['total'],
+                'emergency_rate': (stats['emergency'] / stats['total']) * 100
+            })
+        
+        # Low success rate (<50%)
+        if stats['total'] >= 3 and stats['success_rate'] < 50:
+            low_success_staff.append({
+                'staff_name': stats['name'],
+                'role': stats['role'],
+                'success_rate': stats['success_rate'],
+                'total_requests': stats['total']
+            })
+    
+    return {
+        "facility_id": str(facility_id),
+        "period_days": days,
+        "problem_patterns": {
+            "high_frequency_requesters": sorted(high_frequency_requesters, 
+                                              key=lambda x: x['total_requests'], reverse=True),
+            "frequent_emergency_users": sorted(frequent_emergency_users, 
+                                             key=lambda x: x['emergency_requests'], reverse=True),
+            "low_success_staff": sorted(low_success_staff, 
+                                      key=lambda x: x['success_rate'])
+        },
+        "recommendations": {
+            "high_frequency_attention": len(high_frequency_requesters),
+            "emergency_pattern_review": len(frequent_emergency_users),
+            "success_rate_coaching": len(low_success_staff)
+        }
+    }
 
 # ==================== HELPER FUNCTIONS ====================
 
