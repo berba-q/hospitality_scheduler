@@ -1,5 +1,4 @@
-// Staff analytics dashboard
-'use client' 
+'use client'
 
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -122,7 +121,7 @@ function TopRequestingStaffCard({ data }) {
         ) : (
           <div className="space-y-4">
             {topRequesters.slice(0, 5).map((staff, index) => (
-              <div key={staff.staff_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={staff.staff_id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full font-semibold">
                     {index + 1}
@@ -152,7 +151,6 @@ function TopRequestingStaffCard({ data }) {
               </div>
             ))}
             
-            {/* Summary */}
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
@@ -177,8 +175,13 @@ function TopRequestingStaffCard({ data }) {
 }
 
 function ProblemPatternsCard({ data }) {
+  // Based on the console logs, we can see the data structure
   const problems = data?.problem_patterns || {}
-  const hasProblems = Object.values(problems).some(arr => Array.isArray(arr) && arr.length > 0)
+  const highFreqRequesters = problems.high_frequency_requesters || []
+  const emergencyUsers = problems.frequent_emergency_users || []
+  const lowSuccessStaff = problems.low_success_staff || []
+  
+  const hasProblems = highFreqRequesters.length > 0 || emergencyUsers.length > 0 || lowSuccessStaff.length > 0
   
   if (!hasProblems) {
     return (
@@ -206,12 +209,12 @@ function ProblemPatternsCard({ data }) {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* High Frequency Requesters */}
-        {problems.high_frequency_requesters?.length > 0 && (
+        {highFreqRequesters.length > 0 && (
           <div>
             <h4 className="font-medium text-red-800 mb-2">High Frequency Requesters (>5 requests)</h4>
             <div className="space-y-2">
-              {problems.high_frequency_requesters.slice(0, 3).map(staff => (
-                <div key={staff.staff_name} className="flex items-center justify-between p-2 bg-white rounded border">
+              {highFreqRequesters.slice(0, 3).map((staff, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
                   <span className="font-medium">{staff.staff_name} ({staff.role})</span>
                   <Badge variant="destructive">{staff.total_requests} requests</Badge>
                 </div>
@@ -221,12 +224,12 @@ function ProblemPatternsCard({ data }) {
         )}
 
         {/* Frequent Emergency Users */}
-        {problems.frequent_emergency_users?.length > 0 && (
+        {emergencyUsers.length > 0 && (
           <div>
             <h4 className="font-medium text-red-800 mb-2">Frequent Emergency Users</h4>
             <div className="space-y-2">
-              {problems.frequent_emergency_users.slice(0, 3).map(staff => (
-                <div key={staff.staff_name} className="flex items-center justify-between p-2 bg-white rounded border">
+              {emergencyUsers.slice(0, 3).map((staff, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
                   <span className="font-medium">{staff.staff_name}</span>
                   <Badge variant="destructive">{staff.emergency_requests} emergencies</Badge>
                 </div>
@@ -236,12 +239,12 @@ function ProblemPatternsCard({ data }) {
         )}
 
         {/* Low Success Rate */}
-        {problems.low_success_staff?.length > 0 && (
+        {lowSuccessStaff.length > 0 && (
           <div>
             <h4 className="font-medium text-red-800 mb-2">Low Success Rate (<50%)</h4>
             <div className="space-y-2">
-              {problems.low_success_staff.slice(0, 3).map(staff => (
-                <div key={staff.staff_name} className="flex items-center justify-between p-2 bg-white rounded border">
+              {lowSuccessStaff.slice(0, 3).map((staff, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
                   <span className="font-medium">{staff.staff_name}</span>
                   <Badge variant="destructive">{staff.success_rate.toFixed(0)}% approved</Badge>
                 </div>
@@ -332,7 +335,7 @@ function StaffPerformanceCard({ data }) {
         ) : (
           <div className="space-y-4">
             {topPerformers.map((staff, index) => (
-              <div key={staff.staff_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={staff.staff_id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className={`flex items-center justify-center w-8 h-8 rounded-full font-semibold text-white ${
                     index === 0 ? 'bg-yellow-500' : 
@@ -359,7 +362,6 @@ function StaffPerformanceCard({ data }) {
               </div>
             ))}
             
-            {/* Coverage Heroes Section */}
             <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
               <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-2">
                 <Award className="h-4 w-4" />
