@@ -1,3 +1,4 @@
+import json
 from faker import Faker
 from sqlmodel import SQLModel, Session, select, create_engine, delete
 from app.models import (
@@ -8,6 +9,7 @@ from app.models import (
 from app.core.security import hash_password
 from app.core.config import get_settings
 from random import choice, randint, shuffle
+from datetime import date, timedelta
 
 fake = Faker()
 settings = get_settings()
@@ -35,6 +37,231 @@ def reset_database(session):
     session.commit()
     print("✅ Database reset complete!")
 
+def create_matched_staff_and_users(facilities, tenant_id, session):
+    """Create Staff records and matching User accounts with the same emails"""
+    
+    # Enhanced roles with proper distribution
+    hotel_roles = [
+        "Receptionist", "Concierge", "Manager", "Assistant Manager",
+        "Housekeeping", "Maintenance", "Security", "Bellhop",
+        "Guest Services", "Night Auditor", "Valet", "Front Desk Agent",
+        "Reservations Agent", "Spa Attendant", "Pool Attendant"
+    ]
+    
+    restaurant_roles = [
+        "Chef", "Sous Chef", "Line Cook", "Prep Cook",
+        "Waiter", "Waitress", "Host/Hostess", "Bartender", 
+        "Busser", "Manager", "Assistant Manager", "Server Assistant",
+        "Sommelier", "Dishwasher", "Food Runner", "Kitchen Assistant"
+    ]
+    
+    staff_objs = []
+    staff_users = []  # Track created staff users for JSON output
+    all_created_accounts = []  # Track all accounts created
+    
+    # First, create predefined admin/manager accounts
+    predefined_accounts = [
+        {
+            "email": "admin@hospitality.com",
+            "password": "admin123",
+            "is_manager": True,
+            "name": "System Admin",
+            "create_staff": False  # Admin doesn't need staff record
+        },
+        {
+            "email": "manager@seaside.com",
+            "password": "manager123",
+            "is_manager": True,
+            "name": "Hotel Manager",
+            "create_staff": False  # Manager doesn't need staff record
+        },
+        {
+            "email": "manager@bistro.com", 
+            "password": "manager123",
+            "is_manager": True,
+            "name": "Restaurant Manager",
+            "create_staff": False  # Manager doesn't need staff record
+        },
+    ]
+    
+    # Create predefined accounts
+    for account in predefined_accounts:
+        user = User(
+            email=account["email"],
+            hashed_password=hash_password(account["password"]),
+            tenant_id=tenant_id,
+            is_manager=account["is_manager"],
+            is_active=True
+        )
+        session.add(user)
+        all_created_accounts.append(account)
+    
+    session.commit()
+    print("✅ Created predefined admin/manager accounts")
+    
+    # Now create staff members and matching user accounts
+    for facility in facilities:
+        # Determine staff count and roles based on facility type
+        if "Hotel" in facility.name or "Lodge" in facility.name or "Resort" in facility.name or "Spa" in facility.name:
+            staff_count = randint(18, 28)  # Hotels need more staff
+            available_roles = hotel_roles
+        else:  # Restaurant
+            staff_count = randint(12, 20)  # Restaurants need fewer staff
+            available_roles = restaurant_roles
+        
+        print(f"📋 Creating {staff_count} staff for {facility.name}")
+        
+        # Ensure we have some managers at each facility
+        managers_needed = randint(2, 4)
+        
+        for i in range(staff_count):
+            # Generate realistic fake names and emails
+            first_name = fake.first_name()
+            last_name = fake.last_name()
+            full_name = f"{first_name} {last_name}"
+            
+            # Create consistent email format for staff
+            base_email = f"{first_name.lower()}.{last_name.lower()}"
+            facility_short = facility.name.lower().replace(' ', '').replace('&', 'and')
+            
+            # Use different email formats to avoid duplicates
+            email_options = [
+                f"{base_email}@{facility_short}.com",
+                f"{base_email}@staff.com",
+                f"{base_email}@hospitality.com",
+                f"{first_name.lower()}{last_name.lower()}@team.com",
+                f"{first_name[0].lower()}{last_name.lower()}@{facility_short}.com"
+            ]
+            
+            # Try each email option until we find one that's not taken
+            email = None
+            for email_option in email_options:
+                # Check if this email already exists in our created accounts
+                if not any(acc['email'] == email_option for acc in all_created_accounts):
+                    email = email_option
+                    break
+            
+            # Fallback with random number if all emails taken
+            if not email:
+                email = f"{base_email}{randint(100, 999)}@staff.com"
+            
+            # Determine role and skill level
+            if i < managers_needed:
+                role = choice(["Manager", "Assistant Manager"])
+                skill_level = randint(4, 5)
+                is_staff_manager = True  # These are facility managers
+            else:
+                role = choice([r for r in available_roles if "Manager" not in r])
+                is_staff_manager = False
+                
+                # Assign skill levels based on role hierarchy
+                if role in ["Chef", "Sous Chef", "Concierge", "Front Desk Agent", "Sommelier"]:
+                    skill_level = randint(3, 5)
+                elif role in ["Line Cook", "Waiter", "Waitress", "Bartender", "Security", "Receptionist"]:
+                    skill_level = randint(2, 4)
+                else:  # Entry level roles
+                    skill_level = randint(1, 3)
+            
+            # Create Staff record
+            staff = Staff(
+                full_name=full_name,
+                email=email,  # 🔑 This email will match the User account
+                role=role,
+                skill_level=skill_level,
+                facility_id=facility.id,
+                phone=fake.phone_number(),
+                weekly_hours_max=choice([25, 30, 35, 40]),
+                is_active=choice([True, True, True, True, False])  # 80% active
+            )
+            staff_objs.append(staff)
+            
+            # Create matching User account for this staff member
+            password = "staff123"  # Standard password for all staff
+            user_account = {
+                "email": email,  # 🔑 Same email as Staff record
+                "password": password,
+                "is_manager": is_staff_manager,  # Facility managers are also User managers
+                "name": full_name,
+                "role": role,
+                "facility": facility.name
+            }
+            
+            # Create User in database
+            user = User(
+                email=email,
+                hashed_password=hash_password(password),
+                tenant_id=tenant_id,
+                is_manager=is_staff_manager,
+                is_active=True
+            )
+            session.add(user)
+            
+            # Track for JSON output
+            all_created_accounts.append(user_account)
+            if not is_staff_manager:  # Only track non-manager staff for staff list
+                staff_users.append(user_account)
+    
+    # Save all staff records to database
+    session.add_all(staff_objs)
+    session.commit()
+    
+    print(f"✅ Created {len(staff_objs)} staff members with matching user accounts")
+    
+    return staff_objs, all_created_accounts, staff_users
+
+def save_accounts_to_json(all_accounts, staff_accounts):
+    """Save account information to JSON files for reference"""
+    
+    # Separate accounts by type for easier reference
+    managers = [acc for acc in all_accounts if acc['is_manager']]
+    staff = [acc for acc in all_accounts if not acc['is_manager']]
+    
+    # Create comprehensive account data
+    account_data = {
+        "generated_at": str(date.today()),
+        "total_accounts": len(all_accounts),
+        "summary": {
+            "total_managers": len(managers),
+            "total_staff": len(staff),
+            "standard_passwords": {
+                "admin": "admin123",
+                "managers": "manager123",
+                "staff": "staff123"
+            }
+        },
+        "admin_accounts": [acc for acc in managers if "admin" in acc['email']],
+        "managers": [acc for acc in managers if "admin" not in acc['email']],
+        "staff": staff,
+        "quick_test_accounts": {
+            "admin": "admin@hospitality.com / admin123",
+            "hotel_manager": "manager@seaside.com / manager123", 
+            "restaurant_manager": "manager@bistro.com / manager123",
+            "sample_staff": staff[:5] if staff else []
+        }
+    }
+    
+    # Save to JSON file
+    with open('demo_accounts.json', 'w') as f:
+        json.dump(account_data, f, indent=2)
+    
+    # Also save a simple staff-only list for easy testing
+    staff_simple = [
+        {
+            "name": acc['name'],
+            "email": acc['email'],
+            "password": acc['password'],
+            "role": acc['role'],
+            "facility": acc['facility']
+        }
+        for acc in staff
+    ]
+    
+    with open('staff_accounts.json', 'w') as f:
+        json.dump(staff_simple, f, indent=2)
+    
+    print(f"✅ Saved account data to demo_accounts.json and staff_accounts.json")
+    return account_data
+
 def seed():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
@@ -48,7 +275,7 @@ def seed():
         session.refresh(tenant)
         print(f"✅ Created tenant: {tenant.name}")
 
-        # Create more diverse facilities
+        # Create facilities
         facilities_data = [
             {"name": "Seaside Hotel", "location": "123 Ocean Drive, Miami Beach", "type": "hotel"},
             {"name": "Downtown Bistro", "location": "456 Main St, Downtown", "type": "restaurant"},
@@ -73,189 +300,19 @@ def seed():
         session.commit()
         print(f"✅ Created {len(facilities)} facilities")
 
-        # Enhanced roles with proper distribution
-        hotel_roles = [
-            "Receptionist", "Concierge", "Manager", "Assistant Manager",
-            "Housekeeping", "Maintenance", "Security", "Bellhop",
-            "Guest Services", "Night Auditor", "Valet", "Front Desk Agent",
-            "Reservations Agent", "Spa Attendant", "Pool Attendant"
-        ]
+        # 🔑 CREATE MATCHING STAFF AND USER ACCOUNTS
+        staff_objs, all_accounts, staff_accounts = create_matched_staff_and_users(
+            facilities, tenant.id, session
+        )
         
-        restaurant_roles = [
-            "Chef", "Sous Chef", "Line Cook", "Prep Cook",
-            "Waiter", "Waitress", "Host/Hostess", "Bartender", 
-            "Busser", "Manager", "Assistant Manager", "Server Assistant",
-            "Sommelier", "Dishwasher", "Food Runner", "Kitchen Assistant"
-        ]
+        # 📄 SAVE ACCOUNTS TO JSON
+        account_data = save_accounts_to_json(all_accounts, staff_accounts)
         
-        # Create more realistic staff distribution
-        staff_objs = []
-        
-        for facility in facilities:
-            # Determine staff count based on facility type
-            if "Hotel" in facility.name or "Lodge" in facility.name or "Resort" in facility.name or "Spa" in facility.name:
-                staff_count = randint(18, 28)  # Hotels need more staff
-                available_roles = hotel_roles
-            else:  # Restaurant
-                staff_count = randint(12, 20)  # Restaurants need fewer staff
-                available_roles = restaurant_roles
-            
-            print(f"📋 Creating {staff_count} staff for {facility.name}")
-            
-            # Ensure we have managers
-            managers_needed = randint(2, 4)
-            
-            for i in range(staff_count):
-                # Generate realistic fake names and emails
-                first_name = fake.first_name()
-                last_name = fake.last_name()
-                full_name = f"{first_name} {last_name}"
-                
-                # Create realistic email addresses
-                email_formats = [
-                    f"{first_name.lower()}.{last_name.lower()}@{facility.name.lower().replace(' ', '').replace('&', 'and')}.com",
-                    f"{first_name.lower()}{last_name.lower()}@hospitality.com",
-                    f"{first_name[0].lower()}{last_name.lower()}@{facility.name.lower().replace(' ', '')}.com",
-                    f"{first_name.lower()}{randint(10, 99)}@company.com"
-                ]
-                email = choice(email_formats)
-                
-                if i < managers_needed:
-                    role = choice(["Manager", "Assistant Manager"])
-                    skill_level = randint(4, 5)
-                else:
-                    role = choice([r for r in available_roles if "Manager" not in r])
-                    
-                    # Assign skill levels based on role hierarchy
-                    if role in ["Chef", "Sous Chef", "Concierge", "Front Desk Agent", "Sommelier"]:
-                        skill_level = randint(3, 5)
-                    elif role in ["Line Cook", "Waiter", "Waitress", "Bartender", "Security", "Receptionist"]:
-                        skill_level = randint(2, 4)
-                    else:  # Entry level roles
-                        skill_level = randint(1, 3)
-                
-                staff = Staff(
-                    full_name=full_name,
-                    email=email,
-                    role=role,
-                    skill_level=skill_level,
-                    facility_id=facility.id,
-                    phone=fake.phone_number(),
-                    weekly_hours_max=choice([25, 30, 35, 40]),  # Vary max hours
-                    is_active=choice([True, True, True, True, False])  # 80% active
-                )
-                staff_objs.append(staff)
-        
-        session.add_all(staff_objs)
-        session.commit()
-        print(f"✅ Created {len(staff_objs)} staff members with realistic names and emails")
-
-        # Create diverse demo users with easier-to-remember passwords
-        demo_users = [
-            # Super Admin / Owner
-            {
-                "email": "admin@hospitality.com",
-                "password": "admin123",
-                "is_manager": True,
-                "name": "System Admin"
-            },
-            # Facility Managers
-            {
-                "email": "manager@seaside.com",
-                "password": "manager123",
-                "is_manager": True,
-                "name": "Hotel Manager"
-            },
-            {
-                "email": "manager@bistro.com", 
-                "password": "manager123",
-                "is_manager": True,
-                "name": "Restaurant Manager"
-            },
-        ]
-
-        # Generate 100+ realistic users using Faker
-        print("🎭 Generating 100+ realistic demo users...")
-        
-        # Manager users (20-25)
-        manager_count = 22
-        for i in range(manager_count):
-            first_name = fake.first_name()
-            last_name = fake.last_name()
-            job_title = choice([
-                "General Manager", "Operations Manager", "Assistant Manager", 
-                "Shift Supervisor", "Department Head", "Team Leader",
-                "Food & Beverage Manager", "Front Office Manager", "Executive Chef"
-            ])
-            
-            # Create professional email
-            email_domain = choice(["hospitality.com", "company.com", "mgmt.com"])
-            email = f"{first_name.lower()}.{last_name.lower()}@{email_domain}"
-            
-            demo_users.append({
-                "email": email,
-                "password": "manager123",  # Standard password for demo
-                "is_manager": True,
-                "name": f"{first_name} {last_name}",
-                "job_title": job_title
-            })
-
-        # Staff users (80-90)
-        staff_count = 85
-        staff_roles = [
-            "Server", "Cook", "Bartender", "Host", "Busser", "Dishwasher",
-            "Housekeeper", "Front Desk Agent", "Bellhop", "Valet", "Security",
-            "Maintenance", "Guest Services", "Concierge", "Spa Attendant",
-            "Kitchen Assistant", "Food Runner", "Prep Cook", "Night Auditor"
-        ]
-        
-        for i in range(staff_count):
-            first_name = fake.first_name()
-            last_name = fake.last_name()
-            role = choice(staff_roles)
-            
-            # Create email variations
-            email_formats = [
-                f"{first_name.lower()}.{last_name.lower()}@staff.com",
-                f"{first_name.lower()}{last_name.lower()}@hospitality.com",
-                f"{first_name[0].lower()}.{last_name.lower()}@company.com",
-                f"{first_name.lower()}{randint(1, 999)}@team.com"
-            ]
-            email = choice(email_formats)
-            
-            demo_users.append({
-                "email": email,
-                "password": "staff123",  # Standard password for demo
-                "is_manager": False,
-                "name": f"{first_name} {last_name}",
-                "job_title": role
-            })
-
-        # Create all users in database
-        created_users = []
-        for user_data in demo_users:
-            user = User(
-                email=user_data["email"],
-                hashed_password=hash_password(user_data["password"]),
-                tenant_id=tenant.id,
-                is_manager=user_data["is_manager"],
-                is_active=True
-            )
-            session.add(user)
-            created_users.append(user_data)
-
-        session.commit()
-        
-        # 🆕 CREATE SAMPLE SCHEDULES AND SWAP REQUESTS FOR DEMO
+        # 📅 CREATE SAMPLE SCHEDULES
         print("📅 Creating sample schedules...")
         
-        from datetime import date, timedelta
-        
-        # Create schedules for the past few weeks and upcoming weeks
         base_date = date.today()
-        
-        # Get first 2 facilities for demo schedules
-        demo_facilities = facilities[:2]
+        demo_facilities = facilities[:2]  # Use first 2 facilities for demo schedules
         
         for facility in demo_facilities:
             facility_staff = [s for s in staff_objs if s.facility_id == facility.id and s.is_active]
@@ -286,7 +343,7 @@ def seed():
                             staff_needed = randint(2, 3)
                         
                         # Randomly assign staff to shifts
-                        shift_staff = choice(active_staff)
+                        shift_staff = choice(active_staff) if active_staff else None
                         for _ in range(staff_needed):
                             if shift_staff and len(active_staff) > 0:
                                 assignment = ShiftAssignment(
@@ -306,10 +363,9 @@ def seed():
         
         session.commit()
         
-        # 🆕 CREATE SAMPLE SWAP REQUESTS
+        # 🔄 CREATE SAMPLE SWAP REQUESTS
         print("🔄 Creating sample swap requests...")
         
-        # Get some recent schedules to create swaps for
         recent_schedules = session.exec(
             select(Schedule).where(Schedule.week_start >= base_date)
         ).all()
@@ -328,7 +384,16 @@ def seed():
         ]
         
         urgency_levels = ["low", "normal", "high", "emergency"]
-        swap_statuses = ["pending", "approved", "declined", "completed"]
+        swap_statuses = [
+                        "pending", 
+                        "manager_approved", 
+                        "staff_accepted", 
+                        "staff_declined", 
+                        "assigned", 
+                        "assignment_failed", 
+                        "executed", 
+                        "declined"
+                        ]
         
         created_swaps = 0
         for schedule in recent_schedules[:3]:  # Create swaps for first 3 schedules
@@ -378,10 +443,10 @@ def seed():
                     )
                     
                     # If approved, maybe assign someone
-                    if swap_request.status == "approved" and randint(1, 10) <= 7:
-                        other_staff = [s for s in staff_objs if s.facility_id == schedule.facility_id and s.id != requesting_assignment.staff_id]
-                        if other_staff:
-                            swap_request.assigned_staff_id = choice(other_staff).id
+                    if swap_request.status in ["manager_approved", "executed"] and randint(1, 10) <= 7:
+                        facility_staff = [s for s in staff_objs if s.facility_id == schedule.facility_id and s.id != requesting_assignment.staff_id]
+                        if facility_staff:
+                            swap_request.assigned_staff_id = choice(facility_staff).id
                 
                 session.add(swap_request)
                 created_swaps += 1
@@ -389,7 +454,7 @@ def seed():
         session.commit()
         print(f"✅ Created {created_swaps} sample swap requests")
         
-        # Print comprehensive summary
+        # 📊 PRINT COMPREHENSIVE SUMMARY
         print("\n" + "="*80)
         print("🎉 DEMO DATA CREATION COMPLETE")
         print("="*80)
@@ -398,54 +463,37 @@ def seed():
         
         for fac in facilities:
             staff_count = len([s for s in staff_objs if s.facility_id == fac.id])
-            roles_at_facility = list(set([s.role for s in staff_objs if s.facility_id == fac.id]))
-            print(f"   • {fac.name}: {staff_count} staff, {len(roles_at_facility)} different roles")
+            print(f"   • {fac.name}: {staff_count} staff")
         
         print(f"\n👥 Total Staff Records: {len(staff_objs)}")
-        
-        # Show role distribution
-        role_counts = {}
-        for staff in staff_objs:
-            role_counts[staff.role] = role_counts.get(staff.role, 0) + 1
-        
-        print("\n📊 Role Distribution:")
-        for role, count in sorted(role_counts.items()):
-            print(f"   • {role}: {count}")
-        
-        # Count schedules and swaps
-        total_schedules = len(recent_schedules)
-        print(f"\n📅 Sample Schedules: {total_schedules}")
+        print(f"👤 Total User Accounts: {len(all_accounts)}")
+        print(f"📅 Sample Schedules: {len(recent_schedules)}")
         print(f"🔄 Sample Swap Requests: {created_swaps}")
         
-        managers = [u for u in created_users if u['is_manager']]
-        staff_users_list = [u for u in created_users if not u['is_manager']]
+        print(f"\n📁 Account Files Generated:")
+        print(f"   • demo_accounts.json - Complete account list")
+        print(f"   • staff_accounts.json - Staff-only accounts for testing")
         
-        print(f"\n👤 Users Created: {len(created_users)} ({len(managers)} managers, {len(staff_users_list)} staff)")
+        print("\n🔑 QUICK TEST CREDENTIALS:")
+        print("ADMIN & MANAGERS:")
+        print("   admin@hospitality.com / admin123")
+        print("   manager@seaside.com / manager123")
+        print("   manager@bistro.com / manager123")
         
-        print("\n🔑 SAMPLE LOGIN CREDENTIALS:")
-        print("ADMIN ACCESS:")
-        print("   admin@hospitality.com / admin123 (System Admin)")
-        print("   manager@seaside.com / manager123 (Hotel Manager)")
-        print("   manager@bistro.com / manager123 (Restaurant Manager)")
+        print("\nSAMPLE STAFF ACCOUNTS (with matching Staff records):")
+        staff_sample = account_data['staff'][:5]
+        for staff_acc in staff_sample:
+            print(f"   {staff_acc['email']} / {staff_acc['password']} ({staff_acc['name']} - {staff_acc['role']})")
         
-        print("\nSAMPLE MANAGER LOGINS:")
-        for i, user_data in enumerate(managers[:5]):  # Show first 5
-            print(f"   {user_data['email']} / {user_data['password']} ({user_data['name']})")
-        if len(managers) > 5:
-            print(f"   ... and {len(managers) - 5} more managers")
+        if len(account_data['staff']) > 5:
+            print(f"   ... and {len(account_data['staff']) - 5} more staff accounts in staff_accounts.json")
         
-        print("\nSAMPLE STAFF LOGINS:")
-        for i, user_data in enumerate(staff_users_list[:8]):  # Show first 8
-            print(f"   {user_data['email']} / {user_data['password']} ({user_data['name']})")
-        if len(staff_users_list) > 8:
-            print(f"   ... and {len(staff_users_list) - 8} more staff members")
-            
-        print("\n🚀 QUICK START:")
-        print("   • Login as admin: admin@hospitality.com / admin123")
-        print("   • API Docs: http://localhost:8000/docs")
-        print("   • All manager passwords: manager123")
-        print("   • All staff passwords: staff123")
-        print("   • Test swap functionality with sample data!")
+        print(f"\n🚀 TESTING NOTES:")
+        print(f"   • All staff emails now match User accounts!")
+        print(f"   • Staff password: staff123")
+        print(f"   • Manager password: manager123") 
+        print(f"   • Check JSON files for complete account lists")
+        print(f"   • Test staff dashboard with any staff account above")
         print("="*80)
 
 if __name__ == "__main__":
