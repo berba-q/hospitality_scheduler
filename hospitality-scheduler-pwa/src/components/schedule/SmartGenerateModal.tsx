@@ -147,14 +147,12 @@ export function SmartGenerateModal({
 
   // generate role mapping from zones
   const generateRoleMappingFromZones = (selectedZones, zones, staff) => {
-    console.log('🔧 Generating role mapping from zones:', selectedZones)
     
     const roleMapping = {}
     
     selectedZones.forEach(zoneId => {
       const zone = zones.find(z => z.id === zoneId)
       if (zone) {
-        console.log(`📋 Zone ${zoneId} allows roles:`, zone.roles)
         
         if (zone.roles && zone.roles.length > 0) {
           // Use the predefined roles for this zone
@@ -163,12 +161,10 @@ export function SmartGenerateModal({
           // If no specific roles defined, use all available staff roles
           const availableRoles = [...new Set(staff.map(s => s.role))]
           roleMapping[zoneId] = availableRoles
-          console.log(` No specific roles for ${zoneId}, using all roles:`, availableRoles)
         }
       }
     })
     
-    console.log('Final role mapping:', roleMapping)
     return roleMapping
   }
 
@@ -188,12 +184,9 @@ export function SmartGenerateModal({
         shifts_per_day: 3
       }
       
-      console.log('Sending generate config with role mapping:', generateConfig)
-      
       await onGenerate(generateConfig)
       onClose()
     } catch (error) {
-      console.error('Failed to generate schedule:', error)
     } finally {
       setGenerating(false)
     }
