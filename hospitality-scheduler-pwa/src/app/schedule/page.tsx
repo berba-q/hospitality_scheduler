@@ -109,7 +109,7 @@ function StaffScheduleView({
     loadMyData()
   }, [currentDate, viewPeriod])
 
-  // FIXED: Use existing API method instead of non-existent getMyUpcomingShifts
+  // FIXED: This should be loadMyData, not loadData
   const loadMyData = async () => {
     try {
       setLoading(true)
@@ -131,7 +131,7 @@ function StaffScheduleView({
           break
       }
       
-      // FIXED: Use the correct existing API method
+      // FIXED: Use existing getMySchedule method
       try {
         const scheduleData = await apiClient.getMySchedule(
           startDate.toISOString().split('T')[0],
@@ -139,26 +139,16 @@ function StaffScheduleView({
         )
         setMyScheduleData(scheduleData)
       } catch (error) {
-        console.warn('getMySchedule not available:', error)
+        console.warn('getMySchedule failed:', error)
         setMyScheduleData([])
       }
 
-      // FIXED: Load staff-specific swap requests only (no global calls)
+      // FIXED: Use existing getMySwapRequests method (much simpler!)
       try {
-        if (staffProfile?.facility_id) {
-          // Only get swaps for this staff member's facility
-          const swaps = await apiClient.getFacilitySwaps(staffProfile.facility_id, { 
-            staff_id: user?.id,
-            limit: 50 
-          })
-          setMySwapRequests(swaps.filter(swap => 
-            swap.requesting_staff?.id === user?.id || 
-            swap.target_staff?.id === user?.id ||
-            swap.assigned_staff?.id === user?.id
-          ))
-        }
+        const swaps = await apiClient.getMySwapRequests(undefined, 50)
+        setMySwapRequests(swaps)
       } catch (error) {
-        console.warn('Failed to load swap requests:', error)
+        console.warn('Failed to load my swap requests:', error)
         setMySwapRequests([])
       }
       
@@ -999,13 +989,17 @@ export default function SchedulePage() {
 
   // FIXED: Only use swap hooks if manager or if facility is selected
   const {
-    swapRequests,
-    swapSummary,
-    createSwapRequest,
-    approveSwap,
-    retryAutoAssignment,
-    refresh: refreshSwaps
-  } = useSwapRequests(isManager ? selectedFacility?.id : undefined)
+  swapRequests,
+  swapSummary,
+  createSwapRequest,
+  approveSwap,
+  retryAutoAssignment,
+  refresh: refreshSwaps
+} = useSwapRequests(
+  // Only managers get facility-level swap data
+  // Staff will use their personal swap methods instead
+  isManager && selectedFacility ? selectedFacility.id : undefined
+)
 
   // Load initial data
   useEffect(() => {

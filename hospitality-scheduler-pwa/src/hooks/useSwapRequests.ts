@@ -44,22 +44,27 @@ export function useSwapRequests(facilityId?: string) {
         setSwapRequests(requests)
         setSwapSummary(summary)
       } else {
-        // Load global data for managers
-        const [requests, summary] = await Promise.all([
-          apiClient.getAllSwapRequests(filters?.limit),
-          apiClient.getGlobalSwapSummary()
-        ])
-        setSwapRequests(requests)
-        setSwapSummary(summary)
+        // For staff without facility context, get their personal swaps only
+        try {
+          const personalSwaps = await apiClient.getMySwapRequests(filters?.status, filters?.limit || 50)
+          setSwapRequests(personalSwaps)
+          setSwapSummary(null) // Staff don't need facility summaries
+        } catch (error) {
+          console.warn('Could not load personal swap requests:', error)
+          setSwapRequests([])
+          setSwapSummary(null)
+        }
       }
     } catch (error: any) {
       console.error('Failed to load swap requests:', error)
       setError(error.message || 'Failed to load swap requests')
-      toast.error('Failed to load swap requests')
+      setSwapRequests([])
+      setSwapSummary(null)
     } finally {
       setLoading(false)
     }
   }, [facilityId, apiClient])
+
 
   // Load with filters
   const loadWithFilters = useCallback(async (filters: SwapFilters) => {
