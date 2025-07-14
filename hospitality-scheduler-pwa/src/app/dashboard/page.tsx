@@ -1,8 +1,7 @@
 'use client'
 
 // Dashboard page for both staff and manager roles
-// Displays quick stats, recent activity, and allows management of staff and facilities
-// Uses useAuth hook to determine user role and fetch data accordingly
+// Displays role-specific dashboards with appropriate data and functionality
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,32 +9,38 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth, useApiClient } from '@/hooks/useApi'
-import { Users, Building, RefreshCw, AlertTriangle, Plus, ArrowRight } from 'lucide-react'
+import { Users, Building, RefreshCw, AlertTriangle, Plus, ArrowRight, Calendar } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { StaffDashboard } from '@/components/staff/StaffDashboard'
+
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { user, isManager, isAuthenticated, isLoading: authLoading, accessToken, provider } = useAuth()
+  const { user, isManager, isAuthenticated, isLoading: authLoading } = useAuth()
   const apiClient = useApiClient()
   
+  // Manager-specific state
   const [facilities, setFacilities] = useState([])
   const [staff, setStaff] = useState([])
   const [swapRequests, setSwapRequests] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Only load data when authentication is complete and user is authenticated
+  // Only load manager data when authentication is complete and user is a manager
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      loadData()
+    if (!authLoading && isAuthenticated && isManager) {
+      loadManagerData()
+    } else if (!authLoading && isAuthenticated) {
+      // For staff, we don't need to load manager data
+      setLoading(false)
     } else if (!authLoading && !isAuthenticated) {
-      setLoading(false) // Stop loading if not authenticated
+      setLoading(false)
     }
-  }, [authLoading, isAuthenticated]) // Depend on auth state
+  }, [authLoading, isAuthenticated, isManager])
 
-  const loadData = async () => {
+  const loadManagerData = async () => {
     try {
       setLoading(true)
-      console.log('Loading dashboard data...')
+      console.log('Loading manager dashboard data...')
       const [facilitiesData, staffData, swapsData] = await Promise.all([
         apiClient.getFacilities(),
         apiClient.getStaff(),
@@ -44,9 +49,9 @@ export default function DashboardPage() {
       setFacilities(facilitiesData)
       setStaff(staffData)
       setSwapRequests(swapsData)
-      console.log('Data loaded:', { facilities: facilitiesData.length, staff: staffData.length, swaps: swapsData.length })
+      console.log('Manager data loaded:', { facilities: facilitiesData.length, staff: staffData.length, swaps: swapsData.length })
     } catch (error) {
-      console.error('Failed to load dashboard data:', error)
+      console.error('Failed to load manager dashboard data:', error)
     } finally {
       setLoading(false)
     }
@@ -69,7 +74,20 @@ export default function DashboardPage() {
     )
   }
 
-  // Show loading while data is loading
+  // Staff Dashboard - Completely different interface
+  if (!isManager) {
+    return (
+      <AppLayout>
+        <div className="p-6">
+          <div className="max-w-7xl mx-auto">
+            <StaffDashboard />
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  // Manager Dashboard - Original functionality
   if (loading) {
     return (
       <AppLayout>
@@ -87,17 +105,17 @@ export default function DashboardPage() {
     <AppLayout>
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
+          {/* Manager Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-              {isManager ? 'Manager Dashboard' : 'Staff Dashboard'}
+              Manager Dashboard
             </h1>
             <p className="text-gray-600 mt-1">
-              {isManager ? 'Manage your team and facilities' : 'View your schedule and requests'}
+              Manage your team and facilities
             </p>
           </div>
 
-          {/* Quick Stats */}
+          {/* Manager Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm hover:shadow-md transition-all duration-200">
               <CardContent className="p-6">
@@ -115,18 +133,17 @@ export default function DashboardPage() {
 
             <Card 
               className="border-0 shadow-sm bg-white/70 backdrop-blur-sm hover:shadow-md transition-all duration-200 cursor-pointer"
-              onClick={() => isManager && router.push('/staff')}
+              onClick={() => router.push('/staff')}
             >
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                     <Users className="w-6 h-6 text-green-600" />
                   </div>
-                  <div className="flex-1">
+                  <div>
                     <p className="text-2xl font-bold">{staff.length}</p>
                     <p className="text-sm text-gray-600">Staff Members</p>
                   </div>
-                  {isManager && <ArrowRight className="w-4 h-4 text-gray-400" />}
                 </div>
               </CardContent>
             </Card>
@@ -140,6 +157,11 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-2xl font-bold">{pendingSwaps.length}</p>
                     <p className="text-sm text-gray-600">Pending Swaps</p>
+                    {urgentSwaps.length > 0 && (
+                      <Badge variant="destructive" className="text-xs mt-1">
+                        {urgentSwaps.length} urgent
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -148,11 +170,11 @@ export default function DashboardPage() {
             <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm hover:shadow-md transition-all duration-200">
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-                    <AlertTriangle className="w-6 h-6 text-red-600" />
+                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <AlertTriangle className="w-6 h-6 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-red-600">{urgentSwaps.length}</p>
+                    <p className="text-2xl font-bold">{urgentSwaps.length}</p>
                     <p className="text-sm text-gray-600">Urgent Requests</p>
                   </div>
                 </div>
@@ -160,115 +182,123 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* Quick Actions - Only show staff management if manager */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Staff Management - Manager Only */}
-            {isManager && (
-              <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>Staff Management</span>
-                    <Button 
-                      size="sm" 
-                      onClick={() => router.push('/staff')}
-                      className="gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Manage Staff
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {staff.length > 0 ? (
-                    <div className="space-y-3">
-                      {staff.slice(0, 3).map((member: any) => (
-                        <div key={member.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                            {member.full_name.split(' ').map((n: string) => n[0]).join('')}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{member.full_name}</p>
-                            <p className="text-xs text-gray-600">{member.role}</p>
-                          </div>
-                          <Badge variant="outline" className="text-xs">
-                            Active
-                          </Badge>
-                        </div>
-                      ))}
-                      {staff.length > 3 && (
-                        <p className="text-sm text-gray-500 text-center">
-                          +{staff.length - 3} more staff members
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-500 mb-4">No staff members yet</p>
-                      <Button 
-                        size="sm" 
-                        onClick={() => router.push('/staff')}
-                        className="gap-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Add First Staff Member
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+          {/* Manager Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <Card 
+              className="border-0 shadow-sm bg-white/70 backdrop-blur-sm hover:shadow-md transition-all duration-200 cursor-pointer group"
+              onClick={() => router.push('/schedule')}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold mb-2">Manage Schedules</h3>
+                    <p className="text-sm text-gray-600">Create and edit staff schedules</p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                </div>
+              </CardContent>
+            </Card>
 
-            {/* Recent Activity */}
-            <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-sm">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-gray-600">System initialized successfully</span>
+            <Card 
+              className="border-0 shadow-sm bg-white/70 backdrop-blur-sm hover:shadow-md transition-all duration-200 cursor-pointer group"
+              onClick={() => router.push('/staff')}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold mb-2">Manage Staff</h3>
+                    <p className="text-sm text-gray-600">Add, edit, and organize team members</p>
                   </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="text-gray-600">Authentication configured</span>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card 
+              className="border-0 shadow-sm bg-white/70 backdrop-blur-sm hover:shadow-md transition-all duration-200 cursor-pointer group"
+              onClick={() => router.push('/swaps')}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold mb-2">Review Swaps</h3>
+                    <p className="text-sm text-gray-600">Approve and manage shift changes</p>
+                    {pendingSwaps.length > 0 && (
+                      <Badge variant="outline" className="mt-2">
+                        {pendingSwaps.length} pending
+                      </Badge>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span className="text-gray-600">Database connection established</span>
-                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Integration Status */}
-          <Card className="border-0 shadow-sm bg-gradient-to-r from-blue-50 to-indigo-50">
+          {/* Recent Activity - Manager View */}
+          <Card>
             <CardHeader>
-              <CardTitle className="text-blue-900">🎉 System Ready!</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                Recent Activity
+                <Button variant="outline" size="sm" onClick={loadManagerData}>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="font-medium text-blue-900">Authentication</p>
-                  <p className="text-green-600">✅ Google + FastAPI</p>
+            <CardContent>
+              {swapRequests.length === 0 ? (
+                <div className="text-center py-8">
+                  <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-600">No recent swap requests</p>
+                  <p className="text-sm text-gray-500">New requests will appear here</p>
                 </div>
-                <div>
-                  <p className="font-medium text-blue-900">Database</p>
-                  <p className="text-green-600">✅ PostgreSQL Connected</p>
+              ) : (
+                <div className="space-y-3">
+                  {swapRequests.slice(0, 5).map((swap: any) => (
+                    <div key={swap.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          swap.status === 'pending' ? 'bg-orange-100' : 
+                          swap.status === 'approved' ? 'bg-green-100' : 'bg-gray-100'
+                        }`}>
+                          <RefreshCw className={`w-4 h-4 ${
+                            swap.status === 'pending' ? 'text-orange-600' : 
+                            swap.status === 'approved' ? 'text-green-600' : 'text-gray-600'
+                          }`} />
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {swap.requesting_staff?.full_name || 'Staff Member'} requests swap
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {swap.reason || 'No reason provided'} • {new Date(swap.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={
+                          swap.status === 'pending' ? 'destructive' : 
+                          swap.status === 'approved' ? 'default' : 'secondary'
+                        }>
+                          {swap.status}
+                        </Badge>
+                        <Button variant="ghost" size="sm" onClick={() => router.push('/swaps')}>
+                          Review
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {swapRequests.length > 5 && (
+                    <div className="text-center pt-3 border-t">
+                      <Button variant="outline" onClick={() => router.push('/swaps')}>
+                        View All Requests ({swapRequests.length})
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <p className="font-medium text-blue-900">API Integration</p>
-                  <p className="text-green-600">✅ Real-time Data</p>
-                </div>
-                <div>
-                  <p className="font-medium text-blue-900">Role Detection</p>
-                  <p className={isManager ? "text-green-600" : "text-orange-600"}>
-                    {isManager ? "✅ Manager Access" : "👤 Staff Access"}
-                  </p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
