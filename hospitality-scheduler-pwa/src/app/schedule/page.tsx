@@ -1,6 +1,6 @@
-// schedule/page.tsx
+// schedule/page.tsx - role based scheduling page
 'use client'
-// Main schedule management page
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
@@ -25,7 +25,11 @@ import {
   MapPin,
   Layers,
   List,
-  RefreshCw
+  RefreshCw,
+  User,
+  ArrowLeftRight,
+  Bell,
+  Home
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -49,8 +53,6 @@ import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
 import { FacilitySwapModal } from '@/components/swap/FacilitySwapModal'
 import { Select } from '@/components/ui/select'
 import { useSwapRequests } from '@/hooks/useSwapRequests'
-import { ArrowLeftRight } from 'lucide-react'
-
 
 type ViewPeriod = 'daily' | 'weekly' | 'monthly'
 
@@ -81,9 +83,878 @@ const FACILITY_ZONES = {
   ]
 }
 
+// ============================================================================
+// STAFF VIEW COMPONENT - FIXED
+// ============================================================================
+function StaffScheduleView({ 
+  currentDate, 
+  viewPeriod, 
+  setCurrentDate, 
+  setViewPeriod, 
+  navigatePeriod, 
+  formatPeriodDisplay,
+  schedules,
+  staff,
+  currentSchedule,
+  swapRequests,
+  onSwapRequest,
+  user 
+}) {
+  const [myScheduleData, setMyScheduleData] = useState([])
+  const [mySwapRequests, setMySwapRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const apiClient = useApiClient()
+
+  useEffect(() => {
+    loadMyData()
+  }, [currentDate, viewPeriod])
+
+  // FIXED: Use existing API method instead of non-existent getMyUpcomingShifts
+  const loadMyData = async () => {
+    try {
+      setLoading(true)
+      
+      // Calculate date range based on view period
+      const startDate = getPeriodStart(currentDate, viewPeriod)
+      let endDate = new Date(startDate)
+      
+      switch (viewPeriod) {
+        case 'daily':
+          endDate = new Date(startDate)
+          break
+        case 'weekly':
+          endDate = new Date(startDate)
+          endDate.setDate(startDate.getDate() + 6)
+          break
+        case 'monthly':
+          endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0)
+          break
+      }
+      
+      // FIXED: Use the correct existing API method
+      try {
+        const scheduleData = await apiClient.getMySchedule(
+          startDate.toISOString().split('T')[0],
+          endDate.toISOString().split('T')[0]
+        )
+        setMyScheduleData(scheduleData)
+      } catch (error) {
+        console.warn('getMySchedule not available:', error)
+        setMyScheduleData([])
+      }
+
+      // FIXED: Load staff-specific swap requests only (no global calls)
+      try {
+        if (staffProfile?.facility_id) {
+          // Only get swaps for this staff member's facility
+          const swaps = await apiClient.getFacilitySwaps(staffProfile.facility_id, { 
+            staff_id: user?.id,
+            limit: 50 
+          })
+          setMySwapRequests(swaps.filter(swap => 
+            swap.requesting_staff?.id === user?.id || 
+            swap.target_staff?.id === user?.id ||
+            swap.assigned_staff?.id === user?.id
+          ))
+        }
+      } catch (error) {
+        console.warn('Failed to load swap requests:', error)
+        setMySwapRequests([])
+      }
+      
+    } catch (error) {
+      console.error('Failed to load my data:', error)
+      setMyScheduleData([])
+      setMySwapRequests([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Helper function for period start calculation
+  const getPeriodStart = (date: Date, period: ViewPeriod) => {
+    const result = new Date(date)
+    
+    switch (period) {
+      case 'daily':
+        return result
+      case 'weekly':
+        const dayOfWeek = result.getDay()
+        const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+        result.setDate(result.getDate() - daysToMonday)
+        return result
+      case 'monthly':
+        result.setDate(1)
+        return result
+    }
+  }
+
+  // Get my assignments from current schedule
+  const getMyAssignments = () => {
+    if (!currentSchedule?.assignments || !user) return []
+    return currentSchedule.assignments.filter(a => a.staff_id === user.id)
+  }
+
+  const myAssignments = getMyAssignments()
+  
+  // Calculate today's assignments
+  const getTodayAssignments = () => {
+    if (!myAssignments.length) return []
+    
+    const today = new Date()
+    const dayOfWeek = today.getDay()
+    const mondayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    
+    return myAssignments.filter(a => a.day === mondayIndex)
+  }
+
+  const todayAssignments = getTodayAssignments()
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Staff Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.location.href = '/dashboard'}
+              className="gap-2 hover:bg-gray-100"
+            >
+              <Home className="w-4 h-4" />
+              Dashboard
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                My Schedule
+              </h1>
+              <p className="text-gray-600 mt-1">View your work schedule and request shift swaps</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Today's shifts indicator */}
+            {todayAssignments.length > 0 && (
+              <Card className="border-blue-200 bg-blue-50">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">
+                      {todayAssignments.length} shift{todayAssignments.length > 1 ? 's' : ''} today
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Swap requests badge */}
+            {swapRequests?.length > 0 && (
+              <Button
+                variant="outline"
+                className="relative"
+                onClick={() => window.location.href = '/swaps'}
+              >
+                <ArrowLeftRight className="w-4 h-4 mr-2" />
+                My Swaps
+                <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5">
+                  {swapRequests.length}
+                </Badge>
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Staff Control Panel */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Period Selection */}
+          <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                View Period
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs value={viewPeriod} onValueChange={(value) => setViewPeriod(value as ViewPeriod)}>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="daily">Daily</TabsTrigger>
+                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              
+              <div className="flex items-center gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigatePeriod(-1)}
+                  className="p-2"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                
+                <div className="flex-1 text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCurrentDate(new Date())}
+                    className="text-xs"
+                  >
+                    Today
+                  </Button>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigatePeriod(1)}
+                  className="p-2"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <p className="text-sm font-medium text-center mt-2">
+                {formatPeriodDisplay(currentDate, viewPeriod)}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* My Schedule Summary */}
+          <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <User className="w-5 h-5" />
+                My Schedule
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">This Period</span>
+                  <Badge variant="outline">
+                    {myAssignments.length} shift{myAssignments.length !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+                
+                {todayAssignments.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-green-800 mb-1">Today's Shifts</p>
+                    {todayAssignments.map(assignment => {
+                      const shift = SHIFTS.find(s => s.id === assignment.shift)
+                      return (
+                        <div key={assignment.id} className="text-xs text-green-700">
+                          {shift?.name} ({shift?.time})
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => onSwapRequest && onSwapRequest(0, 0, user.id)}
+                >
+                  <ArrowLeftRight className="w-4 h-4 mr-2" />
+                  Request Swap
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Quick Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => window.location.href = '/swaps'}
+              >
+                <ArrowLeftRight className="w-4 h-4 mr-2" />
+                View All My Swaps
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => window.location.href = '/dashboard'}
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Back to Dashboard
+              </Button>
+
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => toast.info('Feature coming soon!')}
+              >
+                <Bell className="w-4 h-4 mr-2" />
+                Schedule Notifications
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Staff Calendar Views */}
+        <div className="space-y-6">
+          {viewPeriod === 'daily' && (
+            <DailyCalendar
+              key={`staff-daily-${currentDate.getTime()}`}
+              currentDate={currentDate}
+              schedule={currentSchedule}
+              staff={staff}
+              shifts={SHIFTS}
+              isManager={false}
+              draggedStaff={null}
+              swapRequests={swapRequests}
+              onSwapRequest={onSwapRequest}
+              onAssignmentChange={() => {}} // Staff can't modify assignments
+              onRemoveAssignment={() => {}} // Staff can't remove assignments
+            />
+          )}
+          
+          {viewPeriod === 'weekly' && (
+            <WeeklyCalendar
+              key={`staff-weekly-${currentDate.getTime()}`}
+              currentWeek={getPeriodStart(currentDate, 'weekly')}
+              schedule={currentSchedule}
+              staff={staff}
+              shifts={SHIFTS}
+              days={DAYS}
+              isManager={false}
+              draggedStaff={null}
+              swapRequests={swapRequests}
+              onSwapRequest={onSwapRequest}
+              onAssignmentChange={() => {}} // Staff can't modify assignments
+              onRemoveAssignment={() => {}} // Staff can't remove assignments
+            />
+          )}
+          
+          {viewPeriod === 'monthly' && (
+            <MonthlyCalendar
+              key={`staff-monthly-${getPeriodStart(currentDate, 'monthly').getTime()}`}
+              currentMonth={getPeriodStart(currentDate, 'monthly')}
+              schedules={schedules}
+              staff={staff}
+              isManager={false}
+              swapRequests={swapRequests}
+              onDayClick={(date) => {
+                setCurrentDate(date)
+                setViewPeriod('daily')
+              }}
+            />
+          )}
+        </div>
+
+        {/* No schedule message for staff */}
+        {!currentSchedule && (
+          <div className="text-center py-16">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Calendar className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">No Schedule Available</h3>
+            <p className="text-gray-600">
+              Your manager hasn't created a schedule for this period yet.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// MANAGER VIEW COMPONENT (Your existing manager code)
+// ============================================================================
+function ManagerScheduleView({ 
+  router,
+  facilities,
+  selectedFacility,
+  setSelectedFacility,
+  selectedZones,
+  setSelectedZones,
+  staff,
+  schedules,
+  currentSchedule,
+  setCurrentSchedule,
+  loading,
+  setLoading,
+  viewPeriod,
+  setViewPeriod,
+  currentDate,
+  setCurrentDate,
+  showStaffPanel,
+  setShowStaffPanel,
+  filterRole,
+  setFilterRole,
+  filterZone,
+  setFilterZone,
+  showSmartGenerateModal,
+  setShowSmartGenerateModal,
+  showConfigModal,
+  setShowConfigModal,
+  showScheduleListModal,
+  setShowScheduleListModal,
+  showSwapDashboard,
+  setShowSwapDashboard,
+  draggedStaff,
+  setDraggedStaff,
+  unsavedChanges,
+  setUnsavedChanges,
+  swapRequests,
+  swapSummary,
+  getFacilityZones,
+  navigatePeriod,
+  formatPeriodDisplay,
+  getPeriodStart,
+  handleAssignmentChange,
+  handleRemoveAssignment,
+  handleSmartGenerate,
+  handleSaveSchedule,
+  handleDeleteSchedule,
+  handleScheduleSelect,
+  handleSwapRequest,
+  createSwapRequest,
+  approveSwap,
+  retryAutoAssignment,
+  refreshSwaps,
+  handleViewSwapHistory
+}) {
+  // Filter staff based on facility, zones, and roles
+  const facilityStaff = staff.filter(member => 
+    member.facility_id === selectedFacility?.id && member.is_active
+  )
+
+  const filteredStaff = facilityStaff.filter(member => {
+    // Zone filter
+    if (filterZone !== 'all' && selectedZones.length > 0) {
+      const zones = getFacilityZones(selectedFacility)
+      const zone = zones.find(z => z.id === filterZone)
+      if (zone && zone.roles.length > 0 && !zone.roles.includes(member.role)) {
+        return false
+      }
+    }
+    
+    // Role filter
+    if (filterRole !== 'all' && !member.role.toLowerCase().includes(filterRole.toLowerCase())) {
+      return false
+    }
+    
+    return true
+  })
+
+  // Get available roles and zones
+  const availableRoles = [...new Set(facilityStaff.map(member => member.role))]
+  const availableZones = getFacilityZones(selectedFacility)
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Manager Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/dashboard')}
+              className="gap-2 hover:bg-gray-100"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Dashboard
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                Smart Schedule Management
+              </h1>
+              <p className="text-gray-600 mt-1">
+                AI-powered scheduling with zone-based optimization
+              </p>
+            </div>
+          </div>
+
+          {/* Manager Header Actions */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowStaffPanel(!showStaffPanel)}
+              className="gap-2"
+            >
+              {showStaffPanel ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showStaffPanel ? 'Hide' : 'Show'} Staff
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowConfigModal(true)}
+              className="gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              Config
+            </Button>
+            
+            <Button
+              onClick={() => setShowSmartGenerateModal(true)}
+              className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            >
+              <Zap className="w-4 h-4" />
+              Smart Generate
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => setShowScheduleListModal(true)}
+              className="flex items-center gap-2"
+            >
+              <List className="w-4 h-4" />
+              Manage Schedules
+              <Badge variant="secondary" className="ml-1">
+                {schedules.length}
+              </Badge>
+            </Button>
+
+            <Button 
+              variant={showSwapDashboard ? "default" : "outline"}
+              onClick={() => setShowSwapDashboard(!showSwapDashboard)} 
+              className="relative"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Swaps
+              {swapSummary?.pending_swaps > 0 && (
+                <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5">
+                  {swapSummary.pending_swaps}
+                </Badge>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Manager Control Panel */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          {/* Facility & Zone Selection */}
+          <Card className="lg:col-span-2 border-0 shadow-sm bg-white/70 backdrop-blur-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Building className="w-5 h-5" />
+                Facility & Zones
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Facility Selector */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Facility</label>
+                <Select 
+                  value={selectedFacility?.id || ''} 
+                  onValueChange={(value) => {
+                    const facility = facilities.find(f => f.id === value)
+                    setSelectedFacility(facility)
+                    if (facility) {
+                      const zones = getFacilityZones(facility)
+                      setSelectedZones(zones.map(z => z.id))
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                >
+                  <option value="">Select a facility</option>
+                  {facilities.map((facility) => (
+                    <option key={facility.id} value={facility.id}>
+                      {facility.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Zone Selection */}
+              {selectedFacility && (
+                <FacilityZoneSelector
+                  zones={availableZones}
+                  selectedZones={selectedZones}
+                  onZoneChange={setSelectedZones}
+                  staff={facilityStaff}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Period Selection */}
+          <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                View Period
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs value={viewPeriod} onValueChange={(value) => setViewPeriod(value as ViewPeriod)}>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="daily">Daily</TabsTrigger>
+                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              
+              <div className="flex items-center gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigatePeriod(-1)}
+                  className="p-2"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                
+                <div className="flex-1 text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCurrentDate(new Date())}
+                    className="text-xs"
+                  >
+                    Today
+                  </Button>
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigatePeriod(1)}
+                  className="p-2"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <p className="text-sm font-medium text-center mt-2">
+                {formatPeriodDisplay(currentDate, viewPeriod)}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Schedule Status */}
+          <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {currentSchedule ? (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <div>
+                      <p className="font-medium text-green-800">Schedule Active</p>
+                      <p className="text-xs text-gray-500">
+                        {currentSchedule.assignments?.length || 0} assignments
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-orange-600" />
+                    <div>
+                      <p className="font-medium text-orange-800">No Schedule</p>
+                      <p className="text-xs text-gray-500">Generate or create schedule</p>
+                    </div>
+                  </div>
+                )}
+                
+                {unsavedChanges && (
+                  <Button
+                    size="sm"
+                    onClick={handleSaveSchedule}
+                    className="w-full gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save Changes
+                  </Button>
+                )}
+                
+                {selectedZones.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Active Zones:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedZones.map(zoneId => {
+                        const zone = availableZones.find(z => z.id === zoneId)
+                        return zone ? (
+                          <Badge key={zoneId} variant="outline" className="text-xs">
+                            {zone.name}
+                          </Badge>
+                        ) : null
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Manager Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Staff Panel */}
+          {showStaffPanel && (
+            <div className="lg:col-span-1">
+              <StaffAssignmentPanel
+                staff={filteredStaff}
+                availableRoles={availableRoles}
+                availableZones={availableZones}
+                filterRole={filterRole}
+                filterZone={filterZone}
+                onFilterChange={setFilterRole}
+                onZoneFilterChange={setFilterZone}
+                onDragStart={setDraggedStaff}
+                onDragEnd={() => setDraggedStaff(null)}
+              />
+            </div>
+          )}
+
+          {/* Manager Calendar Views */}
+          <div className={showStaffPanel ? 'lg:col-span-3' : 'lg:col-span-4'}>
+            {viewPeriod === 'daily' && (
+              <DailyCalendar
+                key={`manager-daily-${currentDate.getTime()}`}
+                currentDate={currentDate}
+                schedule={currentSchedule}
+                staff={facilityStaff}
+                shifts={SHIFTS}
+                isManager={true}
+                draggedStaff={draggedStaff}
+                swapRequests={swapRequests}
+                onSwapRequest={handleSwapRequest}
+                onAssignmentChange={(shift, staffId) => {
+                  const dayIndex = currentSchedule ? getCurrentDayIndex(currentSchedule, currentDate, 'daily') : 0
+                  handleAssignmentChange(dayIndex, shift, staffId)
+                }}
+                onRemoveAssignment={handleRemoveAssignment}
+              />
+            )}
+            
+            {viewPeriod === 'weekly' && (
+              <WeeklyCalendar
+                key={`manager-weekly-${currentDate.getTime()}`} 
+                currentWeek={getPeriodStart(currentDate, 'weekly')}
+                schedule={currentSchedule}
+                staff={facilityStaff}
+                shifts={SHIFTS}
+                days={DAYS}
+                isManager={true}
+                draggedStaff={draggedStaff}
+                swapRequests={swapRequests}
+                onSwapRequest={handleSwapRequest}
+                onAssignmentChange={handleAssignmentChange}
+                onRemoveAssignment={handleRemoveAssignment}
+              />
+            )}
+            
+            {viewPeriod === 'monthly' && (
+              <MonthlyCalendar
+                key={`manager-monthly-${getPeriodStart(currentDate, 'monthly').getTime()}`}
+                currentMonth={getPeriodStart(currentDate, 'monthly')}
+                schedules={schedules}
+                staff={facilityStaff}
+                isManager={true}
+                swapRequests={swapRequests} 
+                onDayClick={(date) => {
+                  setCurrentDate(date)
+                  setViewPeriod('daily')
+                }}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* No Facility Selected */}
+        {!selectedFacility && (
+          <div className="text-center py-16">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Building className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Select a Facility</h3>
+            <p className="text-gray-600">
+              Choose a facility from the dropdown above to view and manage schedules
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Manager Modals */}
+      <SmartGenerateModal
+        open={showSmartGenerateModal}
+        onClose={() => setShowSmartGenerateModal(false)}
+        facility={selectedFacility}
+        zones={availableZones}
+        selectedZones={selectedZones}
+        staff={facilityStaff}
+        periodStart={getPeriodStart(currentDate, viewPeriod)}
+        periodType={viewPeriod}
+        onGenerate={handleSmartGenerate}
+      />
+      
+      <ScheduleConfigModal
+        open={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        facility={selectedFacility}
+      />
+
+      <ScheduleListModal
+        open={showScheduleListModal}
+        onClose={() => setShowScheduleListModal(false)}
+        schedules={schedules}
+        currentSchedule={currentSchedule}
+        onScheduleSelect={handleScheduleSelect}
+        onScheduleDelete={handleDeleteSchedule}
+        isManager={true}
+      />
+
+      <FacilitySwapModal
+        open={showSwapDashboard}
+        onClose={() => setShowSwapDashboard(false)}
+        facility={selectedFacility}
+        swapRequests={swapRequests}
+        swapSummary={swapSummary}
+        days={DAYS}
+        shifts={SHIFTS}
+        onApproveSwap={approveSwap}
+        onRetryAutoAssignment={retryAutoAssignment}
+        onViewSwapHistory={handleViewSwapHistory}
+        onRefresh={refreshSwaps}
+      />
+    </div>
+  )
+}
+
+// Helper function to calculate the correct day index for a specific date within a schedule
+const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
+  if (!schedule) return 0
+  
+  const scheduleStart = new Date(schedule.week_start)
+  
+  if (viewPeriod === 'daily') {
+    const daysDiff = Math.floor((currentDate.getTime() - scheduleStart.getTime()) / (24 * 60 * 60 * 1000))
+    return Math.max(0, Math.min(6, daysDiff))
+  }
+  
+  return 0
+}
+
+// ============================================================================
+// MAIN SCHEDULE PAGE COMPONENT - FIXED
+// ============================================================================
 export default function SchedulePage() {
   const router = useRouter()
-  const { isManager, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { isManager, isAuthenticated, isLoading: authLoading, user } = useAuth()
   const apiClient = useApiClient()
   
   // Core state
@@ -126,14 +997,7 @@ export default function SchedulePage() {
     return FACILITY_ZONES.default
   }
 
-  // Load initial data
-  useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      loadData()
-    }
-  }, [authLoading, isAuthenticated])
-
-  // SWAP hooks
+  // FIXED: Only use swap hooks if manager or if facility is selected
   const {
     swapRequests,
     swapSummary,
@@ -141,25 +1005,58 @@ export default function SchedulePage() {
     approveSwap,
     retryAutoAssignment,
     refresh: refreshSwaps
-  } = useSwapRequests(selectedFacility?.id)
+  } = useSwapRequests(isManager ? selectedFacility?.id : undefined)
+
+  // Load initial data
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      loadData()
+    }
+  }, [authLoading, isAuthenticated])
 
   const loadData = async () => {
     try {
       setLoading(true)
-      const [facilitiesData, staffData] = await Promise.all([
-        apiClient.getFacilities(),
-        apiClient.getStaff()
-      ])
       
-      setFacilities(facilitiesData)
-      setStaff(staffData)
-      
-      // Auto-select first facility
-      if (facilitiesData.length > 0) {
-        setSelectedFacility(facilitiesData[0])
-        // Auto-select all zones for the facility
-        const zones = getFacilityZones(facilitiesData[0])
-        setSelectedZones(zones.map(z => z.id))
+      if (isManager) {
+        // Load manager data
+        const [facilitiesData, staffData] = await Promise.all([
+          apiClient.getFacilities(),
+          apiClient.getStaff()
+        ])
+        
+        setFacilities(facilitiesData)
+        setStaff(staffData)
+        
+        // Auto-select first facility for managers
+        if (facilitiesData.length > 0) {
+          setSelectedFacility(facilitiesData[0])
+          const zones = getFacilityZones(facilitiesData[0])
+          setSelectedZones(zones.map(z => z.id))
+        }
+      } else {
+        // Load staff data - get their facility and schedule
+        try {
+          const staffProfile = await apiClient.getMyStaffProfile()
+          const facility = await apiClient.getFacility(staffProfile.facility_id)
+          const facilityStaff = await apiClient.getFacilityStaff(staffProfile.facility_id)
+          
+          setFacilities([facility])
+          setSelectedFacility(facility)
+          setStaff(facilityStaff)
+          
+          const zones = getFacilityZones(facility)
+          setSelectedZones(zones.map(z => z.id))
+        } catch (error) {
+          console.error('Failed to load staff profile:', error)
+          
+          // Graceful fallback for staff without profile
+          if (error.message?.includes('404')) {
+            toast.error('Staff profile not found. Please contact your manager.')
+          } else {
+            toast.error('Failed to load your profile')
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to load data:', error)
@@ -176,35 +1073,34 @@ export default function SchedulePage() {
     }
   }, [selectedFacility, currentDate, viewPeriod])
 
-    // normalise data returned from API
+  // normalise data returned from API
   const normalizeAssignments = (assignments: any[]): any[] => {
-  if (!assignments) {
-    console.log('⚠️ No assignments provided, returning empty array')
-    return []
-  }
-  
-  console.log('🔧 Normalizing assignments:', assignments.length)
-  
-  const normalized = assignments.map((assignment, index) => {
-    const normalized = {
-      id: assignment.id || `assignment-${assignment.schedule_id || 'temp'}-${assignment.day}-${assignment.shift}-${assignment.staff_id}-${index}`,
-      day: Number(assignment.day),
-      shift: Number(assignment.shift),
-      staff_id: String(assignment.staff_id),
-      // Include any other fields that might be present
-      schedule_id: assignment.schedule_id,
-      zone_id: assignment.zone_id,
-      staff_name: assignment.staff_name,
-      staff_role: assignment.staff_role
+    if (!assignments) {
+      console.log('⚠️ No assignments provided, returning empty array')
+      return []
     }
     
-    console.log(` Assignment ${index}:`, normalized)
+    console.log('🔧 Normalizing assignments:', assignments.length)
+    
+    const normalized = assignments.map((assignment, index) => {
+      const normalized = {
+        id: assignment.id || `assignment-${assignment.schedule_id || 'temp'}-${assignment.day}-${assignment.shift}-${assignment.staff_id}-${index}`,
+        day: Number(assignment.day),
+        shift: Number(assignment.shift),
+        staff_id: String(assignment.staff_id),
+        schedule_id: assignment.schedule_id,
+        zone_id: assignment.zone_id,
+        staff_name: assignment.staff_name,
+        staff_role: assignment.staff_role
+      }
+      
+      console.log(` Assignment ${index}:`, normalized)
+      return normalized
+    })
+    
+    console.log(' Normalized assignments complete:', normalized.length)
     return normalized
-  })
-  
-  console.log(' Normalized assignments complete:', normalized.length)
-  return normalized
-}
+  }
 
   const loadSchedules = async () => {
     if (!selectedFacility) {
@@ -251,14 +1147,6 @@ export default function SchedulePage() {
       console.log('✅ Schedules normalized:', normalizedSchedules.length)
       setSchedules(normalizedSchedules)
       
-      // ENHANCED DEBUG: Before finding schedule
-      console.log('🔍 ABOUT TO FIND SCHEDULE FOR CURRENT PERIOD')
-      console.log('🎯 Search parameters:', {
-        currentDate: currentDate.toDateString(),
-        viewPeriod,
-        getPeriodStart: getPeriodStart(currentDate, viewPeriod).toDateString()
-      })
-      
       // Find schedule for current period using improved logic
       const currentPeriodSchedule = findScheduleForCurrentPeriod(normalizedSchedules, currentDate, viewPeriod)
       
@@ -272,16 +1160,8 @@ export default function SchedulePage() {
         reason: 'No matching schedule found'
       })
       
-      // ENHANCED DEBUG: Check if we're in unsaved changes logic
-      console.log('💾 Unsaved changes check:', {
-        unsavedChanges,
-        hasCurrentSchedule: !!currentSchedule,
-        currentScheduleId: currentSchedule?.id,
-        isGenerated: currentSchedule?.is_generated
-      })
-      
-      // Handle unsaved changes more carefully
-      if (unsavedChanges && currentSchedule) {
+      // Handle unsaved changes more carefully (only for managers)
+      if (isManager && unsavedChanges && currentSchedule) {
         console.log('⚠️ UNSAVED CHANGES DETECTED - ENTERING SPECIAL LOGIC')
         
         const isGeneratedSchedule = currentSchedule.id?.includes('temp') || 
@@ -300,13 +1180,6 @@ export default function SchedulePage() {
           const currentPeriodStart = getPeriodStart(new Date(currentSchedule.week_start), viewPeriod)
           const newPeriodStart = getPeriodStart(currentDate, viewPeriod)
           isDifferentPeriod = currentPeriodStart.toDateString() !== newPeriodStart.toDateString()
-          console.log('📅 Period comparison DETAILED:', {
-            current_schedule_week_start: currentSchedule.week_start,
-            currentPeriodStart: currentPeriodStart.toDateString(),
-            newPeriodStart: newPeriodStart.toDateString(),
-            isDifferent: isDifferentPeriod,
-            strings_match: currentPeriodStart.toDateString() === newPeriodStart.toDateString()
-          })
         } catch (error) {
           console.error('❌ Error comparing periods:', error)
           isDifferentPeriod = false
@@ -314,8 +1187,7 @@ export default function SchedulePage() {
         
         if (isGeneratedSchedule && !isDifferentPeriod) {
           console.log('✋ PRESERVING generated schedule for same period - RETURNING EARLY')
-          console.log('🚨 THIS MEANS CURRENT SCHEDULE WILL NOT BE UPDATED!')
-          return // ← This might be the problem!
+          return
         } else if (isDifferentPeriod) {
           console.log('🔀 Period changed - prompting user for unsaved changes')
           
@@ -330,25 +1202,18 @@ export default function SchedulePage() {
             console.log('✅ User chose to discard unsaved changes')
             setUnsavedChanges(false)
           }
-        } else {
-          console.log('➡️ Continuing with normal flow - no special handling needed')
         }
       }
       
-      // CRITICAL: Update the current schedule
+      // Update the current schedule
       console.log('📝 SETTING current schedule to:', currentPeriodSchedule?.id || 'null')
-      console.log('🔄 BEFORE setState - currentSchedule was:', currentSchedule?.id)
-      
       setCurrentSchedule(currentPeriodSchedule || null)
-      
-      console.log('🔄 AFTER setState call (will update async)')
       
       if (currentPeriodSchedule) {
         setUnsavedChanges(false)
         console.log('✅ SUCCESS: Schedule found and should be set')
       } else {
         console.log('❌ NO SCHEDULE FOUND for current period')
-        console.log('🧐 This means WeeklyCalendar will receive null schedule')
         if (!unsavedChanges) {
           setUnsavedChanges(false)
         }
@@ -384,29 +1249,15 @@ export default function SchedulePage() {
         const scheduleStart = new Date(schedule.week_start)
         const scheduleEnd = getWeekEndDate(schedule.week_start)
         
-        // ✅ FIX: Compare dates using date strings instead of timestamp comparison
-        // This eliminates time-of-day differences that cause comparison failures
         const targetDateStr = targetDate.toDateString()
         const scheduleStartStr = scheduleStart.toDateString()
         const scheduleEndStr = scheduleEnd.toDateString()
         
-        // Check if target date is within the range (inclusive)
         const isWithinRange = (
           targetDateStr === scheduleStartStr || 
           targetDateStr === scheduleEndStr || 
           (targetDate > scheduleStart && targetDate < scheduleEnd)
         )
-        
-        console.log(`📅 Checking schedule ${schedule.id}:`, {
-          schedule_start: scheduleStartStr,
-          schedule_end: scheduleEndStr,
-          target_date: targetDateStr,
-          exact_start_match: targetDateStr === scheduleStartStr,
-          exact_end_match: targetDateStr === scheduleEndStr,
-          is_between: targetDate > scheduleStart && targetDate < scheduleEnd,
-          is_within_range: isWithinRange,
-          RESULT: isWithinRange ? '✅ MATCH!' : '❌ No match'
-        })
         
         return isWithinRange
       })
@@ -417,24 +1268,11 @@ export default function SchedulePage() {
       const monthStart = getPeriodStart(currentDate, 'monthly')
       const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
       
-      console.log('🗓️ Monthly view - looking for schedules in range:', {
-        month_start: monthStart.toDateString(),
-        month_end: monthEnd.toDateString()
-      })
-      
       return schedules.find(schedule => {
         const scheduleStart = new Date(schedule.week_start)
         const scheduleEnd = getWeekEndDate(schedule.week_start)
         
-        // Use the same fixed date comparison for monthly
         const overlaps = (scheduleStart <= monthEnd && scheduleEnd >= monthStart)
-        
-        console.log(`📅 Checking monthly schedule ${schedule.id}:`, {
-          schedule_start: scheduleStart.toDateString(),
-          schedule_end: scheduleEnd.toDateString(),
-          overlaps_month: overlaps
-        })
-        
         return overlaps
       })
     }
@@ -443,27 +1281,12 @@ export default function SchedulePage() {
   }
 
   // Helper function to get the end date of a week (6 days after start)
-const getWeekEndDate = (weekStartString) => {
-  const weekStart = new Date(weekStartString)
-  const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekStart.getDate() + 6)
-  return weekEnd
-}
-
-// Helper function to calculate the correct day index for a specific date within a schedule
-const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
-  if (!schedule) return 0
-  
-  const scheduleStart = new Date(schedule.week_start)
-  
-  if (viewPeriod === 'daily') {
-    // Calculate which day of the week the current date is relative to the schedule start
-    const daysDiff = Math.floor((currentDate.getTime() - scheduleStart.getTime()) / (24 * 60 * 60 * 1000))
-    return Math.max(0, Math.min(6, daysDiff)) // Clamp between 0-6
+  const getWeekEndDate = (weekStartString) => {
+    const weekStart = new Date(weekStartString)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+    return weekEnd
   }
-  
-  return 0 // For weekly view, we use the whole schedule
-}
 
   // Helper functions for date navigation
   const getPeriodStart = (date: Date, period: ViewPeriod) => {
@@ -484,8 +1307,8 @@ const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
   }
 
   const navigatePeriod = (direction: number) => {
-    // Check for unsaved changes before navigation
-    if (unsavedChanges && currentSchedule) {
+    // Check for unsaved changes before navigation (only for managers)
+    if (isManager && unsavedChanges && currentSchedule) {
       const isGeneratedSchedule = currentSchedule.id?.includes('temp') || 
                                 currentSchedule.id?.includes('generated') || 
                                 currentSchedule.is_generated
@@ -496,9 +1319,7 @@ const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
         )
         
         if (shouldDiscard) {
-          // Trigger save first, then navigate
           handleSaveSchedule().then(() => {
-            // Navigate after save completes
             performNavigation(direction)
           }).catch((error) => {
             console.error('Save failed:', error)
@@ -509,7 +1330,6 @@ const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
       }
     }
     
-    // Perform the navigation
     performNavigation(direction)
   }
 
@@ -529,8 +1349,6 @@ const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
     }
     
     setCurrentDate(newDate)
-    
-    // Clear unsaved changes flag after navigation
     setUnsavedChanges(false)
   }
 
@@ -553,26 +1371,52 @@ const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
     }
   }
 
-  // Handle assignments
+  // Handle assignments (Manager only)
   const handleAssignmentChange = (day: number, shift: number, staffId: string) => {
-  console.log('Assignment change called:', { day, shift, staffId })
-  console.log(' Current schedule before update:', currentSchedule)
-  
-  setUnsavedChanges(true)
-  
-  // Check if we have a schedule to update
-  if (!currentSchedule) {
-    console.warn(' No current schedule - creating new one')
+    if (!isManager) return // Staff can't modify assignments
     
-    // Create a new schedule structure
-    const newSchedule = {
-      id: `temp-schedule-${Date.now()}`,
-      facility_id: selectedFacility?.id,
-      week_start: getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0],
-      assignments: []
+    console.log('Assignment change called:', { day, shift, staffId })
+    setUnsavedChanges(true)
+    
+    if (!currentSchedule) {
+      const newSchedule = {
+        id: `temp-schedule-${Date.now()}`,
+        facility_id: selectedFacility?.id,
+        week_start: getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0],
+        assignments: []
+      }
+
+      const newAssignment = {
+        id: `temp-assignment-${Date.now()}`,
+        day,
+        shift,
+        staff_id: staffId
+      }
+      
+      newSchedule.assignments.push(newAssignment)
+      setCurrentSchedule(newSchedule)
+      
+      const staffMember = staff.find(s => s.id === staffId)
+      const shiftName = SHIFTS.find(s => s.id === shift)?.name || 'Shift'
+      const dayName = DAYS[day] || 'Day'
+      
+      if (staffMember) {
+        toast.success(`${staffMember.full_name} assigned to ${dayName} ${shiftName}`)
+      }
+      return
     }
 
-    // Add the new assignment
+    // Check if staff is already assigned to this day/shift
+    const existingAssignment = currentSchedule.assignments?.find(a => 
+      a.day === day && a.shift === shift && a.staff_id === staffId
+    )
+    
+    if (existingAssignment) {
+      toast.error('Staff member is already assigned to this shift')
+      return
+    }
+    
+    // Create new assignment
     const newAssignment = {
       id: `temp-assignment-${Date.now()}`,
       day,
@@ -580,11 +1424,17 @@ const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
       staff_id: staffId
     }
     
-    newSchedule.assignments.push(newAssignment)
-    console.log('➕ Creating new schedule with assignment:', newSchedule)
+    setCurrentSchedule(prevSchedule => {
+      if (!prevSchedule) return prevSchedule
+      
+      const updatedSchedule = {
+        ...prevSchedule,
+        assignments: [...(prevSchedule.assignments || []), newAssignment]
+      }
+      
+      return updatedSchedule
+    })
     
-    setCurrentSchedule(newSchedule)
-    // Show success message
     const staffMember = staff.find(s => s.id === staffId)
     const shiftName = SHIFTS.find(s => s.id === shift)?.name || 'Shift'
     const dayName = DAYS[day] || 'Day'
@@ -592,107 +1442,49 @@ const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
     if (staffMember) {
       toast.success(`${staffMember.full_name} assigned to ${dayName} ${shiftName}`)
     }
-    
-    return
   }
 
-  // Check if staff is already assigned to this day/shift
-  const existingAssignment = currentSchedule.assignments?.find(a => 
-    a.day === day && a.shift === shift && a.staff_id === staffId
-  )
-  
-  if (existingAssignment) {
-    toast.error('Staff member is already assigned to this shift')
-    return
-  }
-  
-  // Create new assignment
-  const newAssignment = {
-    id: `temp-assignment-${Date.now()}`,
-    day,
-    shift,
-    staff_id: staffId
-  }
-  
-  console.log(' Adding assignment to existing schedule:', newAssignment)
-  
-  // Update the current schedule immutably
-  setCurrentSchedule(prevSchedule => {
-    if (!prevSchedule) {
-      console.warn(' Previous schedule is null in setter')
-      return prevSchedule
-    }
+  const handleRemoveAssignment = (assignmentId: string) => {
+    if (!isManager) return // Staff can't remove assignments
     
-    const updatedSchedule = {
-      ...prevSchedule,
-      assignments: [...(prevSchedule.assignments || []), newAssignment]
-    }
+    console.log('Remove assignment called:', assignmentId)
+    setUnsavedChanges(true)
     
-    console.log(' Updated schedule:', updatedSchedule)
-    return updatedSchedule
-  })
-  
-  // Show success message
-  const staffMember = staff.find(s => s.id === staffId)
-  const shiftName = SHIFTS.find(s => s.id === shift)?.name || 'Shift'
-  const dayName = DAYS[day] || 'Day'
-  
-  if (staffMember) {
-    toast.success(`${staffMember.full_name} assigned to ${dayName} ${shiftName}`)
+    if (!currentSchedule) return
+    
+    const assignmentToRemove = currentSchedule.assignments?.find(a => a.id === assignmentId)
+    
+    setCurrentSchedule(prevSchedule => {
+      if (!prevSchedule) return prevSchedule
+      
+      const updatedSchedule = {
+        ...prevSchedule,
+        assignments: prevSchedule.assignments?.filter(a => a.id !== assignmentId) || []
+      }
+      
+      return updatedSchedule
+    })
+    
+    if (assignmentToRemove) {
+      const staffMember = staff.find(s => s.id === assignmentToRemove.staff_id)
+      if (staffMember) {
+        toast.success(`${staffMember.full_name} removed from schedule`)
+      }
     }
   }
-
-  // Fix the remove assignment handler
-const handleRemoveAssignment = (assignmentId: string) => {
-  console.log('Remove assignment called:', assignmentId)
-  console.log(' Current schedule before removal:', currentSchedule)
-  
-  setUnsavedChanges(true)
-  
-  if (!currentSchedule) {
-    console.warn(' No current schedule to remove from')
-    return
-  }
-  
-  // Find the assignment to get staff info for success message
-  const assignmentToRemove = currentSchedule.assignments?.find(a => a.id === assignmentId)
-  
-  setCurrentSchedule(prevSchedule => {
-    if (!prevSchedule) {
-      console.warn(' Previous schedule is null in remove setter')
-      return prevSchedule
-    }
-    
-    const updatedSchedule = {
-      ...prevSchedule,
-      assignments: prevSchedule.assignments?.filter(a => a.id !== assignmentId) || []
-    }
-    
-    console.log(' Schedule after removal:', updatedSchedule)
-    return updatedSchedule
-  })
-  
-  // Show success message
-  if (assignmentToRemove) {
-    const staffMember = staff.find(s => s.id === assignmentToRemove.staff_id)
-    if (staffMember) {
-      toast.success(`${staffMember.full_name} removed from schedule`)
-    }
-  }
-}
 
   const handleSmartGenerate = async (config) => {
+    if (!isManager) return
+    
     console.log('Smart generate started with config:', config)
     
     if (!selectedFacility) {
-      console.error('No facility selected')
       toast.error('Please select a facility first')
       return
     }
     
     try {
       const periodStart = getPeriodStart(currentDate, viewPeriod)
-      console.log('Period start calculated:', periodStart)
       
       const requestData = {
         facility_id: selectedFacility.id,
@@ -704,54 +1496,35 @@ const handleRemoveAssignment = (assignmentId: string) => {
         ...config
       }
       
-      console.log('Making API request:', requestData)
-      
       const result = await apiClient.generateSmartSchedule(requestData)
-      console.log('API response received:', result)
       
-      // Create a temporary schedule object for the frontend
       if (!result || !result.assignments) {
         throw new Error('Invalid response: no assignments generated')
       }
       
-      // Create a temporary schedule object with generated assignments
       const scheduleData = {
         id: `temp-generated-${Date.now()}`,
         facility_id: selectedFacility.id,
         week_start: periodStart.toISOString().split('T')[0],
         assignments: normalizeAssignments(result.assignments),
         created_at: new Date().toISOString(),
-        is_generated: true, // IMPORTANT: Mark as generated (not saved)
+        is_generated: true,
         zone_coverage: result.zone_coverage || {},
         optimization_metrics: result.optimization_metrics || {},
         ...result
       }
       
-      console.log('Created temporary schedule data:', {
-        id: scheduleData.id,
-        is_generated: scheduleData.is_generated,
-        assignments_count: scheduleData.assignments.length,
-        week_start: scheduleData.week_start
-      })
-      
-      // Update the current schedule state
       setCurrentSchedule(scheduleData)
-      
-      // Mark as having unsaved changes since it's only generated, not saved
       setUnsavedChanges(true)
-      console.log('Marked as unsaved changes - save button should appear')
       
-      // Show success message
       const periodName = viewPeriod.charAt(0).toUpperCase() + viewPeriod.slice(1)
       const assignmentCount = scheduleData.assignments.length
       
-      console.log('Showing success toast')
       toast.success(`${periodName} schedule generated successfully! ${assignmentCount} assignments created. Click "Save Changes" to persist.`)
       
     } catch (error) {
       console.error('Smart generate failed:', error)
       
-      // Better error handling
       let errorMessage = 'Failed to generate schedule'
       
       if (error.message?.includes('fetch')) {
@@ -764,121 +1537,60 @@ const handleRemoveAssignment = (assignmentId: string) => {
         errorMessage = `Generation failed: ${error.message}`
       }
       
-      console.log('Showing error toast:', errorMessage)
       toast.error(errorMessage)
     }
   }
 
-
-  // Save schedule changes
   const handleSaveSchedule = async () => {
+    if (!isManager) return
+    
     console.log('SAVE SCHEDULE STARTED')
     
     if (!currentSchedule) {
-      console.log('No current schedule')
       toast.error('No schedule to save')
       return
     }
     
     try {
-      console.log('Current schedule being saved:', {
-        id: currentSchedule.id,
-        is_generated: currentSchedule.is_generated,
-        assignments_count: currentSchedule.assignments?.length || 0
-      })
-      
       let savedSchedule
       
-      // Check if this is a new/generated schedule (temp ID or marked as generated)
       const isNewSchedule = !currentSchedule.id || 
                           currentSchedule.id.includes('temp') || 
                           currentSchedule.id.includes('generated') ||
                           currentSchedule.is_generated === true
       
-      console.log('Schedule type check:', {
-        id: currentSchedule.id,
-        isNewSchedule,
-        is_generated: currentSchedule.is_generated
-      })
-      
       if (isNewSchedule) {
-        console.log('Creating new schedule via API')
-        
-        // Create new schedule
         const scheduleToSave = {
           facility_id: currentSchedule.facility_id,
           week_start: currentSchedule.week_start,
           assignments: currentSchedule.assignments || []
         }
         
-        console.log('Data being sent to createSchedule:', {
-          facility_id: scheduleToSave.facility_id,
-          week_start: scheduleToSave.week_start,
-          assignments_count: scheduleToSave.assignments.length
-        })
-        
         savedSchedule = await apiClient.createSchedule(scheduleToSave)
-        console.log('New schedule created:', {
-          id: savedSchedule.id,
-          assignments_count: savedSchedule.assignments?.length || 0
-        })
-        
       } else {
-        console.log('Updating existing schedule via API')
-        
-        // Update existing schedule
         const updateData = {
           assignments: currentSchedule.assignments || []
         }
         
-        console.log('Data being sent to updateSchedule:', {
-          id: currentSchedule.id,
-          assignments_count: updateData.assignments.length
-        })
-        
         savedSchedule = await apiClient.updateSchedule(currentSchedule.id, updateData)
-        console.log('Schedule updated:', {
-          id: savedSchedule.id,
-          assignments_count: savedSchedule.assignments?.length || 0
-        })
       }
-      
-      console.log('API call successful, processing response...')
 
-      // Ensure the saved schedule has the correct format
       savedSchedule = {
         ...savedSchedule,
         assignments: normalizeAssignments(savedSchedule.assignments || []),
-        is_generated: false // Now it's saved, not just generated
+        is_generated: false
       }
-
-      console.log('Normalized saved schedule:', {
-        id: savedSchedule.id,
-        is_generated: savedSchedule.is_generated,
-        assignments_count: savedSchedule.assignments.length
-      })
       
-      // Update the current schedule with the saved version
       setCurrentSchedule(savedSchedule)
       setUnsavedChanges(false)
       
-      console.log('State updated - reloading schedules...')
-      
-      // Reload schedules to get the latest data
       await loadSchedules()
       
-      console.log('Everything completed successfully!')
       toast.success('Schedule saved successfully!')
       
     } catch (error) {
       console.error('SAVE FAILED:', error)
-      console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        response: error.response
-      })
       
-      // Better error handling
       let errorMessage = 'Failed to save schedule'
       
       if (error.message?.includes('404')) {
@@ -895,17 +1607,16 @@ const handleRemoveAssignment = (assignmentId: string) => {
       
       toast.error(errorMessage)
     }
-  } // end save function
+  }
 
-  // Schedule deletions
   const handleDeleteSchedule = async (scheduleId: string) => {
+    if (!isManager) return
+    
     try {
       await apiClient.deleteSchedule(scheduleId)
       
-      // Remove from local state
       setSchedules(prev => prev.filter(s => s.id !== scheduleId))
       
-      // If we deleted the current schedule, clear it
       if (currentSchedule?.id === scheduleId) {
         setCurrentSchedule(null)
         setUnsavedChanges(false)
@@ -914,13 +1625,13 @@ const handleRemoveAssignment = (assignmentId: string) => {
       toast.success('Schedule deleted successfully')
     } catch (error) {
       console.error('Failed to delete schedule:', error)
-      throw error // Re-throw so the ScheduleList component can handle it
+      throw error
     }
   }
 
-  // handel schedule selections
   const handleScheduleSelect = (schedule: any) => {
-    // Check for unsaved changes first
+    if (!isManager) return
+    
     if (unsavedChanges && currentSchedule) {
       const shouldDiscard = window.confirm(
         'You have unsaved changes. Do you want to discard them and switch to the selected schedule?'
@@ -931,63 +1642,27 @@ const handleRemoveAssignment = (assignmentId: string) => {
       }
     }
 
-    // Update date to match week 
-  const scheduleDate = new Date(schedule.week_start)
-      setCurrentDate(scheduleDate)
-      
-      // Set the schedule as current
-      setCurrentSchedule(schedule)
-      setUnsavedChanges(false)
-      
-      // Switch to weekly view if not already there
-      if (viewPeriod !== 'weekly') {
-        setViewPeriod('weekly')
-      }
-      
-      toast.success(`Switched to schedule for ${scheduleDate.toLocaleDateString()}`)
+    const scheduleDate = new Date(schedule.week_start)
+    setCurrentDate(scheduleDate)
+    setCurrentSchedule(schedule)
+    setUnsavedChanges(false)
+    
+    if (viewPeriod !== 'weekly') {
+      setViewPeriod('weekly')
+    }
+    
+    toast.success(`Switched to schedule for ${scheduleDate.toLocaleDateString()}`)
   }
 
-  // SWAP MANAGEMENT
-  // handle swap requests
   const handleSwapRequest = (day: number, shift: number, staffId: string) => {
     setSelectedAssignmentForSwap({ day, shift, staffId })
     setShowSwapModal(true)
   }
 
-  // SWAP history
   const handleViewSwapHistory = (swapId: string) => {
-  // TODO: implement a swap history modal here
     console.log('View swap history for:', swapId)
+    // TODO: implement a swap history modal here
   }
-
-
-
-  // Filter staff based on facility, zones, and roles
-  const facilityStaff = staff.filter(member => 
-    member.facility_id === selectedFacility?.id && member.is_active
-  )
-
-  const filteredStaff = facilityStaff.filter(member => {
-    // Zone filter
-    if (filterZone !== 'all' && selectedZones.length > 0) {
-      const zones = getFacilityZones(selectedFacility)
-      const zone = zones.find(z => z.id === filterZone)
-      if (zone && zone.roles.length > 0 && !zone.roles.includes(member.role)) {
-        return false
-      }
-    }
-    
-    // Role filter
-    if (filterRole !== 'all' && !member.role.toLowerCase().includes(filterRole.toLowerCase())) {
-      return false
-    }
-    
-    return true
-  })
-
-  // Get available roles and zones
-  const availableRoles = [...new Set(facilityStaff.map(member => member.role))]
-  const availableZones = getFacilityZones(selectedFacility)
 
   if (authLoading || loading) {
     return (
@@ -1004,394 +1679,79 @@ const handleRemoveAssignment = (assignmentId: string) => {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
-        <div className="max-w-7xl mx-auto p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/dashboard')}
-                className="gap-2 hover:bg-gray-100"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Dashboard
-              </Button>
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                  Smart Schedule Management
-                </h1>
-                <p className="text-gray-600 mt-1">
-                  {isManager ? 'AI-powered scheduling with zone-based optimization' : 'View your work schedule'}
-                </p>
-              </div>
-            </div>
+      {isManager ? (
+        <ManagerScheduleView
+          router={router}
+          facilities={facilities}
+          selectedFacility={selectedFacility}
+          setSelectedFacility={setSelectedFacility}
+          selectedZones={selectedZones}
+          setSelectedZones={setSelectedZones}
+          staff={staff}
+          schedules={schedules}
+          currentSchedule={currentSchedule}
+          setCurrentSchedule={setCurrentSchedule}
+          loading={loading}
+          setLoading={setLoading}
+          viewPeriod={viewPeriod}
+          setViewPeriod={setViewPeriod}
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          showStaffPanel={showStaffPanel}
+          setShowStaffPanel={setShowStaffPanel}
+          filterRole={filterRole}
+          setFilterRole={setFilterRole}
+          filterZone={filterZone}
+          setFilterZone={setFilterZone}
+          showSmartGenerateModal={showSmartGenerateModal}
+          setShowSmartGenerateModal={setShowSmartGenerateModal}
+          showConfigModal={showConfigModal}
+          setShowConfigModal={setShowConfigModal}
+          showScheduleListModal={showScheduleListModal}
+          setShowScheduleListModal={setShowScheduleListModal}
+          showSwapDashboard={showSwapDashboard}
+          setShowSwapDashboard={setShowSwapDashboard}
+          draggedStaff={draggedStaff}
+          setDraggedStaff={setDraggedStaff}
+          unsavedChanges={unsavedChanges}
+          setUnsavedChanges={setUnsavedChanges}
+          swapRequests={swapRequests}
+          swapSummary={swapSummary}
+          getFacilityZones={getFacilityZones}
+          navigatePeriod={navigatePeriod}
+          formatPeriodDisplay={formatPeriodDisplay}
+          getPeriodStart={getPeriodStart}
+          handleAssignmentChange={handleAssignmentChange}
+          handleRemoveAssignment={handleRemoveAssignment}
+          handleSmartGenerate={handleSmartGenerate}
+          handleSaveSchedule={handleSaveSchedule}
+          handleDeleteSchedule={handleDeleteSchedule}
+          handleScheduleSelect={handleScheduleSelect}
+          handleSwapRequest={handleSwapRequest}
+          createSwapRequest={createSwapRequest}
+          approveSwap={approveSwap}
+          retryAutoAssignment={retryAutoAssignment}
+          refreshSwaps={refreshSwaps}
+          handleViewSwapHistory={handleViewSwapHistory}
+        />
+      ) : (
+        <StaffScheduleView
+          currentDate={currentDate}
+          viewPeriod={viewPeriod}
+          setCurrentDate={setCurrentDate}
+          setViewPeriod={setViewPeriod}
+          navigatePeriod={navigatePeriod}
+          formatPeriodDisplay={formatPeriodDisplay}
+          schedules={schedules}
+          staff={staff}
+          currentSchedule={currentSchedule}
+          swapRequests={swapRequests}
+          onSwapRequest={handleSwapRequest}
+          user={user}
+        />
+      )}
 
-            {/* Header Actions */}
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowStaffPanel(!showStaffPanel)}
-                className="gap-2"
-              >
-                {showStaffPanel ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                {showStaffPanel ? 'Hide' : 'Show'} Staff
-              </Button>
-              
-              {isManager && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowConfigModal(true)}
-                    className="gap-2"
-                  >
-                    <Settings className="w-4 h-4" />
-                    Config
-                  </Button>
-                  
-                  <Button
-                    onClick={() => setShowSmartGenerateModal(true)}
-                    className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                  >
-                    <Zap className="w-4 h-4" />
-                    Smart Generate
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowScheduleListModal(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <List className="w-4 h-4" />
-                    Manage Schedules
-                    <Badge variant="secondary" className="ml-1">
-                      {schedules.length}
-                    </Badge>
-                  </Button>
-                  <Button 
-                    variant={showSwapDashboard ? "default" : "outline"}
-                    onClick={() => setShowSwapDashboard(!showSwapDashboard)} 
-                    className="relative"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Swaps
-                    {swapSummary?.pending_swaps > 0 && (
-                      <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5">
-                        {swapSummary.pending_swaps}
-                      </Badge>
-                    )}
-                </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Control Panel */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-            {/* Facility & Zone Selection */}
-            <Card className="lg:col-span-2 border-0 shadow-sm bg-white/70 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Building className="w-5 h-5" />
-                  Facility & Zones
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Facility Selector */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Facility</label>
-                  <Select 
-                    value={selectedFacility?.id || ''} 
-                    onValueChange={(value) => {
-                      const facility = facilities.find(f => f.id === value)
-                      setSelectedFacility(facility)
-                      if (facility) {
-                        const zones = getFacilityZones(facility)
-                        setSelectedZones(zones.map(z => z.id))
-                      }
-                    }}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                  >
-                    <option value="">Select a facility</option>
-                    {facilities.map((facility) => (
-                      <option key={facility.id} value={facility.id}>
-                        {facility.name}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                {/* Zone Selection */}
-                {selectedFacility && (
-                  <FacilityZoneSelector
-                    zones={availableZones}
-                    selectedZones={selectedZones}
-                    onZoneChange={setSelectedZones}
-                    staff={facilityStaff}
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Period Selection */}
-            <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  View Period
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Tabs value={viewPeriod} onValueChange={(value) => setViewPeriod(value as ViewPeriod)}>
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="daily">Daily</TabsTrigger>
-                    <TabsTrigger value="weekly">Weekly</TabsTrigger>
-                    <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                
-                <div className="flex items-center gap-2 mt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigatePeriod(-1)}
-                    className="p-2"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  
-                  <div className="flex-1 text-center">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setCurrentDate(new Date())}
-                      className="text-xs"
-                    >
-                      Today
-                    </Button>
-                  </div>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigatePeriod(1)}
-                    className="p-2"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                <p className="text-sm font-medium text-center mt-2">
-                  {formatPeriodDisplay(currentDate, viewPeriod)}
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Schedule Status */}
-            <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {currentSchedule ? (
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <div>
-                        <p className="font-medium text-green-800">Schedule Active</p>
-                        <p className="text-xs text-gray-500">
-                          {currentSchedule.assignments?.length || 0} assignments
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-orange-600" />
-                      <div>
-                        <p className="font-medium text-orange-800">No Schedule</p>
-                        <p className="text-xs text-gray-500">Generate or create schedule</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {unsavedChanges && (
-                    <Button
-                      size="sm"
-                      onClick={handleSaveSchedule}
-                      className="w-full gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      Save Changes
-                    </Button>
-                  )}
-                  
-                  {selectedZones.length > 0 && (
-                    <div>
-                      <p className="text-xs text-gray-600 mb-1">Active Zones:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedZones.map(zoneId => {
-                          const zone = availableZones.find(z => z.id === zoneId)
-                          return zone ? (
-                            <Badge key={zoneId} variant="outline" className="text-xs">
-                              {zone.name}
-                            </Badge>
-                          ) : null
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Staff Panel */}
-            {showStaffPanel && (
-              <div className="lg:col-span-1">
-                <StaffAssignmentPanel
-                  staff={filteredStaff}
-                  availableRoles={availableRoles}
-                  availableZones={availableZones}
-                  filterRole={filterRole}
-                  filterZone={filterZone}
-                  onFilterChange={setFilterRole}
-                  onZoneFilterChange={setFilterZone}
-                  onDragStart={setDraggedStaff}
-                  onDragEnd={() => setDraggedStaff(null)}
-                />
-              </div>
-            )}
-
-            {/* Calendar Views */}
-            <div className={showStaffPanel ? 'lg:col-span-3' : 'lg:col-span-4'}>
-              {viewPeriod === 'daily' && (
-                <DailyCalendar
-                  key={`daily-${currentDate.getTime()}`}
-                  currentDate={currentDate}
-                  schedule={currentSchedule}
-                  staff={facilityStaff}
-                  shifts={SHIFTS}
-                  isManager={isManager}
-                  draggedStaff={draggedStaff}
-                  swapRequests={swapRequests}
-                  onSwapRequest={handleSwapRequest}
-                  onAssignmentChange={(shift, staffId) => {
-                    // Calculate the correct day index for the current date
-                    const dayIndex = currentSchedule ? getCurrentDayIndex(currentSchedule, currentDate, 'daily') : 0
-                    console.log(' Daily assignment change:', { dayIndex, shift, staffId })
-                    handleAssignmentChange(dayIndex, shift, staffId)
-                  }}
-                  onRemoveAssignment={handleRemoveAssignment}
-                />
-              )}
-              
-              {viewPeriod === 'weekly' && (
-                <WeeklyCalendar
-                  key={`weekly-${currentDate.getTime()}`} 
-                  currentWeek={getPeriodStart(currentDate, 'weekly')}
-                  schedule={currentSchedule}
-                  staff={facilityStaff}
-                  shifts={SHIFTS}
-                  days={DAYS}
-                  isManager={isManager}
-                  draggedStaff={draggedStaff}
-                  swapRequests={swapRequests}
-                  onSwapRequest={handleSwapRequest}
-                  onAssignmentChange={handleAssignmentChange}
-                  onRemoveAssignment={handleRemoveAssignment}
-                />
-              )}
-              
-              {viewPeriod === 'monthly' && (
-                <MonthlyCalendar
-                  key={`monthly-${getPeriodStart(currentDate, 'monthly').getTime()}`}
-                  currentMonth={getPeriodStart(currentDate, 'monthly')}
-                  schedules={schedules} // Pass ALL schedules so monthly view can find overlapping ones
-                  staff={facilityStaff}
-                  isManager={isManager}
-                  swapRequests={swapRequests} 
-                  onDayClick={(date) => {
-                    setCurrentDate(date)
-                    setViewPeriod('daily')
-                  }}
-                />
-              )}
-
-            </div>
-          </div>
-          {/* Schedule List Modal */}
-            <ScheduleListModal
-              open={showScheduleListModal}
-              onClose={() => setShowScheduleListModal(false)}
-              schedules={schedules}
-              currentSchedule={currentSchedule}
-              onScheduleSelect={handleScheduleSelect}
-              onScheduleDelete={handleDeleteSchedule}
-              isManager={isManager}
-            />
-
-          {/* No Facility Selected */}
-          {!selectedFacility && (
-            <div className="text-center py-16">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Building className="w-12 h-12 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Select a Facility</h3>
-              <p className="text-gray-600">
-                Choose a facility from the dropdown above to view and manage schedules
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Modals */}
-        {isManager && (
-          <>
-            <SmartGenerateModal
-              open={showSmartGenerateModal}
-              onClose={() => setShowSmartGenerateModal(false)}
-              facility={selectedFacility}
-              zones={availableZones}
-              selectedZones={selectedZones}
-              staff={facilityStaff}
-              periodStart={getPeriodStart(currentDate, viewPeriod)}
-              periodType={viewPeriod}
-              onGenerate={handleSmartGenerate}
-            />
-            
-            <ScheduleConfigModal
-              open={showConfigModal}
-              onClose={() => setShowConfigModal(false)}
-              facility={selectedFacility}
-            />
-
-             {/* Facility swap modal */}
-            <FacilitySwapModal
-              open={showSwapDashboard}
-              onClose={() => setShowSwapDashboard(false)}
-              facility={selectedFacility}
-              swapRequests={swapRequests}
-              swapSummary={swapSummary}
-              days={DAYS}
-              shifts={SHIFTS}
-              onApproveSwap={approveSwap}
-              onRetryAutoAssignment={retryAutoAssignment}
-              onViewSwapHistory={handleViewSwapHistory}
-              onRefresh={refreshSwaps}
-            />
-          </>
-        )}
-      </div>
-      
-      {/* Swap Request Modal */}
+      {/* Swap Request Modal - Available for both staff and managers */}
       <SwapRequestModal
         open={showSwapModal}
         onClose={() => {
@@ -1400,13 +1760,12 @@ const handleRemoveAssignment = (assignmentId: string) => {
         }}
         schedule={currentSchedule}
         currentAssignment={selectedAssignmentForSwap}
-        staff={facilityStaff}
+        staff={staff}
         shifts={SHIFTS}
         days={DAYS}
         isManager={isManager}
         onSwapRequest={createSwapRequest}
       />
-
     </AppLayout>
   )
 }
