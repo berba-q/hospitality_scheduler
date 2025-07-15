@@ -209,7 +209,7 @@ def get_my_dashboard_stats(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Get dashboard statistics for current staff member"""
+    """Get enhanced dashboard statistics for current staff member"""
     if current_user.is_manager:
         raise HTTPException(status_code=403, detail="This endpoint is for staff only")
     
@@ -242,7 +242,7 @@ def get_my_dashboard_stats(
         )
     ).all()
     
-    # Count assignments
+    # Count assignments and calculate hours
     current_week_hours = 0
     next_week_hours = 0
     upcoming_shifts = []
@@ -266,55 +266,110 @@ def get_my_dashboard_stats(
             elif next_week_start <= assignment_date <= next_week_end:
                 next_week_hours += shift_hours
             
-            # Collect upcoming shifts (next 7 days)
-            if assignment_date >= today and assignment_date <= today + timedelta(days=7):
+            # Add to upcoming shifts if within next 7 days
+            if assignment_date >= today and assignment_date <= (today + timedelta(days=7)):
+                shift_names = ["Morning", "Afternoon", "Evening"]
+                shift_times = ["6:00 AM - 2:00 PM", "2:00 PM - 10:00 PM", "10:00 PM - 6:00 AM"]
+                day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                
                 upcoming_shifts.append({
-                    "date": assignment_date.isoformat(),
-                    "day_name": assignment_date.strftime("%A"),
+                    "day": assignment.day,
                     "shift": assignment.shift,
+                    "date": assignment_date.strftime("%Y-%m-%d"),
+                    "day_name": day_names[assignment.day] if assignment.day < 7 else "Unknown",
+                    "shift_name": shift_names[assignment.shift] if assignment.shift < 3 else "Unknown",
+                    "shift_time": shift_times[assignment.shift] if assignment.shift < 3 else "Unknown",
                     "is_today": assignment_date == today,
-                    "is_tomorrow": assignment_date == today + timedelta(days=1)
+                    "is_tomorrow": assignment_date == (today + timedelta(days=1)),
+                    "assignment_id": str(assignment.id),
+                    "schedule_id": str(schedule.id)
                 })
     
-    # Get swap requests
-    my_swap_requests = db.exec(
-        select(SwapRequest).join(Schedule).where(
+    # Sort upcoming shifts by date
+    upcoming_shifts.sort(key=lambda x: x["date"])
+    
+    # Get pending swap requests
+    pending_swaps = db.exec(
+        select(SwapRequest).where(
             SwapRequest.requesting_staff_id == staff.id,
-            Schedule.facility_id == staff.facility_id,
-            SwapRequest.status.in_(["pending", "manager_approved"])
+            SwapRequest.status == "pending"
         )
     ).all()
     
-    # Get swap requests targeting me
-    incoming_swap_requests = db.exec(
-        select(SwapRequest).join(Schedule).where(
+    # Get recent swap activity for gamification stats
+    recent_date = datetime.utcnow() - timedelta(days=30)
+    
+    # Requests where I was the target
+    requests_for_me = db.exec(
+        select(SwapRequest).where(
             SwapRequest.target_staff_id == staff.id,
-            Schedule.facility_id == staff.facility_id,
-            SwapRequest.status == "manager_approved"
+            SwapRequest.created_at >= recent_date
         )
     ).all()
+    
+    # Requests where I helped others (auto-assigned)
+    helped_others = db.exec(
+        select(SwapRequest).where(
+            SwapRequest.assigned_staff_id == staff.id,
+            SwapRequest.created_at >= recent_date,
+            SwapRequest.status.in_(["executed", "assigned"])
+        )
+    ).all()
+    
+    # Calculate acceptance rate
+    total_requests_for_me = len(requests_for_me)
+    accepted_requests = len([r for r in requests_for_me if r.target_staff_accepted == True])
+    acceptance_rate = (accepted_requests / total_requests_for_me * 100) if total_requests_for_me > 0 else 0
+    
+    # Calculate helpfulness score
+    total_auto_requests = db.exec(
+        select(func.count(SwapRequest.id)).where(
+            SwapRequest.swap_type == "auto",
+            SwapRequest.created_at >= recent_date
+        )
+    ).one()
+    
+    helpfulness_score = (len(helped_others) / total_auto_requests * 100) if total_auto_requests > 0 else 0
+    
+    # Calculate current streak
+    recent_requests = sorted(requests_for_me, key=lambda x: x.created_at, reverse=True)[:10]
+    current_streak = 0
+    for request in recent_requests:
+        if request.target_staff_accepted == True:
+            current_streak += 1
+        elif request.target_staff_accepted == False:
+            break
+    
+    # Calculate average response time
+    responded_requests = [r for r in requests_for_me if r.target_staff_accepted is not None and r.updated_at]
+    avg_response_time = "N/A"
+    
+    if responded_requests:
+        total_response_time = sum([
+            (r.updated_at - r.created_at).total_seconds() / 3600 
+            for r in responded_requests
+        ])
+        avg_hours = total_response_time / len(responded_requests)
+        
+        if avg_hours < 1:
+            avg_response_time = f"{int(avg_hours * 60)} minutes"
+        elif avg_hours < 24:
+            avg_response_time = f"{avg_hours:.1f} hours"
+        else:
+            avg_response_time = f"{int(avg_hours / 24)} days"
     
     return {
-        "staff_profile": {
-            "id": str(staff.id),
-            "name": staff.full_name,
-            "role": staff.role,
-            "facility_id": str(staff.facility_id)
-        },
-        "current_week": {
-            "hours_scheduled": current_week_hours,
-            "max_hours": staff.weekly_hours_max,
-            "utilization_percentage": round((current_week_hours / staff.weekly_hours_max) * 100) if staff.weekly_hours_max else 0
-        },
-        "upcoming_shifts": sorted(upcoming_shifts, key=lambda x: x["date"])[:7],
-        "swap_requests": {
-            "my_pending": len(my_swap_requests),
-            "awaiting_my_response": len(incoming_swap_requests)
-        },
-        "facility": {
-            "id": str(staff.facility_id),
-            "name": db.get(Facility, staff.facility_id).name
-        }
+        "staff_id": str(staff.id),
+        "thisWeekHours": current_week_hours,
+        "nextWeekHours": next_week_hours,
+        "upcomingShifts": upcoming_shifts,
+        "pendingSwaps": len(pending_swaps),
+        "acceptanceRate": round(acceptance_rate, 1),
+        "helpfulnessScore": round(helpfulness_score, 1),
+        "currentStreak": current_streak,
+        "totalHelped": len(helped_others),
+        "avgResponseTime": avg_response_time,
+        "teamRating": min(95, round((acceptance_rate * 0.6) + (helpfulness_score * 0.4), 1))
     }
 
 @router.get("/me/swap-requests")
