@@ -1,230 +1,41 @@
-// app/swaps/page.tsx - Updated to support both staff and managers
+// app/swaps/page.tsx - swaps management pages
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth, useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
 
+// Import existing components
+import { SwapManagementDashboard } from '@/components/swap/SwapManagementDashboard'
+import { ExportReportModal, useExportFunctionality } from '@/components/swap/ExportReportModal'
+
+// Import enhanced staff component
+import StaffSwapDashboard from '@/components/swap/StaffSwapDashboard'
+
 // Icons
 import { 
-  ArrowLeftRight, 
-  AlertTriangle, 
   Clock, 
   CheckCircle,
   Building,
-  Users,
-  TrendingUp,
   RotateCcw,
-  Search,
-  Eye,
-  ChevronRight,
-  X,
   Download,
-  BarChart3,
-  Plus,
-  Calendar
+  AlertTriangle
 } from 'lucide-react'
-
-// Component Imports
-import { SwapManagementDashboard } from '@/components/swap/SwapManagementDashboard'
-import { FacilityDetailModal } from '@/components/swap/FacilityDetailModal'
-import { SwapHistoryModal } from '@/components/swap/SwapHistoryModal'
-import { AdvancedSearchModal } from '@/components/swap/AdvancedSearchModal'
-import { StaffAnalyticsDashboard } from '@/components/swap/StaffAnalyticsDashboard'
-import { ExportReportModal, useExportFunctionality } from '@/components/swap/ExportReportModal'
-
-// Staff Components (create these for staff-specific functionality)
-function StaffSwapDashboard() {
-  const { user } = useAuth()
-  const apiClient = useApiClient()
-  const [mySwapRequests, setMySwapRequests] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    loadMySwapRequests()
-  }, [])
-
-  const loadMySwapRequests = async () => {
-    try {
-      setLoading(true)
-      const swaps = await apiClient.getMySwapRequests()
-      setMySwapRequests(swaps)
-    } catch (error) {
-      console.error('Failed to load swap requests:', error)
-      toast.error('Failed to load your swap requests')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleNewSwapRequest = () => {
-    toast.info('Swap request form coming soon!')
-    // TODO: Open swap request modal
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading your swap requests...</p>
-        </div>
-      </div>
-    )
-  }
-
-  const pendingSwaps = mySwapRequests.filter(swap => swap.status === 'pending')
-  const awaitingMyResponse = mySwapRequests.filter(swap => 
-    swap.can_respond && swap.status === 'manager_approved'
-  )
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Swap Requests</h1>
-          <p className="text-gray-600 mt-1">Manage your shift swaps and coverage requests</p>
-        </div>
-        <Button onClick={handleNewSwapRequest} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Request Swap
-        </Button>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                <Clock className="w-6 h-6 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{pendingSwaps.length}</p>
-                <p className="text-sm text-gray-600">Pending Requests</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <ArrowLeftRight className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{awaitingMyResponse.length}</p>
-                <p className="text-sm text-gray-600">Need My Response</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{mySwapRequests.filter(s => s.status === 'completed').length}</p>
-                <p className="text-sm text-gray-600">Completed</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Swap Requests List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>My Swap Requests</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {mySwapRequests.length === 0 ? (
-            <div className="text-center py-8">
-              <ArrowLeftRight className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-600">No swap requests yet</p>
-              <p className="text-sm text-gray-500">Create your first swap request to get started</p>
-              <Button onClick={handleNewSwapRequest} className="mt-4">
-                Request Your First Swap
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {mySwapRequests.map((swap) => (
-                <div key={swap.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant={
-                          swap.status === 'pending' ? 'destructive' : 
-                          swap.status === 'completed' ? 'default' : 'secondary'
-                        }>
-                          {swap.status}
-                        </Badge>
-                        {swap.urgency !== 'normal' && (
-                          <Badge variant="outline" className={
-                            swap.urgency === 'emergency' ? 'border-red-300 text-red-700' :
-                            swap.urgency === 'high' ? 'border-orange-300 text-orange-700' :
-                            'border-gray-300 text-gray-700'
-                          }>
-                            {swap.urgency}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="font-medium">{swap.reason}</p>
-                      <p className="text-sm text-gray-600">
-                        {swap.user_role === 'requester' ? 'You requested' : 
-                         swap.user_role === 'target' ? 'You were asked' : 
-                         'You were assigned'} • Created {new Date(swap.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {swap.can_respond && (
-                        <>
-                          <Button size="sm" variant="outline">
-                            Accept
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            Decline
-                          </Button>
-                        </>
-                      )}
-                      <Button size="sm" variant="ghost">
-                        View Details
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function SwapsPage() {
   // ============================================================================
   // HOOKS & AUTH
   // ============================================================================
-  const { isManager, isAuthenticated, isLoading: authLoading } = useAuth()
+  const { isManager, isAuthenticated, isLoading: authLoading, user } = useAuth()
   const apiClient = useApiClient()
   const { showExportModal, setShowExportModal, handleExport } = useExportFunctionality(apiClient)
 
   // ============================================================================
-  // MAIN DATA STATE (Manager Only)
+  // MANAGER DATA STATE
   // ============================================================================
   const [globalSummary, setGlobalSummary] = useState(null)
   const [facilitySummaries, setFacilitySummaries] = useState([])
@@ -232,24 +43,12 @@ export default function SwapsPage() {
   const [loading, setLoading] = useState(true)
 
   // ============================================================================
-  // UI STATE & FILTERS (Manager Only)
+  // MANAGER UI STATE
   // ============================================================================
   const [activeTab, setActiveTab] = useState('overview')
   const [selectedFacility, setSelectedFacility] = useState('')
   const [urgencyFilter, setUrgencyFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedSwaps, setSelectedSwaps] = useState<string[]>([])
-  const [advancedFilters, setAdvancedFilters] = useState({})
-
-  // ============================================================================
-  // MODAL STATES (Manager Only)
-  // ============================================================================
-  const [selectedFacilityForDetail, setSelectedFacilityForDetail] = useState(null)
-  const [showFacilityModal, setShowFacilityModal] = useState(false)
-  const [showSwapHistory, setShowSwapHistory] = useState(false)
-  const [selectedSwapForHistory, setSelectedSwapForHistory] = useState(null)
-  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
-  const [staffAnalyticsFacility, setStaffAnalyticsFacility] = useState(null)
 
   // ============================================================================
   // LOAD MANAGER DATA
@@ -258,7 +57,7 @@ export default function SwapsPage() {
     if (!authLoading && isAuthenticated && isManager) {
       loadManagerData()
     } else if (!authLoading && isAuthenticated) {
-      // For staff, no initial data loading needed
+      // For staff, no initial data loading needed in main page
       setLoading(false)
     }
   }, [authLoading, isAuthenticated, isManager])
@@ -308,16 +107,6 @@ export default function SwapsPage() {
     }
   }
 
-  const handleViewSwapHistory = (swapId: string) => {
-    setSelectedSwapForHistory(swapId)
-    setShowSwapHistory(true)
-  }
-
-  const handleFacilityClick = (facility: any) => {
-    setSelectedFacilityForDetail(facility)
-    setShowFacilityModal(true)
-  }
-
   // ============================================================================
   // LOADING STATE
   // ============================================================================
@@ -337,14 +126,17 @@ export default function SwapsPage() {
   }
 
   // ============================================================================
-  // STAFF VIEW - Simple swap management for staff
+  // STAFF VIEW - Enhanced experience using components
   // ============================================================================
   if (!isManager) {
     return (
       <AppLayout>
         <div className="p-6">
           <div className="max-w-7xl mx-auto">
-            <StaffSwapDashboard />
+            <StaffSwapDashboard 
+              user={user} 
+              apiClient={apiClient} 
+            />
           </div>
         </div>
       </AppLayout>
@@ -380,7 +172,7 @@ export default function SwapsPage() {
             </div>
           </div>
 
-          {/* Manager Dashboard Content - existing implementation */}
+          {/* Manager Dashboard Content */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -452,11 +244,41 @@ export default function SwapsPage() {
               )}
             </TabsContent>
 
-            {/* Other tabs would continue with existing manager functionality... */}
-            
+            {/* Other tabs would use your existing SwapManagementDashboard component */}
+            <TabsContent value="facilities" className="space-y-6">
+              {facilitySummaries.length > 0 && (
+                <SwapManagementDashboard
+                  facility={facilitySummaries[0]} // You'd want to implement facility selection
+                  swapRequests={allSwapRequests}
+                  swapSummary={globalSummary}
+                  days={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']}
+                  shifts={[
+                    { id: 0, name: 'Morning', time: '6AM-2PM' },
+                    { id: 1, name: 'Afternoon', time: '2PM-10PM' },
+                    { id: 2, name: 'Evening', time: '10PM-6AM' }
+                  ]}
+                  onApproveSwap={handleApproveSwap}
+                  onRetryAutoAssignment={handleRetryAutoAssignment}
+                  onViewSwapHistory={(swapId) => console.log('View history for:', swapId)}
+                  onRefresh={loadManagerData}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="staff-analytics" className="space-y-6">
+              <div className="text-center py-8">
+                <p className="text-gray-600">Staff analytics would be implemented here</p>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="all-requests" className="space-y-6">
+              <div className="text-center py-8">
+                <p className="text-gray-600">All requests view would be implemented here</p>
+              </div>
+            </TabsContent>
           </Tabs>
 
-          {/* Modals */}
+          {/* Export Modal */}
           {showExportModal && (
             <ExportReportModal
               isOpen={showExportModal}
