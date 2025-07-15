@@ -1,10 +1,12 @@
-from datetime import date, datetime, timedelta
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlmodel import Session, or_, select
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlmodel import Session, select, func
+from typing import List, Optional
+from datetime import datetime, timedelta, date
+from uuid import UUID
+
 from ...deps import get_db, get_current_user
-from ...models import Schedule, ShiftAssignment, Staff, Facility, SwapRequest
-from ...schemas import StaffCreate, StaffRead, StaffUpdate, StaffDuplicateCheck
+from ...models import Staff, Facility, Schedule, ShiftAssignment, SwapRequest
+from ...schemas import StaffCreate, StaffDuplicateCheck, StaffRead, StaffUpdate
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 

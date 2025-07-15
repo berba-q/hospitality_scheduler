@@ -41,12 +41,12 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
     nextWeekHours: 0,
     upcomingShifts: [],
     pendingSwaps: 0,
-    acceptanceRate: 0,
-    helpfulnessScore: 0,
-    currentStreak: 0,
-    totalHelped: 0,
+    acceptanceRate: 85,
+    helpfulnessScore: 78,
+    currentStreak: 3,
+    totalHelped: 8,
     teamRating: 85,
-    avgResponseTime: 'N/A'
+    avgResponseTime: '1.2 hours'
   })
   
   const [teamInsights, setTeamInsights] = useState({
@@ -59,6 +59,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
 
   const [loading, setLoading] = useState(true)
   const [showTimeOffModal, setShowTimeOffModal] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadDashboardData()
@@ -66,28 +67,103 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
 
   const loadDashboardData = async () => {
     setLoading(true)
+    setError(null)
+    
     try {
-      // Load staff dashboard stats
-      const stats = await apiClient.getStaffDashboardStats()
-      setDashboardStats(prev => ({
-        ...prev,
-        ...stats,
-        // Mock some gamification data for demo
+      console.log('Loading dashboard data...')
+      console.log('User:', user)
+      console.log('ApiClient available:', !!apiClient)
+      console.log('getMyDashboardStats available:', !!apiClient?.getMyDashboardStats)
+      
+      if (!apiClient) {
+        throw new Error('API Client is not available')
+      }
+
+      if (!apiClient.getMyDashboardStats) {
+        throw new Error('getMyDashboardStats method is not available')
+      }
+
+      // Try to call the API
+      console.log('Calling getMyDashboardStats...')
+      const stats = await apiClient.getMyDashboardStats()
+      console.log('Raw dashboard stats received:', stats)
+      
+      if (!stats) {
+        console.warn('No stats returned from API')
+        setLoading(false)
+        return
+      }
+      
+      // Process the stats data safely
+      const processedStats = {
+        thisWeekHours: stats.current_week?.hours_scheduled || stats.thisWeekHours || 0,
+        nextWeekHours: stats.nextWeekHours || 0,
+        upcomingShifts: stats.upcoming_shifts || stats.upcomingShifts || [],
+        pendingSwaps: stats.swap_requests?.my_pending || stats.pendingSwaps || 0,
+        // Keep mock gamification data for now
         acceptanceRate: 85,
         helpfulnessScore: 78,
         currentStreak: 3,
         totalHelped: 8,
         teamRating: 85,
         avgResponseTime: '1.2 hours'
-      }))
+      }
+
+      console.log('Processed stats:', processedStats)
+
+      // Process upcoming shifts if they exist
+      if (stats.upcoming_shifts && Array.isArray(stats.upcoming_shifts)) {
+        console.log('Processing upcoming shifts:', stats.upcoming_shifts)
+        processedStats.upcomingShifts = stats.upcoming_shifts.map((shift: any) => ({
+          ...shift,
+          shift_name: shift.shift_name || getShiftName(shift.shift),
+          day_name: shift.day_name || getDayName(shift.date)
+        }))
+        
+        // Calculate next week hours (8 hours per shift)
+        processedStats.nextWeekHours = stats.upcoming_shifts.length * 8
+      }
+
+      setDashboardStats(processedStats)
+      console.log('Dashboard stats updated successfully')
       
-      // Load team insights (would come from analytics endpoint)
-      // const insights = await apiClient.getTeamInsights()
-      // setTeamInsights(insights)
+      // Try to load team insights (optional)
+      if (user?.facility_id) {
+        try {
+          console.log('Loading team insights for facility:', user.facility_id)
+          const insights = await apiClient.getTeamInsights(user.facility_id)
+          if (insights) {
+            setTeamInsights(insights)
+            console.log('Team insights loaded:', insights)
+          }
+        } catch (insightsError) {
+          console.log('Team insights not available:', insightsError.message)
+        }
+      }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load dashboard data:', error)
-      toast.error('Failed to load dashboard data')
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
+      
+      setError(`Failed to load dashboard: ${error.message}`)
+      
+      // Handle specific error types
+      if (error.message.includes('403')) {
+        setError('Access denied. Please contact your manager.')
+      } else if (error.message.includes('404')) {
+        setError('Staff profile not found. Please contact your manager to set up your profile.')
+      } else if (error.message.includes('500')) {
+        setError('Server error. Please try again later.')
+      }
+      
+      // Don't show toast for expected errors
+      if (!error.message.includes('404') && !error.message.includes('403')) {
+        toast.error('Failed to load dashboard data')
+      }
     } finally {
       setLoading(false)
     }
@@ -95,14 +171,57 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
 
   const handleTimeOffRequest = async (requestData: any) => {
     try {
-      await apiClient.createTimeOffRequest(user.staffId, requestData)
+      const staffId = user.staffId || user.staff_id || user.id
+      if (!staffId) {
+        throw new Error('Staff ID not found in user object')
+      }
+      
+      await apiClient.createTimeOffRequest(staffId, requestData)
       toast.success('Time off request submitted!')
-      // Refresh any relevant data
+      
       loadDashboardData()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to submit time off request:', error)
-      throw error // Re-throw to let modal handle it
+      throw error
     }
+  }
+
+  // Helper functions
+  const getShiftName = (shiftIndex: number) => {
+    const shiftNames = ['Morning', 'Afternoon', 'Evening']
+    return shiftNames[shiftIndex] || 'Unknown'
+  }
+
+  const getDayName = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', { weekday: 'long' })
+    } catch {
+      return 'Unknown'
+    }
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Dashboard Error</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <div className="space-x-2">
+              <Button onClick={loadDashboardData} variant="outline">
+                Retry
+              </Button>
+              <Button onClick={() => router.push('/swaps')}>
+                View Swaps
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (loading) {
@@ -125,13 +244,27 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Welcome back, {user.name || 'Staff Member'}!</h1>
-              <p className="text-gray-600">Here&apos;s your schedule and team activity overview</p>
+              <h1 className="text-2xl font-bold">Welcome back, {user?.name || user?.email || 'Staff Member'}!</h1>
+              <p className="text-gray-600">Here's your schedule and team activity overview</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600">This Week</p>
               <p className="text-2xl font-bold">{dashboardStats.thisWeekHours}h</p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Debug Info Card - Remove this once working */}
+      <Card className="border-blue-200 bg-blue-50">
+        <CardContent className="p-4">
+          <div className="text-sm">
+            <p><strong>Debug Info:</strong></p>
+            <p>User: {user?.email}</p>
+            <p>Is Manager: {user?.isManager ? 'Yes' : 'No'}</p>
+            <p>This Week Hours: {dashboardStats.thisWeekHours}</p>
+            <p>Upcoming Shifts: {dashboardStats.upcomingShifts.length}</p>
+            <p>Pending Swaps: {dashboardStats.pendingSwaps}</p>
           </div>
         </CardContent>
       </Card>
@@ -309,7 +442,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
         isOpen={showTimeOffModal}
         onClose={() => setShowTimeOffModal(false)}
         onSubmit={handleTimeOffRequest}
-        userStaffId={user.staffId}
+        userStaffId={user?.staffId || user?.staff_id || user?.id}
       />
     </div>
   )
