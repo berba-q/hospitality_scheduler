@@ -374,14 +374,14 @@ def get_my_dashboard_stats(
         "teamRating": min(95, round((acceptance_rate * 0.6) + (helpfulness_score * 0.4), 1))
     }
 
-@router.get("/me/swap-requests")
+@router.get("/me/swap-requests", response_model=List[dict])
 def get_my_swap_requests(
-    status: Optional[str] = None,
-    limit: int = Query(default=20, le=100),
+    status: Optional[str] = Query(None),
+    limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Get swap requests for current staff member"""
+    """Get swap requests for current staff member - FIXED VERSION"""
     if current_user.is_manager:
         raise HTTPException(status_code=403, detail="This endpoint is for staff only")
     
@@ -396,8 +396,11 @@ def get_my_swap_requests(
     if not staff:
         raise HTTPException(status_code=404, detail="Staff profile not found")
     
-    # Get swap requests where this staff is involved
-    query = select(SwapRequest).join(Schedule).where(
+    # FIX: Properly specify the join condition between SwapRequest and Schedule
+    query = select(SwapRequest).join(
+        Schedule, 
+        SwapRequest.schedule_id == Schedule.id  # ✅ EXPLICIT JOIN CONDITION
+    ).where(
         Schedule.facility_id == staff.facility_id,
         or_(
             SwapRequest.requesting_staff_id == staff.id,

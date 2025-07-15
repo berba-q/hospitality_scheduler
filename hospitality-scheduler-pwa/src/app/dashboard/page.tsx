@@ -80,7 +80,10 @@ export default function DashboardPage() {
       <AppLayout>
         <div className="p-6">
           <div className="max-w-7xl mx-auto">
-            <StaffDashboard />
+            <StaffDashboard 
+              user={user} 
+              apiClient={apiClient} 
+            />
           </div>
         </div>
       </AppLayout>
