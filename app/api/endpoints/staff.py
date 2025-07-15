@@ -396,10 +396,10 @@ def get_my_swap_requests(
     if not staff:
         raise HTTPException(status_code=404, detail="Staff profile not found")
     
-    # FIX: Properly specify the join condition between SwapRequest and Schedule
+    # ✅ FIX: Properly specify the join condition between SwapRequest and Schedule
     query = select(SwapRequest).join(
         Schedule, 
-        SwapRequest.schedule_id == Schedule.id  # ✅ EXPLICIT JOIN CONDITION
+        SwapRequest.schedule_id == Schedule.id  # 
     ).where(
         Schedule.facility_id == staff.facility_id,
         or_(
