@@ -51,8 +51,10 @@ import { SwapRequestModal } from '@/components/swap/SwapRequestModal'
 import { SwapManagementDashboard } from '@/components/swap/SwapManagementDashboard'
 import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
 import { FacilitySwapModal } from '@/components/swap/FacilitySwapModal'
+import SwapDetailModal  from '@/components/swap/SwapDetailModal'
 import { Select } from '@/components/ui/select'
 import { useSwapRequests } from '@/hooks/useSwapRequests'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 type ViewPeriod = 'daily' | 'weekly' | 'monthly'
 
@@ -102,6 +104,9 @@ function StaffScheduleView({
 }) {
   const [myScheduleData, setMyScheduleData] = useState(null)
   const [mySwapRequests, setMySwapRequests] = useState([])
+  const [selectedSwapForDetail, setSelectedSwapForDetail] = useState(null)
+  const [showSwapDetailModal, setShowSwapDetailModal] = useState(false)
+  const [showMySwapsModal, setShowMySwapsModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const apiClient = useApiClient()
 
@@ -271,14 +276,16 @@ function StaffScheduleView({
               <Button
                 variant="outline"
                 className="relative"
-                onClick={() => window.location.href = '/swaps'}
+                onClick={() => setShowMySwapsModal(true)}
               >
                 <ArrowLeftRight className="w-4 h-4 mr-2" />
                 My Swaps
-                <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5">
-                  {swapRequests.length}
-                </Badge>
-              </Button>
+                {mySwapRequests.length > 0 && (
+                  <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5">
+                    {mySwapRequests.length}
+                  </Badge>
+                )}
+            </Button>
             )}
           </div>
         </div>
@@ -401,7 +408,7 @@ function StaffScheduleView({
               <Button 
                 variant="outline" 
                 className="w-full justify-start"
-                onClick={() => window.location.href = '/swaps'}
+                onClick={() => setShowMySwapsModal(true)}
               >
                 <ArrowLeftRight className="w-4 h-4 mr-2" />
                 View All My Swaps
@@ -492,6 +499,192 @@ function StaffScheduleView({
           </div>
         )}
       </div>
+       {/* swap detail modal */}
+         {/* My Swaps List Modal */}
+      <Dialog open={showMySwapsModal} onOpenChange={setShowMySwapsModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowLeftRight className="w-5 h-5" />
+              My Swap Requests ({mySwapRequests.length})
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="overflow-y-auto max-h-[calc(80vh-120px)] space-y-4">
+            {mySwapRequests.length === 0 ? (
+              <div className="text-center py-12">
+                <ArrowLeftRight className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Swap Requests</h3>
+                <p className="text-gray-600 mb-4">You haven't submitted any swap requests yet.</p>
+                <Button 
+                  onClick={() => {
+                    setShowMySwapsModal(false)
+                    onSwapRequest && onSwapRequest(0, 0, user?.staff_id || user?.id)
+                  }}
+                  className="gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Your First Swap Request
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {mySwapRequests.map((swap, index) => (
+                  <Card key={swap.id || index} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <Badge className={
+                              swap.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              swap.status === 'approved' || swap.status === 'executed' ? 'bg-green-100 text-green-800' :
+                              swap.status === 'declined' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }>
+                              {swap.status}
+                            </Badge>
+                            {swap.urgency && swap.urgency !== 'normal' && (
+                              <Badge className={
+                                swap.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
+                                swap.urgency === 'emergency' ? 'bg-red-100 text-red-800' :
+                                'bg-blue-100 text-blue-800'
+                              }>
+                                {swap.urgency}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          <h4 className="font-medium text-gray-900 mb-1">
+                            {swap.swap_type === 'specific' ? 'Specific Swap Request' : 'Auto Assignment Request'}
+                          </h4>
+                          
+                          <p className="text-sm text-gray-600 mb-2">
+                            {swap.reason || 'No reason provided'}
+                          </p>
+                          
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {DAYS[swap.original_day]} - {SHIFTS[swap.original_shift]?.name}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {new Date(swap.created_at).toLocaleDateString()}
+                            </span>
+                            {swap.target_staff && (
+                              <span className="flex items-center gap-1">
+                                <User className="w-3 h-3" />
+                                {swap.target_staff.full_name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              
+                              // Debug logging
+                              console.log('🔍 View Details clicked!')
+                              console.log('📊 Swap data:', swap)
+                              console.log('📊 Before - selectedSwapForDetail:', selectedSwapForDetail)
+                              console.log('📊 Before - showSwapDetailModal:', showSwapDetailModal)
+                              
+                              setSelectedSwapForDetail(swap)
+                              setShowSwapDetailModal(true)
+                              
+                              // Check if state updated
+                              setTimeout(() => {
+                                console.log('📊 After setState should have updated')
+                              }, 100)
+                            }}
+                          >
+                            View Details
+                          </Button>
+                          
+                          {swap.status === 'pending' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (confirm('Are you sure you want to cancel this swap request?')) {
+                                  toast.info('Cancel functionality coming soon')
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+            
+            {mySwapRequests.length > 0 && (
+              <div className="pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    setShowMySwapsModal(false)
+                    onSwapRequest && onSwapRequest(0, 0, user?.staff_id || user?.id)
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create New Swap Request
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/*Swap details modal */}
+      <SwapDetailModal
+        swap={selectedSwapForDetail}
+        open={showSwapDetailModal && selectedSwapForDetail !== null}
+        onClose={() => {
+          console.log('🔍 SwapDetailModal onClose called')
+          setShowSwapDetailModal(false)
+          setSelectedSwapForDetail(null)
+        }}
+        onSwapResponse={async (swapId, accepted, notes) => {
+          try {
+            console.log('🔍 SwapResponse called:', { swapId, accepted, notes })
+            await apiClient.respondToSwap(swapId, accepted, notes)
+            setShowSwapDetailModal(false)
+            setSelectedSwapForDetail(null)
+            loadMyData() // Refresh the data
+            toast.success(accepted ? 'Swap accepted!' : 'Swap declined')
+          } catch (error) {
+            console.error('❌ SwapResponse error:', error)
+            toast.error('Failed to respond to swap')
+          }
+        }}
+        onCancelSwap={async (swapId, reason) => {
+          try {
+            console.log('🔍 CancelSwap called:', { swapId, reason })
+            await apiClient.cancelSwapRequest(swapId, reason)
+            setShowSwapDetailModal(false)
+            setSelectedSwapForDetail(null)
+            loadMyData() // Refresh the data
+            toast.success('Swap request cancelled')
+          } catch (error) {
+            console.error('❌ CancelSwap error:', error)
+            toast.error('Failed to cancel swap')
+          }
+        }}
+        user={user}
+        apiClient={apiClient}
+      />
     </div>
   )
 }
