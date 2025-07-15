@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlmodel import Session, select, func
+from sqlmodel import Session, or_, select, func
 from typing import List, Optional
 from datetime import datetime, timedelta, date
 from uuid import UUID
@@ -396,7 +396,7 @@ def get_my_swap_requests(
     if not staff:
         raise HTTPException(status_code=404, detail="Staff profile not found")
     
-    # ✅ FIX: Properly specify the join condition between SwapRequest and Schedule
+    # Properly specify the join condition between SwapRequest and Schedule
     query = select(SwapRequest).join(
         Schedule, 
         SwapRequest.schedule_id == Schedule.id  # 
