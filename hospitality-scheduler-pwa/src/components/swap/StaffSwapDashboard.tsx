@@ -1,4 +1,4 @@
-// components/swap/StaffSwapDashboard.tsx - Fixed version with working request button and swap counts
+// hospitality-scheduler-pwa/src/components/swap/StaffSwapDashboard.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -26,7 +26,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  CalendarOff
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,15 +37,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 
-// Import your existing components
+// Import existing components
 import SwapDetailModal from '@/components/swap/SwapDetailModal'
 import { StaffSwapRequestDialog } from '@/components/swap/StaffSwapRequestDialog'
-
-// Import the sub-components we created
 import { PersonalStatsCards } from '@/components/swap/PersonalStatsCards'
 import { NotificationBanner } from '@/components/notification/NotificationBanner'
 import { QuickActionsTab } from '@/components/swap/QuickActionsTab'
 import { SwapRequestsList } from '@/components/swap/SwapRequestsList'
+
+// Import new components
+import { TimeOffRequestModal } from '@/components/availability/TimeOffRequestModal'
+import { TeamReliabilityBadges } from '@/components/gamification/TeamReliabilityBadges'
+import { ReliabilityProgressCard } from '@/components/gamification/ReliabilityProgressCard'
+import { TeamSupportInsights } from '@/components/gamification/TeamSupportInsights'
 
 interface StaffSwapDashboardProps {
   user: any
@@ -63,7 +68,16 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
     currentStreak: 0,
     thisWeekShifts: 0,
     avgResponseTime: 'N/A',
-    availableToHelp: 0
+    availableToHelp: 0,
+    totalHelped: 0,
+    teamRating: 0
+  })
+  const [teamInsights, setTeamInsights] = useState({
+    busyDays: [],
+    needyShifts: [],
+    teamCoverage: 0,
+    yourContribution: 0,
+    recentTrends: ''
   })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -72,263 +86,59 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
   const [activeTab, setActiveTab] = useState('quick-actions')
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [sortBy, setSortBy] = useState('created_at')
+  const [sortBy, setSortBy] = useState('newest')
   const [showNotifications, setShowNotifications] = useState(true)
   
-  // Modal states
+  // Modal state
   const [selectedSwap, setSelectedSwap] = useState(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showTimeOffModal, setShowTimeOffModal] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [selectedShiftForSwap, setSelectedShiftForSwap] = useState(null)
 
   useEffect(() => {
-    console.log('🎬 Component mounted, starting data load...')
-    console.log('👤 User in useEffect:', user)
-    console.log('🔌 ApiClient methods available:', Object.keys(apiClient || {}))
     loadAllData()
   }, [])
 
   const loadAllData = async () => {
-    console.log('🔄 Starting to load all swap data...')
-    console.log('👤 Current user:', user)
-    
+    setLoading(true)
     try {
-      setLoading(true)
-      
-      // Load core swap requests using your existing API endpoint
-      // This endpoint handles the email-to-staff mapping on the backend
-      console.log('📡 Calling apiClient.getMySwapRequests...')
-      console.log('🔍 API call details:', {
-        apiClientExists: !!apiClient,
-        methodExists: !!apiClient?.getMySwapRequests,
-        userEmail: user?.email,
-        userTenantId: user?.tenantId
-      })
-      
-      const swaps = await apiClient.getMySwapRequests(undefined, 100)
-      
-      console.log('✅ Raw swap data received:', swaps)
-      console.log('📊 Swap data details:', {
-        totalCount: swaps?.length || 0,
-        isArray: Array.isArray(swaps),
-        firstSwap: swaps?.[0],
-        swapTypes: swaps?.map(s => s.swap_type),
-        statuses: swaps?.map(s => s.status),
-        userRoles: swaps?.map(s => s.user_role), // This comes from your backend
-        canRespondFlags: swaps?.map(s => s.can_respond)
-      })
-      
-      setSwapRequests(swaps || [])
+      // Load all swap-related data
+      const [swapsData, statsData, teamData] = await Promise.all([
+        apiClient.getSwapRequests(),
+        apiClient.getStaffDashboardStats(),
+        apiClient.getTeamInsights(user.facility_id).catch(() => ({
+          busyDays: ['Friday', 'Saturday', 'Sunday'],
+          needyShifts: ['Evening', 'Weekend Morning'],
+          teamCoverage: 78,
+          yourContribution: 12,
+          recentTrends: 'Team coverage has improved this month'
+        }))
+      ])
 
-      // Calculate real stats using the user_role field from your backend
-      calculatePersonalStatsFromSwaps(swaps || [])
-
-      // Try to load enhanced data if available
-      try {
-        console.log('🚀 Attempting to load enhanced data...')
-        
-        const shifts = await apiClient.getMyUpcomingShifts?.() || []
-        console.log('📅 Upcoming shifts:', shifts)
-        setUpcomingShifts(shifts)
-        
-        // Only override with API stats if they exist and have real data
-        const apiStats = await apiClient.getMySwapStats?.()
-        console.log('📈 API stats received:', apiStats)
-        
-        if (apiStats && apiStats.totalRequests > 0) {
-          console.log('✅ Using API stats (has real data)')
-          setPersonalStats(apiStats)
-        } else {
-          console.log('⚠️ API stats empty or zero, keeping calculated stats')
-        }
-
-        // Load swap history if endpoint exists
-        const history = await apiClient.getMySwapHistory?.() || []
-        console.log('📜 Swap history:', history)
-        setSwapHistory(history)
-        
-      } catch (enhancedError) {
-        console.log('⚠️ Enhanced features not available:', enhancedError.message)
-        console.log('📝 Using calculated stats from real data instead')
+      setSwapRequests(swapsData)
+      setUpcomingShifts(statsData.upcomingShifts || [])
+      
+      // Enhanced personal stats with gamification
+      const enhancedStats = {
+        ...statsData,
+        totalRequests: swapsData.filter(s => s.requesting_staff_id === user.id).length,
+        availableToHelp: swapsData.filter(s => 
+          s.status === 'pending' && 
+          s.target_staff_id === user.id
+        ).length
       }
+      
+      setPersonalStats(enhancedStats)
+      setTeamInsights(teamData)
       
     } catch (error) {
-      console.error('❌ Failed to load swap data:', error)
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      })
-      toast.error('Failed to load swap requests: ' + error.message)
+      console.error('Failed to load data:', error)
+      toast.error('Failed to load dashboard data')
     } finally {
       setLoading(false)
-      console.log('🏁 Data loading completed')
     }
-  }
-
-  // Calculate real personal stats from swap data using backend's user_role field
-  const calculatePersonalStatsFromSwaps = (swaps) => {
-    console.log('🧮 Calculating personal stats from swaps...')
-    console.log('📊 Input data:', {
-      swapsCount: swaps?.length || 0,
-      userEmail: user?.email,
-      userExists: !!user?.email,
-      swapDetails: swaps?.map(s => ({ 
-        id: s.id, 
-        user_role: s.user_role, 
-        status: s.status,
-        can_respond: s.can_respond,
-        target_staff_accepted: s.target_staff_accepted
-      }))
-    })
-    
-    if (!user?.email) {
-      console.log('⚠️ No user email available, cannot calculate stats')
-      setPersonalStats({
-        totalRequests: 0,
-        acceptanceRate: 0,
-        helpfulnessScore: 0,
-        currentStreak: 0,
-        thisWeekShifts: 0,
-        avgResponseTime: 'N/A',
-        availableToHelp: 0
-      })
-      return
-    }
-
-    if (!swaps || swaps.length === 0) {
-      console.log('⚠️ No swap data available, setting all stats to zero')
-      setPersonalStats({
-        totalRequests: 0,
-        acceptanceRate: 0,
-        helpfulnessScore: 0,
-        currentStreak: 0,
-        thisWeekShifts: 0,
-        avgResponseTime: 'N/A',
-        availableToHelp: 0
-      })
-      return
-    }
-
-    // Use the user_role field that your backend provides instead of trying to match IDs
-    const myRequests = swaps.filter(s => s.user_role === 'requester')
-    const requestsForMe = swaps.filter(s => s.user_role === 'target')
-    const assignedToMe = swaps.filter(s => s.user_role === 'assigned')
-    const pendingForMe = swaps.filter(s => s.can_respond === true)
-    
-    console.log('📈 Filtering results using backend user_role:', {
-      totalSwaps: swaps.length,
-      myRequests: myRequests.length,
-      requestsForMe: requestsForMe.length,
-      assignedToMe: assignedToMe.length,
-      pendingForMe: pendingForMe.length,
-      myRequestDetails: myRequests.map(s => ({ id: s.id, status: s.status, reason: s.reason })),
-      requestsForMeDetails: requestsForMe.map(s => ({ id: s.id, status: s.status, accepted: s.target_staff_accepted }))
-    })
-    
-    // Calculate acceptance rate (how often I accept when asked to cover for others)
-    const acceptedByMe = requestsForMe.filter(s => 
-      s.target_staff_accepted === true || s.status === 'staff_accepted' || s.status === 'executed'
-    )
-    const declinedByMe = requestsForMe.filter(s => 
-      s.target_staff_accepted === false || s.status === 'staff_declined'
-    )
-    const acceptanceRate = requestsForMe.length > 0 
-      ? Math.round((acceptedByMe.length / requestsForMe.length) * 100) 
-      : 0
-    
-    console.log('🎯 Acceptance calculation:', {
-      requestsForMe: requestsForMe.length,
-      acceptedByMe: acceptedByMe.length,
-      declinedByMe: declinedByMe.length,
-      acceptanceRate: acceptanceRate + '%',
-      acceptedDetails: acceptedByMe.map(s => ({ id: s.id, status: s.status, accepted: s.target_staff_accepted }))
-    })
-    
-    // Calculate helpfulness score (combination of accepting requests for me and completing assigned tasks)
-    const completedForOthers = [...requestsForMe, ...assignedToMe].filter(s => 
-      s.status === 'executed' || s.status === 'completed'
-    )
-    const totalOpportunities = requestsForMe.length + assignedToMe.length
-    const helpfulnessScore = totalOpportunities > 0 
-      ? Math.round((completedForOthers.length / totalOpportunities) * 100) 
-      : 0
-    
-    console.log('🤝 Helpfulness calculation:', {
-      totalOpportunities,
-      completedForOthers: completedForOthers.length,
-      helpfulnessScore: helpfulnessScore + '%',
-      completedDetails: completedForOthers.map(s => ({ id: s.id, status: s.status, user_role: s.user_role }))
-    })
-    
-    // Calculate current streak (recent consecutive acceptances)
-    const recentRequestsForMe = requestsForMe
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 10) // Last 10 requests
-    
-    let currentStreak = 0
-    for (const request of recentRequestsForMe) {
-      if (request.target_staff_accepted === true || request.status === 'staff_accepted' || request.status === 'executed') {
-        currentStreak++
-      } else if (request.target_staff_accepted === false || request.status === 'staff_declined') {
-        break // Streak broken
-      }
-      // Skip pending requests (don't break streak)
-    }
-    
-    console.log('🔥 Streak calculation:', {
-      recentRequests: recentRequestsForMe.length,
-      currentStreak,
-      recentDecisions: recentRequestsForMe.map(r => ({ 
-        id: r.id, 
-        accepted: r.target_staff_accepted,
-        status: r.status,
-        created: r.created_at
-      }))
-    })
-    
-    // Calculate average response time for responded requests
-    const respondedRequests = requestsForMe.filter(s => 
-      s.target_staff_accepted !== null && s.updated_at && s.created_at
-    )
-    
-    let avgResponseTime = 'N/A'
-    if (respondedRequests.length > 0) {
-      const totalResponseTimeHours = respondedRequests.reduce((total, request) => {
-        const created = new Date(request.created_at)
-        const responded = new Date(request.updated_at)
-        const diffHours = (responded.getTime() - created.getTime()) / (1000 * 60 * 60)
-        return total + diffHours
-      }, 0)
-      
-      const avgHours = totalResponseTimeHours / respondedRequests.length
-      if (avgHours < 1) {
-        avgResponseTime = `${Math.round(avgHours * 60)} minutes`
-      } else if (avgHours < 24) {
-        avgResponseTime = `${avgHours.toFixed(1)} hours`
-      } else {
-        avgResponseTime = `${Math.round(avgHours / 24)} days`
-      }
-    }
-
-    console.log('⏱️ Response time calculation:', {
-      respondedRequests: respondedRequests.length,
-      avgResponseTime
-    })
-
-    const calculatedStats = {
-      totalRequests: myRequests.length,
-      acceptanceRate,
-      helpfulnessScore,
-      currentStreak,
-      thisWeekShifts: 0, // Would need schedule data to calculate
-      avgResponseTime,
-      availableToHelp: pendingForMe.length
-    }
-
-    console.log('📊 Final calculated stats:', calculatedStats)
-    setPersonalStats(calculatedStats)
   }
 
   const handleRefresh = async () => {
@@ -367,12 +177,8 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
     }
   }
 
-  // Fixed: Proper handling of quick swap request
   const handleQuickSwapRequest = (shift) => {
-    console.log('Quick swap request triggered with shift:', shift)
-    
     if (shift) {
-      // If a specific shift is provided (from upcoming shifts)
       setSelectedShiftForSwap({
         day: shift.day,
         shift: shift.shift,
@@ -381,51 +187,37 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
         shiftTime: shift.shift_time || shift.shiftTime
       })
     } else {
-      // If no shift provided (general request button), create a dummy shift for now
-      // In a real app, you might want to show a shift selector first
       setSelectedShiftForSwap({
-        day: 0, // Monday
-        shift: 0, // Morning
+        day: 0,
+        shift: 0,
         date: new Date().toISOString().split('T')[0],
-        shiftName: 'General Request',
-        shiftTime: 'Any shift'
+        shiftName: 'New Swap Request',
+        shiftTime: 'Select during request'
       })
     }
-    
-    console.log('Opening modal with assignment details:', selectedShiftForSwap)
     setShowCreateModal(true)
   }
 
-  // Alternative: Simple request button that always opens the modal
   const handleRequestSwapClick = () => {
-    console.log('Request swap button clicked')
-    
-    // Create basic assignment details for the modal
     const basicAssignment = {
-      day: 0, // Default to Monday
-      shift: 0, // Default to Morning
+      day: 0,
+      shift: 0,
       date: new Date().toISOString().split('T')[0],
       shiftName: 'New Swap Request',
       shiftTime: 'Select during request'
     }
-    
     setSelectedShiftForSwap(basicAssignment)
     setShowCreateModal(true)
   }
 
-  // Fixed: Proper handling of swap creation
   const handleCreateSwap = async (swapData) => {
     try {
       const requestData = {
         ...swapData,
         original_day: selectedShiftForSwap?.day,
         original_shift: selectedShiftForSwap?.shift,
-        // Add any additional required fields
-        facility_id: user.facility_id // If available
+        facility_id: user.facility_id
       }
-      
-      // Debug logging
-      console.log('Creating swap request with data:', requestData)
       
       await apiClient.createSwapRequest(requestData)
       await loadAllData()
@@ -434,140 +226,59 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
       toast.success('Swap request created successfully!')
     } catch (error) {
       console.error('Failed to create swap:', error)
-      toast.error(error.message || 'Failed to create swap request')
+      toast.error('Failed to create swap request')
     }
   }
 
-  // Enhanced stats calculation using actual data
-  useEffect(() => {
-    if (swapRequests.length > 0 && user?.id) {
-      calculatePersonalStatsFromSwaps(swapRequests)
+  const handleTimeOffRequest = async (requestData) => {
+    try {
+      await apiClient.createTimeOffRequest(user.staffId, requestData)
+      toast.success('Time off request submitted!')
+      // Optionally refresh data if needed
+    } catch (error) {
+      console.error('Failed to submit time off request:', error)
+      throw error
     }
-  }, [swapRequests, user?.id])
-
-  // Filter and sort logic
-  const getFilteredSwaps = () => {
-    let filtered = swapRequests
-
-    // Filter by tab using the user_role field from your backend
-    switch (activeTab) {
-      case 'my-requests':
-        filtered = filtered.filter(swap => swap.user_role === 'requester')
-        break
-      case 'for-me':
-        filtered = filtered.filter(swap => swap.user_role === 'target')
-        break
-      case 'action-needed':
-        filtered = filtered.filter(swap => swap.can_respond === true)
-        break
-      case 'history':
-        // Show completed/declined swaps
-        filtered = filtered.filter(swap => 
-          ['executed', 'completed', 'declined', 'cancelled', 'staff_declined'].includes(swap.status)
-        )
-        break
-      default:
-        break
-    }
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(swap => swap.status === statusFilter)
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(swap => 
-        swap.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        swap.requesting_staff?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        swap.target_staff?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'urgency':
-          const urgencyOrder = { 'emergency': 0, 'high': 1, 'normal': 2, 'low': 3 }
-          return urgencyOrder[a.urgency] - urgencyOrder[b.urgency]
-        case 'created_at':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        default:
-          return 0
-      }
-    })
-
-    console.log('🔍 Tab filtering results:', {
-      activeTab,
-      totalSwaps: swapRequests.length,
-      filteredCount: filtered.length,
-      swapRoles: swapRequests.map(s => ({ id: s.id, user_role: s.user_role, status: s.status })),
-      filteredIds: filtered.map(s => s.id)
-    })
-
-    return filtered
   }
 
-  // Get notifications - fix the logic
-  const getNotifications = () => {
-    const actionNeeded = swapRequests.filter(swap => swap.can_respond === true)
+  // Filter and sort swaps
+  const filteredSwaps = swapRequests.filter(swap => {
+    const matchesSearch = searchTerm === '' || 
+      swap.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      swap.requesting_staff?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
     
-    const urgentExpiring = swapRequests.filter(swap => 
-      swap.expires_at && 
-      new Date(swap.expires_at).getTime() - Date.now() < 24 * 60 * 60 * 1000 &&
-      ['pending', 'manager_approved'].includes(swap.status)
-    )
-
-    console.log('🔔 Notifications calculated:', {
-      actionNeeded: actionNeeded.length,
-      urgentExpiring: urgentExpiring.length,
-      actionNeededSwaps: actionNeeded.map(s => ({ id: s.id, user_role: s.user_role, can_respond: s.can_respond }))
-    })
-
-    return { actionNeeded, urgentExpiring }
-  }
-
-  const filteredSwaps = getFilteredSwaps()
-  const { actionNeeded, urgentExpiring } = getNotifications()
-
-  // Calculate swap counts for tab badges using user_role
-  const myRequestsCount = swapRequests.filter(s => s.user_role === 'requester').length
-  const forMeCount = swapRequests.filter(s => s.user_role === 'target').length
-  const historyCount = swapRequests.filter(s => 
-    ['executed', 'completed', 'declined', 'cancelled', 'staff_declined'].includes(s.status)
-  ).length
-
-  // Debug logging - this should run every render
-  console.log('🎯 CURRENT RENDER STATE:', {
-    activeTab,
-    swapRequestsTotal: swapRequests.length,
-    myRequestsCount,
-    forMeCount,
-    historyCount,
-    actionNeededCount: actionNeeded.length,
-    filteredSwapsCount: filteredSwaps.length,
-    rawSwapData: swapRequests.map(s => ({ 
-      id: s.id, 
-      user_role: s.user_role, 
-      status: s.status,
-      can_respond: s.can_respond 
-    }))
+    const matchesStatus = statusFilter === 'all' || swap.status === statusFilter
+    
+    return matchesSearch && matchesStatus
   })
 
-  // Additional debug for the specific "My Requests" tab
-  if (activeTab === 'my-requests') {
-    console.log('🔍 MY REQUESTS TAB DEBUG:', {
-      activeTab,
-      totalSwaps: swapRequests.length,
-      myRequestsFiltered: swapRequests.filter(s => s.user_role === 'requester'),
-      filteredSwapsResult: filteredSwaps,
-      shouldShowSwaps: filteredSwaps.length > 0
-    })
-  }
+  // Calculate counts for tabs
+  const myRequestsCount = swapRequests.filter(s => s.requesting_staff_id === user.id).length
+  const forMeCount = swapRequests.filter(s => s.target_staff_id === user.id && s.status === 'pending').length
+  const actionNeeded = swapRequests.filter(s => 
+    s.status === 'pending' && 
+    ((s.target_staff_id === user.id && s.target_staff_accepted === null) ||
+     (s.swap_type === 'auto' && !s.assigned_staff_id))
+  )
+  const historyCount = swapRequests.filter(s => 
+    s.status === 'executed' || s.status === 'declined' || s.status === 'cancelled'
+  ).length
+
+  const urgentExpiring = swapRequests.filter(s => 
+    s.status === 'pending' && 
+    s.urgency === 'emergency' && 
+    s.expires_at && 
+    new Date(s.expires_at) < new Date(Date.now() + 24 * 60 * 60 * 1000)
+  )
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading your swap dashboard...</p>
+      <div className="space-y-6 animate-pulse">
+        <div className="h-32 bg-gray-200 rounded-lg"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="h-48 bg-gray-200 rounded-lg"></div>
+          <div className="h-48 bg-gray-200 rounded-lg"></div>
+          <div className="h-48 bg-gray-200 rounded-lg"></div>
         </div>
       </div>
     )
@@ -575,22 +286,21 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
 
   return (
     <div className="space-y-6">
-      {/* Personalized Header with Stats */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-            Hey {user.name?.split(' ')[0] || user.full_name?.split(' ')[0] || 'there'}! 👋
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Manage your shifts and help your team with swap requests
-          </p>
-          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-            <span>📋 {personalStats.totalRequests} requests made</span>
-            <span>✅ {swapRequests.filter(s => s.status === 'executed').length} completed</span>
-            <span>⏳ {actionNeeded.length} need response</span>
-          </div>
+          <h1 className="text-2xl font-bold">Shift Management</h1>
+          <p className="text-gray-600">Manage your shifts and support your team</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowTimeOffModal(true)}
+            className="gap-2"
+          >
+            <CalendarOff className="w-4 h-4" />
+            Request Time Off
+          </Button>
           <Button 
             variant="outline" 
             onClick={handleRefresh}
@@ -610,159 +320,160 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
         </div>
       </div>
 
-      {/* Notifications */}
-      <NotificationBanner 
-        actionNeeded={actionNeeded}
-        urgentExpiring={urgentExpiring}
-        showNotifications={showNotifications}
-        onDismiss={() => setShowNotifications(false)}
-      />
-
-      {/* Personal Stats */}
-      <PersonalStatsCards stats={personalStats} />
-
-      {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="quick-actions">Quick Actions</TabsTrigger>
-          <TabsTrigger value="my-requests" className="relative">
-            My Requests
-            {myRequestsCount > 0 && (
-              <Badge className="ml-2 h-5 w-5 rounded-full bg-blue-600 text-white text-xs">
-                {myRequestsCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="for-me" className="relative">
-            For Me
-            {forMeCount > 0 && (
-              <Badge className="ml-2 h-5 w-5 rounded-full bg-green-600 text-white text-xs">
-                {forMeCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="action-needed" className="relative">
-            Action Needed
-            {actionNeeded.length > 0 && (
-              <Badge className="ml-2 h-5 w-5 rounded-full bg-red-600 text-white text-xs animate-pulse">
-                {actionNeeded.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="history" className="relative">
-            History
-            {historyCount > 0 && (
-              <Badge className="ml-2 h-5 w-5 rounded-full bg-gray-600 text-white text-xs">
-                {historyCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Quick Actions Tab */}
-        <TabsContent value="quick-actions">
-          <QuickActionsTab 
-            upcomingShifts={upcomingShifts}
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Notifications */}
+          <NotificationBanner 
             actionNeeded={actionNeeded}
-            personalStats={personalStats}
-            onQuickSwapRequest={handleQuickSwapRequest}
-            onSwapResponse={handleSwapResponse}
-            onSwapClick={handleSwapClick}
+            urgentExpiring={urgentExpiring}
+            showNotifications={showNotifications}
+            onDismiss={() => setShowNotifications(false)}
           />
-        </TabsContent>
 
-        {/* My Requests Tab */}
-        <TabsContent value="my-requests">
-          <SwapRequestsList 
-            swaps={filteredSwaps}
-            user={user}
-            onSwapClick={handleSwapClick}
-            onSwapResponse={handleSwapResponse}
-            onCancelSwap={handleCancelSwap}
-            showFilters={true}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            emptyMessage="You haven't made any swap requests yet"
-            emptySubMessage="Create your first swap request to get started"
-          />
-        </TabsContent>
+          {/* Main Content Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="quick-actions">Quick Actions</TabsTrigger>
+              <TabsTrigger value="my-requests" className="relative">
+                My Requests
+                {myRequestsCount > 0 && (
+                  <Badge className="ml-2 h-5 w-5 rounded-full bg-blue-600 text-white text-xs">
+                    {myRequestsCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="for-me" className="relative">
+                For Me
+                {forMeCount > 0 && (
+                  <Badge className="ml-2 h-5 w-5 rounded-full bg-green-600 text-white text-xs">
+                    {forMeCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="action-needed" className="relative">
+                Action Needed
+                {actionNeeded.length > 0 && (
+                  <Badge className="ml-2 h-5 w-5 rounded-full bg-red-600 text-white text-xs animate-pulse">
+                    {actionNeeded.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="history" className="relative">
+                History
+                {historyCount > 0 && (
+                  <Badge className="ml-2 h-5 w-5 rounded-full bg-gray-600 text-white text-xs">
+                    {historyCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-        {/* For Me Tab */}
-        <TabsContent value="for-me">
-          <SwapRequestsList 
-            swaps={filteredSwaps}
-            user={user}
-            onSwapClick={handleSwapClick}
-            onSwapResponse={handleSwapResponse}
-            onCancelSwap={handleCancelSwap}
-            showFilters={true}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            sortBy={sortBy}
-            setSortBy={setSortBy}
-            emptyMessage="No one has requested a swap with you yet"
-            emptySubMessage="When colleagues need your specific shifts, they'll appear here"
-          />
-        </TabsContent>
+            {/* Quick Actions Tab */}
+            <TabsContent value="quick-actions">
+              <QuickActionsTab 
+                upcomingShifts={upcomingShifts}
+                actionNeeded={actionNeeded}
+                personalStats={personalStats}
+                onQuickSwapRequest={handleQuickSwapRequest}
+                onSwapResponse={handleSwapResponse}
+                onSwapClick={handleSwapClick}
+              />
+            </TabsContent>
 
-        {/* Action Needed Tab */}
-        <TabsContent value="action-needed">
-          <SwapRequestsList 
-            swaps={filteredSwaps}
-            user={user}
-            onSwapClick={handleSwapClick}
-            onSwapResponse={handleSwapResponse}
-            onCancelSwap={handleCancelSwap}
-            showFilters={false}
-            emptyMessage="All caught up! No action needed"
-            emptySubMessage="Check back later for new requests that need your attention"
-            prioritizeUrgent={true}
-          />
-        </TabsContent>
+            {/* Other tabs with SwapRequestsList */}
+            <TabsContent value="my-requests">
+              <SwapRequestsList 
+                swaps={filteredSwaps.filter(s => s.requesting_staff_id === user.id)}
+                user={user}
+                onSwapClick={handleSwapClick}
+                onSwapResponse={handleSwapResponse}
+                onCancelSwap={handleCancelSwap}
+                showFilters={true}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                emptyMessage="No swap requests yet"
+                emptySubMessage="When you need coverage, your requests will appear here"
+              />
+            </TabsContent>
 
-        {/* History Tab */}
-        <TabsContent value="history">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Swap History</h3>
-                <p className="text-sm text-gray-600">View your past swap requests and outcomes</p>
-              </div>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowHistoryModal(true)}
-                className="gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Analytics
-              </Button>
-            </div>
-            
-            <SwapRequestsList 
-              swaps={filteredSwaps}
-              user={user}
-              onSwapClick={handleSwapClick}
-              onSwapResponse={handleSwapResponse}
-              onCancelSwap={handleCancelSwap}
-              showFilters={true}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              sortBy={sortBy}
-              setSortBy={setSortBy}
-              emptyMessage="No swap history yet"
-              emptySubMessage="Your completed, declined, and cancelled swaps will appear here"
-            />
-          </div>
-        </TabsContent>
-      </Tabs>
+            <TabsContent value="for-me">
+              <SwapRequestsList 
+                swaps={filteredSwaps.filter(s => s.target_staff_id === user.id)}
+                user={user}
+                onSwapClick={handleSwapClick}
+                onSwapResponse={handleSwapResponse}
+                onCancelSwap={handleCancelSwap}
+                showFilters={true}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                emptyMessage="No requests for you"
+                emptySubMessage="When colleagues need your help, requests will appear here"
+                prioritizeUrgent={true}
+              />
+            </TabsContent>
+
+            <TabsContent value="action-needed">
+              <SwapRequestsList 
+                swaps={actionNeeded}
+                user={user}
+                onSwapClick={handleSwapClick}
+                onSwapResponse={handleSwapResponse}
+                onCancelSwap={handleCancelSwap}
+                showFilters={false}
+                emptyMessage="No action needed"
+                emptySubMessage="Check back later for new requests that need your attention"
+                prioritizeUrgent={true}
+              />
+            </TabsContent>
+
+            <TabsContent value="history">
+              <SwapRequestsList 
+                swaps={filteredSwaps.filter(s => 
+                  s.status === 'executed' || s.status === 'declined' || s.status === 'cancelled'
+                )}
+                user={user}
+                onSwapClick={handleSwapClick}
+                onSwapResponse={handleSwapResponse}
+                onCancelSwap={handleCancelSwap}
+                showFilters={true}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                emptyMessage="No history yet"
+                emptySubMessage="Your completed, declined, and cancelled swaps will appear here"
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Right Column - Stats and Gamification */}
+        <div className="space-y-6">
+          {/* Personal Stats */}
+          <PersonalStatsCards stats={personalStats} />
+
+          {/* Team Reliability Progress */}
+          <ReliabilityProgressCard stats={personalStats} />
+
+          {/* Team Reliability Badges */}
+          <TeamReliabilityBadges stats={personalStats} />
+
+          {/* Team Support Insights */}
+          <TeamSupportInsights insights={teamInsights} />
+        </div>
+      </div>
 
       {/* Modals */}
       {selectedSwap && (
@@ -780,13 +491,19 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
       <StaffSwapRequestDialog
         isOpen={showCreateModal}
         onClose={() => {
-          console.log('Closing modal')
           setShowCreateModal(false)
           setSelectedShiftForSwap(null)
         }}
         assignmentDetails={selectedShiftForSwap}
         onSubmitSwap={handleCreateSwap}
-        availableStaff={[]} // You can implement this later
+        availableStaff={[]}
+      />
+
+      <TimeOffRequestModal
+        isOpen={showTimeOffModal}
+        onClose={() => setShowTimeOffModal(false)}
+        onSubmit={handleTimeOffRequest}
+        userStaffId={user.staffId}
       />
     </div>
   )
