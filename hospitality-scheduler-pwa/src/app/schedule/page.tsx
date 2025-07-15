@@ -84,7 +84,7 @@ const FACILITY_ZONES = {
 }
 
 // ============================================================================
-// STAFF VIEW COMPONENT - FIXED
+// STAFF VIEW COMPONENT
 // ============================================================================
 function StaffScheduleView({ 
   currentDate, 
@@ -100,7 +100,7 @@ function StaffScheduleView({
   onSwapRequest,
   user 
 }) {
-  const [myScheduleData, setMyScheduleData] = useState([])
+  const [myScheduleData, setMyScheduleData] = useState(null)
   const [mySwapRequests, setMySwapRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const apiClient = useApiClient()
@@ -137,13 +137,23 @@ function StaffScheduleView({
           startDate.toISOString().split('T')[0],
           endDate.toISOString().split('T')[0]
         )
-        setMyScheduleData(scheduleData)
+        
+        console.log('📊 Raw schedule data received:', scheduleData)
+        
+        // ✅ Handle the correct response structure from backend
+        if (scheduleData && scheduleData.assignments) {
+          setMyScheduleData(scheduleData)
+          console.log(`✅ Schedule loaded: ${scheduleData.assignments.length} assignments found`)
+        } else {
+          console.log('⚠️ No schedule data or assignments found')
+          setMyScheduleData({ assignments: [] })
+        }
       } catch (error) {
         console.warn('getMySchedule failed:', error)
-        setMyScheduleData([])
+        setMyScheduleData({ assignments: [] })
       }
 
-      // FIXED: Use existing getMySwapRequests method (much simpler!)
+      // get swaap requests for staff
       try {
         const swaps = await apiClient.getMySwapRequests(undefined, 50)
         setMySwapRequests(swaps)
@@ -180,22 +190,40 @@ function StaffScheduleView({
   }
 
   // Get my assignments from current schedule
-  const getMyAssignments = () => {
-    if (!currentSchedule?.assignments || !user) return []
-    return currentSchedule.assignments.filter(a => a.staff_id === user.id)
+  const getAssignmentCount = () => {
+    if (!myScheduleData || !myScheduleData.assignments) {
+      return 0
+    }
+    return myScheduleData.assignments.length
   }
 
-  const myAssignments = getMyAssignments()
+  // get assignments for display
+  const getAssignmentsForDisplay = () => {
+    if (!myScheduleData || !myScheduleData.assignments) {
+      return []
+    }
+    return myScheduleData.assignments
+  }
+
+  // get shift names
+  const getShiftName = (shiftIndex) => {
+    const shiftNames = ['Morning', 'Afternoon', 'Evening']
+    return shiftNames[shiftIndex] || 'Unknown'
+  }
   
   // Calculate today's assignments
-  const getTodayAssignments = () => {
-    if (!myAssignments.length) return []
+ const getTodayAssignments = () => {
+    // Use the new data structure
+    const assignments = getAssignmentsForDisplay()
+    if (!assignments.length) return []
     
     const today = new Date()
-    const dayOfWeek = today.getDay()
-    const mondayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    const todayDateString = today.toISOString().split('T')[0] // Format: "2025-07-16"
     
-    return myAssignments.filter(a => a.day === mondayIndex)
+    // ilter by actual date instead of day index
+    return assignments.filter(assignment => 
+      assignment.date === todayDateString
+    )
   }
 
   const todayAssignments = getTodayAssignments()
@@ -324,17 +352,23 @@ function StaffScheduleView({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">This Period</span>
                   <Badge variant="outline">
-                    {myAssignments.length} shift{myAssignments.length !== 1 ? 's' : ''}
+                    {getAssignmentCount()} shift{getAssignmentCount() !== 1 ? 's' : ''}
                   </Badge>
                 </div>
                 
-                {todayAssignments.length > 0 && (
+                {getAssignmentsForDisplay().filter(assignment => {
+                  const today = new Date().toISOString().split('T')[0]
+                  return assignment.date === today
+                }).length > 0 && (
                   <div>
                     <p className="text-sm font-medium text-green-800 mb-1">Today's Shifts</p>
-                    {todayAssignments.map(assignment => {
+                    {getAssignmentsForDisplay().filter(assignment => {
+                      const today = new Date().toISOString().split('T')[0]
+                      return assignment.date === today
+                    }).map(assignment => {
                       const shift = SHIFTS.find(s => s.id === assignment.shift)
                       return (
-                        <div key={assignment.id} className="text-xs text-green-700">
+                        <div key={assignment.assignment_id} className="text-xs text-green-700">
                           {shift?.name} ({shift?.time})
                         </div>
                       )
@@ -453,7 +487,7 @@ function StaffScheduleView({
             </div>
             <h3 className="text-xl font-semibold mb-2">No Schedule Available</h3>
             <p className="text-gray-600">
-              Your manager hasn't created a schedule for this period yet.
+              Your manager hasn&apos;t created a schedule for this period yet.
             </p>
           </div>
         )}

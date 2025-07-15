@@ -80,7 +80,7 @@ export function StaffScheduleFilter({
           <div className="mt-3 p-3 bg-blue-100 rounded-lg border border-blue-200">
             <p className="text-sm text-blue-800 flex items-center gap-2">
               <EyeOff className="w-4 h-4" />
-              You're viewing the full facility schedule. Your shifts are highlighted in color.
+              You&apos;re viewing the full facility schedule. Your shifts are highlighted in color.
             </p>
           </div>
         )}

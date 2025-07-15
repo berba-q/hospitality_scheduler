@@ -245,26 +245,12 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Welcome back, {user?.name || user?.email || 'Staff Member'}!</h1>
-              <p className="text-gray-600">Here's your schedule and team activity overview</p>
+              <p className="text-gray-600">Here&apos;s your schedule and team activity overview</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600">This Week</p>
               <p className="text-2xl font-bold">{dashboardStats.thisWeekHours}h</p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Debug Info Card - Remove this once working */}
-      <Card className="border-blue-200 bg-blue-50">
-        <CardContent className="p-4">
-          <div className="text-sm">
-            <p><strong>Debug Info:</strong></p>
-            <p>User: {user?.email}</p>
-            <p>Is Manager: {user?.isManager ? 'Yes' : 'No'}</p>
-            <p>This Week Hours: {dashboardStats.thisWeekHours}</p>
-            <p>Upcoming Shifts: {dashboardStats.upcomingShifts.length}</p>
-            <p>Pending Swaps: {dashboardStats.pendingSwaps}</p>
           </div>
         </CardContent>
       </Card>
