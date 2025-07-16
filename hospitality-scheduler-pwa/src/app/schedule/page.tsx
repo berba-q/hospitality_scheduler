@@ -1,7 +1,7 @@
 // schedule/page.tsx - role based scheduling page
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   Calendar, 
@@ -55,6 +55,7 @@ import SwapDetailModal  from '@/components/swap/SwapDetailModal'
 import { Select } from '@/components/ui/select'
 import { useSwapRequests } from '@/hooks/useSwapRequests'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import React from 'react'
 
 type ViewPeriod = 'daily' | 'weekly' | 'monthly'
 
@@ -847,6 +848,7 @@ function ManagerScheduleView({
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               Swaps
+              {/* Show badge when there are pending swaps */}
               {swapSummary?.pending_swaps > 0 && (
                 <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5">
                   {swapSummary.pending_swaps}
@@ -1203,6 +1205,7 @@ export default function SchedulePage() {
   const [showSwapModal, setShowSwapModal] = useState(false)
   const [selectedAssignmentForSwap, setSelectedAssignmentForSwap] = useState(null)
   const [showSwapDashboard, setShowSwapDashboard] = useState(false)
+  const [facilitiesReady, setFacilitiesReady] = useState(false)
 
   // Get facility zones based on facility type
   const getFacilityZones = (facility) => {
@@ -1214,19 +1217,38 @@ export default function SchedulePage() {
     return FACILITY_ZONES.default
   }
 
-  // FIXED: Only use swap hooks if manager or if facility is selected
+  // Only use swap hooks if manager or if facility is selected
+  const managerFacilityId = useMemo(() => {
+    console.log('=== MANAGER FACILITY ID CALCULATION ===')
+    console.log('isManager:', isManager)
+    console.log('facilitiesReady:', facilitiesReady)
+    console.log('selectedFacility:', selectedFacility)
+    console.log('selectedFacility?.id:', selectedFacility?.id)
+    
+    if (!isManager || !facilitiesReady) {
+      console.log('Not ready for manager swaps yet')
+      return undefined
+    }
+    
+    if (!selectedFacility?.id) {
+      console.log('No facility or no facility ID, returning undefined')
+      return undefined
+    }
+    
+    console.log('Manager using facility for swaps:', selectedFacility.id)
+    console.log('=======================================')
+    return selectedFacility.id
+  }, [isManager, facilitiesReady, selectedFacility])
+
   const {
-  swapRequests,
-  swapSummary,
-  createSwapRequest,
-  approveSwap,
-  retryAutoAssignment,
-  refresh: refreshSwaps
-} = useSwapRequests(
-  // Only managers get facility-level swap data
-  // Staff will use their personal swap methods instead
-  isManager && selectedFacility ? selectedFacility.id : undefined
-)
+    swapRequests,
+    swapSummary,
+    createSwapRequest,
+    approveSwap,
+    retryAutoAssignment,
+    refresh: refreshSwaps
+  } = useSwapRequests(managerFacilityId)
+  
 
   // Load initial data
   useEffect(() => {
@@ -1235,25 +1257,51 @@ export default function SchedulePage() {
     }
   }, [authLoading, isAuthenticated])
 
+  {/* debug */}
+  React.useEffect(() => {
+  console.log('=== FACILITY LOADING DEBUG ===')
+  console.log('authLoading:', authLoading)
+  console.log('isAuthenticated:', isAuthenticated)
+  console.log('isManager:', isManager)
+  console.log('loading:', loading)
+  console.log('facilities:', facilities)
+  console.log('selectedFacility:', selectedFacility)
+  console.log('selectedFacility?.id:', selectedFacility?.id)
+  console.log('=====================================')
+}, [authLoading, isAuthenticated, isManager, loading, facilities, selectedFacility])
+
+
   const loadData = async () => {
     try {
+      console.log('=== LOAD DATA STARTED ===')
+      console.log('isManager:', isManager)
       setLoading(true)
+      setFacilitiesReady(false)
       
       if (isManager) {
+        console.log('Loading manager data...')
         // Load manager data
         const [facilitiesData, staffData] = await Promise.all([
           apiClient.getFacilities(),
           apiClient.getStaff()
         ])
+
+        console.log('Facilities loaded:', facilitiesData)
+        console.log('Staff loaded:', staffData.length, 'members')
         
         setFacilities(facilitiesData)
         setStaff(staffData)
         
         // Auto-select first facility for managers
         if (facilitiesData.length > 0) {
+          console.log('Auto-selecting first facility:', facilitiesData[0])
           setSelectedFacility(facilitiesData[0])
           const zones = getFacilityZones(facilitiesData[0])
           setSelectedZones(zones.map(z => z.id))
+          console.log('Zones selected:', zones.map(z => z.id))
+          setFacilitiesReady(true)
+        } else{
+           console.warn('No facilities found for manager!')
         }
       } else {
         // Load staff data - get their facility and schedule

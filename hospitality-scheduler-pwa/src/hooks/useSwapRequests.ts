@@ -23,6 +23,11 @@ interface SwapSummary {
 }
 
 export function useSwapRequests(facilityId?: string) {
+  console.log('=== useSwapRequests HOOK INITIALIZED ===')
+  console.log('Initial facilityId:', facilityId)
+  console.log('typeof initial facilityId:', typeof facilityId)
+  console.log('===========================================')
+
   const [swapRequests, setSwapRequests] = useState([])
   const [swapSummary, setSwapSummary] = useState<SwapSummary | null>(null)
   const [loading, setLoading] = useState(false)
@@ -31,22 +36,39 @@ export function useSwapRequests(facilityId?: string) {
 
   // Enhanced load function with better error handling
   const loadSwapRequests = useCallback(async (filters?: SwapFilters) => {
+    console.log('=== LOAD SWAP REQUESTS CALLED ===')
+    console.log('facilityId parameter:', facilityId)
+    console.log('typeof facilityId:', typeof facilityId)
+    console.log('facilityId === undefined:', facilityId === undefined)
+    console.log('facilityId === null:', facilityId === null)
+    console.log('Boolean(facilityId):', Boolean(facilityId))
+    console.log('filters:', filters)
+    
     setLoading(true)
     setError(null)
     
     try {
       if (facilityId) {
+        console.log('TAKING MANAGER PATH - Loading facility-specific data for facilityId:', facilityId)
+        
         // Load facility-specific data
         const [requests, summary] = await Promise.all([
           apiClient.getFacilitySwaps(facilityId, filters),
           apiClient.getFacilitySwapSummary(facilityId)
         ])
+        
+        console.log('MANAGER: Facility swaps loaded:', requests?.length || 0, 'requests')
+        console.log('MANAGER: Facility summary loaded:', summary)
         setSwapRequests(requests)
         setSwapSummary(summary)
       } else {
+        console.log('TAKING STAFF PATH - No facilityId provided, loading personal swaps (staff mode)')
+        console.log('About to call apiClient.getMySwapRequests')
+        
         // For staff without facility context, get their personal swaps only
         try {
           const personalSwaps = await apiClient.getMySwapRequests(filters?.status, filters?.limit || 50)
+          console.log('STAFF: Personal swaps loaded:', personalSwaps?.length || 0, 'requests')
           setSwapRequests(personalSwaps)
           setSwapSummary(null) // Staff don't need facility summaries
         } catch (error) {
@@ -57,14 +79,18 @@ export function useSwapRequests(facilityId?: string) {
       }
     } catch (error: any) {
       console.error('Failed to load swap requests:', error)
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      })
       setError(error.message || 'Failed to load swap requests')
       setSwapRequests([])
       setSwapSummary(null)
     } finally {
       setLoading(false)
+      console.log('=== LOAD SWAP REQUESTS COMPLETED ===')
     }
   }, [facilityId, apiClient])
-
 
   // Load with filters
   const loadWithFilters = useCallback(async (filters: SwapFilters) => {
@@ -264,8 +290,22 @@ export function useSwapRequests(facilityId?: string) {
 
   // Load data on mount and when facilityId changes
   useEffect(() => {
-    loadSwapRequests()
-  }, [loadSwapRequests])
+    console.log('=== useSwapRequests useEffect TRIGGERED ===')
+    console.log('facilityId in useEffect:', facilityId)
+    console.log('typeof facilityId in useEffect:', typeof facilityId)
+    console.log('loadSwapRequests function reference:', loadSwapRequests)
+    
+    // Only call loadSwapRequests if facilityId is not undefined
+    // This prevents the initial call with undefined facilityId
+    if (facilityId !== undefined) {
+      console.log('facilityId is valid, calling loadSwapRequests')
+      loadSwapRequests()
+    } else {
+      console.log('facilityId is undefined, skipping loadSwapRequests call')
+    }
+    
+    console.log('=== useSwapRequests useEffect COMPLETED ===')
+  }, [loadSwapRequests, facilityId])
 
   return {
     // Data
