@@ -209,7 +209,7 @@ export default function SwapsPage() {
     try {
       await apiClient.managerSwapDecision(swapId, { approved, notes })
       toast.success(approved ? 'Swap request approved' : 'Swap request declined')
-      loadManagerData()
+      await loadManagerData()
     } catch (error) {
       console.error('Failed to update swap:', error)
       toast.error('Failed to update swap request')
@@ -288,6 +288,30 @@ export default function SwapsPage() {
     }
   }
 
+  const handleTakeAction = () => {
+    const emergencySwaps = allSwapRequests.filter(swap => 
+      (swap.urgency === 'emergency' || swap.urgency === 'high') && 
+      swap.status === 'pending'
+    )
+    
+    if (emergencySwaps.length === 0) {
+      toast.info('No emergency swaps need attention')
+      return
+    }
+    
+    if (emergencySwaps.length <= 5) {
+      // Few swaps: auto-select for bulk action
+      setSelectedSwaps(emergencySwaps.map(swap => swap.id))
+      toast.success(`Selected ${emergencySwaps.length} urgent swaps - review below`)
+    } else {
+      // Many swaps: open detailed filtered view
+      setDetailedToolsTab('all')
+      setShowDetailedTools(true)
+      setUrgencyFilter('emergency')
+      toast.success(`Found ${emergencySwaps.length} urgent swaps - opened detailed view`)
+    }
+  }
+
   // ============================================================================
   // DERIVED DATA
   // ============================================================================
@@ -313,7 +337,9 @@ export default function SwapsPage() {
   // Calculate counts for tabs
   const pendingCount = allSwapRequests.filter(s => s.status === 'pending').length
   const urgentCount = allSwapRequests.filter(s => ['high', 'emergency'].includes(s.urgency)).length
-  const emergencyCount = allSwapRequests.filter(s => s.urgency === 'emergency').length
+  const emergencyCount = allSwapRequests.filter(s => 
+                            s.urgency === 'emergency' && s.status === 'pending'
+                          ).length
 
   // Smart insights for managers
   const criticalFacilities = facilitySummaries.filter(f => f.emergency_swaps > 0 || f.urgent_swaps > 5)
@@ -354,6 +380,9 @@ export default function SwapsPage() {
       </AppLayout>
     )
   }
+
+
+
 
   // ============================================================================
   // MANAGER VIEW - Full swap management interface
@@ -404,7 +433,10 @@ export default function SwapsPage() {
                       <span className="text-red-600">{criticalFacilities.length} facility{criticalFacilities.length > 1 ? 's' : ''} in critical state</span>
                     )}
                   </div>
-                  <Button size="sm" variant="destructive">
+                  <Button size="sm" 
+                    variant="destructive"
+                    onClick={handleTakeAction}
+                  >
                     <Zap className="h-4 w-4 mr-1" />
                     Take Action
                   </Button>
@@ -522,7 +554,7 @@ export default function SwapsPage() {
                       Immediate Action Required
                     </div>
                     <Badge variant="destructive">
-                      {allSwapRequests.filter(s => s.urgency === 'emergency' || (s.urgency === 'high' && s.status === 'pending')).length}
+                      {allSwapRequests.filter(s => s.urgency === 'emergency' && s.status === 'pending'|| (s.urgency === 'high' && s.status === 'pending')).length}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
@@ -530,7 +562,7 @@ export default function SwapsPage() {
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {allSwapRequests
                       .filter(swap => 
-                        swap.urgency === 'emergency' || 
+                        swap.urgency === 'emergency' && swap.status === 'pending'|| 
                         (swap.urgency === 'high' && swap.status === 'pending')
                       )
                       .slice(0, 8)
@@ -616,7 +648,7 @@ export default function SwapsPage() {
                     </div>
                   )}
                   
-                  {allSwapRequests.filter(s => s.urgency === 'emergency' || (s.urgency === 'high' && s.status === 'pending')).length === 0 && (
+                  {allSwapRequests.filter(s => s.urgency === 'emergency' && s.status === 'pending'|| (s.urgency === 'high' && s.status === 'pending')).length === 0 && (
                     <div className="text-center py-8 text-gray-500">
                       <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
                       <p className="text-sm font-medium">No urgent requests!</p>

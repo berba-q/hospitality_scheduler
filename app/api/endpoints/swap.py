@@ -701,6 +701,41 @@ def get_swap_history(
     
     return history
 
+@router.get("/{swap_id}", response_model=SwapRequestWithDetails)
+def get_swap_request(
+    swap_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a single swap request by ID"""
+    
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    # Verify access through facility
+    schedule = db.get(Schedule, swap_request.schedule_id)
+    facility = db.get(Facility, schedule.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Load related staff data
+    requesting_staff = db.get(Staff, swap_request.requesting_staff_id)
+    target_staff = db.get(Staff, swap_request.target_staff_id) if swap_request.target_staff_id else None
+    assigned_staff = db.get(Staff, swap_request.assigned_staff_id) if swap_request.assigned_staff_id else None
+    
+    # Convert to dict and create SwapRequestWithDetails
+    swap_data = swap_request.dict()
+    swap_data["requesting_staff"] = requesting_staff.dict() if requesting_staff else None
+    swap_data["target_staff"] = target_staff.dict() if target_staff else None
+    swap_data["assigned_staff"] = assigned_staff.dict() if assigned_staff else None
+    
+    # Add facility info
+    swap_data["facility_id"] = str(facility.id)
+    swap_data["facility_name"] = facility.name
+    
+    return SwapRequestWithDetails(**swap_data)
+
 # ==================== STAFF ANALYTICS ENDPOINTS ====================
 
 @router.get("/analytics/top-requesters/{facility_id}")
