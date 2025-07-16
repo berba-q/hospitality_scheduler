@@ -13,6 +13,7 @@ import { FacilityDetailModal } from '@/components/swap/FacilityDetailModal'
 import { SwapHistoryModal } from '@/components/swap/SwapHistoryModal'
 import { AdvancedSearchModal } from '@/components/swap/AdvancedSearchModal'
 import { AnalyticsTab } from '@/components/swap/AnalyticsTab'
+import { Dialog, DialogHeader, DialogTitle, DialogContent } from '@/components/ui/dialog'
 
 // Import enhanced staff component
 import StaffSwapDashboard from '@/components/swap/StaffSwapDashboard'
@@ -37,7 +38,8 @@ import {
   Plus,
   Zap,
   Target,
-  Brain
+  Brain,
+  Settings
 } from 'lucide-react'
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -81,6 +83,8 @@ export default function SwapsPage() {
   const [showSwapHistory, setShowSwapHistory] = useState(false)
   const [selectedSwapId, setSelectedSwapId] = useState(null)
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
+  const [showDetailedTools, setShowDetailedTools] = useState(false)
+  const [detailedToolsTab, setDetailedToolsTab] = useState('all')
 
     // Advanced search state
   const [advancedFilters, setAdvancedFilters] = useState({})
@@ -135,7 +139,15 @@ export default function SwapsPage() {
 
   const loadFacilitySwaps = async (facilityId: string) => {
     try {
-      const response = await apiClient.getSwapRequests({ facility_id: facilityId })
+      console.log('Loading facility swaps for:', facilityId)
+      
+      // Use getSwapRequestsWithFilters with proper parameter structure
+      const response = await apiClient.getSwapRequestsWithFilters({
+        facility_id: facilityId,
+        limit: 100
+      })
+      
+      console.log('Facility swaps loaded:', response?.length || 0, 'swaps')
       return response
     } catch (error) {
       console.error('Failed to load facility swaps:', error)
@@ -354,7 +366,7 @@ export default function SwapsPage() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                Swap Management Command Center
+                Swap Management
               </h1>
               <p className="text-gray-600 mt-1">
                 Manage shift swaps across all facilities with intelligent insights and automation
@@ -494,390 +506,759 @@ export default function SwapsPage() {
               </Card>
             </div>
           )}
-
-          {/* Active Filters Indicator */}
-          {(Object.keys(advancedFilters).length > 0 || selectedFacility || urgencyFilter || searchTerm) && (
-            <Card className="mb-6 border-blue-200 bg-blue-50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-900">
-                      Active filters: Showing {filteredSwapRequests.length} of {allSwapRequests.length} swap requests
-                    </span>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleClearFilters}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    Clear All Filters
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Main Content Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="overview" className="gap-2">
-                <Eye className="h-4 w-4" />
-                Overview
-                {urgentCount > 0 && (
-                  <Badge variant="destructive" className="text-xs">
-                    {urgentCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="pending" className="gap-2">
-                <Clock className="h-4 w-4" />
-                Pending ({pendingCount})
-              </TabsTrigger>
-              <TabsTrigger value="urgent" className="gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                Urgent ({urgentCount})
-              </TabsTrigger>
-              <TabsTrigger value="facilities" className="gap-2">
-                <Building className="h-4 w-4" />
-                Facilities ({facilitySummaries.length})
-              </TabsTrigger>
-              <TabsTrigger value="analytics" className="gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Analytics
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-6">
-              {/* Enhanced Search and Filters */}
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex gap-4 items-center">
-                    <div className="flex-1">
-                      <Input
-                        placeholder="Search by staff name, reason, facility..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full"
-                      />
+        {/* MAIN CONTENT PAGE */}
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            
+            {/* LEFT: Action Queue - What needs immediate attention */}
+            <div className="xl:col-span-2 space-y-4">
+              
+              {/* Emergency & High Priority Section */}
+              <Card className="border-red-200 bg-red-50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-red-800">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5" />
+                      Immediate Action Required
                     </div>
-                    <Select value={selectedFacility || ''} onValueChange={setSelectedFacility} className="w-48">
-                      <option value="">All Facilities</option>
-                      {facilitySummaries.map((facility) => (
-                        <option key={facility.facility_id} value={facility.facility_id}>
-                          {facility.facility_name}
-                        </option>
+                    <Badge variant="destructive">
+                      {allSwapRequests.filter(s => s.urgency === 'emergency' || (s.urgency === 'high' && s.status === 'pending')).length}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {allSwapRequests
+                      .filter(swap => 
+                        swap.urgency === 'emergency' || 
+                        (swap.urgency === 'high' && swap.status === 'pending')
+                      )
+                      .slice(0, 8)
+                      .map((swap) => (
+                        <div key={swap.id} className="flex items-center justify-between p-3 bg-white rounded border">
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="checkbox"
+                              checked={selectedSwaps.includes(swap.id)}
+                              onChange={(e) => handleSelectSwap(swap.id, e.target.checked)}
+                              className="rounded"
+                            />
+                            <div>
+                              <p className="font-medium text-sm">{swap.requesting_staff?.full_name}</p>
+                              <p className="text-xs text-gray-600 truncate max-w-48">{swap.reason}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant={swap.urgency === 'emergency' ? 'destructive' : 'secondary'} className="text-xs">
+                                  {swap.urgency}
+                                </Badge>
+                                <span className="text-xs text-gray-500">
+                                  {facilitySummaries.find(f => f.facility_id === swap.facility_id)?.facility_name}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="text-green-700 border-green-200 h-7 px-2 text-xs"
+                              onClick={() => handleApproveSwap(swap.id, true)}
+                            >
+                              ✓
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="text-red-700 border-red-200 h-7 px-2 text-xs"
+                              onClick={() => handleApproveSwap(swap.id, false)}
+                            >
+                              ✗
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-7 px-2 text-xs"
+                              onClick={() => handleViewSwapHistory(swap.id)}
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
                       ))}
-                    </Select>
-                    <Select value={urgencyFilter} onValueChange={setUrgencyFilter} className="w-32">
-                      <option value="">All Urgency</option>
-                      <option value="emergency">Emergency</option>
-                      <option value="high">High</option>
-                      <option value="normal">Normal</option>
-                      <option value="low">Low</option>
-                    </Select>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowAdvancedSearch(true)}
-                      className="gap-2"
-                    >
-                      <Search className="h-4 w-4" />
-                      Advanced
-                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Bulk Actions */}
-              {selectedSwaps.length > 0 && (
-                <Card className="border-blue-200 bg-blue-50">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        {selectedSwaps.length} swap{selectedSwaps.length > 1 ? 's' : ''} selected
-                      </span>
+                  
+                  {/* Quick Bulk Actions for Emergency/High Priority */}
+                  {selectedSwaps.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-red-200">
                       <div className="flex gap-2">
                         <Button 
                           size="sm" 
-                          variant="outline"
+                          className="bg-green-600 hover:bg-green-700 text-white flex-1"
                           onClick={() => handleBulkApprove(true)}
-                          className="text-green-700 border-green-200 hover:bg-green-100"
                         >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve All
+                          Approve Selected ({selectedSwaps.length})
                         </Button>
                         <Button 
                           size="sm" 
-                          variant="outline"
+                          variant="outline" 
+                          className="border-red-200 text-red-700 flex-1"
                           onClick={() => handleBulkApprove(false)}
-                          className="text-red-700 border-red-200 hover:bg-red-100"
                         >
-                          <X className="h-4 w-4 mr-1" />
-                          Decline All
+                          Decline Selected
                         </Button>
                         <Button 
                           size="sm" 
-                          variant="ghost"
+                          variant="ghost" 
                           onClick={handleClearSelection}
                         >
                           Clear
                         </Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  )}
+                  
+                  {allSwapRequests.filter(s => s.urgency === 'emergency' || (s.urgency === 'high' && s.status === 'pending')).length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                      <p className="text-sm font-medium">No urgent requests!</p>
+                      <p className="text-xs">All systems running smoothly.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-              {/* Enhanced Swap Management Dashboard */}
-              <SwapManagementDashboard
-                facility={selectedFacility ? facilitySummaries.find(f => f.facility_id === selectedFacility) : null}
-                swapRequests={filteredSwapRequests}
-                swapSummary={{
-                  facility_id: selectedFacility || 'all',
-                  pending_swaps: filteredSwapRequests.filter(swap => swap.status === 'pending').length,
-                  urgent_swaps: filteredSwapRequests.filter(swap => ['high', 'emergency'].includes(swap.urgency)).length,
-                  auto_swaps_needing_assignment: filteredSwapRequests.filter(swap => 
-                    swap.swap_type === 'auto' && swap.status === 'pending' && !swap.assigned_staff_id
-                  ).length,
-                  specific_swaps_awaiting_response: filteredSwapRequests.filter(swap =>
-                    swap.swap_type === 'specific' && swap.status === 'pending' && swap.target_staff_accepted === null
-                  ).length,
-                  recent_completions: filteredSwapRequests.filter(swap => 
-                    swap.status === 'completed' && 
-                    new Date(swap.completed_at || swap.updated_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                  ).length
-                }}
-                days={DAYS}
-                shifts={SHIFTS}
-                onApproveSwap={handleApproveSwap}
-                onRetryAutoAssignment={handleRetryAutoAssignment}
-                onViewSwapHistory={handleViewSwapHistory}
-                onRefresh={loadManagerData}
-                selectedSwaps={selectedSwaps}
-                onSelectSwap={handleSelectSwap}
-                onSelectAll={handleSelectAll}
-                onUpdateSwap={handleUpdateSwap}
-                onCancelSwap={handleCancelSwap}
-              />
-            </TabsContent>
-
-            {/* Urgent Tab */}
-            <TabsContent value="urgent" className="space-y-6">
-              <SwapManagementDashboard
-                facility={null}
-                swapRequests={allSwapRequests.filter(swap => ['high', 'emergency'].includes(swap.urgency))}
-                swapSummary={{
-                  facility_id: 'urgent',
-                  pending_swaps: allSwapRequests.filter(swap => swap.status === 'pending' && ['high', 'emergency'].includes(swap.urgency)).length,
-                  urgent_swaps: urgentCount,
-                  auto_swaps_needing_assignment: allSwapRequests.filter(swap => 
-                    ['high', 'emergency'].includes(swap.urgency) && swap.swap_type === 'auto' && !swap.assigned_staff_id
-                  ).length,
-                  specific_swaps_awaiting_response: allSwapRequests.filter(swap =>
-                    ['high', 'emergency'].includes(swap.urgency) && swap.swap_type === 'specific' && swap.target_staff_accepted === null
-                  ).length,
-                  recent_completions: 0
-                }}
-                days={DAYS}
-                shifts={SHIFTS}
-                onApproveSwap={handleApproveSwap}
-                onRetryAutoAssignment={handleRetryAutoAssignment}
-                onViewSwapHistory={handleViewSwapHistory}
-                onRefresh={loadManagerData}
-                selectedSwaps={selectedSwaps}
-                onSelectSwap={handleSelectSwap}
-                onSelectAll={handleSelectAll}
-                onUpdateSwap={handleUpdateSwap}
-                onCancelSwap={handleCancelSwap}
-              />
-            </TabsContent>
-
-            {/* Enhanced Facilities Tab */}
-            <TabsContent value="facilities" className="space-y-6">
-              {/* Facility Performance Overview */}
-              {needsAttentionFacilities.length > 0 && (
-                <Alert className="border-orange-200 bg-orange-50">
-                  <Target className="h-4 w-4 text-orange-600" />
-                  <AlertDescription>
-                    <div className="flex items-center justify-between">
-                      <span>
-                        <span className="font-semibold">High Activity Detected: </span>
-                        {needsAttentionFacilities.length} facility{needsAttentionFacilities.length > 1 ? 's have' : ' has'} elevated swap volumes
-                      </span>
-                      <Button size="sm" variant="outline">
-                        Review Workload Distribution
+              {/* Quick Approval Queue - Regular pending requests */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-yellow-600" />
+                      Quick Approval Queue
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">
+                        {allSwapRequests.filter(s => s.status === 'pending' && !['emergency', 'high'].includes(s.urgency)).length}
+                      </Badge>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          const regularPending = allSwapRequests
+                            .filter(swap => swap.status === 'pending' && !['emergency', 'high'].includes(swap.urgency))
+                            .map(swap => swap.id)
+                          setSelectedSwaps(regularPending)
+                        }}
+                      >
+                        Select All
                       </Button>
                     </div>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="grid gap-6">
-                {facilitySummaries.map((facility) => {
-                  // Calculate health score for visual indicators
-                  const totalSwaps = facility.pending_swaps + facility.urgent_swaps + facility.emergency_swaps
-                  const swapRate = totalSwaps / Math.max(facility.staff_count, 1)
-                  const healthStatus = facility.emergency_swaps > 0 ? 'critical' : 
-                                     facility.urgent_swaps > 5 ? 'warning' : 
-                                     facility.pending_swaps > 10 ? 'attention' : 'good'
-                  
-                  const statusColors = {
-                    critical: 'border-red-300 bg-red-50',
-                    warning: 'border-orange-300 bg-orange-50', 
-                    attention: 'border-yellow-300 bg-yellow-50',
-                    good: 'border-green-300 bg-green-50'
-                  }
-
-                  return (
-                    <Card 
-                      key={facility.facility_id} 
-                      className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-blue-300 ${statusColors[healthStatus]}`}
-                      onClick={() => handleFacilityClick(facility)}
-                    >
-                      <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Building className="h-5 w-5" />
-                            {facility.facility_name}
-                            {healthStatus === 'critical' && (
-                              <Badge variant="destructive" className="text-xs animate-pulse">
-                                CRITICAL
-                              </Badge>
-                            )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {allSwapRequests
+                      .filter(swap => 
+                        swap.status === 'pending' && 
+                        !['emergency', 'high'].includes(swap.urgency)
+                      )
+                      .slice(0, 6)
+                      .map((swap) => (
+                        <div key={swap.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="checkbox"
+                              checked={selectedSwaps.includes(swap.id)}
+                              onChange={(e) => handleSelectSwap(swap.id, e.target.checked)}
+                              className="rounded"
+                            />
+                            <div>
+                              <p className="font-medium text-sm">{swap.requesting_staff?.full_name}</p>
+                              <p className="text-xs text-gray-600 truncate max-w-48">{swap.reason}</p>
+                              <span className="text-xs text-gray-500">
+                                {facilitySummaries.find(f => f.facility_id === swap.facility_id)?.facility_name}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">{facility.facility_type}</Badge>
-                            <Badge 
-                              variant={
-                                healthStatus === 'critical' ? 'destructive' :
-                                healthStatus === 'warning' ? 'default' :
-                                healthStatus === 'attention' ? 'secondary' : 'outline'
-                              }
-                              className="text-xs"
+                          <div className="flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-6 w-6 p-0 text-green-600"
+                              onClick={() => handleApproveSwap(swap.id, true)}
                             >
-                              {Math.round(swapRate * 10) / 10} swaps/staff
-                            </Badge>
-                            <ChevronRight className="h-4 w-4 text-gray-400" />
+                              ✓
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-6 w-6 p-0 text-red-600"
+                              onClick={() => handleApproveSwap(swap.id, false)}
+                            >
+                              ✗
+                            </Button>
                           </div>
-                        </CardTitle>
+                        </div>
+                      ))}
+                  </div>
+                  
+                  {allSwapRequests.filter(s => s.status === 'pending' && !['emergency', 'high'].includes(s.urgency)).length > 6 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-3"
+                      onClick={() => setActiveTab('detailed')}
+                    >
+                      View All {allSwapRequests.filter(s => s.status === 'pending' && !['emergency', 'high'].includes(s.urgency)).length} Pending
+                    </Button>
+                  )}
+
+                  {allSwapRequests.filter(s => s.status === 'pending' && !['emergency', 'high'].includes(s.urgency)).length === 0 && (
+                    <div className="text-center py-4 text-gray-500">
+                      <p className="text-sm">No pending approvals</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* RIGHT: Strategic Overview Sidebar */}
+            <div className="space-y-4">
+              
+              {/* Facility Status Tower */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Building className="h-5 w-5" />
+                    Facility Health
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {facilitySummaries
+                      .sort((a, b) => {
+                        // Sort by priority: emergency > urgent > pending > quiet
+                        const aPriority = a.emergency_swaps * 1000 + a.urgent_swaps * 100 + a.pending_swaps
+                        const bPriority = b.emergency_swaps * 1000 + b.urgent_swaps * 100 + b.pending_swaps
+                        return bPriority - aPriority
+                      })
+                      .map((facility) => {
+                        const status = facility.emergency_swaps > 0 ? 'emergency' : 
+                                    facility.urgent_swaps > 3 ? 'urgent' : 
+                                    facility.pending_swaps > 5 ? 'busy' : 
+                                    facility.pending_swaps > 0 ? 'active' : 'quiet'
+                        
+                        return (
+                          <div 
+                            key={facility.facility_id}
+                            className={`p-3 rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                              status === 'emergency' ? 'bg-red-100 border border-red-200' :
+                              status === 'urgent' ? 'bg-orange-100 border border-orange-200' :
+                              status === 'busy' ? 'bg-yellow-100 border border-yellow-200' :
+                              status === 'active' ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'
+                            }`}
+                            onClick={() => handleFacilityClick(facility)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-sm">{facility.facility_name}</p>
+                                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                  {facility.emergency_swaps > 0 && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      {facility.emergency_swaps} Emergency
+                                    </Badge>
+                                  )}
+                                  {facility.urgent_swaps > 0 && (
+                                    <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">
+                                      {facility.urgent_swaps} Urgent
+                                    </Badge>
+                                  )}
+                                  {facility.pending_swaps > 0 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {facility.pending_swaps} Pending
+                                    </Badge>
+                                  )}
+                                  {status === 'quiet' && (
+                                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                                      All Clear
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-gray-400" />
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-4"
+                    onClick={() => setActiveTab('facilities')}
+                  >
+                    Detailed Facility Analysis
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* System Performance Metrics */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <TrendingUp className="h-4 w-4" />
+                    System Performance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Auto-Assignment</span>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          (globalSummary?.auto_assignment_success_rate || 0) >= 0.8 ? 'bg-green-500' :
+                          (globalSummary?.auto_assignment_success_rate || 0) >= 0.6 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`} />
+                        <span className="font-medium">
+                          {Math.round((globalSummary?.auto_assignment_success_rate || 0) * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Today's Volume</span>
+                      <span className="font-medium">{globalSummary?.swaps_today || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">This Week</span>
+                      <span className="font-medium">{globalSummary?.swaps_this_week || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Avg Approval Time</span>
+                      <span className="font-medium">{globalSummary?.average_approval_time || 0}h</span>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-4"
+                    onClick={() => setActiveTab('analytics')}
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Full Analytics
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Quick Insights */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Brain className="h-4 w-4" />
+                    Quick Insights
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {criticalFacilities.length > 0 && (
+                      <div className="p-2 bg-red-50 rounded text-xs">
+                        <p className="font-medium text-red-800">High Alert</p>
+                        <p className="text-red-600">{criticalFacilities.length} facilities need immediate attention</p>
+                      </div>
+                    )}
+                    {needsAttentionFacilities.length > 0 && (
+                      <div className="p-2 bg-yellow-50 rounded text-xs">
+                        <p className="font-medium text-yellow-800">Watch List</p>
+                        <p className="text-yellow-600">{needsAttentionFacilities.length} facilities have high volumes</p>
+                      </div>
+                    )}
+                    {pendingCount > 20 && (
+                      <div className="p-2 bg-blue-50 rounded text-xs">
+                        <p className="font-medium text-blue-800">Heavy Load</p>
+                        <p className="text-blue-600">Consider bulk approval for efficiency</p>
+                      </div>
+                    )}
+                    {pendingCount === 0 && urgentCount === 0 && (
+                      <div className="p-2 bg-green-50 rounded text-xs">
+                        <p className="font-medium text-green-800">All Clear</p>
+                        <p className="text-green-600">No pending requests requiring attention</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* DETAILED MANAGEMENT TOOLS- For deep dive work */}
+          {/* Floating Action Menu - Bottom Right */}
+          <div className="fixed bottom-6 right-6 z-40">
+            <div className="flex flex-col items-end gap-3">
+              {/* Quick action buttons that appear on hover */}
+              <div className="flex flex-col gap-2 opacity-0 transform translate-y-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-white shadow-lg border-blue-200 text-blue-700 hover:bg-blue-50 hover:scale-105 transition-all"
+                  onClick={() => {
+                    setDetailedToolsTab('analytics')
+                    setShowDetailedTools(true)
+                  }}
+                >
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Analytics
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-white shadow-lg border-green-200 text-green-700 hover:bg-green-50 hover:scale-105 transition-all"
+                  onClick={() => {
+                    setDetailedToolsTab('facilities')
+                    setShowDetailedTools(true)
+                  }}
+                >
+                  <Building className="h-4 w-4 mr-2" />
+                  Facilities
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-white shadow-lg border-purple-200 text-purple-700 hover:bg-purple-50 hover:scale-105 transition-all"
+                  onClick={() => {
+                    setDetailedToolsTab('all')
+                    setShowDetailedTools(true)
+                  }}
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  All Requests
+                </Button>
+              </div>
+              
+              {/* Main floating button - BETTER ICON */}
+              <div className="group">
+                <Button
+                  size="lg"
+                  className="rounded-full w-14 h-14 bg-blue-600 hover:bg-blue-700 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
+                  onClick={() => setShowDetailedTools(true)}
+                  title="Advanced Management Tools"
+                >
+                  {/* Better icon options - choose one: */}
+                  <Settings className="h-6 w-6" /> {/* Option 1: Settings/Tools */}
+                  {/* <MoreHorizontal className="h-6 w-6" /> */} {/* Option 2: More options */}
+                  {/* <Zap className="h-6 w-6" /> */} {/* Option 3: Power/Advanced */}
+                  {/* <Target className="h-6 w-6" /> */} {/* Option 4: Precision/Focus */}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Tools Modal */}
+          <Dialog open={showDetailedTools} onOpenChange={setShowDetailedTools}>
+            <DialogContent 
+              className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[96vw] h-[96vh] max-w-none max-h-none overflow-hidden flex flex-col bg-white rounded-lg shadow-2xl"
+              style={{
+                width: 'calc(100vw - 6rem)',
+                height: 'calc(100vh - 6rem)',
+                maxWidth: 'none',
+                maxHeight: 'none'
+              }}
+            >
+              <DialogHeader className="flex-shrink-0 border-b pb-6 px-8 pt-6">
+                <DialogTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Settings className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold">Advanced Management Tools</h2>
+                      <p className="text-base text-gray-600 mt-1">Deep analysis, bulk operations, and comprehensive reporting</p>
+                    </div>
+                  </div>
+                  
+                  {/* Large tab selector */}
+                  <Tabs value={detailedToolsTab} onValueChange={setDetailedToolsTab} className="w-auto">
+                    <TabsList className="grid w-full grid-cols-3 h-12">
+                      <TabsTrigger value="all" className="gap-3 px-6 text-base">
+                        <Search className="h-5 w-5" />
+                        All Requests
+                      </TabsTrigger>
+                      <TabsTrigger value="facilities" className="gap-3 px-6 text-base">
+                        <Building className="h-5 w-5" />
+                        Facility Deep Dive
+                      </TabsTrigger>
+                      <TabsTrigger value="analytics" className="gap-3 px-6 text-base">
+                        <BarChart3 className="h-5 w-5" />
+                        Analytics & Reports
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="flex-1 overflow-auto px-8 py-6">
+                {/* All Requests Tab - MASSIVE SIZE */}
+                {detailedToolsTab === 'all' && (
+                  <div className="space-y-8 h-full">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-2xl font-bold">All Swap Requests</h3>
+                        <p className="text-lg text-gray-600 mt-2">Advanced search, filtering, and bulk operations - {filteredSwapRequests.length} requests found</p>
+                      </div>
+                      <div className="flex gap-4">
+                        <Button 
+                          variant="outline" 
+                          size="lg"
+                          onClick={() => setShowAdvancedSearch(true)}
+                          className="gap-3 px-6 py-3"
+                        >
+                          <Filter className="h-5 w-5" />
+                          Advanced Filters
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="lg"
+                          onClick={() => setShowExportModal(true)}
+                          className="gap-3 px-6 py-3"
+                        >
+                          <Download className="h-5 w-5" />
+                          Export Report
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="lg"
+                          onClick={handleClearFilters}
+                          className="gap-3 px-6 py-3"
+                        >
+                          <X className="h-5 w-5" />
+                          Clear Filters
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {/* Large Search and Filters */}
+                    <Card className="shadow-lg">
+                      <CardHeader className="pb-6">
+                        <CardTitle className="text-xl">Search & Filter Controls</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-gray-900">{facility.staff_count}</p>
-                            <p className="text-sm text-gray-600">Staff</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-yellow-600">{facility.pending_swaps}</p>
-                            <p className="text-sm text-gray-600">Pending</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-orange-600">{facility.urgent_swaps}</p>
-                            <p className="text-sm text-gray-600">Urgent</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-red-600">{facility.emergency_swaps}</p>
-                            <p className="text-sm text-gray-600">Emergency</p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-2xl font-bold text-green-600">{facility.recent_completions}</p>
-                            <p className="text-sm text-gray-600">Completed</p>
-                          </div>
-                        </div>
-                        
-                        {/* Health Indicator Bar */}
-                        <div className="mt-4 mb-3">
-                          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                            <span>Facility Health</span>
-                            <span>{healthStatus.charAt(0).toUpperCase() + healthStatus.slice(1)}</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className={`h-2 rounded-full transition-all duration-300 ${
-                                healthStatus === 'critical' ? 'bg-red-500' :
-                                healthStatus === 'warning' ? 'bg-orange-500' :
-                                healthStatus === 'attention' ? 'bg-yellow-500' : 'bg-green-500'
-                              }`}
-                              style={{ 
-                                width: `${Math.max(20, Math.min(100, 100 - (swapRate * 20)))}%` 
-                              }}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                          <div className="md:col-span-2">
+                            <Input
+                              placeholder="Search by staff name, reason, facility..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="w-full h-12 text-base"
                             />
                           </div>
+                          <Select value={selectedFacility || ''} onValueChange={setSelectedFacility}>
+                            <option value="">All Facilities</option>
+                            {facilitySummaries.map((facility) => (
+                              <option key={facility.facility_id} value={facility.facility_id}>
+                                {facility.facility_name}
+                              </option>
+                            ))}
+                          </Select>
+                          <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
+                            <option value="">All Priority Levels</option>
+                            <option value="emergency">Emergency</option>
+                            <option value="high">High Priority</option>
+                            <option value="normal">Normal</option>
+                            <option value="low">Low Priority</option>
+                          </Select>
                         </div>
                         
-                        {/* Quick Action Indicators */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {facility.pending_swaps > 0 && (
-                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                                <Clock className="h-3 w-3 mr-1" />
-                                Needs Review
-                              </Badge>
-                            )}
-                            {facility.emergency_swaps > 0 && (
-                              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                Emergency
-                              </Badge>
-                            )}
-                            {healthStatus === 'good' && totalSwaps === 0 && (
-                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                All Clear
-                              </Badge>
-                            )}
+                        {/* Active Filters Display */}
+                        {(selectedFacility || urgencyFilter || searchTerm || Object.keys(advancedFilters).length > 0) && (
+                          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <span className="text-base font-medium text-blue-900">
+                                Active Filters: Showing {filteredSwapRequests.length} of {allSwapRequests.length} requests
+                              </span>
+                              <Button variant="ghost" size="lg" onClick={handleClearFilters} className="text-blue-600">
+                                Clear All Filters
+                              </Button>
+                            </div>
                           </div>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </Button>
-                        </div>
+                        )}
                       </CardContent>
                     </Card>
-                  )
-                })}
+
+                    {/* Results Area - Takes massive remaining space */}
+                    <div className="flex-1 min-h-[600px] bg-gray-50 rounded-lg p-6">
+                      <SwapManagementDashboard
+                        facility={selectedFacility ? facilitySummaries.find(f => f.facility_id === selectedFacility) : null}
+                        swapRequests={filteredSwapRequests}
+                        swapSummary={{
+                          facility_id: selectedFacility || 'all',
+                          pending_swaps: filteredSwapRequests.filter(swap => swap.status === 'pending').length,
+                          urgent_swaps: filteredSwapRequests.filter(swap => ['high', 'emergency'].includes(swap.urgency)).length,
+                          auto_swaps_needing_assignment: filteredSwapRequests.filter(swap => 
+                            swap.swap_type === 'auto' && swap.status === 'pending' && !swap.assigned_staff_id
+                          ).length,
+                          specific_swaps_awaiting_response: filteredSwapRequests.filter(swap =>
+                            swap.swap_type === 'specific' && swap.status === 'pending' && swap.target_staff_accepted === null
+                          ).length,
+                          recent_completions: filteredSwapRequests.filter(swap => 
+                            swap.status === 'completed' && 
+                            new Date(swap.completed_at || swap.updated_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                          ).length
+                        }}
+                        days={DAYS}
+                        shifts={SHIFTS}
+                        onApproveSwap={handleApproveSwap}
+                        onRetryAutoAssignment={handleRetryAutoAssignment}
+                        onViewSwapHistory={handleViewSwapHistory}
+                        onRefresh={loadManagerData}
+                        selectedSwaps={selectedSwaps}
+                        onSelectSwap={handleSelectSwap}
+                        onSelectAll={handleSelectAll}
+                        onUpdateSwap={handleUpdateSwap}
+                        onCancelSwap={handleCancelSwap}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Facility Deep Dive Tab - MASSIVE SIZE */}
+                {detailedToolsTab === 'facilities' && (
+                  <div className="space-y-8 h-full">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-2xl font-bold">Facility Performance Analysis</h3>
+                        <p className="text-lg text-gray-600 mt-2">Detailed facility performance analysis and management - {facilitySummaries.length} facilities</p>
+                      </div>
+                      <div className="flex gap-3">
+                        <Badge variant="outline" className="text-base px-4 py-2">
+                          {facilitySummaries.filter(f => f.emergency_swaps > 0).length} Critical
+                        </Badge>
+                        <Badge variant="outline" className="text-base px-4 py-2">
+                          {facilitySummaries.filter(f => f.urgent_swaps > 3).length} High Priority
+                        </Badge>
+                        <Badge variant="outline" className="text-base px-4 py-2">
+                          {facilitySummaries.filter(f => f.pending_swaps === 0).length} All Clear
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    {/* Large facility grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {facilitySummaries.map((facility) => {
+                        const totalSwaps = facility.pending_swaps + facility.urgent_swaps + facility.emergency_swaps
+                        const swapRatio = totalSwaps / Math.max(facility.staff_count, 1)
+                        
+                        const getStatus = () => {
+                          if (facility.emergency_swaps > 0) return 'emergency'
+                          if (facility.urgent_swaps > 3) return 'urgent'
+                          if (facility.pending_swaps > 8) return 'attention'
+                          if (totalSwaps > 0) return 'active'
+                          return 'quiet'
+                        }
+                        
+                        const status = getStatus()
+                        
+                        const statusConfig = {
+                          emergency: { color: 'border-red-300 bg-red-50', headerColor: 'text-red-800' },
+                          urgent: { color: 'border-orange-300 bg-orange-50', headerColor: 'text-orange-800' },
+                          attention: { color: 'border-yellow-300 bg-yellow-50', headerColor: 'text-yellow-800' },
+                          active: { color: 'border-blue-300 bg-blue-50', headerColor: 'text-blue-800' },
+                          quiet: { color: 'border-green-300 bg-green-50', headerColor: 'text-green-800' }
+                        }
+                        
+                        const config = statusConfig[status]
+                        
+                        return (
+                          <Card 
+                            key={facility.facility_id} 
+                            className={`cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-105 ${config.color} h-48`}
+                            onClick={() => {
+                              handleFacilityClick(facility)
+                              setShowDetailedTools(false)
+                            }}
+                          >
+                            <CardHeader className="pb-3">
+                              <CardTitle className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                    <Building className="h-6 w-6 text-gray-700" />
+                                  </div>
+                                  <div>
+                                    <h3 className={`text-lg font-semibold ${config.headerColor}`}>
+                                      {facility.facility_name}
+                                    </h3>
+                                    <p className="text-sm text-gray-600 capitalize">
+                                      {facility.facility_type} • {facility.staff_count} staff
+                                    </p>
+                                  </div>
+                                </div>
+                                <ChevronRight className="h-5 w-5 text-gray-400" />
+                              </CardTitle>
+                            </CardHeader>
+                            
+                            <CardContent className="pt-0">
+                              <div className="grid grid-cols-4 gap-2 mb-4">
+                                <div className="text-center p-2 bg-white rounded-lg shadow-sm">
+                                  <p className="text-xl font-bold text-gray-900">{facility.pending_swaps}</p>
+                                  <p className="text-xs text-gray-600">Pending</p>
+                                </div>
+                                <div className="text-center p-2 bg-white rounded-lg shadow-sm">
+                                  <p className="text-xl font-bold text-orange-600">{facility.urgent_swaps}</p>
+                                  <p className="text-xs text-gray-600">Urgent</p>
+                                </div>
+                                <div className="text-center p-2 bg-white rounded-lg shadow-sm">
+                                  <p className="text-xl font-bold text-red-600">{facility.emergency_swaps}</p>
+                                  <p className="text-xs text-gray-600">Emergency</p>
+                                </div>
+                                <div className="text-center p-2 bg-white rounded-lg shadow-sm">
+                                  <p className="text-xl font-bold text-green-600">{facility.recent_completions}</p>
+                                  <p className="text-xs text-gray-600">Resolved</p>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-600">Workload per Staff</span>
+                                  <span className="font-medium">{swapRatio.toFixed(1)} swaps/person</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-3">
+                                  <div 
+                                    className={`h-3 rounded-full transition-all duration-300 ${
+                                      swapRatio > 1 ? 'bg-red-500' :
+                                      swapRatio > 0.5 ? 'bg-orange-500' :
+                                      swapRatio > 0.2 ? 'bg-yellow-500' : 'bg-green-500'
+                                    }`}
+                                    style={{ width: `${Math.min(100, Math.max(10, swapRatio * 50))}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Analytics Tab - MASSIVE SIZE */}
+                {detailedToolsTab === 'analytics' && (
+                  <div className="h-full">
+                    <div className="mb-8">
+                      <h3 className="text-2xl font-bold">Analytics & Reports</h3>
+                      <p className="text-lg text-gray-600 mt-2">Comprehensive analytics, trends, and performance insights</p>
+                    </div>
+                    
+                    <div className="h-full min-h-[700px]">
+                      <AnalyticsTab
+                        facilitySummaries={facilitySummaries}
+                        allSwapRequests={allSwapRequests}
+                        apiClient={apiClient}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* Empty state for facilities */}
-              {facilitySummaries.length === 0 && (
-                <Card>
-                  <CardContent className="text-center py-12">
-                    <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Facilities Found</h3>
-                    <p className="text-gray-600">No facilities are currently configured for swap management.</p>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
-            {/* Analytics Tab - Using your existing component */}
-            <TabsContent value="analytics" className="space-y-6">
-              <AnalyticsTab
-                facilitySummaries={facilitySummaries}
-                allSwapRequests={allSwapRequests}
-                apiClient={apiClient}
-              />
-            </TabsContent>
-          </Tabs>
-
-          {/* Empty state for when no swaps exist */}
-          {allSwapRequests.length === 0 && !loading && (
-            <Card className="mt-8">
-              <CardContent className="text-center py-12">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">All Systems Green!</h3>
-                <p className="text-gray-600 mb-4">
-                  No swap requests to manage at the moment. Your team operations are running smoothly.
-                </p>
-                <Button variant="outline" onClick={loadManagerData}>
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Refresh Data
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+            </DialogContent>
+          </Dialog>
+        </div>
+        
         </div>
       </div>
 
