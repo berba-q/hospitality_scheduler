@@ -424,19 +424,25 @@ export default function FacilitiesManagementPage() {
             <div className="text-sm font-medium text-gray-700 mb-2">Active Zones</div>
             <div className="flex flex-wrap gap-1">
               {facility.zones?.slice(0, 4).map(zone => {
-                const ZoneIcon = ZONE_ICONS[zone] || Users
+                // Handle both string zones and zone objects
+                const zoneKey = typeof zone === 'string' ? zone : zone.zone_id || zone.id;
+                const zoneName = typeof zone === 'string' ? zone : zone.zone_name || zone.name || zoneKey;
+                const displayName = zoneName.replace('-', ' ');
+                
+                const ZoneIcon = ZONE_ICONS[zoneKey] || Users;
+                
                 return (
                   <div 
-                    key={zone}
+                    key={zoneKey}
                     className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs text-gray-700"
                   >
                     <ZoneIcon className="w-3 h-3" />
-                    {zone.replace('-', ' ')}
+                    {displayName}
                   </div>
                 )
               })}
               {facility.zones?.length > 4 && (
-                <div className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-500">
+                <div className="px-2 py-1 bg-gray-200 rounded text-xs text-gray-500">
                   +{facility.zones.length - 4} more
                 </div>
               )}

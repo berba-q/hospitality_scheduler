@@ -344,7 +344,7 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
               Current Zones ({zones.length})
             </h3>
 
-            {loading && zones.length === 0 ? (
+            {zonesLoading && zones.length === 0 ? (
               <div className="text-center py-8 text-gray-500">Loading zones...</div>
             ) : zones.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
