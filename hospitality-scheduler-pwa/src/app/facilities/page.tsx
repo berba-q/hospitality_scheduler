@@ -1,3 +1,4 @@
+// Main facilities page
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -41,6 +42,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth, useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/AppLayout'
+
+// Import the facility management modals
+import { AddFacilityModal } from '@/components/facility/AddFacilityModal'
+import { RoleManagementModal } from '@/components/facility/RoleManagementModal'
+import { ZoneManagementModal } from '@/components/facility/ZoneManagementModal'
+import { ShiftManagementModal } from '@/components/facility/ShiftManagementModal'
 
 // Real-world facility types with appropriate defaults
 const FACILITY_TYPES = [
@@ -159,11 +166,15 @@ export default function FacilitiesManagementPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedType, setSelectedType] = useState('all')
+  
+  // Modal states
   const [showAddModal, setShowAddModal] = useState(false)
   const [showShiftModal, setShowShiftModal] = useState(false)
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [showZoneModal, setShowZoneModal] = useState(false)
   const [editingFacility, setEditingFacility] = useState<Facility | null>(null)
+  
+  // Import states
   const [showImportProgress, setShowImportProgress] = useState(false)
   const [importProgress, setImportProgress] = useState(0)
   const [importStatus, setImportStatus] = useState<'uploading' | 'processing' | 'complete'>('uploading')
@@ -193,6 +204,22 @@ export default function FacilitiesManagementPage() {
       toast.error('Failed to load facilities')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Handle facility deletion
+  const handleDeleteFacility = async (facilityId: string, facilityName: string) => {
+    if (!confirm(`Are you sure you want to delete "${facilityName}"? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      await apiClient.deleteFacility(facilityId)
+      toast.success(`${facilityName} deleted successfully`)
+      await loadFacilities()
+    } catch (error: any) {
+      console.error('Failed to delete facility:', error)
+      toast.error(error.response?.data?.detail || 'Failed to delete facility')
     }
   }
 
@@ -234,10 +261,12 @@ export default function FacilitiesManagementPage() {
 
         return {
           name: row['Name'] || row['name'] || 'Unnamed Facility',
+          location: row['Location'] || row['location'] || '',
           address: row['Address'] || row['address'] || '',
-          type: facilityType.id,
-          zones: facilityType.zones,
-          roles: facilityType.commonRoles
+          facility_type: facilityType.id,
+          phone: row['Phone'] || row['phone'] || '',
+          email: row['Email'] || row['email'] || '',
+          description: row['Description'] || row['description'] || ''
         }
       })
 
@@ -278,7 +307,7 @@ export default function FacilitiesManagementPage() {
   // Filter facilities
   const filteredFacilities = facilities.filter((facility: Facility) => {
     const matchesSearch = facility.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         facility.address.toLowerCase().includes(searchQuery.toLowerCase())
+                         (facility.address || '').toLowerCase().includes(searchQuery.toLowerCase())
     const matchesType = selectedType === 'all' || facility.type === selectedType
     return matchesSearch && matchesType
   })
@@ -340,7 +369,7 @@ export default function FacilitiesManagementPage() {
                 </CardTitle>
                 <div className="flex items-center gap-2 mb-2">
                   <MapPin className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">{facility.address}</span>
+                  <span className="text-sm text-gray-600">{facility.address || 'No address'}</span>
                 </div>
                 <Badge 
                   variant="outline" 
@@ -364,6 +393,7 @@ export default function FacilitiesManagementPage() {
               <Button 
                 size="sm" 
                 variant="ghost" 
+                onClick={() => handleDeleteFacility(facility.id, facility.name)}
                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
               >
                 <Trash2 className="w-4 h-4" />
@@ -376,15 +406,15 @@ export default function FacilitiesManagementPage() {
           {/* Quick Stats */}
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div className="text-center">
-              <div className="text-lg font-bold text-blue-600">{facility.staff_count}</div>
+              <div className="text-lg font-bold text-blue-600">{facility.staff_count || 0}</div>
               <div className="text-xs text-gray-600">Staff</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-bold text-green-600">{facility.shifts?.length || 3}</div>
+              <div className="text-lg font-bold text-green-600">{facility.shifts?.length || 0}</div>
               <div className="text-xs text-gray-600">Shifts</div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-bold text-purple-600">{facility.active_schedules}</div>
+              <div className="text-lg font-bold text-purple-600">{facility.active_schedules || 0}</div>
               <div className="text-xs text-gray-600">Schedules</div>
             </div>
           </div>
@@ -393,7 +423,7 @@ export default function FacilitiesManagementPage() {
           <div className="mb-4">
             <div className="text-sm font-medium text-gray-700 mb-2">Active Zones</div>
             <div className="flex flex-wrap gap-1">
-              {facility.zones.slice(0, 4).map(zone => {
+              {facility.zones?.slice(0, 4).map(zone => {
                 const ZoneIcon = ZONE_ICONS[zone] || Users
                 return (
                   <div 
@@ -405,7 +435,7 @@ export default function FacilitiesManagementPage() {
                   </div>
                 )
               })}
-              {facility.zones.length > 4 && (
+              {facility.zones?.length > 4 && (
                 <div className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-500">
                   +{facility.zones.length - 4} more
                 </div>
@@ -615,6 +645,58 @@ export default function FacilitiesManagementPage() {
 
         {/* Import Progress Modal */}
         <ImportProgressModal />
+
+        {/* Facility Management Modals */}
+        <AddFacilityModal
+          open={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            loadFacilities()
+            setShowAddModal(false)
+          }}
+        />
+
+        <RoleManagementModal
+          open={showRoleModal}
+          onClose={() => {
+            setShowRoleModal(false)
+            setEditingFacility(null)
+          }}
+          facility={editingFacility}
+          onSuccess={() => {
+            loadFacilities()
+            setShowRoleModal(false)
+            setEditingFacility(null)
+          }}
+        />
+
+        <ZoneManagementModal
+          open={showZoneModal}
+          onClose={() => {
+            setShowZoneModal(false)
+            setEditingFacility(null)
+          }}
+          facility={editingFacility}
+          onSuccess={() => {
+            loadFacilities()
+            setShowZoneModal(false)
+            setEditingFacility(null)
+          }}
+        />
+
+        <ShiftManagementModal
+          open={showShiftModal}
+          onClose={() => {
+            setShowShiftModal(false)
+            setEditingFacility(null)
+          }}
+          facility={editingFacility}
+          onShiftsUpdated={() => {
+            loadFacilities()
+            setShowShiftModal(false)
+            setEditingFacility(null)
+          }}
+        />
       </div>
     </AppLayout>
   )

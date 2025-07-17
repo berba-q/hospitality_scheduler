@@ -1,4 +1,4 @@
-// AddFacilityModal.tsx
+// AddFacilityModal.tsx - component to add new facilities
 'use client'
 
 import { useState} from 'react'
@@ -138,7 +138,6 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
       setLoading(false)
     }
   }
-}
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
