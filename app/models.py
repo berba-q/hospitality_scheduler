@@ -27,7 +27,6 @@ class Facility(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
     
-    # NEW: Relationships to the new tables
     shifts: List["FacilityShift"] = Relationship(back_populates="facility", cascade_delete=True)
     roles: List["FacilityRole"] = Relationship(back_populates="facility", cascade_delete=True) 
     zones: List["FacilityZone"] = Relationship(back_populates="facility", cascade_delete=True)
@@ -56,7 +55,7 @@ class FacilityShift(SQLModel, table=True):
     
     # Relationships
     facility: Facility = Relationship(back_populates="shifts")
-    role_requirements: List["ShiftRoleRequirement"] = Relationship(back_populates="shift", cascade_delete=True)
+    rolerequirements: List["ShiftRoleRequirement"] = Relationship(back_populates="shift", cascade_delete=True)
     
 class FacilityRole(SQLModel, table=True):
     """Custom roles per facility with skill requirements"""  
@@ -78,7 +77,7 @@ class FacilityRole(SQLModel, table=True):
     
     # Relationships
     facility: Facility = Relationship(back_populates="roles")
-    shift_requirements: List["ShiftRoleRequirement"] = Relationship(back_populates="role", cascade_delete=True)
+    shiftrequirements: List["ShiftRoleRequirement"] = Relationship(back_populates="role", cascade_delete=True)
 
 class FacilityZone(SQLModel, table=True):
     """Zones/areas within a facility"""  

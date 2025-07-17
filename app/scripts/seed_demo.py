@@ -4,7 +4,9 @@ from sqlmodel import SQLModel, Session, select, create_engine, delete
 from app.models import (
     Tenant, Facility, Staff, User, Schedule, ShiftAssignment, 
     ScheduleConfig, StaffUnavailability, SwapRequest, SwapHistory,
-    ZoneAssignment, ScheduleTemplate, ScheduleOptimization
+    ZoneAssignment, ScheduleTemplate, ScheduleOptimization,
+    # NEW: Facility management models
+    FacilityShift, FacilityRole, FacilityZone, ShiftRoleRequirement
 )
 from app.core.security import hash_password
 from app.core.config import get_settings
@@ -29,6 +31,13 @@ def reset_database(session):
     session.execute(delete(StaffUnavailability))
     session.execute(delete(ShiftAssignment))
     session.execute(delete(Schedule))
+    
+    # NEW: Delete facility management tables
+    session.execute(delete(ShiftRoleRequirement))
+    session.execute(delete(FacilityShift))
+    session.execute(delete(FacilityRole))
+    session.execute(delete(FacilityZone))
+    
     session.execute(delete(Staff))
     session.execute(delete(Facility))
     session.execute(delete(User))
@@ -37,23 +46,182 @@ def reset_database(session):
     session.commit()
     print("✅ Database reset complete!")
 
+def get_facility_templates():
+    """Define facility templates with shifts, roles, and zones"""
+    return {
+        'hotel': {
+            'shifts': [
+                {'shift_name': 'Day Shift', 'start_time': '06:00', 'end_time': '14:00', 'requires_manager': False, 'min_staff': 3, 'max_staff': 8, 'color': 'blue', 'shift_order': 0},
+                {'shift_name': 'Evening Shift', 'start_time': '14:00', 'end_time': '22:00', 'requires_manager': True, 'min_staff': 4, 'max_staff': 10, 'color': 'orange', 'shift_order': 1},
+                {'shift_name': 'Night Shift', 'start_time': '22:00', 'end_time': '06:00', 'requires_manager': True, 'min_staff': 2, 'max_staff': 5, 'color': 'purple', 'shift_order': 2}
+            ],
+            'roles': [
+                {'role_name': 'Manager', 'min_skill_level': 4, 'max_skill_level': 5, 'is_management': True, 'hourly_rate_min': 25.0, 'hourly_rate_max': 35.0},
+                {'role_name': 'Assistant Manager', 'min_skill_level': 3, 'max_skill_level': 4, 'is_management': True, 'hourly_rate_min': 20.0, 'hourly_rate_max': 28.0},
+                {'role_name': 'Front Desk Agent', 'min_skill_level': 2, 'max_skill_level': 4, 'hourly_rate_min': 15.0, 'hourly_rate_max': 22.0},
+                {'role_name': 'Concierge', 'min_skill_level': 3, 'max_skill_level': 5, 'hourly_rate_min': 18.0, 'hourly_rate_max': 25.0},
+                {'role_name': 'Housekeeper', 'min_skill_level': 1, 'max_skill_level': 3, 'hourly_rate_min': 14.0, 'hourly_rate_max': 18.0},
+                {'role_name': 'Maintenance', 'min_skill_level': 2, 'max_skill_level': 4, 'hourly_rate_min': 16.0, 'hourly_rate_max': 24.0},
+                {'role_name': 'Security', 'min_skill_level': 2, 'max_skill_level': 4, 'hourly_rate_min': 15.0, 'hourly_rate_max': 20.0},
+                {'role_name': 'Bellhop', 'min_skill_level': 1, 'max_skill_level': 3, 'hourly_rate_min': 13.0, 'hourly_rate_max': 17.0},
+            ],
+            'zones': [
+                {'zone_id': 'front-desk', 'zone_name': 'Front Desk', 'description': 'Main reception and check-in area', 'required_roles': ['Front Desk Agent'], 'preferred_roles': ['Concierge'], 'min_staff_per_shift': 1, 'max_staff_per_shift': 3, 'display_order': 0},
+                {'zone_id': 'housekeeping', 'zone_name': 'Housekeeping', 'description': 'Room cleaning and maintenance', 'required_roles': ['Housekeeper'], 'preferred_roles': [], 'min_staff_per_shift': 2, 'max_staff_per_shift': 8, 'display_order': 1},
+                {'zone_id': 'lobby', 'zone_name': 'Lobby & Common Areas', 'description': 'Guest common areas and lobby', 'required_roles': [], 'preferred_roles': ['Concierge', 'Security'], 'min_staff_per_shift': 1, 'max_staff_per_shift': 3, 'display_order': 2},
+                {'zone_id': 'maintenance', 'zone_name': 'Maintenance', 'description': 'Building and equipment maintenance', 'required_roles': ['Maintenance'], 'preferred_roles': [], 'min_staff_per_shift': 1, 'max_staff_per_shift': 3, 'display_order': 3},
+            ]
+        },
+        'restaurant': {
+            'shifts': [
+                {'shift_name': 'Breakfast', 'start_time': '07:00', 'end_time': '11:00', 'requires_manager': False, 'min_staff': 2, 'max_staff': 5, 'color': 'yellow', 'shift_order': 0},
+                {'shift_name': 'Lunch', 'start_time': '11:00', 'end_time': '16:00', 'requires_manager': True, 'min_staff': 4, 'max_staff': 8, 'color': 'green', 'shift_order': 1},
+                {'shift_name': 'Dinner', 'start_time': '16:00', 'end_time': '23:00', 'requires_manager': True, 'min_staff': 5, 'max_staff': 12, 'color': 'red', 'shift_order': 2}
+            ],
+            'roles': [
+                {'role_name': 'Manager', 'min_skill_level': 4, 'max_skill_level': 5, 'is_management': True, 'hourly_rate_min': 22.0, 'hourly_rate_max': 32.0},
+                {'role_name': 'Chef', 'min_skill_level': 4, 'max_skill_level': 5, 'hourly_rate_min': 20.0, 'hourly_rate_max': 30.0},
+                {'role_name': 'Sous Chef', 'min_skill_level': 3, 'max_skill_level': 4, 'hourly_rate_min': 17.0, 'hourly_rate_max': 24.0},
+                {'role_name': 'Line Cook', 'min_skill_level': 2, 'max_skill_level': 4, 'hourly_rate_min': 14.0, 'hourly_rate_max': 19.0},
+                {'role_name': 'Prep Cook', 'min_skill_level': 1, 'max_skill_level': 3, 'hourly_rate_min': 13.0, 'hourly_rate_max': 16.0},
+                {'role_name': 'Server', 'min_skill_level': 2, 'max_skill_level': 4, 'hourly_rate_min': 12.0, 'hourly_rate_max': 18.0},
+                {'role_name': 'Bartender', 'min_skill_level': 3, 'max_skill_level': 5, 'hourly_rate_min': 15.0, 'hourly_rate_max': 25.0},
+                {'role_name': 'Host/Hostess', 'min_skill_level': 1, 'max_skill_level': 3, 'hourly_rate_min': 12.0, 'hourly_rate_max': 16.0},
+                {'role_name': 'Busser', 'min_skill_level': 1, 'max_skill_level': 2, 'hourly_rate_min': 11.0, 'hourly_rate_max': 14.0},
+            ],
+            'zones': [
+                {'zone_id': 'kitchen', 'zone_name': 'Kitchen', 'description': 'Food preparation area', 'required_roles': ['Chef', 'Line Cook'], 'preferred_roles': ['Sous Chef'], 'min_staff_per_shift': 2, 'max_staff_per_shift': 6, 'display_order': 0},
+                {'zone_id': 'dining', 'zone_name': 'Dining Room', 'description': 'Customer seating area', 'required_roles': ['Server'], 'preferred_roles': ['Host/Hostess'], 'min_staff_per_shift': 3, 'max_staff_per_shift': 8, 'display_order': 1},
+                {'zone_id': 'bar', 'zone_name': 'Bar', 'description': 'Beverage service area', 'required_roles': ['Bartender'], 'preferred_roles': [], 'min_staff_per_shift': 1, 'max_staff_per_shift': 3, 'display_order': 2},
+                {'zone_id': 'host-station', 'zone_name': 'Host Station', 'description': 'Guest greeting and seating', 'required_roles': ['Host/Hostess'], 'preferred_roles': [], 'min_staff_per_shift': 1, 'max_staff_per_shift': 2, 'display_order': 3},
+            ]
+        },
+        'cafe': {
+            'shifts': [
+                {'shift_name': 'Opening', 'start_time': '06:00', 'end_time': '12:00', 'requires_manager': False, 'min_staff': 2, 'max_staff': 4, 'color': 'green', 'shift_order': 0},
+                {'shift_name': 'Midday', 'start_time': '12:00', 'end_time': '18:00', 'requires_manager': True, 'min_staff': 3, 'max_staff': 6, 'color': 'orange', 'shift_order': 1},
+                {'shift_name': 'Closing', 'start_time': '18:00', 'end_time': '21:00', 'requires_manager': False, 'min_staff': 2, 'max_staff': 4, 'color': 'purple', 'shift_order': 2}
+            ],
+            'roles': [
+                {'role_name': 'Manager', 'min_skill_level': 3, 'max_skill_level': 5, 'is_management': True, 'hourly_rate_min': 18.0, 'hourly_rate_max': 25.0},
+                {'role_name': 'Barista', 'min_skill_level': 2, 'max_skill_level': 4, 'hourly_rate_min': 13.0, 'hourly_rate_max': 18.0},
+                {'role_name': 'Cashier', 'min_skill_level': 1, 'max_skill_level': 3, 'hourly_rate_min': 12.0, 'hourly_rate_max': 15.0},
+                {'role_name': 'Baker', 'min_skill_level': 3, 'max_skill_level': 5, 'hourly_rate_min': 15.0, 'hourly_rate_max': 22.0},
+            ],
+            'zones': [
+                {'zone_id': 'counter', 'zone_name': 'Service Counter', 'description': 'Order taking and payment', 'required_roles': ['Barista', 'Cashier'], 'preferred_roles': [], 'min_staff_per_shift': 1, 'max_staff_per_shift': 3, 'display_order': 0},
+                {'zone_id': 'prep', 'zone_name': 'Prep Area', 'description': 'Food and beverage preparation', 'required_roles': ['Barista'], 'preferred_roles': ['Baker'], 'min_staff_per_shift': 1, 'max_staff_per_shift': 2, 'display_order': 1},
+            ]
+        }
+    }
+
+def create_facility_configuration(session, facility, template_data):
+    """Create shifts, roles, zones, and role requirements for a facility"""
+    
+    print(f"  🔧 Setting up configuration for {facility.name}")
+    
+    # Create shifts
+    shifts = []
+    for shift_data in template_data['shifts']:
+        shift = FacilityShift(
+            facility_id=facility.id,
+            **shift_data
+        )
+        shifts.append(shift)
+        session.add(shift)
+    
+    # Create roles
+    roles = []
+    for role_data in template_data['roles']:
+        role = FacilityRole(
+            facility_id=facility.id,
+            **role_data
+        )
+        roles.append(role)
+        session.add(role)
+    
+    # Create zones
+    zones = []
+    for zone_data in template_data['zones']:
+        zone = FacilityZone(
+            facility_id=facility.id,
+            **zone_data
+        )
+        zones.append(zone)
+        session.add(zone)
+    
+    # Commit to get IDs
+    session.commit()
+    session.refresh(facility)
+    
+    # Create shift-role requirements
+    shift_role_requirements = []
+    for shift in shifts:
+        # Each shift needs at least one manager if requires_manager is True
+        if shift.requires_manager:
+            manager_roles = [r for r in roles if r.is_management]
+            for manager_role in manager_roles:
+                requirement = ShiftRoleRequirement(
+                    facility_shift_id=shift.id,
+                    facility_role_id=manager_role.id,
+                    min_required=1,
+                    max_allowed=2,
+                    is_required=True
+                )
+                shift_role_requirements.append(requirement)
+                session.add(requirement)
+        
+        # Add requirements for key roles based on facility type
+        if facility.facility_type == 'hotel':
+            if 'Day' in shift.shift_name or 'Evening' in shift.shift_name:
+                # Front desk needs agents
+                front_desk_roles = [r for r in roles if 'Front Desk' in r.role_name]
+                for role in front_desk_roles:
+                    requirement = ShiftRoleRequirement(
+                        facility_shift_id=shift.id,
+                        facility_role_id=role.id,
+                        min_required=1,
+                        max_allowed=3,
+                        is_required=True
+                    )
+                    shift_role_requirements.append(requirement)
+                    session.add(requirement)
+        
+        elif facility.facility_type == 'restaurant':
+            # Kitchen always needs cooks
+            cook_roles = [r for r in roles if 'Cook' in r.role_name or r.role_name == 'Chef']
+            for role in cook_roles[:2]:  # Limit to 2 cook roles per shift
+                requirement = ShiftRoleRequirement(
+                    facility_shift_id=shift.id,
+                    facility_role_id=role.id,
+                    min_required=1 if role.role_name == 'Chef' else 1,
+                    max_allowed=3,
+                    is_required=True
+                )
+                shift_role_requirements.append(requirement)
+                session.add(requirement)
+            
+            # Dining room needs servers
+            if shift.shift_name in ['Lunch', 'Dinner']:
+                server_roles = [r for r in roles if r.role_name == 'Server']
+                for role in server_roles:
+                    requirement = ShiftRoleRequirement(
+                        facility_shift_id=shift.id,
+                        facility_role_id=role.id,
+                        min_required=2,
+                        max_allowed=6,
+                        is_required=True
+                    )
+                    shift_role_requirements.append(requirement)
+                    session.add(requirement)
+    
+    session.commit()
+    print(f"    ✅ Created {len(shifts)} shifts, {len(roles)} roles, {len(zones)} zones, {len(shift_role_requirements)} role requirements")
+    
+    return shifts, roles, zones
+
 def create_matched_staff_and_users(facilities, tenant_id, session):
     """Create Staff records and matching User accounts with the same emails"""
-    
-    # Enhanced roles with proper distribution
-    hotel_roles = [
-        "Receptionist", "Concierge", "Manager", "Assistant Manager",
-        "Housekeeping", "Maintenance", "Security", "Bellhop",
-        "Guest Services", "Night Auditor", "Valet", "Front Desk Agent",
-        "Reservations Agent", "Spa Attendant", "Pool Attendant"
-    ]
-    
-    restaurant_roles = [
-        "Chef", "Sous Chef", "Line Cook", "Prep Cook",
-        "Waiter", "Waitress", "Host/Hostess", "Bartender", 
-        "Busser", "Manager", "Assistant Manager", "Server Assistant",
-        "Sommelier", "Dishwasher", "Food Runner", "Kitchen Assistant"
-    ]
     
     staff_objs = []
     staff_users = []  # Track created staff users for JSON output
@@ -101,18 +269,30 @@ def create_matched_staff_and_users(facilities, tenant_id, session):
     
     # Now create staff members and matching user accounts
     for facility in facilities:
-        # Determine staff count and roles based on facility type
-        if "Hotel" in facility.name or "Lodge" in facility.name or "Resort" in facility.name or "Spa" in facility.name:
-            staff_count = randint(18, 28)  # Hotels need more staff
-            available_roles = hotel_roles
-        else:  # Restaurant
-            staff_count = randint(12, 20)  # Restaurants need fewer staff
-            available_roles = restaurant_roles
+        # Get facility roles to match staff to appropriate roles
+        facility_roles = session.exec(
+            select(FacilityRole).where(FacilityRole.facility_id == facility.id)
+        ).all()
+        
+        if not facility_roles:
+            print(f"  ⚠️  No roles found for {facility.name}, skipping staff creation")
+            continue
+        
+        # Determine staff count based on facility type
+        if facility.facility_type == "hotel":
+            staff_count = randint(18, 28)
+        elif facility.facility_type == "restaurant":
+            staff_count = randint(12, 20)
+        else:  # cafe, etc.
+            staff_count = randint(8, 15)
         
         print(f"📋 Creating {staff_count} staff for {facility.name}")
         
-        # Ensure we have some managers at each facility
-        managers_needed = randint(2, 4)
+        # Ensure we have managers
+        manager_roles = [r for r in facility_roles if r.is_management]
+        regular_roles = [r for r in facility_roles if not r.is_management]
+        
+        managers_needed = min(randint(2, 4), len(manager_roles))
         
         for i in range(staff_count):
             # Generate realistic fake names and emails
@@ -146,27 +326,20 @@ def create_matched_staff_and_users(facilities, tenant_id, session):
                 email = f"{base_email}{randint(100, 999)}@staff.com"
             
             # Determine role and skill level
-            if i < managers_needed:
-                role = choice(["Manager", "Assistant Manager"])
-                skill_level = randint(4, 5)
-                is_staff_manager = True  # These are facility managers
+            if i < managers_needed and manager_roles:
+                role_obj = choice(manager_roles)
+                skill_level = randint(role_obj.min_skill_level, role_obj.max_skill_level)
+                is_staff_manager = True
             else:
-                role = choice([r for r in available_roles if "Manager" not in r])
+                role_obj = choice(regular_roles) if regular_roles else choice(facility_roles)
+                skill_level = randint(role_obj.min_skill_level, role_obj.max_skill_level)
                 is_staff_manager = False
-                
-                # Assign skill levels based on role hierarchy
-                if role in ["Chef", "Sous Chef", "Concierge", "Front Desk Agent", "Sommelier"]:
-                    skill_level = randint(3, 5)
-                elif role in ["Line Cook", "Waiter", "Waitress", "Bartender", "Security", "Receptionist"]:
-                    skill_level = randint(2, 4)
-                else:  # Entry level roles
-                    skill_level = randint(1, 3)
             
             # Create Staff record
             staff = Staff(
                 full_name=full_name,
-                email=email,  # 🔑 This email will match the User account
-                role=role,
+                email=email,
+                role=role_obj.role_name,  # Use the actual role from FacilityRole
                 skill_level=skill_level,
                 facility_id=facility.id,
                 phone=fake.phone_number(),
@@ -178,11 +351,11 @@ def create_matched_staff_and_users(facilities, tenant_id, session):
             # Create matching User account for this staff member
             password = "staff123"  # Standard password for all staff
             user_account = {
-                "email": email,  # 🔑 Same email as Staff record
+                "email": email,
                 "password": password,
-                "is_manager": is_staff_manager,  # Facility managers are also User managers
+                "is_manager": is_staff_manager,
                 "name": full_name,
-                "role": role,
+                "role": role_obj.role_name,
                 "facility": facility.name
             }
             
@@ -208,6 +381,73 @@ def create_matched_staff_and_users(facilities, tenant_id, session):
     print(f"✅ Created {len(staff_objs)} staff members with matching user accounts")
     
     return staff_objs, all_created_accounts, staff_users
+
+def create_enhanced_schedules(session, facilities, staff_objs, base_date):
+    """Create more realistic schedules using the new shift system"""
+    
+    print("📅 Creating enhanced schedules with facility shifts...")
+    
+    demo_facilities = facilities[:2]  # Use first 2 facilities for demo schedules
+    
+    for facility in demo_facilities:
+        # Get facility shifts
+        facility_shifts = session.exec(
+            select(FacilityShift)
+            .where(FacilityShift.facility_id == facility.id)
+            .order_by(FacilityShift.shift_order)
+        ).all()
+        
+        if not facility_shifts:
+            print(f"  ⚠️  No shifts found for {facility.name}, skipping schedule creation")
+            continue
+        
+        facility_staff = [s for s in staff_objs if s.facility_id == facility.id and s.is_active]
+        active_staff = facility_staff[:15]  # Use first 15 active staff
+        
+        if not active_staff:
+            print(f"  ⚠️  No active staff found for {facility.name}, skipping schedule creation")
+            continue
+        
+        # Create 4 weeks of schedules (2 past, 2 future)
+        for week_offset in range(-2, 3):
+            week_start = base_date + timedelta(weeks=week_offset)
+            # Ensure it's a Monday
+            week_start = week_start - timedelta(days=week_start.weekday())
+            
+            schedule = Schedule(
+                facility_id=facility.id,
+                week_start=week_start
+            )
+            session.add(schedule)
+            session.flush()  # Get the ID
+            
+            # Create realistic shift assignments using facility shifts
+            assignments = []
+            
+            for day in range(7):  # Monday to Sunday
+                for shift_idx, facility_shift in enumerate(facility_shifts):
+                    # Determine how many staff needed for this shift
+                    staff_needed = randint(facility_shift.min_staff, 
+                                         min(facility_shift.max_staff, len(active_staff)))
+                    
+                    # Randomly assign staff to shifts, ensuring variety
+                    available_staff = active_staff.copy()
+                    shuffle(available_staff)
+                    
+                    for i in range(staff_needed):
+                        if i < len(available_staff):
+                            assignment = ShiftAssignment(
+                                schedule_id=schedule.id,
+                                day=day,
+                                shift=shift_idx,  # Use the facility shift index
+                                staff_id=available_staff[i].id
+                            )
+                            assignments.append(assignment)
+            
+            session.add_all(assignments)
+            print(f"   📋 Created schedule for {facility.name}, week of {week_start} ({len(assignments)} assignments)")
+    
+    session.commit()
 
 def save_accounts_to_json(all_accounts, staff_accounts):
     """Save account information to JSON files for reference"""
@@ -275,23 +515,26 @@ def seed():
         session.refresh(tenant)
         print(f"✅ Created tenant: {tenant.name}")
 
-        # Create facilities
+        # Create facilities with enhanced types
         facilities_data = [
             {"name": "Seaside Hotel", "location": "123 Ocean Drive, Miami Beach", "type": "hotel"},
             {"name": "Downtown Bistro", "location": "456 Main St, Downtown", "type": "restaurant"},
             {"name": "Mountain Lodge", "location": "789 Pine Ridge, Aspen", "type": "hotel"},
             {"name": "Rooftop Restaurant", "location": "100 High St, Manhattan", "type": "restaurant"},
             {"name": "Beach Resort", "location": "555 Paradise Blvd, Malibu", "type": "hotel"},
-            {"name": "City Cafe", "location": "789 Urban Ave, Chicago", "type": "restaurant"},
+            {"name": "City Cafe", "location": "789 Urban Ave, Chicago", "type": "cafe"},
             {"name": "Luxury Spa Hotel", "location": "321 Wellness Way, Napa", "type": "hotel"},
             {"name": "Sports Bar & Grill", "location": "888 Stadium Dr, Denver", "type": "restaurant"},
         ]
         
+        templates = get_facility_templates()
         facilities = []
+        
         for fac_data in facilities_data:
             facility = Facility(
                 name=fac_data["name"],
                 location=fac_data["location"],
+                facility_type=fac_data["type"],
                 tenant_id=tenant.id
             )
             facilities.append(facility)
@@ -299,6 +542,21 @@ def seed():
         session.add_all(facilities)
         session.commit()
         print(f"✅ Created {len(facilities)} facilities")
+
+        # 🔧 CREATE FACILITY CONFIGURATIONS (shifts, roles, zones)
+        print("🔧 Setting up facility configurations...")
+        all_shifts = []
+        all_roles = []
+        all_zones = []
+        
+        for facility in facilities:
+            template_data = templates.get(facility.facility_type, templates['hotel'])
+            shifts, roles, zones = create_facility_configuration(session, facility, template_data)
+            all_shifts.extend(shifts)
+            all_roles.extend(roles)
+            all_zones.extend(zones)
+        
+        print(f"✅ Created facility configurations: {len(all_shifts)} shifts, {len(all_roles)} roles, {len(all_zones)} zones")
 
         # 🔑 CREATE MATCHING STAFF AND USER ACCOUNTS
         staff_objs, all_accounts, staff_accounts = create_matched_staff_and_users(
@@ -308,60 +566,9 @@ def seed():
         # 📄 SAVE ACCOUNTS TO JSON
         account_data = save_accounts_to_json(all_accounts, staff_accounts)
         
-        # 📅 CREATE SAMPLE SCHEDULES
-        print("📅 Creating sample schedules...")
-        
+        # 📅 CREATE ENHANCED SCHEDULES
         base_date = date.today()
-        demo_facilities = facilities[:2]  # Use first 2 facilities for demo schedules
-        
-        for facility in demo_facilities:
-            facility_staff = [s for s in staff_objs if s.facility_id == facility.id and s.is_active]
-            active_staff = facility_staff[:15]  # Use first 15 active staff
-            
-            # Create 4 weeks of schedules (2 past, 2 future)
-            for week_offset in range(-2, 3):
-                week_start = base_date + timedelta(weeks=week_offset)
-                # Ensure it's a Monday
-                week_start = week_start - timedelta(days=week_start.weekday())
-                
-                schedule = Schedule(
-                    facility_id=facility.id,
-                    week_start=week_start
-                )
-                session.add(schedule)
-                session.flush()  # Get the ID
-                
-                # Create realistic shift assignments
-                assignments = []
-                
-                for day in range(7):  # Monday to Sunday
-                    for shift in range(3):  # Morning, Afternoon, Evening
-                        # Determine how many staff needed per shift
-                        if "Hotel" in facility.name:
-                            staff_needed = randint(2, 4)
-                        else:  # Restaurant
-                            staff_needed = randint(2, 3)
-                        
-                        # Randomly assign staff to shifts
-                        shift_staff = choice(active_staff) if active_staff else None
-                        for _ in range(staff_needed):
-                            if shift_staff and len(active_staff) > 0:
-                                assignment = ShiftAssignment(
-                                    schedule_id=schedule.id,
-                                    day=day,
-                                    shift=shift,
-                                    staff_id=shift_staff.id
-                                )
-                                assignments.append(assignment)
-                                
-                                # Rotate to next staff member
-                                current_index = active_staff.index(shift_staff)
-                                shift_staff = active_staff[(current_index + 1) % len(active_staff)]
-                
-                session.add_all(assignments)
-                print(f"   📋 Created schedule for {facility.name}, week of {week_start} ({len(assignments)} assignments)")
-        
-        session.commit()
+        create_enhanced_schedules(session, facilities, staff_objs, base_date)
         
         # 🔄 CREATE SAMPLE SWAP REQUESTS
         print("🔄 Creating sample swap requests...")
@@ -385,15 +592,15 @@ def seed():
         
         urgency_levels = ["low", "normal", "high", "emergency"]
         swap_statuses = [
-                        "pending", 
-                        "manager_approved", 
-                        "staff_accepted", 
-                        "staff_declined", 
-                        "assigned", 
-                        "assignment_failed", 
-                        "executed", 
-                        "declined"
-                        ]
+            "pending", 
+            "manager_approved", 
+            "staff_accepted", 
+            "staff_declined", 
+            "assigned", 
+            "assignment_failed", 
+            "executed", 
+            "declined"
+        ]
         
         created_swaps = 0
         for schedule in recent_schedules[:3]:  # Create swaps for first 3 schedules
@@ -454,23 +661,124 @@ def seed():
         session.commit()
         print(f"✅ Created {created_swaps} sample swap requests")
         
+        # 🔧 CREATE SAMPLE SCHEDULE CONFIGURATIONS
+        print("🔧 Creating sample schedule configurations...")
+        
+        created_configs = 0
+        for facility in facilities[:4]:  # Create configs for first 4 facilities
+            # Create comprehensive schedule config
+            schedule_config = ScheduleConfig(
+                facility_id=facility.id,
+                min_rest_hours=randint(8, 12),
+                max_consecutive_days=randint(5, 7),
+                max_weekly_hours=choice([32, 36, 40, 44]),
+                min_staff_per_shift=2 if facility.facility_type == 'cafe' else 3,
+                max_staff_per_shift=randint(8, 15),
+                require_manager_per_shift=choice([True, False]),
+                allow_overtime=choice([True, False]),
+                weekend_restrictions=choice([True, False]),
+                shift_role_requirements={
+                    "zone_role_mapping": {
+                        "front-desk": ["Front Desk Agent", "Manager"] if facility.facility_type == 'hotel' else [],
+                        "kitchen": ["Chef", "Line Cook", "Prep Cook"] if facility.facility_type in ['restaurant', 'cafe'] else [],
+                        "dining": ["Server", "Host/Hostess"] if facility.facility_type == 'restaurant' else [],
+                        "bar": ["Bartender"] if facility.facility_type in ['restaurant', 'cafe'] else [],
+                        "housekeeping": ["Housekeeper"] if facility.facility_type == 'hotel' else []
+                    },
+                    "shift_requirements": {
+                        "0": {"min_staff": 2, "required_roles": [], "min_skill_level": 1},
+                        "1": {"min_staff": 3, "required_roles": ["Manager"] if facility.facility_type == 'hotel' else [], "min_skill_level": 1},
+                        "2": {"min_staff": 2, "required_roles": ["Manager"], "min_skill_level": 2}
+                    },
+                    "skill_requirements": {
+                        "Manager": 4,
+                        "Chef": 3,
+                        "Server": 2,
+                        "Front Desk Agent": 2,
+                        "Housekeeper": 1
+                    }
+                }
+            )
+            session.add(schedule_config)
+            created_configs += 1
+        
+        session.commit()
+        print(f"✅ Created {created_configs} schedule configurations")
+        
+        # 📊 CREATE SAMPLE STAFF UNAVAILABILITY
+        print("📊 Creating sample staff unavailability records...")
+        
+        unavailabilities = []
+        for staff in staff_objs[:20]:  # Create unavailability for first 20 staff
+            # Create 1-3 unavailability periods per staff member
+            for _ in range(randint(1, 3)):
+                start_date = base_date + timedelta(days=randint(-30, 60))
+                
+                # 70% single day, 30% multi-day
+                if randint(1, 10) <= 7:
+                    end_date = start_date
+                else:
+                    end_date = start_date + timedelta(days=randint(1, 5))
+                
+                unavailability = StaffUnavailability(
+                    staff_id=staff.id,
+                    start=start_date,
+                    end=end_date,
+                    reason=choice([
+                        "Vacation",
+                        "Medical appointment",
+                        "Family commitment",
+                        "Personal time off",
+                        "Training/Education",
+                        "Jury duty",
+                        "Wedding",
+                        "Sick leave"
+                    ]),
+                    is_recurring=choice([True, False])
+                )
+                unavailabilities.append(unavailability)
+        
+        session.add_all(unavailabilities)
+        session.commit()
+        print(f"✅ Created {len(unavailabilities)} staff unavailability records")
+        
         # 📊 PRINT COMPREHENSIVE SUMMARY
         print("\n" + "="*80)
-        print("🎉 DEMO DATA CREATION COMPLETE")
+        print("🎉 ENHANCED DEMO DATA CREATION COMPLETE")
         print("="*80)
         print(f"🏢 Tenant: {tenant.name}")
         print(f"🏨 Facilities: {len(facilities)}")
         
+        facility_summary = {}
         for fac in facilities:
             staff_count = len([s for s in staff_objs if s.facility_id == fac.id])
-            print(f"   • {fac.name}: {staff_count} staff")
+            shifts_count = len([s for s in all_shifts if s.facility_id == fac.id])
+            roles_count = len([r for r in all_roles if r.facility_id == fac.id])
+            zones_count = len([z for z in all_zones if z.facility_id == fac.id])
+            
+            print(f"   • {fac.name} ({fac.facility_type}):")
+            print(f"     - {staff_count} staff, {shifts_count} shifts, {roles_count} roles, {zones_count} zones")
+            
+            facility_summary[fac.name] = {
+                "type": fac.facility_type,
+                "staff": staff_count,
+                "shifts": shifts_count,
+                "roles": roles_count,
+                "zones": zones_count
+            }
         
-        print(f"\n👥 Total Staff Records: {len(staff_objs)}")
-        print(f"👤 Total User Accounts: {len(all_accounts)}")
-        print(f"📅 Sample Schedules: {len(recent_schedules)}")
-        print(f"🔄 Sample Swap Requests: {created_swaps}")
+        print(f"\n📊 TOTALS:")
+        print(f"👥 Staff Records: {len(staff_objs)}")
+        print(f"👤 User Accounts: {len(all_accounts)}")
+        print(f"🔄 Shifts: {len(all_shifts)}")
+        print(f"👔 Roles: {len(all_roles)}")
+        print(f"🏢 Zones: {len(all_zones)}")
+        print(f"📅 Schedules: {len(recent_schedules)}")
+        print(f"🔄 Swap Requests: {created_swaps}")
+        print(f"⚙️  Schedule Configs: {created_configs}")
+        print(f"❌ Unavailabilities: {len(unavailabilities)}")
         
-        print(f"\n📁 Account Files Generated:")
+        print(f"\n📁 Files Generated:")
         print(f"   • demo_accounts.json - Complete account list")
         print(f"   • staff_accounts.json - Staff-only accounts for testing")
         
@@ -488,12 +796,21 @@ def seed():
         if len(account_data['staff']) > 5:
             print(f"   ... and {len(account_data['staff']) - 5} more staff accounts in staff_accounts.json")
         
-        print(f"\n🚀 TESTING NOTES:")
-        print(f"   • All staff emails now match User accounts!")
+        print(f"\n🚀 NEW FEATURES INCLUDED:")
+        print(f"   ✅ Facility-specific shifts, roles, and zones")
+        print(f"   ✅ Shift-role requirements and constraints")
+        print(f"   ✅ Enhanced schedule configurations")
+        print(f"   ✅ Realistic role-based staff assignments")
+        print(f"   ✅ Template-based facility setup")
+        print(f"   ✅ Staff unavailability tracking")
+        
+        print(f"\n📋 TESTING NOTES:")
+        print(f"   • All staff emails match User accounts!")
         print(f"   • Staff password: staff123")
         print(f"   • Manager password: manager123") 
-        print(f"   • Check JSON files for complete account lists")
-        print(f"   • Test staff dashboard with any staff account above")
+        print(f"   • Each facility has custom shifts, roles, and zones")
+        print(f"   • Schedules use facility-specific shift definitions")
+        print(f"   • Check facility management endpoints for full features")
         print("="*80)
 
 if __name__ == "__main__":
