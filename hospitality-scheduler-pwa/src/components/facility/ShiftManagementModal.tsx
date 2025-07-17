@@ -28,7 +28,7 @@ import {
   Calendar
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useApiClient } from '@/hooks/useApi'
+import { useFacilityShifts } from '@/hooks/useFacility'
 
 interface ShiftConfig {
   id: string
@@ -131,54 +131,20 @@ export function ShiftManagementModal({
   facility,
   onShiftsUpdated
 }: ShiftManagementModalProps) {
-  const apiClient = useApiClient()
-  const [shifts, setShifts] = useState<ShiftConfig[]>([])
-  const [loading, setLoading] = useState(false)
+  const { shifts, loading, updateShiftsBulk } = useFacilityShifts(facility?.id)
   const [saving, setSaving] = useState(false)
-  const [hasChanges, setHasChanges] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
 
-  // Load existing shifts when modal opens
-  useEffect(() => {
-    if (open && facility) {
-      loadShifts()
-    }
-  }, [open, facility])
+  const [localShifts, setLocalShifts] = useState<ShiftConfig[]>([])
+  const [hasChanges, setHasChanges] = useState(false)
 
-  const loadShifts = async () => {
-    setLoading(true)
-    try {
-      // In real implementation, load from API
-      // const shiftsData = await apiClient.getFacilityShifts(facility.id)
-      
-      // For demo, use template data or existing shifts
-      if (facility.shifts && facility.shifts.length > 0) {
-        setShifts(facility.shifts.map((shift, index) => ({
-          ...shift,
-          id: shift.id || `shift-${index}`,
-          shift_order: index,
-          is_active: true,
-          color: shift.color || SHIFT_COLORS[index % SHIFT_COLORS.length].id
-        })))
-      } else {
-        // Use template for facility type
-        const template = SHIFT_TEMPLATES[facility.type] || SHIFT_TEMPLATES.hotel
-        setShifts(template.map((shift, index) => ({
-          ...shift,
-          id: `shift-${Date.now()}-${index}`,
-          shift_order: index,
-          is_active: true
-        })))
-      }
+    useEffect(() => {
+    if (shifts.length > 0) {
+      setLocalShifts([...shifts])
       setHasChanges(false)
-    } catch (error) {
-      console.error('Failed to load shifts:', error)
-      toast.error('Failed to load shift configuration')
-    } finally {
-      setLoading(false)
     }
-  }
+  }, [shifts])
 
   const validateShifts = (shiftsToValidate: ShiftConfig[]): string[] => {
     const errors: string[] = []
@@ -230,51 +196,48 @@ export function ShiftManagementModal({
       shift_order: shifts.length,
       color: SHIFT_COLORS[shifts.length % SHIFT_COLORS.length].id
     }
-    setShifts([...shifts, newShift])
+    setLocalShifts([...localShifts, newShift]) // ✅ Use local state for editing
     setHasChanges(true)
   }
 
   const updateShift = (index: number, field: keyof ShiftConfig, value: any) => {
-    const updated = shifts.map((shift, i) => 
+    const updated = localShifts.map((shift, i) => 
       i === index ? { ...shift, [field]: value } : shift
     )
-    setShifts(updated)
+    setLocalShifts(updated) // ✅ Use local state for editing
     setHasChanges(true)
-    
-    // Clear validation errors when user makes changes
     setValidationErrors([])
   }
 
   const removeShift = (index: number) => {
-    if (shifts.length <= 1) {
+    if (localShifts.length <= 1) {
       toast.error('At least one shift is required')
       return
     }
-    setShifts(shifts.filter((_, i) => i !== index))
+    setLocalShifts(localShifts.filter((_, i) => i !== index)) // ✅ Use local state
     setHasChanges(true)
   }
 
   const moveShift = (index: number, direction: 'up' | 'down') => {
-    const newShifts = [...shifts]
+    const newShifts = [...localShifts] // ✅ Use local state
     const targetIndex = direction === 'up' ? index - 1 : index + 1
     
-    if (targetIndex < 0 || targetIndex >= shifts.length) return
+    if (targetIndex < 0 || targetIndex >= localShifts.length) return
     
     [newShifts[index], newShifts[targetIndex]] = [newShifts[targetIndex], newShifts[index]]
     
-    // Update shift orders
     newShifts.forEach((shift, i) => {
       shift.shift_order = i
     })
     
-    setShifts(newShifts)
+    setLocalShifts(newShifts)
     setHasChanges(true)
   }
 
   const loadTemplate = (facilityType: string) => {
     const template = SHIFT_TEMPLATES[facilityType]
     if (template) {
-      setShifts(template.map((shift, index) => ({
+      setLocalShifts(template.map((shift, index) => ({
         ...shift,
         id: `shift-${Date.now()}-${index}`,
         shift_order: index,
@@ -287,13 +250,13 @@ export function ShiftManagementModal({
   }
 
   const resetToOriginal = () => {
-    loadShifts()
+    setLocalShifts([...shifts]) // ✅ Reset to hook's original data
     setHasChanges(false)
     setValidationErrors([])
   }
 
   const saveShifts = async () => {
-    const errors = validateShifts(shifts)
+    const errors = validateShifts(localShifts) // ✅ Validate local edits
     if (errors.length > 0) {
       setValidationErrors(errors)
       return
@@ -301,25 +264,16 @@ export function ShiftManagementModal({
 
     setSaving(true)
     try {
-      // In real implementation, save to API
-      // await apiClient.updateFacilityShifts(facility.id, shifts)
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      toast.success('Shift configuration saved successfully!')
+      await updateShiftsBulk(localShifts) // ✅ Save local edits via hook
       setHasChanges(false)
       setValidationErrors([])
       
-      // Notify parent component
       if (onShiftsUpdated) {
         onShiftsUpdated()
       }
-      
       onClose()
     } catch (error) {
-      console.error('Failed to save shifts:', error)
-      toast.error('Failed to save shift configuration')
+      // Hook handles error display
     } finally {
       setSaving(false)
     }

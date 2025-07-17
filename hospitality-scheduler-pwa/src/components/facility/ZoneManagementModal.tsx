@@ -24,7 +24,7 @@ import {
   Grid,
   Target
 } from 'lucide-react'
-import { useApiClient } from '@/hooks/useApi'
+import { useFacilityZones, useFacilityRoles } from '@/hooks/useFacility'
 import { toast } from 'sonner'
 
 interface ZoneManagementModalProps {
@@ -48,10 +48,7 @@ interface Zone {
 }
 
 export function ZoneManagementModal({ open, onClose, facility, onSuccess }: ZoneManagementModalProps) {
-  const apiClient = useApiClient()
-  const [loading, setLoading] = useState(false)
-  const [zones, setZones] = useState<Zone[]>([])
-  const [roles, setRoles] = useState<any[]>([])
+  const { zones, loading: zonesLoading, createZone, updateZone, deleteZone } = useFacilityZones(facility?.id)
   const [editingZone, setEditingZone] = useState<Zone | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   
@@ -67,56 +64,24 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
     display_order: 0
   })
 
-  useEffect(() => {
-    if (open && facility) {
-      loadFacilityZones()
-      loadFacilityRoles()
-    }
-  }, [open, facility])
-
-  const loadFacilityZones = async () => {
-    try {
-      setLoading(true)
-      const data = await apiClient.getFacilityZones(facility.id)
-      setZones(data.sort((a: Zone, b: Zone) => a.display_order - b.display_order))
-    } catch (error) {
-      console.error('Failed to load zones:', error)
-      toast.error('Failed to load zones')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadFacilityRoles = async () => {
-    try {
-      const data = await apiClient.getFacilityRoles(facility.id)
-      setRoles(data)
-    } catch (error) {
-      console.error('Failed to load roles:', error)
-    }
-  }
-
   const generateZoneId = (zoneName: string) => {
     return zoneName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
   }
 
   const handleAddZone = async () => {
-    if (!newZone.zone_name) {
-      toast.error('Zone name is required')
-      return
-    }
+  if (!newZone.zone_name) {
+    toast.error('Zone name is required')
+    return
+  }
 
-    const zoneData = {
+  const zoneData = {
       ...newZone,
       zone_id: newZone.zone_id || generateZoneId(newZone.zone_name),
       display_order: zones.length
     }
 
     try {
-      setLoading(true)
-      await apiClient.createFacilityZone(facility.id, zoneData)
-      toast.success(`Zone "${zoneData.zone_name}" created successfully`)
-      await loadFacilityZones()
+      await createZone(zoneData)
       setShowAddForm(false)
       setNewZone({
         zone_id: '',
@@ -130,46 +95,31 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
         display_order: 0
       })
       onSuccess()
-    } catch (error: any) {
-      console.error('Failed to create zone:', error)
-      toast.error(error.response?.data?.detail || 'Failed to create zone')
-    } finally {
-      setLoading(false)
+    } catch (error) {
+      // Hook already handles error toasts and logging
     }
   }
 
   const handleUpdateZone = async (zoneId: string, updatedZone: Zone) => {
     try {
-      setLoading(true)
-      await apiClient.updateFacilityZone(facility.id, zoneId, updatedZone)
-      toast.success(`Zone "${updatedZone.zone_name}" updated successfully`)
-      await loadFacilityZones()
+      await updateZone(zoneId, updatedZone)
       setEditingZone(null)
       onSuccess()
-    } catch (error: any) {
-      console.error('Failed to update zone:', error)
-      toast.error(error.response?.data?.detail || 'Failed to update zone')
-    } finally {
-      setLoading(false)
+    } catch (error) {
+      // Hook handles error display
     }
   }
 
-  const handleDeleteZone = async (zoneId: string, zoneName: string) => {
+ const handleDeleteZone = async (zoneId: string, zoneName: string) => {
     if (!confirm(`Are you sure you want to delete the zone "${zoneName}"?`)) {
       return
     }
 
     try {
-      setLoading(true)
-      await apiClient.deleteFacilityZone(facility.id, zoneId)
-      toast.success(`Zone "${zoneName}" deleted successfully`)
-      await loadFacilityZones()
+      await deleteZone(zoneId, zoneName)
       onSuccess()
-    } catch (error: any) {
-      console.error('Failed to delete zone:', error)
-      toast.error(error.response?.data?.detail || 'Failed to delete zone')
-    } finally {
-      setLoading(false)
+    } catch (error) {
+      // Hook handles error display
     }
   }
 
@@ -180,20 +130,12 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
     if (newIndex < 0 || newIndex >= zones.length) return
 
-    const reorderedZones = [...zones]
-    const [movedZone] = reorderedZones.splice(currentIndex, 1)
-    reorderedZones.splice(newIndex, 0, movedZone)
+    const movedZone = zones[currentIndex]
 
     try {
-      setLoading(true)
-      // Update the moved zone's display_order
-      await apiClient.updateFacilityZone(facility.id, zoneId, { ...movedZone, display_order: newIndex })
-      await loadFacilityZones()
+      await updateZone(zoneId, { ...movedZone, display_order: newIndex })
     } catch (error) {
-      console.error('Failed to reorder zone:', error)
-      toast.error('Failed to reorder zone')
-    } finally {
-      setLoading(false)
+      // Hook handles error display
     }
   }
 

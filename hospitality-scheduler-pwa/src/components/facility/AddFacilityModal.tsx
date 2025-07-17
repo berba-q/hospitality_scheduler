@@ -1,13 +1,13 @@
 // AddFacilityModal.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState} from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select } from '@/components/ui/select'
+//import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { 
@@ -22,7 +22,7 @@ import {
   CheckCircle,
   Zap
 } from 'lucide-react'
-import { useApiClient } from '@/hooks/useApi'
+import { useFacilities } from '@/hooks/useFacility'
 import { toast } from 'sonner'
 
 interface AddFacilityModalProps {
@@ -85,7 +85,7 @@ const FACILITY_TYPES = [
 ]
 
 export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalProps) {
-  const apiClient = useApiClient()
+  const { createFacility} = useFacilities()
   const [loading, setLoading] = useState(false)
   const [selectedType, setSelectedType] = useState<string>('')
   const [formData, setFormData] = useState({
@@ -116,9 +116,7 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
     setLoading(true)
     
     try {
-      // Create facility with default configuration
-      await apiClient.createFacility(formData)
-      toast.success(`${formData.name} created successfully with default configuration!`)
+      await createFacility(formData)
       onSuccess()
       onClose()
       
@@ -134,13 +132,13 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
       })
       setSelectedType('')
       
-    } catch (error: any) {
-      console.error('Failed to create facility:', error)
-      toast.error(error.response?.data?.detail || 'Failed to create facility')
+    } catch (error) {
+      // Hook already handles error display
     } finally {
       setLoading(false)
     }
   }
+}
 
   return (
     <Dialog open={open} onOpenChange={onClose}>

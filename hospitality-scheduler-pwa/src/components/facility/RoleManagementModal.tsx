@@ -1,7 +1,7 @@
 // RoleManagementModal.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState} from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +21,7 @@ import {
   Save,
   X
 } from 'lucide-react'
-import { useApiClient } from '@/hooks/useApi'
+import { useFacilityRoles } from '@/hooks/useFacility'
 import { toast } from 'sonner'
 
 interface RoleManagementModalProps {
@@ -43,9 +43,7 @@ interface Role {
 }
 
 export function RoleManagementModal({ open, onClose, facility, onSuccess }: RoleManagementModalProps) {
-  const apiClient = useApiClient()
-  const [loading, setLoading] = useState(false)
-  const [roles, setRoles] = useState<Role[]>([])
+  const { roles, loading, createRole, updateRole, deleteRole } = useFacilityRoles(facility?.id)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   
@@ -59,68 +57,37 @@ export function RoleManagementModal({ open, onClose, facility, onSuccess }: Role
     is_active: true
   })
 
-  useEffect(() => {
-    if (open && facility) {
-      loadFacilityRoles()
-    }
-  }, [open, facility])
-
-  const loadFacilityRoles = async () => {
-    try {
-      setLoading(true)
-      const data = await apiClient.getFacilityRoles(facility.id)
-      setRoles(data)
-    } catch (error) {
-      console.error('Failed to load roles:', error)
-      toast.error('Failed to load roles')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleAddRole = async () => {
-    if (!newRole.role_name) {
-      toast.error('Role name is required')
-      return
-    }
-
-    try {
-      setLoading(true)
-      await apiClient.createFacilityRole(facility.id, newRole)
-      toast.success(`Role "${newRole.role_name}" created successfully`)
-      await loadFacilityRoles()
-      setShowAddForm(false)
-      setNewRole({
-        role_name: '',
-        min_skill_level: 1,
-        max_skill_level: 3,
-        is_management: false,
-        hourly_rate_min: 15,
-        hourly_rate_max: 25,
-        is_active: true
-      })
-      onSuccess()
-    } catch (error: any) {
-      console.error('Failed to create role:', error)
-      toast.error(error.response?.data?.detail || 'Failed to create role')
-    } finally {
-      setLoading(false)
-    }
+  if (!newRole.role_name) {
+    toast.error('Role name is required')
+    return
   }
+
+  try {
+    await createRole(newRole)
+    setShowAddForm(false)
+    setNewRole({
+      role_name: '',
+      min_skill_level: 1,
+      max_skill_level: 3,
+      is_management: false,
+      hourly_rate_min: 15,
+      hourly_rate_max: 25,
+      is_active: true
+    })
+    onSuccess()
+  } catch (error) {
+    // Hook already shows error toast
+  }
+}
 
   const handleUpdateRole = async (roleId: string, updatedRole: Role) => {
     try {
-      setLoading(true)
-      await apiClient.updateFacilityRole(facility.id, roleId, updatedRole)
-      toast.success(`Role "${updatedRole.role_name}" updated successfully`)
-      await loadFacilityRoles()
+      await updateRole(roleId, updatedRole)
       setEditingRole(null)
       onSuccess()
-    } catch (error: any) {
-      console.error('Failed to update role:', error)
-      toast.error(error.response?.data?.detail || 'Failed to update role')
-    } finally {
-      setLoading(false)
+    } catch (error) {
+      // Hook already handles error toasts and logging
     }
   }
 
@@ -130,16 +97,10 @@ export function RoleManagementModal({ open, onClose, facility, onSuccess }: Role
     }
 
     try {
-      setLoading(true)
-      await apiClient.deleteFacilityRole(facility.id, roleId)
-      toast.success(`Role "${roleName}" deleted successfully`)
-      await loadFacilityRoles()
+      await deleteRole(roleId, roleName)
       onSuccess()
-    } catch (error: any) {
-      console.error('Failed to delete role:', error)
-      toast.error(error.response?.data?.detail || 'Failed to delete role')
-    } finally {
-      setLoading(false)
+    } catch (error) {
+      // Hook already handles error toasts and logging
     }
   }
 
