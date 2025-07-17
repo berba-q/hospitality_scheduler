@@ -17,10 +17,109 @@ class Facility(SQLModel, table=True):
     tenant_id: uuid.UUID = Field(foreign_key="tenant.id")
     name: str
     location: Optional[str] = None
-
+    facility_type: Optional[str] = Field(default="hotel")  # hotel, restaurant, resort, cafe, bar
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    description: Optional[str] = None
+    settings: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
+    
+    # NEW: Relationships to the new tables
+    shifts: List["FacilityShift"] = Relationship(back_populates="facility", cascade_delete=True)
+    roles: List["FacilityRole"] = Relationship(back_populates="facility", cascade_delete=True) 
+    zones: List["FacilityZone"] = Relationship(back_populates="facility", cascade_delete=True)
     tenant: Tenant = Relationship(back_populates="facilities")
     staff: List["Staff"] = Relationship(back_populates="facility")
 
+class FacilityShift(SQLModel, table=True):
+    """Custom shift definitions per facility""" 
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    facility_id: uuid.UUID = Field(foreign_key="facility.id")
+    
+    shift_name: str  # "Breakfast", "Lunch", "Dinner" vs "Morning", "Afternoon", "Evening"
+    start_time: str  # "07:00" format
+    end_time: str    # "15:00" format
+    
+    requires_manager: bool = Field(default=False)
+    min_staff: int = Field(default=1, ge=1, le=50)
+    max_staff: int = Field(default=10, ge=1, le=50)
+    shift_order: int = Field(default=0)  # For display ordering (0=first shift, 1=second, etc.)
+    
+    is_active: bool = Field(default=True)
+    color: Optional[str] = Field(default="blue")  # For UI color coding
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
+    
+    # Relationships
+    facility: Facility = Relationship(back_populates="shifts")
+    role_requirements: List["ShiftRoleRequirement"] = Relationship(back_populates="shift", cascade_delete=True)
+    
+class FacilityRole(SQLModel, table=True):
+    """Custom roles per facility with skill requirements"""  
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    facility_id: uuid.UUID = Field(foreign_key="facility.id")
+    
+    role_name: str
+    min_skill_level: int = Field(default=1, ge=1, le=5)
+    max_skill_level: int = Field(default=5, ge=1, le=5)
+    is_management: bool = Field(default=False)
+    
+    # Optional rate information
+    hourly_rate_min: Optional[float] = None
+    hourly_rate_max: Optional[float] = None
+    
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
+    
+    # Relationships
+    facility: Facility = Relationship(back_populates="roles")
+    shift_requirements: List["ShiftRoleRequirement"] = Relationship(back_populates="role", cascade_delete=True)
+
+class FacilityZone(SQLModel, table=True):
+    """Zones/areas within a facility"""  
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    facility_id: uuid.UUID = Field(foreign_key="facility.id")
+    
+    zone_id: str  # 'front-desk', 'kitchen', 'bar' (used in scheduling logic)
+    zone_name: str  # 'Front Desk', 'Kitchen', 'Bar' (display name)
+    description: Optional[str] = None
+    
+    # Role requirements for this zone
+    required_roles: Optional[List[str]] = Field(default_factory=list, sa_column=Column(JSON))
+    preferred_roles: Optional[List[str]] = Field(default_factory=list, sa_column=Column(JSON))
+    
+    # Staffing requirements
+    min_staff_per_shift: int = Field(default=1, ge=1, le=20)
+    max_staff_per_shift: int = Field(default=5, ge=1, le=50)
+    
+    is_active: bool = Field(default=True)
+    display_order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
+    
+    # Relationships
+    facility: Facility = Relationship(back_populates="zones")
+    
+class ShiftRoleRequirement(SQLModel, table=True):
+    """Many-to-many relationship between shifts and roles with specific requirements"""  
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    facility_shift_id: uuid.UUID = Field(foreign_key="facilityshift.id")
+    facility_role_id: uuid.UUID = Field(foreign_key="facilityrole.id")
+    
+    min_required: int = Field(default=1, ge=0, le=20)  # Minimum number of this role required
+    max_allowed: Optional[int] = Field(default=None, ge=1, le=50)  # Maximum allowed (None = unlimited)
+    is_required: bool = Field(default=True)  # Is this role absolutely required for the shift?
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Relationships
+    shift: FacilityShift = Relationship(back_populates="rolerequirements")
+    role: FacilityRole = Relationship(back_populates="shiftrequirements")
 
 class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
