@@ -302,7 +302,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
         console.log('  - user exists:', !!user)
         console.log('  - apiClient exists:', !!apiClient)
         
-        // Try multiple ways to get facility ID (same as above)
+        // Try multiple ways to get facility ID
         const facilityId = user?.facility_id || 
                           user?.facilityId || 
                           user?.facility || 
@@ -313,46 +313,95 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
         console.log('  - facility ID resolved:', facilityId)
         
         if (facilityId && apiClient) {
-          console.log('🔧 Checking available methods for swap modal:')
-          console.log('  - getCurrentSchedule:', !!apiClient.getCurrentSchedule)
-          console.log('  - getFacilityStaff:', !!apiClient.getFacilityStaff)
+          console.log('🔧 Loading real schedule and staff data...')
           
-          // Load current schedule and staff data for the modal
-          const promises = []
-          
-          if (apiClient.getCurrentSchedule) {
-            promises.push(
-              apiClient.getCurrentSchedule(facilityId).catch((error) => {
-                console.log('getCurrentSchedule failed:', error.message)
-                return null
-              })
-            )
-          } else {
-            promises.push(Promise.resolve(null))
-          }
-          
+          // Load staff data first
+          let staffData = []
           if (apiClient.getFacilityStaff) {
-            promises.push(
-              apiClient.getFacilityStaff(facilityId).catch((error) => {
-                console.log('getFacilityStaff failed:', error.message)
-                return []
-              })
-            )
-          } else {
-            promises.push(Promise.resolve([]))
+            try {
+              staffData = await apiClient.getFacilityStaff(facilityId)
+              console.log('✅ Staff data loaded:', staffData?.length, 'staff members')
+            } catch (error) {
+              console.log('❌ getFacilityStaff failed:', error.message)
+              staffData = []
+            }
           }
           
-          const [scheduleData, staffData] = await Promise.all(promises)
+          // Load REAL schedule data using the correct method for staff
+          let scheduleData = null
           
-          console.log('📊 Swap modal data loaded:')
+          try {
+            // Method 1: Try getMySchedule for current week (this is what staff use)
+            const now = new Date()
+            const startDate = new Date(now)
+            startDate.setDate(now.getDate() - now.getDay() + 1) // Monday of current week
+            const endDate = new Date(startDate)
+            endDate.setDate(startDate.getDate() + 6) // Sunday of current week
+            
+            console.log('🔧 Trying getMySchedule for current week:', {
+              startDate: startDate.toISOString().split('T')[0],
+              endDate: endDate.toISOString().split('T')[0]
+            })
+            
+            scheduleData = await apiClient.getMySchedule(
+              startDate.toISOString().split('T')[0],
+              endDate.toISOString().split('T')[0]
+            )
+            
+            console.log('✅ getMySchedule worked! Schedule data:', scheduleData)
+            
+          } catch (error) {
+            console.log('❌ getMySchedule failed:', error.message)
+            
+            // Method 2: Try getFacilitySchedules as fallback
+            try {
+              console.log('🔧 Trying getFacilitySchedules as fallback...')
+              const allSchedules = await apiClient.getFacilitySchedules(facilityId)
+              console.log('📊 All facility schedules:', allSchedules?.length, 'schedules')
+              
+              // Find the most recent schedule or current week schedule
+              if (allSchedules && allSchedules.length > 0) {
+                const now = new Date().toISOString().split('T')[0]
+                
+                // Try to find current week schedule
+                scheduleData = allSchedules.find(s => s.week_start <= now) || allSchedules[0]
+                console.log('✅ Using facility schedule:', scheduleData)
+              }
+              
+            } catch (facilityError) {
+              console.log('❌ getFacilitySchedules also failed:', facilityError.message)
+            }
+          }
+          
+          // If we still don't have schedule data, check if it's available from the dashboard stats
+          if (!scheduleData && dashboardStats?.upcomingShifts?.length > 0) {
+            console.log('🔧 Creating schedule from upcoming shifts...')
+            const firstShift = dashboardStats.upcomingShifts[0]
+            
+            scheduleData = {
+              id: firstShift.schedule_id || 'from-upcoming-shifts',
+              facility_id: facilityId,
+              week_start: firstShift.date || new Date().toISOString().split('T')[0],
+              assignments: dashboardStats.upcomingShifts.map(shift => ({
+                id: shift.id || shift.assignment_id,
+                day: shift.day,
+                shift: shift.shift,
+                staff_id: user?.staff_id || user?.id,
+                schedule_id: shift.schedule_id || 'from-upcoming-shifts'
+              }))
+            }
+            
+            console.log('✅ Created schedule from upcoming shifts:', scheduleData)
+          }
+          
+          console.log('📊 Final swap modal data:')
           console.log('  - Schedule data:', scheduleData)
           console.log('  - Staff data length:', staffData?.length)
-          console.log('  - Staff data:', staffData)
           
           setCurrentSchedule(scheduleData)
           setStaff(staffData || [])
           
-          console.log('✅ Swap modal data loading complete')
+          console.log('✅ Swap modal data loading complete with REAL data')
         } else {
           console.warn('⚠️ Cannot load swap modal data - missing facility ID or apiClient')
         }
@@ -362,7 +411,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
     }
     
     loadSwapModalData()
-  }, [user, apiClient])
+  }, [user, apiClient, dashboardStats])
 
 
 
@@ -400,18 +449,36 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
   // Create the swap request
   const createSwapRequest = async (swapData: any) => {
     try {
-      console.log('🚀 Creating swap request:', swapData)
+      console.log('🚀 Creating swap request with real data:', swapData)
+      console.log('🔍 Current schedule:', currentSchedule)
+      console.log('🔍 Selected assignment:', selectedAssignmentForSwap)
       
       const staffId = user?.staff_id || user?.id
       if (!staffId) {
         throw new Error('Staff ID not found')
       }
 
-      // Call the API to create swap request
-      await apiClient.createSwapRequest({
+      // Use the REAL schedule ID from the loaded schedule
+      let scheduleId = currentSchedule?.id || selectedAssignmentForSwap?.scheduleId
+      
+      if (!scheduleId) {
+        throw new Error('No schedule ID available. Please try refreshing the page.')
+      }
+
+      // Create the swap request with real data
+      const enhancedSwapData = {
         ...swapData,
-        requesting_staff_id: staffId
-      })
+        requesting_staff_id: staffId,
+        schedule_id: scheduleId, // This should now be a real schedule ID
+        assignment_id: selectedAssignmentForSwap?.id,
+        original_day: selectedAssignmentForSwap?.day,
+        original_shift: selectedAssignmentForSwap?.shift,
+      }
+
+      console.log('🎯 Enhanced swap data with real schedule:', enhancedSwapData)
+
+      // Call the API to create swap request
+      await apiClient.createSwapRequest(enhancedSwapData)
       
       toast.success('Swap request created successfully!')
       
@@ -420,6 +487,11 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
       
     } catch (error: any) {
       console.error('❌ Failed to create swap request:', error)
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
       toast.error(error.message || 'Failed to create swap request')
       throw error
     }
