@@ -32,6 +32,10 @@ def create_specific_swap_request(
 ):
     """Create a request to swap shifts with a specific staff member"""
     
+    # Debug logging
+    print(f"🔍 DEBUG: Current user: {current_user.email}, ID: {current_user.id}")
+    print(f"🔍 DEBUG: Is manager: {current_user.is_manager}")
+    
     # Verify schedule exists and user has access
     schedule = db.get(Schedule, swap_in.schedule_id)
     if not schedule:
@@ -41,32 +45,59 @@ def create_specific_swap_request(
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
-    # Verify both staff members exist and belong to this facility
-    requesting_staff = db.exec(
-        select(Staff).where(
-            Staff.id == current_user.id,  # Staff can only request for themselves
-            Staff.facility_id == schedule.facility_id
-        )
-    ).first()
+    print(f"🔍 DEBUG: Schedule facility: {schedule.facility_id}, Tenant: {current_user.tenant_id}")
     
+    # 🔥 FIX: Handle both staff and manager access properly
+    if current_user.is_manager:
+        # Managers can create swaps for any staff in their facilities
+        if hasattr(swap_in, 'requesting_staff_id') and swap_in.requesting_staff_id:
+            requesting_staff = db.get(Staff, swap_in.requesting_staff_id)
+            if not requesting_staff or requesting_staff.facility_id != schedule.facility_id:
+                raise HTTPException(status_code=400, detail="Invalid requesting staff member")
+        else:
+            raise HTTPException(status_code=400, detail="Manager must specify requesting_staff_id")
+    else:
+        # 🔥 FIX: For staff users, find their staff record using email lookup
+        requesting_staff = db.exec(
+            select(Staff).join(Facility).where(
+                Staff.email == current_user.email,
+                Facility.tenant_id == current_user.tenant_id,
+                Staff.facility_id == schedule.facility_id,
+                Staff.is_active.is_(True)
+            )
+        ).first()
+        
+        if not requesting_staff:
+            print(f"❌ DEBUG: No staff found for email {current_user.email} in facility {schedule.facility_id}")
+            raise HTTPException(
+                status_code=403, 
+                detail=f"No active staff record found for {current_user.email} in this facility"
+            )
+    
+    print(f"🔍 DEBUG: Found requesting_staff: {requesting_staff.id}, Name: {requesting_staff.full_name}")
+    
+    # Validate target staff
     target_staff = db.get(Staff, swap_in.target_staff_id)
     if not target_staff or target_staff.facility_id != schedule.facility_id:
         raise HTTPException(status_code=400, detail="Invalid target staff member")
+    
+    print(f"🔍 DEBUG: Found target_staff: {target_staff.id}, Name: {target_staff.full_name}")
     
     # Verify original shift assignment exists
     original_assignment = db.exec(
         select(ShiftAssignment).where(
             ShiftAssignment.schedule_id == swap_in.schedule_id,
-            ShiftAssignment.staff_id == requesting_staff.id,
+            ShiftAssignment.staff_id == requesting_staff.id,  # ✅ Now using correct staff ID
             ShiftAssignment.day == swap_in.original_day,
             ShiftAssignment.shift == swap_in.original_shift
         )
     ).first()
     
     if not original_assignment:
+        print(f"❌ DEBUG: No original assignment found for staff {requesting_staff.id} on day {swap_in.original_day}, shift {swap_in.original_shift}")
         raise HTTPException(
-            status_code=400, 
-            detail="You are not assigned to the specified shift"
+            status_code=400,
+            detail=f"{requesting_staff.full_name} is not assigned to day {swap_in.original_day}, shift {swap_in.original_shift}"
         )
     
     # Verify target shift assignment exists
@@ -80,6 +111,7 @@ def create_specific_swap_request(
     ).first()
     
     if not target_assignment:
+        print(f"❌ DEBUG: No target assignment found for staff {swap_in.target_staff_id} on day {swap_in.target_day}, shift {swap_in.target_shift}")
         raise HTTPException(
             status_code=400,
             detail="Target staff member is not assigned to the specified shift"
@@ -88,7 +120,7 @@ def create_specific_swap_request(
     # Create the swap request
     swap_request = SwapRequest(
         schedule_id=swap_in.schedule_id,
-        requesting_staff_id=requesting_staff.id,
+        requesting_staff_id=requesting_staff.id,  # ✅ Using correct staff ID
         original_day=swap_in.original_day,
         original_shift=swap_in.original_shift,
         swap_type=swap_in.swap_type,
@@ -103,17 +135,21 @@ def create_specific_swap_request(
     db.add(swap_request)
     db.flush()
     
+    print(f"✅ DEBUG: Created swap request with ID: {swap_request.id}, requesting_staff_id: {swap_request.requesting_staff_id}")
+    
     # Create history entry
     history = SwapHistory(
-        swap_request_id=swap_request.id, 
+        swap_request_id=swap_request.id,
         action="requested",
-        actor_staff_id=requesting_staff.id,
+        actor_staff_id=requesting_staff.id,  # ✅ Using correct staff ID
         notes=f"Specific swap requested with {target_staff.full_name}"
     )
+    
     db.add(history)
     db.commit()
     db.refresh(swap_request)
     
+    print(f"✅ DEBUG: Swap request completed successfully")
     return swap_request
 
 @router.post("/auto", response_model=SwapRequestRead, status_code=201)
@@ -143,26 +179,23 @@ def create_auto_swap_request(
         else:
             raise HTTPException(status_code=400, detail="Manager must specify requesting_staff_id")
     else:
-        # For staff users, we need to find their staff record
-        # This is a temporary solution - in production you'd have User -> Staff relationship
-        requesting_staff = None
-        
-        # Try to find staff record by looking for staff in this facility
-        # For demo purposes, we'll just take the first active staff member
-        # In production, you'd have a proper User.staff_id foreign key
-        all_staff = db.exec(
-            select(Staff).where(
-                Staff.facility_id == schedule.facility_id,
+        # 🔥 FIX: For staff users, find their staff record using their email AND tenant
+        requesting_staff = db.exec(
+            select(Staff).join(Facility).where(
+                Staff.email == current_user.email,
+                Facility.tenant_id == current_user.tenant_id,
+                Staff.facility_id == schedule.facility_id,  # Must be in the same facility
                 Staff.is_active.is_(True)
             )
-        ).all()
-        
-        if all_staff:
-            requesting_staff = all_staff[0]  # Demo: just use first staff
+        ).first()
         
         if not requesting_staff:
-            raise HTTPException(status_code=403, detail="No staff record found for this user")
+            raise HTTPException(
+                status_code=403, 
+                detail=f"No active staff record found for {current_user.email} in this facility"
+            )
     
+    # Rest of the function remains the same...
     # Verify shift assignment exists
     original_assignment = db.exec(
         select(ShiftAssignment).where(
@@ -179,10 +212,10 @@ def create_auto_swap_request(
             detail=f"{requesting_staff.full_name} is not assigned to day {swap_in.original_day}, shift {swap_in.original_shift}"
         )
     
-    # Create auto swap request
+    # Create auto swap request with the CORRECT staff ID
     swap_request = SwapRequest(
         schedule_id=swap_in.schedule_id,
-        requesting_staff_id=requesting_staff.id,
+        requesting_staff_id=requesting_staff.id,  # ✅ This is now the correct staff ID
         original_day=swap_in.original_day,
         original_shift=swap_in.original_shift,
         swap_type=swap_in.swap_type,
@@ -196,10 +229,10 @@ def create_auto_swap_request(
     
     # Create history entry
     history = SwapHistory(
-    swap_request_id=swap_request.id,  
-    action="requested",               
-    actor_staff_id=requesting_staff.id,  
-    notes=f"Auto-assignment requested: {swap_in.reason}"  
+        swap_request_id=swap_request.id,  
+        action="requested",               
+        actor_staff_id=requesting_staff.id,  # ✅ Also fix this
+        notes=f"Auto-assignment requested: {swap_in.reason}"  
     )
     db.add(history)
     db.commit()
