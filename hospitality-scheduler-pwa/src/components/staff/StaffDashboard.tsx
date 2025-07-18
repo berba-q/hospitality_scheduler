@@ -26,6 +26,7 @@ import { TimeOffRequestModal } from '@/components/availability/TimeOffRequestMod
 import { TeamReliabilityBadges } from '@/components/gamification/TeamReliabilityBadges'
 import { ReliabilityProgressCard } from '@/components/gamification/ReliabilityProgressCard'
 import { TeamSupportInsights } from '@/components/gamification/TeamSupportInsights'
+import { SwapRequestModal } from '@/components/swap/SwapRequestModal'
 
 interface StaffDashboardProps {
   user: any
@@ -59,6 +60,11 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
 
   const [loading, setLoading] = useState(true)
   const [showTimeOffModal, setShowTimeOffModal] = useState(false)
+  const [facilityShifts, setFacilityShifts] = useState([])
+  const [showSwapModal, setShowSwapModal] = useState(false)
+  const [selectedAssignmentForSwap, setSelectedAssignmentForSwap] = useState(null)
+  const [currentSchedule, setCurrentSchedule] = useState(null)
+  const [staff, setStaff] = useState([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -169,6 +175,256 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
     }
   }
 
+  // LOAD FACILITY DATA
+  useEffect(() => {
+    const loadFacilityShifts = async () => {
+      try {
+        console.log('🚀 Starting facility shifts loading process...')
+        console.log('🔍 COMPREHENSIVE USER OBJECT ANALYSIS:')
+        console.log('  - user exists:', !!user)
+        console.log('  - user type:', typeof user)
+        
+        if (user) {
+          console.log('  - user keys:', Object.keys(user))
+          console.log('  - Full user object:', user)
+          
+          // Check for various possible facility ID fields
+          const possibleFacilityFields = [
+            'facility_id', 'facilityId', 'facility', 
+            'facilityID', 'facility_uuid', 'current_facility_id'
+          ]
+          
+          console.log('  - Checking possible facility ID fields:')
+          possibleFacilityFields.forEach(field => {
+            console.log(`    ${field}:`, user[field])
+          })
+        }
+        
+        // Try multiple ways to get facility ID
+        const facilityId = user?.facility_id || 
+                          user?.facilityId || 
+                          user?.facility || 
+                          user?.facilityID || 
+                          user?.facility_uuid ||
+                          user?.current_facility_id
+        
+        console.log('🔍 Resolved facility ID:', facilityId)
+        
+        if (!facilityId) {
+          console.warn('❌ No facility ID found in any expected field')
+          console.log('🔧 You may need to:')
+          console.log('  1. Check how the user object is populated')
+          console.log('  2. Ensure staff records have facility_id')
+          console.log('  3. Check if facility info comes from a different source')
+          
+          // Use fallback shifts
+          setFacilityShifts(getFallbackShifts())
+          return
+        }
+        
+        if (!apiClient) {
+          console.warn('❌ No apiClient available')
+          setFacilityShifts(getFallbackShifts())
+          return
+        }
+        
+        console.log('🔧 Checking apiClient methods:')
+        console.log('  - getFacilityShifts exists:', !!apiClient.getFacilityShifts)
+        console.log('  - Available apiClient methods:', Object.keys(apiClient).filter(key => typeof apiClient[key] === 'function'))
+        
+        if (!apiClient.getFacilityShifts) {
+          console.error('❌ getFacilityShifts method not found in apiClient')
+          console.log('🔧 Available methods that might work:')
+          const shiftMethods = Object.keys(apiClient).filter(key => 
+            key.toLowerCase().includes('shift') && typeof apiClient[key] === 'function'
+          )
+          console.log('  - Shift-related methods:', shiftMethods)
+          
+          setFacilityShifts(getFallbackShifts())
+          return
+        }
+        
+        console.log('🔧 Calling apiClient.getFacilityShifts with facility_id:', facilityId)
+        
+        try {
+          const shifts = await apiClient.getFacilityShifts(facilityId)
+          
+          console.log('======= RAW FACILITY SHIFTS API RESPONSE =======')
+          console.log('Type:', typeof shifts)
+          console.log('Is Array:', Array.isArray(shifts))
+          console.log('Length:', shifts?.length)
+          console.log('Full response:', shifts)
+          
+          if (shifts && Array.isArray(shifts) && shifts.length > 0) {
+            console.log('======= FIRST SHIFT DETAILED BREAKDOWN =======')
+            const firstShift = shifts[0]
+            console.log('First shift:', firstShift)
+            console.log('Available properties:')
+            Object.keys(firstShift).forEach(key => {
+              console.log(`  ${key}:`, firstShift[key], `(${typeof firstShift[key]})`)
+            })
+            
+            setFacilityShifts(shifts)
+            console.log('✅ Facility shifts loaded successfully:', shifts.length, 'shifts')
+          } else {
+            console.warn('⚠️ Invalid shifts response, using fallback')
+            setFacilityShifts(getFallbackShifts())
+          }
+          console.log('===============================================')
+          
+        } catch (apiError) {
+          console.error('❌ API call failed:', apiError)
+          console.error('API Error details:', {
+            message: apiError.message,
+            stack: apiError.stack,
+            response: apiError.response?.data,
+            status: apiError.response?.status,
+            url: apiError.config?.url
+          })
+          setFacilityShifts(getFallbackShifts())
+        }
+        
+      } catch (error) {
+        console.error('❌ Failed to load facility shifts:', error)
+        setFacilityShifts(getFallbackShifts())
+      }
+    }
+    
+    loadFacilityShifts()
+  }, [user, apiClient])
+
+  // Load swaps data
+  useEffect(() => {
+    const loadSwapModalData = async () => {
+      try {
+        console.log('🔄 Loading swap modal data...')
+        console.log('🔍 Prerequisites for swap modal:')
+        console.log('  - user exists:', !!user)
+        console.log('  - apiClient exists:', !!apiClient)
+        
+        // Try multiple ways to get facility ID (same as above)
+        const facilityId = user?.facility_id || 
+                          user?.facilityId || 
+                          user?.facility || 
+                          user?.facilityID || 
+                          user?.facility_uuid ||
+                          user?.current_facility_id
+        
+        console.log('  - facility ID resolved:', facilityId)
+        
+        if (facilityId && apiClient) {
+          console.log('🔧 Checking available methods for swap modal:')
+          console.log('  - getCurrentSchedule:', !!apiClient.getCurrentSchedule)
+          console.log('  - getFacilityStaff:', !!apiClient.getFacilityStaff)
+          
+          // Load current schedule and staff data for the modal
+          const promises = []
+          
+          if (apiClient.getCurrentSchedule) {
+            promises.push(
+              apiClient.getCurrentSchedule(facilityId).catch((error) => {
+                console.log('getCurrentSchedule failed:', error.message)
+                return null
+              })
+            )
+          } else {
+            promises.push(Promise.resolve(null))
+          }
+          
+          if (apiClient.getFacilityStaff) {
+            promises.push(
+              apiClient.getFacilityStaff(facilityId).catch((error) => {
+                console.log('getFacilityStaff failed:', error.message)
+                return []
+              })
+            )
+          } else {
+            promises.push(Promise.resolve([]))
+          }
+          
+          const [scheduleData, staffData] = await Promise.all(promises)
+          
+          console.log('📊 Swap modal data loaded:')
+          console.log('  - Schedule data:', scheduleData)
+          console.log('  - Staff data length:', staffData?.length)
+          console.log('  - Staff data:', staffData)
+          
+          setCurrentSchedule(scheduleData)
+          setStaff(staffData || [])
+          
+          console.log('✅ Swap modal data loading complete')
+        } else {
+          console.warn('⚠️ Cannot load swap modal data - missing facility ID or apiClient')
+        }
+      } catch (error) {
+        console.error('Failed to load swap modal data:', error)
+      }
+    }
+    
+    loadSwapModalData()
+  }, [user, apiClient])
+
+
+
+  // Handle quick swap requests
+  const handleQuickSwapRequest = (shift: any) => {
+  console.log('🔄 Quick swap request for shift:', shift)
+  
+  // Get shift details from facility configuration
+  const shiftDetails = getShiftDetails(shift.shift)
+  
+  // Create assignment object from shift data - INCLUDING SHIFT ID for auto assignments
+  const assignmentDetails = {
+    id: shift.id || shift.assignment_id, // 🔥 CRITICAL: Include shift ID for auto assignment
+    day: shift.day,
+    shift: shift.shift,
+    staffId: user?.staff_id || user?.id,
+    date: shift.date,
+    shiftName: shift.shift_name || shiftDetails.name, // Use actual shift name
+    shiftTime: shiftDetails.time, // 🔥 NEW: Use dynamic facility shift times
+    scheduleId: shift.schedule_id,
+    facilityShiftId: shiftDetails.id // Include facility shift ID
+  }
+  
+  console.log('🎯 Assignment details for swap:', assignmentDetails)
+  console.log('🕐 Using facility shift times:', shiftDetails)
+  
+  // Set the selected assignment for the swap modal
+  setSelectedAssignmentForSwap(assignmentDetails)
+  
+  // Open the swap modal
+  setShowSwapModal(true)
+}
+
+
+  // Create the swap request
+  const createSwapRequest = async (swapData: any) => {
+    try {
+      console.log('🚀 Creating swap request:', swapData)
+      
+      const staffId = user?.staff_id || user?.id
+      if (!staffId) {
+        throw new Error('Staff ID not found')
+      }
+
+      // Call the API to create swap request
+      await apiClient.createSwapRequest({
+        ...swapData,
+        requesting_staff_id: staffId
+      })
+      
+      toast.success('Swap request created successfully!')
+      
+      // Refresh dashboard data to update pending swaps count
+      loadDashboardData()
+      
+    } catch (error: any) {
+      console.error('❌ Failed to create swap request:', error)
+      toast.error(error.message || 'Failed to create swap request')
+      throw error
+    }
+  }
+
   const handleTimeOffRequest = async (requestData: any) => {
     try {
       const staffId = user.staffId || user.staff_id || user.id
@@ -192,6 +448,24 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
     return shiftNames[shiftIndex] || 'Unknown'
   }
 
+  const getShiftDetails = (shiftIndex: number) => {
+    const shift = facilityShifts[shiftIndex]
+    if (!shift) {
+      // Fallback for missing shift data
+      return {
+        name: `Shift ${shiftIndex + 1}`,
+        time: 'Time TBD',
+        id: `fallback-${shiftIndex}`
+      }
+    }
+    
+    return {
+      name: shift.shift_name,
+      time: `${shift.start_time} - ${shift.end_time}`,
+      id: shift.id
+    }
+  }
+
   const getDayName = (dateString: string) => {
     try {
       const date = new Date(dateString)
@@ -200,6 +474,17 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
       return 'Unknown'
     }
   }
+
+  const transformShiftsForModal = (facilityShifts: any[]) => {
+  return facilityShifts.map((shift, index) => ({
+    ...shift,
+    // Add the fields the modal expects
+    time: `${shift.start_time} - ${shift.end_time}`, // This is what the modal looks for!
+    name: shift.shift_name || shift.name,
+    shift_index: index,
+    color: shift.color || 'bg-gray-100'
+  }))
+}
 
   // Error state
   if (error) {
@@ -398,7 +683,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => router.push('/swaps')}
+                        onClick={() => handleQuickSwapRequest(shift)}
                       >
                         Request Swap
                       </Button>
@@ -429,6 +714,22 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
         onClose={() => setShowTimeOffModal(false)}
         onSubmit={handleTimeOffRequest}
         userStaffId={user?.staffId || user?.staff_id || user?.id}
+      />
+
+      {/* Swap Request Modal */}
+      <SwapRequestModal
+        open={showSwapModal}
+        onClose={() => {
+          setShowSwapModal(false)
+          setSelectedAssignmentForSwap(null)
+        }}
+        schedule={currentSchedule}
+        currentAssignment={selectedAssignmentForSwap}
+        staff={staff}
+        shifts={transformShiftsForModal(facilityShifts)} // Use dynamic facility shifts
+        days={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']}
+        isManager={false} // Staff dashboard, so not a manager
+        onSwapRequest={createSwapRequest}
       />
     </div>
   )
