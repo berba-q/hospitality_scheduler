@@ -34,7 +34,7 @@ async def startup():
 
 # Example: protect login route
 from app.api.endpoints import auth
-app.include_router(auth.router, prefix="/v1/auth")  # per-endpoint limits inside the router
+#app.include_router(auth.router, prefix="/v1/auth")  # per-endpoint limits inside the router
 app.include_router(api_router, prefix="/v1")
 
 @app.exception_handler(RateLimitExceeded)

@@ -1,7 +1,8 @@
-// 🔥 FIXED: Staff Swap Dashboard with Correct Data Structure and API Calls
-// This addresses the data loading issues shown in your console
+//staff swap dashboard
+'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
+import { useSession } from 'next-auth/react'
 import { 
   Calendar, 
   Clock, 
@@ -37,6 +38,7 @@ interface StaffSwapDashboardProps {
 }
 
 function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
+  const { data: session } = useSession()
   // Core data state
   const [swapRequests, setSwapRequests] = useState([])
   const [upcomingShifts, setUpcomingShifts] = useState([])
@@ -53,6 +55,8 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
   })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [currentSchedule, setCurrentSchedule] = useState(null)
+  const [currentWeek, setCurrentWeek] = useState(null)
   
   // UI state
   const [activeTab, setActiveTab] = useState('overview')
@@ -70,17 +74,38 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
   const loadAllData = async () => {
     setLoading(true)
     try {
-      console.log('🔄 Loading staff swap data...')
-      console.log('👤 Current user:', { id: user?.id, staff_id: user?.staff_id, email: user?.email })
+      console.log('Loading staff swap data...')
       
-      // 🔥 FIX: Use the correct staff endpoint that matches the backend
+      // Load current schedule context
+      try {
+        const facilitiesData = await apiClient.getFacilities()
+        if (facilitiesData && facilitiesData.length > 0) {
+          const facility = facilitiesData[0] // Get user's facility
+          
+          // Get current week's schedule
+          const schedulesData = await apiClient.getFacilitySchedules(facility.id)
+          if (schedulesData && schedulesData.length > 0) {
+            const currentSched = schedulesData[0] // Get most recent schedule
+            setCurrentSchedule(currentSched)
+            setCurrentWeek(currentSched.week_start)
+            console.log('Current schedule context:', {
+              id: currentSched.id,
+              week: currentSched.week_start
+            })
+          }
+        }
+      } catch (schedError) {
+        console.warn('Could not load schedule context:', schedError)
+      }
+      
+      // Load swap requests
       const swapsData = await apiClient.getStaffSwapRequests()
-      console.log('📊 Raw swaps response:', swapsData)
+      console.log('Raw swaps response:', swapsData)
       
-      // ✅ Handle the data structure returned by the API
-      const swapArray = Array.isArray(swapsData) ? swapsData : []
+      const swapArray = Array.isArray(swapsData) ? swapsData : (swapsData?.data || [])
       setSwapRequests(swapArray)
       
+      // Load other data...
       console.log('✅ Processed swap requests:', swapArray.length)
       if (swapArray.length > 0) {
         console.log('📋 Sample swap structure:', swapArray[0])
@@ -96,7 +121,7 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
           totalRequests: swapArray.length
         }))
       } catch (error) {
-        console.warn('📊 Stats API not available:', error)
+        console.warn(' Stats API not available:', error)
         // Set basic stats from swap data
         setPersonalStats(prev => ({
           ...prev,
@@ -105,7 +130,7 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
       }
       
     } catch (error) {
-      console.error('❌ Failed to load swap data:', error)
+      console.error(' Failed to load data:', error)
       toast.error('Failed to load swap data')
       setSwapRequests([])
     } finally {
@@ -113,7 +138,6 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
     }
   }
 
-  // 🔥 FIXED: Robust data filtering that handles the actual API response structure
   const filteredAndCategorizedData = useMemo(() => {
     console.log('🔍 Starting data categorization...')
     console.log('👤 User for filtering:', { id: user?.id, staff_id: user?.staff_id })
@@ -259,17 +283,26 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
 
   const handleCreateSwap = async (swapData) => {
     try {
-      await apiClient.createSwapRequest({
-        ...swapData,
-        facility_id: user.facility_id
-      })
+      console.log('🔍 AUTH DEBUG: Current user from useAuth:', user)
+      console.log('🔍 AUTH DEBUG: Session data:', session) // Add session import if needed
+      console.log('🔍 AUTH DEBUG: User ID being used:', user?.id)
+      console.log('🔍 AUTH DEBUG: Staff ID being used:', user?.staff_id)
+      console.log('Creating swap with data:', swapData)
+      
+      // ✅ FIX: Use the single createSwapRequest method that handles both types
+      const result = await apiClient.createSwapRequest(swapData)
+      
+      console.log('✅ Swap created successfully:', result)
+      
       await loadAllData()
       setShowCreateModal(false)
       setSelectedShiftForSwap(null)
       toast.success('Swap request created successfully!')
+      
     } catch (error) {
-      console.error('Failed to create swap:', error)
-      toast.error('Failed to create swap request')
+      console.error('❌ Failed to create swap:', error)
+      toast.error(error.message || 'Failed to create swap request')
+      throw error // Re-throw so dialog can handle it
     }
   }
 
@@ -699,6 +732,8 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
           setShowCreateModal(false)
           setSelectedShiftForSwap(null)
         }}
+        scheduleId={currentSchedule?.id}
+        currentWeek={currentWeek}
         assignmentDetails={selectedShiftForSwap}
         onSubmitSwap={handleCreateSwap}
         availableStaff={[]}
