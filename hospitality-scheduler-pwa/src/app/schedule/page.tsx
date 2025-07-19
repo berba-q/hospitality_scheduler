@@ -1,4 +1,4 @@
-// schedule/page.tsx - role based scheduling page
+// schedule/page.tsx - Updated with dynamic facility data and notifications
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
@@ -55,36 +55,19 @@ import SwapDetailModal  from '@/components/swap/SwapDetailModal'
 import { Select } from '@/components/ui/select'
 import { useSwapRequests } from '@/hooks/useSwapRequests'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+// NEW: Import notification components
+import { NotificationBell } from '@/components/notification/NotificationBell'
+import { ScheduleSaveConfirmationDialog } from '@/components/schedule/ScheduleSaveConfirmationDialog'
+import { SwapNotificationDialog } from '@/components/swap/SwapNotificationDialog'
+
 import React from 'react'
 
 type ViewPeriod = 'daily' | 'weekly' | 'monthly'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-const SHIFTS = [
-  { id: 0, name: 'Morning', time: '6:00 AM - 2:00 PM', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-  { id: 1, name: 'Afternoon', time: '2:00 PM - 10:00 PM', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-  { id: 2, name: 'Evening', time: '10:00 PM - 6:00 AM', color: 'bg-purple-100 text-purple-800 border-purple-200' }
-]
 
-// Facility zones/departments mapping
-const FACILITY_ZONES = {
-  'hotel': [
-    { id: 'front-desk', name: 'Front Desk', roles: ['Front Desk Agent', 'Concierge', 'Manager'] },
-    { id: 'housekeeping', name: 'Housekeeping', roles: ['Housekeeping', 'Maintenance'] },
-    { id: 'restaurant', name: 'Restaurant', roles: ['Chef', 'Sous Chef', 'Waiter', 'Waitress'] },
-    { id: 'bar', name: 'Bar & Lounge', roles: ['Bartender', 'Host/Hostess'] },
-    { id: 'security', name: 'Security', roles: ['Security'] }
-  ],
-  'restaurant': [
-    { id: 'kitchen', name: 'Kitchen', roles: ['Chef', 'Sous Chef', 'Line Cook'] },
-    { id: 'dining', name: 'Dining Room', roles: ['Waiter', 'Waitress', 'Host/Hostess'] },
-    { id: 'bar', name: 'Bar', roles: ['Bartender'] },
-    { id: 'management', name: 'Management', roles: ['Manager', 'Assistant Manager'] }
-  ],
-  'default': [
-    { id: 'all', name: 'All Areas', roles: [] }
-  ]
-}
+// REMOVED: Hardcoded SHIFTS and FACILITY_ZONES - now using dynamic facility data
 
 // ============================================================================
 // STAFF VIEW COMPONENT
@@ -101,7 +84,10 @@ function StaffScheduleView({
   currentSchedule,
   swapRequests,
   onSwapRequest,
-  user 
+  user,
+  facility,
+  shifts,
+  zones
 }) {
   const [myScheduleData, setMyScheduleData] = useState(null)
   const [mySwapRequests, setMySwapRequests] = useState([])
@@ -115,7 +101,6 @@ function StaffScheduleView({
     loadMyData()
   }, [currentDate, viewPeriod])
 
-  // FIXED: This should be loadMyData, not loadData
   const loadMyData = async () => {
     try {
       setLoading(true)
@@ -137,7 +122,6 @@ function StaffScheduleView({
           break
       }
       
-      // FIXED: Use existing getMySchedule method
       try {
         const scheduleData = await apiClient.getMySchedule(
           startDate.toISOString().split('T')[0],
@@ -146,7 +130,6 @@ function StaffScheduleView({
         
         console.log('📊 Raw schedule data received:', scheduleData)
         
-        // ✅ Handle the correct response structure from backend
         if (scheduleData && scheduleData.assignments) {
           setMyScheduleData(scheduleData)
           console.log(`✅ Schedule loaded: ${scheduleData.assignments.length} assignments found`)
@@ -159,7 +142,6 @@ function StaffScheduleView({
         setMyScheduleData({ assignments: [] })
       }
 
-      // get swaap requests for staff
       try {
         const swaps = await apiClient.getMySwapRequests(undefined, 50)
         setMySwapRequests(swaps)
@@ -177,7 +159,6 @@ function StaffScheduleView({
     }
   }
 
-  // Helper function for period start calculation
   const getPeriodStart = (date: Date, period: ViewPeriod) => {
     const result = new Date(date)
     
@@ -195,7 +176,840 @@ function StaffScheduleView({
     }
   }
 
-  // Get my assignments from current schedule
+  const navigatePeriod = (direction: number) => {
+    if (isManager && unsavedChanges && currentSchedule) {
+      const isGeneratedSchedule = currentSchedule.id?.includes('temp') || 
+                                currentSchedule.id?.includes('generated') || 
+                                currentSchedule.is_generated
+      
+      if (isGeneratedSchedule) {
+        const shouldDiscard = window.confirm(
+          'You have an unsaved generated schedule. Do you want to save it before navigating?'
+        )
+        
+        if (shouldDiscard) {
+          handleSaveSchedule().then(() => {
+            performNavigation(direction)
+          }).catch((error) => {
+            console.error('Save failed:', error)
+            toast.error('Failed to save schedule')
+          })
+          return
+        }
+      }
+    }
+    
+    performNavigation(direction)
+  }
+
+  const performNavigation = (direction: number) => {
+    const newDate = new Date(currentDate)
+    
+    switch (viewPeriod) {
+      case 'daily':
+        newDate.setDate(currentDate.getDate() + direction)
+        break
+      case 'weekly':
+        newDate.setDate(currentDate.getDate() + (direction * 7))
+        break
+      case 'monthly':
+        newDate.setMonth(currentDate.getMonth() + direction)
+        break
+    }
+    
+    setCurrentDate(newDate)
+    setUnsavedChanges(false)
+  }
+
+  const formatPeriodDisplay = (date: Date, period: ViewPeriod) => {
+    switch (period) {
+      case 'daily':
+        return date.toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })
+      case 'weekly':
+        const weekStart = getPeriodStart(date, 'weekly')
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekStart.getDate() + 6)
+        return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+      case 'monthly':
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+    }
+  }
+
+  // Handle assignments (Manager only)
+  const handleAssignmentChange = (day: number, shift: number, staffId: string) => {
+    if (!isManager) return
+    
+    console.log('Assignment change called:', { day, shift, staffId })
+    setUnsavedChanges(true)
+    
+    if (!currentSchedule) {
+      const newSchedule = {
+        id: `temp-schedule-${Date.now()}`,
+        facility_id: selectedFacility?.id,
+        week_start: getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0],
+        assignments: []
+      }
+
+      const newAssignment = {
+        id: `temp-assignment-${Date.now()}`,
+        day,
+        shift,
+        staff_id: staffId
+      }
+      
+      newSchedule.assignments.push(newAssignment)
+      setCurrentSchedule(newSchedule)
+      
+      const staffMember = staff.find(s => s.id === staffId)
+      const shiftName = shifts.find(s => (s.shift_index || s.id) === shift)?.name || `Shift ${shift}`
+      const dayName = DAYS[day] || 'Day'
+      
+      if (staffMember) {
+        toast.success(`${staffMember.full_name} assigned to ${dayName} ${shiftName}`)
+      }
+      return
+    }
+
+    // Check if staff is already assigned to this day/shift
+    const existingAssignment = currentSchedule.assignments?.find(a => 
+      a.day === day && a.shift === shift && a.staff_id === staffId
+    )
+    
+    if (existingAssignment) {
+      toast.error('Staff member is already assigned to this shift')
+      return
+    }
+    
+    // Create new assignment
+    const newAssignment = {
+      id: `temp-assignment-${Date.now()}`,
+      day,
+      shift,
+      staff_id: staffId
+    }
+    
+    setCurrentSchedule(prevSchedule => {
+      if (!prevSchedule) return prevSchedule
+      
+      const updatedSchedule = {
+        ...prevSchedule,
+        assignments: [...(prevSchedule.assignments || []), newAssignment]
+      }
+      
+      return updatedSchedule
+    })
+    
+    const staffMember = staff.find(s => s.id === staffId)
+    const shiftName = shifts.find(s => (s.shift_index || s.id) === shift)?.name || `Shift ${shift}`
+    const dayName = DAYS[day] || 'Day'
+    
+    if (staffMember) {
+      toast.success(`${staffMember.full_name} assigned to ${dayName} ${shiftName}`)
+    }
+  }
+
+  const handleRemoveAssignment = (assignmentId: string) => {
+    if (!isManager) return
+    
+    console.log('Remove assignment called:', assignmentId)
+    setUnsavedChanges(true)
+    
+    if (!currentSchedule) return
+    
+    const assignmentToRemove = currentSchedule.assignments?.find(a => a.id === assignmentId)
+    
+    setCurrentSchedule(prevSchedule => {
+      if (!prevSchedule) return prevSchedule
+      
+      const updatedSchedule = {
+        ...prevSchedule,
+        assignments: prevSchedule.assignments?.filter(a => a.id !== assignmentId) || []
+      }
+      
+      return updatedSchedule
+    })
+    
+    if (assignmentToRemove) {
+      const staffMember = staff.find(s => s.id === assignmentToRemove.staff_id)
+      if (staffMember) {
+        toast.success(`${staffMember.full_name} removed from schedule`)
+      }
+    }
+  }
+
+  const handleSmartGenerate = async (config) => {
+    if (!isManager) return
+    
+    console.log('Smart generate started with config:', config)
+    
+    if (!selectedFacility) {
+      toast.error('Please select a facility first')
+      return
+    }
+    
+    try {
+      const periodStart = getPeriodStart(currentDate, viewPeriod)
+      
+      const requestData = {
+        facility_id: selectedFacility.id,
+        period_start: periodStart.toISOString().split('T')[0],
+        period_type: viewPeriod,
+        zones: selectedZones,
+        role_mapping: config.role_mapping || {},
+        use_constraints: config.use_constraints,
+        ...config
+      }
+      
+      const result = await apiClient.generateSmartSchedule(requestData)
+      
+      if (!result || !result.assignments) {
+        throw new Error('Invalid response: no assignments generated')
+      }
+      
+      const scheduleData = {
+        id: `temp-generated-${Date.now()}`,
+        facility_id: selectedFacility.id,
+        week_start: periodStart.toISOString().split('T')[0],
+        assignments: normalizeAssignments(result.assignments),
+        created_at: new Date().toISOString(),
+        is_generated: true,
+        zone_coverage: result.zone_coverage || {},
+        optimization_metrics: result.optimization_metrics || {},
+        ...result
+      }
+      
+      setCurrentSchedule(scheduleData)
+      setUnsavedChanges(true)
+      
+      const periodName = viewPeriod.charAt(0).toUpperCase() + viewPeriod.slice(1)
+      const assignmentCount = scheduleData.assignments.length
+      
+      toast.success(`${periodName} schedule generated successfully! ${assignmentCount} assignments created. Click "Publish Changes" to save.`)
+      
+    } catch (error) {
+      console.error('Smart generate failed:', error)
+      toast.error('Failed to generate schedule')
+    }
+  }
+
+  // NEW: Updated save handler to show dialog
+  const handleSaveSchedule = async () => {
+    if (!isManager) return
+    setShowSaveDialog(true)
+  }
+
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    if (!isManager) return
+    
+    try {
+      await apiClient.deleteSchedule(scheduleId)
+      
+      setSchedules(prev => prev.filter(s => s.id !== scheduleId))
+      
+      if (currentSchedule?.id === scheduleId) {
+        setCurrentSchedule(null)
+        setUnsavedChanges(false)
+      }
+      
+      toast.success('Schedule deleted successfully')
+    } catch (error) {
+      console.error('Failed to delete schedule:', error)
+      throw error
+    }
+  }
+
+  const handleScheduleSelect = (schedule: any) => {
+    if (!isManager) return
+    
+    if (unsavedChanges && currentSchedule) {
+      const shouldDiscard = window.confirm(
+        'You have unsaved changes. Do you want to discard them and switch to the selected schedule?'
+      )
+      
+      if (!shouldDiscard) {
+        return
+      }
+    }
+
+    const scheduleDate = new Date(schedule.week_start)
+    setCurrentDate(scheduleDate)
+    setCurrentSchedule(schedule)
+    setUnsavedChanges(false)
+    
+    if (viewPeriod !== 'weekly') {
+      setViewPeriod('weekly')
+    }
+    
+    toast.success(`Switched to schedule for ${scheduleDate.toLocaleDateString()}`)
+  }
+
+  // NEW: Updated swap request handler
+  const handleSwapRequest = (day: number, shift: number, staffId: string) => {
+    const swapData = {
+      day,
+      shift,
+      staffId,
+      requester_name: staff.find(s => s.id === staffId)?.full_name || 'Unknown',
+      original_day_name: DAYS[day] || `Day ${day}`,
+      original_shift_name: shifts.find(s => (s.shift_index || s.id) === shift)?.name || `Shift ${shift}`
+    }
+    
+    if (isManager) {
+      enhancedHandleSwapRequest(swapData)
+    } else {
+      setSelectedAssignmentForSwap({ day, shift, staffId })
+      setShowSwapModal(true)
+    }
+  }
+
+  const handleViewSwapHistory = (swapId: string) => {
+    console.log('View swap history for:', swapId)
+    // TODO: implement swap history modal
+  }
+
+  if (authLoading || loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading schedule data...</p>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  return (
+    <AppLayout>
+      {isManager ? (
+        <ManagerScheduleView
+          router={router}
+          facilities={facilities}
+          selectedFacility={selectedFacility}
+          setSelectedFacility={setSelectedFacility}
+          selectedZones={selectedZones}
+          setSelectedZones={setSelectedZones}
+          staff={staff}
+          schedules={schedules}
+          currentSchedule={currentSchedule}
+          setCurrentSchedule={setCurrentSchedule}
+          loading={loading}
+          setLoading={setLoading}
+          viewPeriod={viewPeriod}
+          setViewPeriod={setViewPeriod}
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          showStaffPanel={showStaffPanel}
+          setShowStaffPanel={setShowStaffPanel}
+          filterRole={filterRole}
+          setFilterRole={setFilterRole}
+          filterZone={filterZone}
+          setFilterZone={setFilterZone}
+          showSmartGenerateModal={showSmartGenerateModal}
+          setShowSmartGenerateModal={setShowSmartGenerateModal}
+          showConfigModal={showConfigModal}
+          setShowConfigModal={setShowConfigModal}
+          showScheduleListModal={showScheduleListModal}
+          setShowScheduleListModal={setShowScheduleListModal}
+          showSwapDashboard={showSwapDashboard}
+          setShowSwapDashboard={setShowSwapDashboard}
+          draggedStaff={draggedStaff}
+          setDraggedStaff={setDraggedStaff}
+          unsavedChanges={unsavedChanges}
+          setUnsavedChanges={setUnsavedChanges}
+          swapRequests={swapRequests}
+          swapSummary={swapSummary}
+          navigatePeriod={navigatePeriod}
+          formatPeriodDisplay={formatPeriodDisplay}
+          getPeriodStart={getPeriodStart}
+          handleAssignmentChange={handleAssignmentChange}
+          handleRemoveAssignment={handleRemoveAssignment}
+          handleSmartGenerate={handleSmartGenerate}
+          handleSaveSchedule={handleSaveSchedule}
+          handleDeleteSchedule={handleDeleteSchedule}
+          handleScheduleSelect={handleScheduleSelect}
+          handleSwapRequest={handleSwapRequest}
+          createSwapRequest={createSwapRequest}
+          approveSwap={approveSwap}
+          retryAutoAssignment={retryAutoAssignment}
+          refreshSwaps={refreshSwaps}
+          handleViewSwapHistory={handleViewSwapHistory}
+          shifts={shifts}  // NEW: Dynamic shifts
+          zones={zones}    // NEW: Dynamic zones
+          // NEW: Notification props
+          showSaveDialog={showSaveDialog}
+          setShowSaveDialog={setShowSaveDialog}
+          showSwapNotificationDialog={showSwapNotificationDialog}
+          setShowSwapNotificationDialog={setShowSwapNotificationDialog}
+          processSwapWithNotifications={processSwapWithNotifications}
+          pendingSwapData={pendingSwapData}
+        />
+      ) : (
+        <StaffScheduleView
+          currentDate={currentDate}
+          viewPeriod={viewPeriod}
+          setCurrentDate={setCurrentDate}
+          setViewPeriod={setViewPeriod}
+          navigatePeriod={navigatePeriod}
+          formatPeriodDisplay={formatPeriodDisplay}
+          schedules={schedules}
+          staff={staff}
+          currentSchedule={currentSchedule}
+          swapRequests={swapRequests}
+          onSwapRequest={handleSwapRequest}
+          user={user}
+          facility={selectedFacility}  // NEW: Pass facility
+          shifts={shifts}              // NEW: Dynamic shifts
+          zones={zones}                // NEW: Dynamic zones
+        />
+      )}
+
+      {/* Swap Request Modal - Available for both staff and managers */}
+      <SwapRequestModal
+        open={showSwapModal}
+        onClose={() => {
+          setShowSwapModal(false)
+          setSelectedAssignmentForSwap(null)
+        }}
+        schedule={currentSchedule}
+        currentAssignment={selectedAssignmentForSwap}
+        staff={staff}
+        shifts={shifts}  // NEW: Dynamic shifts
+        days={DAYS}
+        isManager={isManager}
+        onSwapRequest={createSwapRequest}
+      />
+    </AppLayout>
+  )
+}
+
+  const navigatePeriod = (direction: number) => {
+    if (isManager && unsavedChanges && currentSchedule) {
+      const isGeneratedSchedule = currentSchedule.id?.includes('temp') || 
+                                currentSchedule.id?.includes('generated') || 
+                                currentSchedule.is_generated
+      
+      if (isGeneratedSchedule) {
+        const shouldDiscard = window.confirm(
+          'You have an unsaved generated schedule. Do you want to save it before navigating?'
+        )
+        
+        if (shouldDiscard) {
+          handleSaveSchedule().then(() => {
+            performNavigation(direction)
+          }).catch((error) => {
+            console.error('Save failed:', error)
+            toast.error('Failed to save schedule')
+          })
+          return
+        }
+      }
+    }
+    
+    performNavigation(direction)
+  }
+
+  const performNavigation = (direction: number) => {
+    const newDate = new Date(currentDate)
+    
+    switch (viewPeriod) {
+      case 'daily':
+        newDate.setDate(currentDate.getDate() + direction)
+        break
+      case 'weekly':
+        newDate.setDate(currentDate.getDate() + (direction * 7))
+        break
+      case 'monthly':
+        newDate.setMonth(currentDate.getMonth() + direction)
+        break
+    }
+    
+    setCurrentDate(newDate)
+    setUnsavedChanges(false)
+  }
+
+  const formatPeriodDisplay = (date: Date, period: ViewPeriod) => {
+    switch (period) {
+      case 'daily':
+        return date.toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })
+      case 'weekly':
+        const weekStart = getPeriodStart(date, 'weekly')
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekStart.getDate() + 6)
+        return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+      case 'monthly':
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+    }
+  }
+
+  // Handle assignments (Manager only)
+  const handleAssignmentChange = (day: number, shift: number, staffId: string) => {
+    if (!isManager) return
+    
+    console.log('Assignment change called:', { day, shift, staffId })
+    setUnsavedChanges(true)
+    
+    if (!currentSchedule) {
+      const newSchedule = {
+        id: `temp-schedule-${Date.now()}`,
+        facility_id: selectedFacility?.id,
+        week_start: getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0],
+        assignments: []
+      }
+
+      const newAssignment = {
+        id: `temp-assignment-${Date.now()}`,
+        day,
+        shift,
+        staff_id: staffId
+      }
+      
+      newSchedule.assignments.push(newAssignment)
+      setCurrentSchedule(newSchedule)
+      
+      const staffMember = staff.find(s => s.id === staffId)
+      const shiftName = shifts.find(s => (s.shift_index || s.id) === shift)?.name || `Shift ${shift}`
+      const dayName = DAYS[day] || 'Day'
+      
+      if (staffMember) {
+        toast.success(`${staffMember.full_name} assigned to ${dayName} ${shiftName}`)
+      }
+      return
+    }
+
+    // Check if staff is already assigned to this day/shift
+    const existingAssignment = currentSchedule.assignments?.find(a => 
+      a.day === day && a.shift === shift && a.staff_id === staffId
+    )
+    
+    if (existingAssignment) {
+      toast.error('Staff member is already assigned to this shift')
+      return
+    }
+    
+    // Create new assignment
+    const newAssignment = {
+      id: `temp-assignment-${Date.now()}`,
+      day,
+      shift,
+      staff_id: staffId
+    }
+    
+    setCurrentSchedule(prevSchedule => {
+      if (!prevSchedule) return prevSchedule
+      
+      const updatedSchedule = {
+        ...prevSchedule,
+        assignments: [...(prevSchedule.assignments || []), newAssignment]
+      }
+      
+      return updatedSchedule
+    })
+    
+    const staffMember = staff.find(s => s.id === staffId)
+    const shiftName = shifts.find(s => (s.shift_index || s.id) === shift)?.name || `Shift ${shift}`
+    const dayName = DAYS[day] || 'Day'
+    
+    if (staffMember) {
+      toast.success(`${staffMember.full_name} assigned to ${dayName} ${shiftName}`)
+    }
+  }
+
+  const handleRemoveAssignment = (assignmentId: string) => {
+    if (!isManager) return
+    
+    console.log('Remove assignment called:', assignmentId)
+    setUnsavedChanges(true)
+    
+    if (!currentSchedule) return
+    
+    const assignmentToRemove = currentSchedule.assignments?.find(a => a.id === assignmentId)
+    
+    setCurrentSchedule(prevSchedule => {
+      if (!prevSchedule) return prevSchedule
+      
+      const updatedSchedule = {
+        ...prevSchedule,
+        assignments: prevSchedule.assignments?.filter(a => a.id !== assignmentId) || []
+      }
+      
+      return updatedSchedule
+    })
+    
+    if (assignmentToRemove) {
+      const staffMember = staff.find(s => s.id === assignmentToRemove.staff_id)
+      if (staffMember) {
+        toast.success(`${staffMember.full_name} removed from schedule`)
+      }
+    }
+  }
+
+  const handleSmartGenerate = async (config) => {
+    if (!isManager) return
+    
+    console.log('Smart generate started with config:', config)
+    
+    if (!selectedFacility) {
+      toast.error('Please select a facility first')
+      return
+    }
+    
+    try {
+      const periodStart = getPeriodStart(currentDate, viewPeriod)
+      
+      const requestData = {
+        facility_id: selectedFacility.id,
+        period_start: periodStart.toISOString().split('T')[0],
+        period_type: viewPeriod,
+        zones: selectedZones,
+        role_mapping: config.role_mapping || {},
+        use_constraints: config.use_constraints,
+        ...config
+      }
+      
+      const result = await apiClient.generateSmartSchedule(requestData)
+      
+      if (!result || !result.assignments) {
+        throw new Error('Invalid response: no assignments generated')
+      }
+      
+      const scheduleData = {
+        id: `temp-generated-${Date.now()}`,
+        facility_id: selectedFacility.id,
+        week_start: periodStart.toISOString().split('T')[0],
+        assignments: normalizeAssignments(result.assignments),
+        created_at: new Date().toISOString(),
+        is_generated: true,
+        zone_coverage: result.zone_coverage || {},
+        optimization_metrics: result.optimization_metrics || {},
+        ...result
+      }
+      
+      setCurrentSchedule(scheduleData)
+      setUnsavedChanges(true)
+      
+      const periodName = viewPeriod.charAt(0).toUpperCase() + viewPeriod.slice(1)
+      const assignmentCount = scheduleData.assignments.length
+      
+      toast.success(`${periodName} schedule generated successfully! ${assignmentCount} assignments created. Click "Publish Changes" to save.`)
+      
+    } catch (error) {
+      console.error('Smart generate failed:', error)
+      toast.error('Failed to generate schedule')
+    }
+  }
+
+  // NEW: Updated save handler to show dialog
+  const handleSaveSchedule = async () => {
+    if (!isManager) return
+    setShowSaveDialog(true)
+  }
+
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    if (!isManager) return
+    
+    try {
+      await apiClient.deleteSchedule(scheduleId)
+      
+      setSchedules(prev => prev.filter(s => s.id !== scheduleId))
+      
+      if (currentSchedule?.id === scheduleId) {
+        setCurrentSchedule(null)
+        setUnsavedChanges(false)
+      }
+      
+      toast.success('Schedule deleted successfully')
+    } catch (error) {
+      console.error('Failed to delete schedule:', error)
+      throw error
+    }
+  }
+
+  const handleScheduleSelect = (schedule: any) => {
+    if (!isManager) return
+    
+    if (unsavedChanges && currentSchedule) {
+      const shouldDiscard = window.confirm(
+        'You have unsaved changes. Do you want to discard them and switch to the selected schedule?'
+      )
+      
+      if (!shouldDiscard) {
+        return
+      }
+    }
+
+    const scheduleDate = new Date(schedule.week_start)
+    setCurrentDate(scheduleDate)
+    setCurrentSchedule(schedule)
+    setUnsavedChanges(false)
+    
+    if (viewPeriod !== 'weekly') {
+      setViewPeriod('weekly')
+    }
+    
+    toast.success(`Switched to schedule for ${scheduleDate.toLocaleDateString()}`)
+  }
+
+  // NEW: Updated swap request handler
+  const handleSwapRequest = (day: number, shift: number, staffId: string) => {
+    const swapData = {
+      day,
+      shift,
+      staffId,
+      requester_name: staff.find(s => s.id === staffId)?.full_name || 'Unknown',
+      original_day_name: DAYS[day] || `Day ${day}`,
+      original_shift_name: shifts.find(s => (s.shift_index || s.id) === shift)?.name || `Shift ${shift}`
+    }
+    
+    if (isManager) {
+      enhancedHandleSwapRequest(swapData)
+    } else {
+      setSelectedAssignmentForSwap({ day, shift, staffId })
+      setShowSwapModal(true)
+    }
+  }
+
+  const handleViewSwapHistory = (swapId: string) => {
+    console.log('View swap history for:', swapId)
+    // TODO: implement swap history modal
+  }
+
+  if (authLoading || loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading schedule data...</p>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  return (
+    <AppLayout>
+      {isManager ? (
+        <ManagerScheduleView
+          router={router}
+          facilities={facilities}
+          selectedFacility={selectedFacility}
+          setSelectedFacility={setSelectedFacility}
+          selectedZones={selectedZones}
+          setSelectedZones={setSelectedZones}
+          staff={staff}
+          schedules={schedules}
+          currentSchedule={currentSchedule}
+          setCurrentSchedule={setCurrentSchedule}
+          loading={loading}
+          setLoading={setLoading}
+          viewPeriod={viewPeriod}
+          setViewPeriod={setViewPeriod}
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          showStaffPanel={showStaffPanel}
+          setShowStaffPanel={setShowStaffPanel}
+          filterRole={filterRole}
+          setFilterRole={setFilterRole}
+          filterZone={filterZone}
+          setFilterZone={setFilterZone}
+          showSmartGenerateModal={showSmartGenerateModal}
+          setShowSmartGenerateModal={setShowSmartGenerateModal}
+          showConfigModal={showConfigModal}
+          setShowConfigModal={setShowConfigModal}
+          showScheduleListModal={showScheduleListModal}
+          setShowScheduleListModal={setShowScheduleListModal}
+          showSwapDashboard={showSwapDashboard}
+          setShowSwapDashboard={setShowSwapDashboard}
+          draggedStaff={draggedStaff}
+          setDraggedStaff={setDraggedStaff}
+          unsavedChanges={unsavedChanges}
+          setUnsavedChanges={setUnsavedChanges}
+          swapRequests={swapRequests}
+          swapSummary={swapSummary}
+          navigatePeriod={navigatePeriod}
+          formatPeriodDisplay={formatPeriodDisplay}
+          getPeriodStart={getPeriodStart}
+          handleAssignmentChange={handleAssignmentChange}
+          handleRemoveAssignment={handleRemoveAssignment}
+          handleSmartGenerate={handleSmartGenerate}
+          handleSaveSchedule={handleSaveSchedule}
+          handleDeleteSchedule={handleDeleteSchedule}
+          handleScheduleSelect={handleScheduleSelect}
+          handleSwapRequest={handleSwapRequest}
+          createSwapRequest={createSwapRequest}
+          approveSwap={approveSwap}
+          retryAutoAssignment={retryAutoAssignment}
+          refreshSwaps={refreshSwaps}
+          handleViewSwapHistory={handleViewSwapHistory}
+          shifts={shifts}  // NEW: Dynamic shifts
+          zones={zones}    // NEW: Dynamic zones
+          // NEW: Notification props
+          showSaveDialog={showSaveDialog}
+          setShowSaveDialog={setShowSaveDialog}
+          showSwapNotificationDialog={showSwapNotificationDialog}
+          setShowSwapNotificationDialog={setShowSwapNotificationDialog}
+          processSwapWithNotifications={processSwapWithNotifications}
+          pendingSwapData={pendingSwapData}
+        />
+      ) : (
+        <StaffScheduleView
+          currentDate={currentDate}
+          viewPeriod={viewPeriod}
+          setCurrentDate={setCurrentDate}
+          setViewPeriod={setViewPeriod}
+          navigatePeriod={navigatePeriod}
+          formatPeriodDisplay={formatPeriodDisplay}
+          schedules={schedules}
+          staff={staff}
+          currentSchedule={currentSchedule}
+          swapRequests={swapRequests}
+          onSwapRequest={handleSwapRequest}
+          user={user}
+          facility={selectedFacility}  // NEW: Pass facility
+          shifts={shifts}              // NEW: Dynamic shifts
+          zones={zones}                // NEW: Dynamic zones
+        />
+      )}
+
+      {/* Swap Request Modal - Available for both staff and managers */}
+      <SwapRequestModal
+        open={showSwapModal}
+        onClose={() => {
+          setShowSwapModal(false)
+          setSelectedAssignmentForSwap(null)
+        }}
+        schedule={currentSchedule}
+        currentAssignment={selectedAssignmentForSwap}
+        staff={staff}
+        shifts={shifts}  // NEW: Dynamic shifts
+        days={DAYS}
+        isManager={isManager}
+        onSwapRequest={createSwapRequest}
+      />
+    </AppLayout>
+  )
+} result.getDay()
+        const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+        result.setDate(result.getDate() - daysToMonday)
+        return result
+      case 'monthly':
+        result.setDate(1)
+        return result
+    }
+  }
+
   const getAssignmentCount = () => {
     if (!myScheduleData || !myScheduleData.assignments) {
       return 0
@@ -203,7 +1017,6 @@ function StaffScheduleView({
     return myScheduleData.assignments.length
   }
 
-  // get assignments for display
   const getAssignmentsForDisplay = () => {
     if (!myScheduleData || !myScheduleData.assignments) {
       return []
@@ -211,22 +1024,24 @@ function StaffScheduleView({
     return myScheduleData.assignments
   }
 
-  // get shift names
+  // NEW: Use dynamic shifts instead of hardcoded
   const getShiftName = (shiftIndex) => {
-    const shiftNames = ['Morning', 'Afternoon', 'Evening']
-    return shiftNames[shiftIndex] || 'Unknown'
+    const shift = shifts?.find(s => s.shift_index === shiftIndex || s.id === shiftIndex)
+    return shift?.name || `Shift ${shiftIndex}`
+  }
+
+  const getShiftTime = (shiftIndex) => {
+    const shift = shifts?.find(s => s.shift_index === shiftIndex || s.id === shiftIndex)
+    return shift ? `${shift.start_time} - ${shift.end_time}` : ''
   }
   
-  // Calculate today's assignments
- const getTodayAssignments = () => {
-    // Use the new data structure
+  const getTodayAssignments = () => {
     const assignments = getAssignmentsForDisplay()
     if (!assignments.length) return []
     
     const today = new Date()
-    const todayDateString = today.toISOString().split('T')[0] // Format: "2025-07-16"
+    const todayDateString = today.toISOString().split('T')[0]
     
-    // ilter by actual date instead of day index
     return assignments.filter(assignment => 
       assignment.date === todayDateString
     )
@@ -254,10 +1069,16 @@ function StaffScheduleView({
                 My Schedule
               </h1>
               <p className="text-gray-600 mt-1">View your work schedule and request shift swaps</p>
+              {facility && (
+                <p className="text-sm text-gray-500">📍 {facility.name}</p>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            {/* NEW: Notification Bell for Staff */}
+            <NotificationBell />
+
             {/* Today's shifts indicator */}
             {todayAssignments.length > 0 && (
               <Card className="border-blue-200 bg-blue-50">
@@ -286,7 +1107,7 @@ function StaffScheduleView({
                     {mySwapRequests.length}
                   </Badge>
                 )}
-            </Button>
+              </Button>
             )}
           </div>
         </div>
@@ -373,14 +1194,11 @@ function StaffScheduleView({
                     {getAssignmentsForDisplay().filter(assignment => {
                       const today = new Date().toISOString().split('T')[0]
                       return assignment.date === today
-                    }).map(assignment => {
-                      const shift = SHIFTS.find(s => s.id === assignment.shift)
-                      return (
-                        <div key={assignment.assignment_id} className="text-xs text-green-700">
-                          {shift?.name} ({shift?.time})
-                        </div>
-                      )
-                    })}
+                    }).map(assignment => (
+                      <div key={assignment.assignment_id} className="text-xs text-green-700">
+                        {getShiftName(assignment.shift)} ({getShiftTime(assignment.shift)})
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -423,15 +1241,6 @@ function StaffScheduleView({
                 <Home className="w-4 h-4 mr-2" />
                 Back to Dashboard
               </Button>
-
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => toast.info('Feature coming soon!')}
-              >
-                <Bell className="w-4 h-4 mr-2" />
-                Schedule Notifications
-              </Button>
             </CardContent>
           </Card>
         </div>
@@ -444,13 +1253,13 @@ function StaffScheduleView({
               currentDate={currentDate}
               schedule={currentSchedule}
               staff={staff}
-              shifts={SHIFTS}
+              shifts={shifts}  // NEW: Dynamic shifts
               isManager={false}
               draggedStaff={null}
               swapRequests={swapRequests}
               onSwapRequest={onSwapRequest}
-              onAssignmentChange={() => {}} // Staff can't modify assignments
-              onRemoveAssignment={() => {}} // Staff can't remove assignments
+              onAssignmentChange={() => {}}
+              onRemoveAssignment={() => {}}
             />
           )}
           
@@ -460,14 +1269,14 @@ function StaffScheduleView({
               currentWeek={getPeriodStart(currentDate, 'weekly')}
               schedule={currentSchedule}
               staff={staff}
-              shifts={SHIFTS}
+              shifts={shifts}  // NEW: Dynamic shifts
               days={DAYS}
               isManager={false}
               draggedStaff={null}
               swapRequests={swapRequests}
               onSwapRequest={onSwapRequest}
-              onAssignmentChange={() => {}} // Staff can't modify assignments
-              onRemoveAssignment={() => {}} // Staff can't remove assignments
+              onAssignmentChange={() => {}}
+              onRemoveAssignment={() => {}}
             />
           )}
           
@@ -477,6 +1286,7 @@ function StaffScheduleView({
               currentMonth={getPeriodStart(currentDate, 'monthly')}
               schedules={schedules}
               staff={staff}
+              shifts={shifts}  // NEW: Dynamic shifts
               isManager={false}
               swapRequests={swapRequests}
               onDayClick={(date) => {
@@ -500,8 +1310,8 @@ function StaffScheduleView({
           </div>
         )}
       </div>
-       {/* swap detail modal */}
-         {/* My Swaps List Modal */}
+
+      {/* My Swaps List Modal */}
       <Dialog open={showMySwapsModal} onOpenChange={setShowMySwapsModal}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
           <DialogHeader>
@@ -566,7 +1376,7 @@ function StaffScheduleView({
                           <div className="flex items-center gap-4 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              {DAYS[swap.original_day]} - {SHIFTS[swap.original_shift]?.name}
+                              {DAYS[swap.original_day]} - {getShiftName(swap.original_shift)}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
@@ -587,20 +1397,8 @@ function StaffScheduleView({
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation()
-                              
-                              // Debug logging
-                              console.log('🔍 View Details clicked!')
-                              console.log('📊 Swap data:', swap)
-                              console.log('📊 Before - selectedSwapForDetail:', selectedSwapForDetail)
-                              console.log('📊 Before - showSwapDetailModal:', showSwapDetailModal)
-                              
                               setSelectedSwapForDetail(swap)
                               setShowSwapDetailModal(true)
-                              
-                              // Check if state updated
-                              setTimeout(() => {
-                                console.log('📊 After setState should have updated')
-                              }, 100)
                             }}
                           >
                             View Details
@@ -648,22 +1446,20 @@ function StaffScheduleView({
         </DialogContent>
       </Dialog>
 
-      {/*Swap details modal */}
+      {/* Swap Details Modal */}
       <SwapDetailModal
         swap={selectedSwapForDetail}
         open={showSwapDetailModal && selectedSwapForDetail !== null}
         onClose={() => {
-          console.log('🔍 SwapDetailModal onClose called')
           setShowSwapDetailModal(false)
           setSelectedSwapForDetail(null)
         }}
         onSwapResponse={async (swapId, accepted, notes) => {
           try {
-            console.log('🔍 SwapResponse called:', { swapId, accepted, notes })
             await apiClient.respondToSwap(swapId, accepted, notes)
             setShowSwapDetailModal(false)
             setSelectedSwapForDetail(null)
-            loadMyData() // Refresh the data
+            loadMyData()
             toast.success(accepted ? 'Swap accepted!' : 'Swap declined')
           } catch (error) {
             console.error('❌ SwapResponse error:', error)
@@ -672,11 +1468,10 @@ function StaffScheduleView({
         }}
         onCancelSwap={async (swapId, reason) => {
           try {
-            console.log('🔍 CancelSwap called:', { swapId, reason })
             await apiClient.cancelSwapRequest(swapId, reason)
             setShowSwapDetailModal(false)
             setSelectedSwapForDetail(null)
-            loadMyData() // Refresh the data
+            loadMyData()
             toast.success('Swap request cancelled')
           } catch (error) {
             console.error('❌ CancelSwap error:', error)
@@ -685,13 +1480,15 @@ function StaffScheduleView({
         }}
         user={user}
         apiClient={apiClient}
+        shifts={shifts}  // NEW: Pass dynamic shifts
+        days={DAYS}
       />
     </div>
   )
 }
 
 // ============================================================================
-// MANAGER VIEW COMPONENT (Your existing manager code)
+// MANAGER VIEW COMPONENT
 // ============================================================================
 function ManagerScheduleView({ 
   router,
@@ -730,7 +1527,6 @@ function ManagerScheduleView({
   setUnsavedChanges,
   swapRequests,
   swapSummary,
-  getFacilityZones,
   navigatePeriod,
   formatPeriodDisplay,
   getPeriodStart,
@@ -745,7 +1541,16 @@ function ManagerScheduleView({
   approveSwap,
   retryAutoAssignment,
   refreshSwaps,
-  handleViewSwapHistory
+  handleViewSwapHistory,
+  shifts,
+  zones,
+  // NEW: Notification handlers
+  showSaveDialog,
+  setShowSaveDialog,
+  showSwapNotificationDialog,
+  setShowSwapNotificationDialog,
+  processSwapWithNotifications,
+  pendingSwapData
 }) {
   // Filter staff based on facility, zones, and roles
   const facilityStaff = staff.filter(member => 
@@ -755,8 +1560,7 @@ function ManagerScheduleView({
   const filteredStaff = facilityStaff.filter(member => {
     // Zone filter
     if (filterZone !== 'all' && selectedZones.length > 0) {
-      const zones = getFacilityZones(selectedFacility)
-      const zone = zones.find(z => z.id === filterZone)
+      const zone = zones.find(z => z.zone_id === filterZone)
       if (zone && zone.roles.length > 0 && !zone.roles.includes(member.role)) {
         return false
       }
@@ -772,7 +1576,7 @@ function ManagerScheduleView({
 
   // Get available roles and zones
   const availableRoles = [...new Set(facilityStaff.map(member => member.role))]
-  const availableZones = getFacilityZones(selectedFacility)
+  const availableZones = zones || []
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
@@ -796,11 +1600,17 @@ function ManagerScheduleView({
               <p className="text-gray-600 mt-1">
                 AI-powered scheduling with zone-based optimization
               </p>
+              {selectedFacility && (
+                <p className="text-sm text-gray-500">📍 {selectedFacility.name}</p>
+              )}
             </div>
           </div>
 
           {/* Manager Header Actions */}
           <div className="flex items-center gap-3">
+            {/* NEW: Notification Bell for Managers */}
+            <NotificationBell />
+
             <Button
               variant="outline"
               size="sm"
@@ -848,13 +1658,24 @@ function ManagerScheduleView({
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               Swaps
-              {/* Show badge when there are pending swaps */}
               {swapSummary?.pending_swaps > 0 && (
                 <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5">
                   {swapSummary.pending_swaps}
                 </Badge>
               )}
             </Button>
+
+            {/* NEW: Enhanced Save Button */}
+            {currentSchedule && (
+              <Button
+                onClick={() => setShowSaveDialog(true)}
+                disabled={!unsavedChanges}
+                className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+              >
+                <Save className="w-4 h-4" />
+                {unsavedChanges ? 'Publish Changes' : 'Saved'}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -877,9 +1698,8 @@ function ManagerScheduleView({
                   onValueChange={(value) => {
                     const facility = facilities.find(f => f.id === value)
                     setSelectedFacility(facility)
-                    if (facility) {
-                      const zones = getFacilityZones(facility)
-                      setSelectedZones(zones.map(z => z.id))
+                    if (facility?.zones) {
+                      setSelectedZones(facility.zones.map(z => z.zone_id || z.id))
                     }
                   }}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
@@ -887,20 +1707,34 @@ function ManagerScheduleView({
                   <option value="">Select a facility</option>
                   {facilities.map((facility) => (
                     <option key={facility.id} value={facility.id}>
-                      {facility.name}
+                      {facility.name} ({facility.facility_type})
                     </option>
                   ))}
                 </Select>
               </div>
 
               {/* Zone Selection */}
-              {selectedFacility && (
+              {selectedFacility && zones?.length > 0 && (
                 <FacilityZoneSelector
                   zones={availableZones}
                   selectedZones={selectedZones}
                   onZoneChange={setSelectedZones}
                   staff={facilityStaff}
                 />
+              )}
+
+              {/* Facility Info */}
+              {selectedFacility && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Building className="w-4 h-4" />
+                    <span className="font-medium">{selectedFacility.facility_type}</span>
+                    <span>•</span>
+                    <span>{zones?.length || 0} zones</span>
+                    <span>•</span>
+                    <span>{shifts?.length || 0} shifts</span>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -989,26 +1823,15 @@ function ManagerScheduleView({
                   </div>
                 )}
                 
-                {unsavedChanges && (
-                  <Button
-                    size="sm"
-                    onClick={handleSaveSchedule}
-                    className="w-full gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save Changes
-                  </Button>
-                )}
-                
                 {selectedZones.length > 0 && (
                   <div>
                     <p className="text-xs text-gray-600 mb-1">Active Zones:</p>
                     <div className="flex flex-wrap gap-1">
                       {selectedZones.map(zoneId => {
-                        const zone = availableZones.find(z => z.id === zoneId)
+                        const zone = availableZones.find(z => (z.zone_id || z.id) === zoneId)
                         return zone ? (
                           <Badge key={zoneId} variant="outline" className="text-xs">
-                            {zone.name}
+                            {zone.zone_name || zone.name}
                           </Badge>
                         ) : null
                       })}
@@ -1047,7 +1870,7 @@ function ManagerScheduleView({
                 currentDate={currentDate}
                 schedule={currentSchedule}
                 staff={facilityStaff}
-                shifts={SHIFTS}
+                shifts={shifts}  // NEW: Dynamic shifts
                 isManager={true}
                 draggedStaff={draggedStaff}
                 swapRequests={swapRequests}
@@ -1066,7 +1889,7 @@ function ManagerScheduleView({
                 currentWeek={getPeriodStart(currentDate, 'weekly')}
                 schedule={currentSchedule}
                 staff={facilityStaff}
-                shifts={SHIFTS}
+                shifts={shifts}  // NEW: Dynamic shifts
                 days={DAYS}
                 isManager={true}
                 draggedStaff={draggedStaff}
@@ -1083,6 +1906,7 @@ function ManagerScheduleView({
                 currentMonth={getPeriodStart(currentDate, 'monthly')}
                 schedules={schedules}
                 staff={facilityStaff}
+                shifts={shifts}  // NEW: Dynamic shifts
                 isManager={true}
                 swapRequests={swapRequests} 
                 onDayClick={(date) => {
@@ -1144,11 +1968,43 @@ function ManagerScheduleView({
         swapRequests={swapRequests}
         swapSummary={swapSummary}
         days={DAYS}
-        shifts={SHIFTS}
+        shifts={shifts}  // NEW: Dynamic shifts
         onApproveSwap={approveSwap}
         onRetryAutoAssignment={retryAutoAssignment}
         onViewSwapHistory={handleViewSwapHistory}
         onRefresh={refreshSwaps}
+      />
+
+      {/* NEW: Save Confirmation Dialog */}
+      <ScheduleSaveConfirmationDialog
+        open={showSaveDialog}
+        onClose={() => setShowSaveDialog(false)}
+        onConfirm={handleSaveSchedule}
+        schedule={currentSchedule}
+        staffList={facilityStaff}
+        facility={selectedFacility}
+        isNewSchedule={!currentSchedule?.id || currentSchedule?.is_generated}
+      />
+
+      {/* NEW: Swap Notification Dialog */}
+      <SwapNotificationDialog
+        open={showSwapNotificationDialog}
+        onClose={() => setShowSwapNotificationDialog(false)}
+        onConfirm={processSwapWithNotifications}
+        swapType="staff_to_staff"
+        swapDetails={{
+          requesterName: pendingSwapData?.requester_name || 'Unknown',
+          targetStaffName: pendingSwapData?.target_staff_name,
+          originalDay: pendingSwapData?.original_day_name || 'Unknown',
+          originalShift: pendingSwapData?.original_shift_name || 'Unknown',
+          reason: pendingSwapData?.reason,
+          urgency: pendingSwapData?.urgency || 'normal'
+        }}
+        recipientStaff={facilityStaff.filter(s => 
+          pendingSwapData?.target_staff_id ? 
+          s.id === pendingSwapData.target_staff_id : 
+          true
+        )}
       />
     </div>
   )
@@ -1169,7 +2025,7 @@ const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
 }
 
 // ============================================================================
-// MAIN SCHEDULE PAGE COMPONENT - FIXED
+// MAIN SCHEDULE PAGE COMPONENT - ENHANCED WITH NOTIFICATIONS
 // ============================================================================
 export default function SchedulePage() {
   const router = useRouter()
@@ -1185,6 +2041,10 @@ export default function SchedulePage() {
   const [currentSchedule, setCurrentSchedule] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showScheduleListModal, setShowScheduleListModal] = useState(false)
+  
+  // NEW: Dynamic facility data
+  const [shifts, setShifts] = useState([])
+  const [zones, setZones] = useState([])
   
   // View state
   const [viewPeriod, setViewPeriod] = useState<ViewPeriod>('weekly')
@@ -1207,36 +2067,21 @@ export default function SchedulePage() {
   const [showSwapDashboard, setShowSwapDashboard] = useState(false)
   const [facilitiesReady, setFacilitiesReady] = useState(false)
 
-  // Get facility zones based on facility type
-  const getFacilityZones = (facility) => {
-    if (!facility) return FACILITY_ZONES.default
-    
-    const facilityName = facility.name.toLowerCase()
-    if (facilityName.includes('hotel')) return FACILITY_ZONES.hotel
-    if (facilityName.includes('restaurant') || facilityName.includes('bistro')) return FACILITY_ZONES.restaurant
-    return FACILITY_ZONES.default
-  }
+  // NEW: Notification states
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [showSwapNotificationDialog, setShowSwapNotificationDialog] = useState(false)
+  const [pendingSwapData, setPendingSwapData] = useState(null)
 
   // Only use swap hooks if manager or if facility is selected
   const managerFacilityId = useMemo(() => {
-    console.log('=== MANAGER FACILITY ID CALCULATION ===')
-    console.log('isManager:', isManager)
-    console.log('facilitiesReady:', facilitiesReady)
-    console.log('selectedFacility:', selectedFacility)
-    console.log('selectedFacility?.id:', selectedFacility?.id)
-    
     if (!isManager || !facilitiesReady) {
-      console.log('Not ready for manager swaps yet')
       return undefined
     }
     
     if (!selectedFacility?.id) {
-      console.log('No facility or no facility ID, returning undefined')
       return undefined
     }
     
-    console.log('Manager using facility for swaps:', selectedFacility.id)
-    console.log('=======================================')
     return selectedFacility.id
   }, [isManager, facilitiesReady, selectedFacility])
 
@@ -1248,7 +2093,6 @@ export default function SchedulePage() {
     retryAutoAssignment,
     refresh: refreshSwaps
   } = useSwapRequests(managerFacilityId)
-  
 
   // Load initial data
   useEffect(() => {
@@ -1257,54 +2101,37 @@ export default function SchedulePage() {
     }
   }, [authLoading, isAuthenticated])
 
-  {/* debug */}
-  React.useEffect(() => {
-  console.log('=== FACILITY LOADING DEBUG ===')
-  console.log('authLoading:', authLoading)
-  console.log('isAuthenticated:', isAuthenticated)
-  console.log('isManager:', isManager)
-  console.log('loading:', loading)
-  console.log('facilities:', facilities)
-  console.log('selectedFacility:', selectedFacility)
-  console.log('selectedFacility?.id:', selectedFacility?.id)
-  console.log('=====================================')
-}, [authLoading, isAuthenticated, isManager, loading, facilities, selectedFacility])
-
+  // Load facility-specific data when facility changes
+  useEffect(() => {
+    if (selectedFacility) {
+      loadFacilityData()
+    }
+  }, [selectedFacility])
 
   const loadData = async () => {
     try {
       console.log('=== LOAD DATA STARTED ===')
-      console.log('isManager:', isManager)
       setLoading(true)
       setFacilitiesReady(false)
       
       if (isManager) {
         console.log('Loading manager data...')
-        // Load manager data
         const [facilitiesData, staffData] = await Promise.all([
           apiClient.getFacilities(),
           apiClient.getStaff()
         ])
 
         console.log('Facilities loaded:', facilitiesData)
-        console.log('Staff loaded:', staffData.length, 'members')
-        
         setFacilities(facilitiesData)
         setStaff(staffData)
         
-        // Auto-select first facility for managers
         if (facilitiesData.length > 0) {
           console.log('Auto-selecting first facility:', facilitiesData[0])
           setSelectedFacility(facilitiesData[0])
-          const zones = getFacilityZones(facilitiesData[0])
-          setSelectedZones(zones.map(z => z.id))
-          console.log('Zones selected:', zones.map(z => z.id))
           setFacilitiesReady(true)
-        } else{
-           console.warn('No facilities found for manager!')
         }
       } else {
-        // Load staff data - get their facility and schedule
+        // Load staff data
         try {
           const staffProfile = await apiClient.getMyStaffProfile()
           const facility = await apiClient.getFacility(staffProfile.facility_id)
@@ -1313,18 +2140,9 @@ export default function SchedulePage() {
           setFacilities([facility])
           setSelectedFacility(facility)
           setStaff(facilityStaff)
-          
-          const zones = getFacilityZones(facility)
-          setSelectedZones(zones.map(z => z.id))
         } catch (error) {
           console.error('Failed to load staff profile:', error)
-          
-          // Graceful fallback for staff without profile
-          if (error.message?.includes('404')) {
-            toast.error('Staff profile not found. Please contact your manager.')
-          } else {
-            toast.error('Failed to load your profile')
-          }
+          toast.error('Failed to load your profile')
         }
       }
     } catch (error) {
@@ -1335,6 +2153,33 @@ export default function SchedulePage() {
     }
   }
 
+  // NEW: Load facility-specific shifts and zones
+  const loadFacilityData = async () => {
+    if (!selectedFacility) return
+
+    try {
+      console.log('🏢 Loading facility data for:', selectedFacility.name)
+      
+      // Load shifts and zones from facility data
+      const facilityShifts = selectedFacility.shifts || []
+      const facilityZones = selectedFacility.zones || []
+
+      console.log('📅 Loaded shifts:', facilityShifts)
+      console.log('🏭 Loaded zones:', facilityZones)
+
+      setShifts(facilityShifts)
+      setZones(facilityZones)
+
+      // Auto-select all zones
+      if (facilityZones.length > 0) {
+        setSelectedZones(facilityZones.map(z => z.zone_id || z.id))
+      }
+    } catch (error) {
+      console.error('Failed to load facility data:', error)
+      toast.error('Failed to load facility configuration')
+    }
+  }
+
   // Load schedules when facility or date changes
   useEffect(() => {
     if (selectedFacility) {
@@ -1342,175 +2187,190 @@ export default function SchedulePage() {
     }
   }, [selectedFacility, currentDate, viewPeriod])
 
-  // normalise data returned from API
-  const normalizeAssignments = (assignments: any[]): any[] => {
-    if (!assignments) {
-      console.log('⚠️ No assignments provided, returning empty array')
-      return []
-    }
-    
-    console.log('🔧 Normalizing assignments:', assignments.length)
-    
-    const normalized = assignments.map((assignment, index) => {
-      const normalized = {
-        id: assignment.id || `assignment-${assignment.schedule_id || 'temp'}-${assignment.day}-${assignment.shift}-${assignment.staff_id}-${index}`,
-        day: Number(assignment.day),
-        shift: Number(assignment.shift),
-        staff_id: String(assignment.staff_id),
-        schedule_id: assignment.schedule_id,
-        zone_id: assignment.zone_id,
-        staff_name: assignment.staff_name,
-        staff_role: assignment.staff_role
+  // Enhanced save schedule with notification dialog
+  const enhancedHandleSaveSchedule = async (options: any) => {
+    if (!isManager || !currentSchedule) return
+
+    try {
+      const isNewSchedule = !currentSchedule.id || 
+                          currentSchedule.id.includes('temp') || 
+                          currentSchedule.id.includes('generated') ||
+                          currentSchedule.is_generated === true
+
+      let savedSchedule
+
+      if (isNewSchedule) {
+        const scheduleToSave = {
+          facility_id: currentSchedule.facility_id,
+          week_start: currentSchedule.week_start,
+          assignments: currentSchedule.assignments || []
+        }
+        savedSchedule = await apiClient.createSchedule(scheduleToSave)
+      } else {
+        const updateData = {
+          assignments: currentSchedule.assignments || []
+        }
+        savedSchedule = await apiClient.updateSchedule(currentSchedule.id, updateData)
       }
+
+      // Generate PDF if requested
+      let pdfUrl = null
+      if (options.generatePdf) {
+        try {
+          const pdfResponse = await apiClient.post(`/schedule/${savedSchedule.id}/generate-pdf`)
+          pdfUrl = pdfResponse.data.pdf_url
+        } catch (pdfError) {
+          console.error('PDF generation failed:', pdfError)
+          toast.error('Schedule saved but PDF generation failed')
+        }
+      }
+
+      // Send notifications
+      if (options.sendWhatsApp || options.sendPushNotifications || options.sendEmail) {
+        try {
+          const affectedStaff = staff.filter(s => 
+            savedSchedule.assignments?.some((a: any) => a.staff_id === s.id)
+          )
+
+          for (const staffMember of affectedStaff) {
+            const channels = []
+            if (options.sendPushNotifications) channels.push('PUSH')
+            if (options.sendWhatsApp) channels.push('WHATSAPP')
+            if (options.sendEmail) channels.push('EMAIL')
+            channels.push('IN_APP')
+
+            await apiClient.post('/notifications/send', {
+              notification_type: 'SCHEDULE_PUBLISHED',
+              recipient_user_id: staffMember.user_id,
+              template_data: {
+                staff_name: staffMember.full_name,
+                week_start: new Date(savedSchedule.week_start).toLocaleDateString(),
+                facility_name: selectedFacility?.name || 'Your facility'
+              },
+              channels,
+              priority: 'HIGH',
+              action_url: `/schedule?week=${savedSchedule.week_start}`,
+              action_text: 'View Schedule',
+              pdf_attachment_url: pdfUrl
+            })
+          }
+
+          toast.success(`Schedule ${isNewSchedule ? 'published' : 'updated'} and notifications sent!`)
+        } catch (notificationError) {
+          console.error('Notification sending failed:', notificationError)
+          toast.error('Schedule saved but notifications failed to send')
+        }
+      } else {
+        toast.success(`Schedule ${isNewSchedule ? 'published' : 'updated'} successfully!`)
+      }
+
+      setCurrentSchedule({
+        ...savedSchedule,
+        assignments: normalizeAssignments(savedSchedule.assignments || []),
+        is_generated: false
+      })
+      setUnsavedChanges(false)
+      await loadSchedules()
+
+    } catch (error) {
+      console.error('Failed to save schedule:', error)
+      toast.error('Failed to save schedule')
+      throw error
+    }
+  }
+
+  // Enhanced swap request with notification dialog
+  const enhancedHandleSwapRequest = async (swapData: any) => {
+    setPendingSwapData(swapData)
+    setShowSwapNotificationDialog(true)
+  }
+
+  const processSwapWithNotifications = async (notificationOptions: any) => {
+    if (!pendingSwapData) return
+
+    try {
+      const swapResponse = await createSwapRequest(pendingSwapData)
       
-      console.log(` Assignment ${index}:`, normalized)
-      return normalized
-    })
+      // Send notifications based on swap type
+      const channels = []
+      if (notificationOptions.sendPushNotifications) channels.push('PUSH')
+      if (notificationOptions.sendWhatsApp) channels.push('WHATSAPP')
+      channels.push('IN_APP')
+
+      if (pendingSwapData.swap_type === 'specific') {
+        await apiClient.post('/notifications/send', {
+          notification_type: 'SWAP_REQUEST',
+          recipient_user_id: pendingSwapData.target_staff_user_id,
+          template_data: {
+            requester_name: pendingSwapData.requester_name,
+            original_day: pendingSwapData.original_day_name,
+            original_shift: pendingSwapData.original_shift_name,
+            reason: pendingSwapData.reason || 'Not specified'
+          },
+          channels,
+          priority: pendingSwapData.urgency === 'emergency' ? 'CRITICAL' : 'HIGH',
+          action_url: `/swaps?swap_id=${swapResponse.id}`,
+          action_text: 'Respond to Request'
+        })
+      }
+
+      toast.success('Swap request created and notifications sent!')
+      setPendingSwapData(null)
+
+    } catch (error) {
+      console.error('Failed to process swap request:', error)
+      toast.error('Failed to process swap request')
+      throw error
+    }
+  }
+
+  // Normalize assignments function
+  const normalizeAssignments = (assignments: any[]): any[] => {
+    if (!assignments) return []
     
-    console.log(' Normalized assignments complete:', normalized.length)
-    return normalized
+    return assignments.map((assignment, index) => ({
+      id: assignment.id || `assignment-${assignment.schedule_id || 'temp'}-${assignment.day}-${assignment.shift}-${assignment.staff_id}-${index}`,
+      day: Number(assignment.day),
+      shift: Number(assignment.shift),
+      staff_id: String(assignment.staff_id),
+      schedule_id: assignment.schedule_id,
+      zone_id: assignment.zone_id,
+      staff_name: assignment.staff_name,
+      staff_role: assignment.staff_role
+    }))
   }
 
   const loadSchedules = async () => {
-    if (!selectedFacility) {
-      console.log('No facility selected, skipping schedule load')
-      return
-    }
+    if (!selectedFacility) return
     
     try {
-      console.log('🔄 Loading schedules for facility:', selectedFacility.name)
-      console.log('📅 Current context:', {
-        currentDate: currentDate.toDateString(),
-        viewPeriod,
-        currentScheduleId: currentSchedule?.id
-      })
-      
       const schedulesData = await apiClient.getFacilitySchedules(selectedFacility.id)
       
-      console.log('📊 Raw API response:', {
-        schedulesCount: schedulesData.length,
-        schedules: schedulesData.map(s => ({
-          id: s.id,
-          week_start: s.week_start,
-          assignments_count: s.assignments?.length || 0
-        }))
-      })
+      const normalizedSchedules = schedulesData.map(schedule => ({
+        ...schedule,
+        week_start: schedule.week_start.split('T')[0],
+        assignments: normalizeAssignments(schedule.assignments || [])
+      }))
       
-      // Normalize schedule data and ensure assignments exist
-      const normalizedSchedules = schedulesData.map(schedule => {
-        const normalized = {
-          ...schedule,
-          week_start: schedule.week_start.split('T')[0],
-          assignments: normalizeAssignments(schedule.assignments || [])
-        }
-        
-        console.log(`📋 Normalized schedule ${schedule.id}:`, {
-          original_week_start: schedule.week_start,
-          normalized_week_start: normalized.week_start,
-          assignments_count: normalized.assignments.length
-        })
-        
-        return normalized
-      })
-      
-      console.log('✅ Schedules normalized:', normalizedSchedules.length)
       setSchedules(normalizedSchedules)
       
-      // Find schedule for current period using improved logic
       const currentPeriodSchedule = findScheduleForCurrentPeriod(normalizedSchedules, currentDate, viewPeriod)
-      
-      console.log('🔍 SEARCH RESULT:', currentPeriodSchedule ? {
-        found: true,
-        id: currentPeriodSchedule.id,
-        week_start: currentPeriodSchedule.week_start,
-        assignments_count: currentPeriodSchedule.assignments?.length || 0
-      } : {
-        found: false,
-        reason: 'No matching schedule found'
-      })
-      
-      // Handle unsaved changes more carefully (only for managers)
-      if (isManager && unsavedChanges && currentSchedule) {
-        console.log('⚠️ UNSAVED CHANGES DETECTED - ENTERING SPECIAL LOGIC')
-        
-        const isGeneratedSchedule = currentSchedule.id?.includes('temp') || 
-                                  currentSchedule.id?.includes('generated') || 
-                                  currentSchedule.is_generated === true
-        
-        console.log('🔧 Generated schedule check:', {
-          isGeneratedSchedule,
-          id: currentSchedule.id,
-          is_generated_flag: currentSchedule.is_generated
-        })
-        
-        // Check if we're navigating to a different period
-        let isDifferentPeriod = false
-        try {
-          const currentPeriodStart = getPeriodStart(new Date(currentSchedule.week_start), viewPeriod)
-          const newPeriodStart = getPeriodStart(currentDate, viewPeriod)
-          isDifferentPeriod = currentPeriodStart.toDateString() !== newPeriodStart.toDateString()
-        } catch (error) {
-          console.error('❌ Error comparing periods:', error)
-          isDifferentPeriod = false
-        }
-        
-        if (isGeneratedSchedule && !isDifferentPeriod) {
-          console.log('✋ PRESERVING generated schedule for same period - RETURNING EARLY')
-          return
-        } else if (isDifferentPeriod) {
-          console.log('🔀 Period changed - prompting user for unsaved changes')
-          
-          const shouldDiscard = window.confirm(
-            'You have unsaved changes. Do you want to discard them and view the other period?'
-          )
-          
-          if (!shouldDiscard) {
-            console.log('🚫 User chose to keep unsaved changes - reverting navigation')
-            return
-          } else {
-            console.log('✅ User chose to discard unsaved changes')
-            setUnsavedChanges(false)
-          }
-        }
-      }
-      
-      // Update the current schedule
-      console.log('📝 SETTING current schedule to:', currentPeriodSchedule?.id || 'null')
       setCurrentSchedule(currentPeriodSchedule || null)
       
       if (currentPeriodSchedule) {
         setUnsavedChanges(false)
-        console.log('✅ SUCCESS: Schedule found and should be set')
-      } else {
-        console.log('❌ NO SCHEDULE FOUND for current period')
-        if (!unsavedChanges) {
-          setUnsavedChanges(false)
-        }
       }
       
     } catch (error) {
-      console.error('❌ Failed to load schedules:', error)
+      console.error('Failed to load schedules:', error)
       setSchedules([])
-      
       if (!unsavedChanges) {
         setCurrentSchedule(null)
       }
     }
   }
 
-  // Helper function to find schedules
   const findScheduleForCurrentPeriod = (schedules, currentDate, viewPeriod) => {
-    console.log('🔍 Finding schedule for:', {
-      currentDate: currentDate.toDateString(),
-      viewPeriod,
-      available_schedules: schedules.map(s => ({ 
-        id: s.id, 
-        week_start: s.week_start,
-        week_end: getWeekEndDate(s.week_start).toDateString()
-      }))
-    })
-    
-    // For daily and weekly views, find schedule that contains the current date
     if (viewPeriod === 'daily' || viewPeriod === 'weekly') {
       const targetDate = viewPeriod === 'weekly' ? getPeriodStart(currentDate, 'weekly') : currentDate
       
@@ -1518,21 +2378,10 @@ export default function SchedulePage() {
         const scheduleStart = new Date(schedule.week_start)
         const scheduleEnd = getWeekEndDate(schedule.week_start)
         
-        const targetDateStr = targetDate.toDateString()
-        const scheduleStartStr = scheduleStart.toDateString()
-        const scheduleEndStr = scheduleEnd.toDateString()
-        
-        const isWithinRange = (
-          targetDateStr === scheduleStartStr || 
-          targetDateStr === scheduleEndStr || 
-          (targetDate > scheduleStart && targetDate < scheduleEnd)
-        )
-        
-        return isWithinRange
+        return targetDate >= scheduleStart && targetDate <= scheduleEnd
       })
     }
     
-    // For monthly view, find any schedule that overlaps with the month
     if (viewPeriod === 'monthly') {
       const monthStart = getPeriodStart(currentDate, 'monthly')
       const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
@@ -1541,15 +2390,13 @@ export default function SchedulePage() {
         const scheduleStart = new Date(schedule.week_start)
         const scheduleEnd = getWeekEndDate(schedule.week_start)
         
-        const overlaps = (scheduleStart <= monthEnd && scheduleEnd >= monthStart)
-        return overlaps
+        return (scheduleStart <= monthEnd && scheduleEnd >= monthStart)
       })
     }
     
     return null
   }
 
-  // Helper function to get the end date of a week (6 days after start)
   const getWeekEndDate = (weekStartString) => {
     const weekStart = new Date(weekStartString)
     const weekEnd = new Date(weekStart)
@@ -1557,7 +2404,6 @@ export default function SchedulePage() {
     return weekEnd
   }
 
-  // Helper functions for date navigation
   const getPeriodStart = (date: Date, period: ViewPeriod) => {
     const result = new Date(date)
     
@@ -1576,7 +2422,6 @@ export default function SchedulePage() {
   }
 
   const navigatePeriod = (direction: number) => {
-    // Check for unsaved changes before navigation (only for managers)
     if (isManager && unsavedChanges && currentSchedule) {
       const isGeneratedSchedule = currentSchedule.id?.includes('temp') || 
                                 currentSchedule.id?.includes('generated') || 
@@ -1642,7 +2487,7 @@ export default function SchedulePage() {
 
   // Handle assignments (Manager only)
   const handleAssignmentChange = (day: number, shift: number, staffId: string) => {
-    if (!isManager) return // Staff can't modify assignments
+    if (!isManager) return
     
     console.log('Assignment change called:', { day, shift, staffId })
     setUnsavedChanges(true)
@@ -1666,7 +2511,7 @@ export default function SchedulePage() {
       setCurrentSchedule(newSchedule)
       
       const staffMember = staff.find(s => s.id === staffId)
-      const shiftName = SHIFTS.find(s => s.id === shift)?.name || 'Shift'
+      const shiftName = shifts.find(s => (s.shift_index || s.id) === shift)?.name || `Shift ${shift}`
       const dayName = DAYS[day] || 'Day'
       
       if (staffMember) {
@@ -1705,7 +2550,7 @@ export default function SchedulePage() {
     })
     
     const staffMember = staff.find(s => s.id === staffId)
-    const shiftName = SHIFTS.find(s => s.id === shift)?.name || 'Shift'
+    const shiftName = shifts.find(s => (s.shift_index || s.id) === shift)?.name || `Shift ${shift}`
     const dayName = DAYS[day] || 'Day'
     
     if (staffMember) {
@@ -1714,7 +2559,7 @@ export default function SchedulePage() {
   }
 
   const handleRemoveAssignment = (assignmentId: string) => {
-    if (!isManager) return // Staff can't remove assignments
+    if (!isManager) return
     
     console.log('Remove assignment called:', assignmentId)
     setUnsavedChanges(true)
@@ -1789,93 +2634,18 @@ export default function SchedulePage() {
       const periodName = viewPeriod.charAt(0).toUpperCase() + viewPeriod.slice(1)
       const assignmentCount = scheduleData.assignments.length
       
-      toast.success(`${periodName} schedule generated successfully! ${assignmentCount} assignments created. Click "Save Changes" to persist.`)
+      toast.success(`${periodName} schedule generated successfully! ${assignmentCount} assignments created. Click "Publish Changes" to save.`)
       
     } catch (error) {
       console.error('Smart generate failed:', error)
-      
-      let errorMessage = 'Failed to generate schedule'
-      
-      if (error.message?.includes('fetch')) {
-        errorMessage = 'Network error - check if backend is running'
-      } else if (error.message?.includes('404')) {
-        errorMessage = 'Smart scheduling endpoint not found'
-      } else if (error.message?.includes('422')) {
-        errorMessage = 'Invalid scheduling parameters'
-      } else if (error.message) {
-        errorMessage = `Generation failed: ${error.message}`
-      }
-      
-      toast.error(errorMessage)
+      toast.error('Failed to generate schedule')
     }
   }
 
+  // NEW: Updated save handler to show dialog
   const handleSaveSchedule = async () => {
     if (!isManager) return
-    
-    console.log('SAVE SCHEDULE STARTED')
-    
-    if (!currentSchedule) {
-      toast.error('No schedule to save')
-      return
-    }
-    
-    try {
-      let savedSchedule
-      
-      const isNewSchedule = !currentSchedule.id || 
-                          currentSchedule.id.includes('temp') || 
-                          currentSchedule.id.includes('generated') ||
-                          currentSchedule.is_generated === true
-      
-      if (isNewSchedule) {
-        const scheduleToSave = {
-          facility_id: currentSchedule.facility_id,
-          week_start: currentSchedule.week_start,
-          assignments: currentSchedule.assignments || []
-        }
-        
-        savedSchedule = await apiClient.createSchedule(scheduleToSave)
-      } else {
-        const updateData = {
-          assignments: currentSchedule.assignments || []
-        }
-        
-        savedSchedule = await apiClient.updateSchedule(currentSchedule.id, updateData)
-      }
-
-      savedSchedule = {
-        ...savedSchedule,
-        assignments: normalizeAssignments(savedSchedule.assignments || []),
-        is_generated: false
-      }
-      
-      setCurrentSchedule(savedSchedule)
-      setUnsavedChanges(false)
-      
-      await loadSchedules()
-      
-      toast.success('Schedule saved successfully!')
-      
-    } catch (error) {
-      console.error('SAVE FAILED:', error)
-      
-      let errorMessage = 'Failed to save schedule'
-      
-      if (error.message?.includes('404')) {
-        errorMessage = 'Schedule not found - it may have been deleted'
-      } else if (error.message?.includes('405')) {
-        errorMessage = 'Save endpoint not available - check backend configuration'
-      } else if (error.message?.includes('403')) {
-        errorMessage = 'Permission denied - check authentication'
-      } else if (error.message?.includes('422')) {
-        errorMessage = 'Invalid schedule data'
-      } else if (error.message) {
-        errorMessage = `Save failed: ${error.message}`
-      }
-      
-      toast.error(errorMessage)
-    }
+    setShowSaveDialog(true)
   }
 
   const handleDeleteSchedule = async (scheduleId: string) => {
@@ -1923,14 +2693,28 @@ export default function SchedulePage() {
     toast.success(`Switched to schedule for ${scheduleDate.toLocaleDateString()}`)
   }
 
+  // NEW: Updated swap request handler
   const handleSwapRequest = (day: number, shift: number, staffId: string) => {
-    setSelectedAssignmentForSwap({ day, shift, staffId })
-    setShowSwapModal(true)
+    const swapData = {
+      day,
+      shift,
+      staffId,
+      requester_name: staff.find(s => s.id === staffId)?.full_name || 'Unknown',
+      original_day_name: DAYS[day] || `Day ${day}`,
+      original_shift_name: shifts.find(s => (s.shift_index || s.id) === shift)?.name || `Shift ${shift}`
+    }
+    
+    if (isManager) {
+      enhancedHandleSwapRequest(swapData)
+    } else {
+      setSelectedAssignmentForSwap({ day, shift, staffId })
+      setShowSwapModal(true)
+    }
   }
 
   const handleViewSwapHistory = (swapId: string) => {
     console.log('View swap history for:', swapId)
-    // TODO: implement a swap history modal here
+    // TODO: implement swap history modal
   }
 
   if (authLoading || loading) {
@@ -1986,14 +2770,13 @@ export default function SchedulePage() {
           setUnsavedChanges={setUnsavedChanges}
           swapRequests={swapRequests}
           swapSummary={swapSummary}
-          getFacilityZones={getFacilityZones}
           navigatePeriod={navigatePeriod}
           formatPeriodDisplay={formatPeriodDisplay}
           getPeriodStart={getPeriodStart}
           handleAssignmentChange={handleAssignmentChange}
           handleRemoveAssignment={handleRemoveAssignment}
           handleSmartGenerate={handleSmartGenerate}
-          handleSaveSchedule={handleSaveSchedule}
+          handleSaveSchedule={enhancedHandleSaveSchedule}
           handleDeleteSchedule={handleDeleteSchedule}
           handleScheduleSelect={handleScheduleSelect}
           handleSwapRequest={handleSwapRequest}
@@ -2002,6 +2785,15 @@ export default function SchedulePage() {
           retryAutoAssignment={retryAutoAssignment}
           refreshSwaps={refreshSwaps}
           handleViewSwapHistory={handleViewSwapHistory}
+          shifts={shifts}  // NEW: Dynamic shifts
+          zones={zones}    // NEW: Dynamic zones
+          // NEW: Notification props
+          showSaveDialog={showSaveDialog}
+          setShowSaveDialog={setShowSaveDialog}
+          showSwapNotificationDialog={showSwapNotificationDialog}
+          setShowSwapNotificationDialog={setShowSwapNotificationDialog}
+          processSwapWithNotifications={processSwapWithNotifications}
+          pendingSwapData={pendingSwapData}
         />
       ) : (
         <StaffScheduleView
@@ -2017,6 +2809,9 @@ export default function SchedulePage() {
           swapRequests={swapRequests}
           onSwapRequest={handleSwapRequest}
           user={user}
+          facility={selectedFacility}  // NEW: Pass facility
+          shifts={shifts}              // NEW: Dynamic shifts
+          zones={zones}                // NEW: Dynamic zones
         />
       )}
 
@@ -2030,7 +2825,7 @@ export default function SchedulePage() {
         schedule={currentSchedule}
         currentAssignment={selectedAssignmentForSwap}
         staff={staff}
-        shifts={SHIFTS}
+        shifts={shifts}  // NEW: Dynamic shifts
         days={DAYS}
         isManager={isManager}
         onSwapRequest={createSwapRequest}

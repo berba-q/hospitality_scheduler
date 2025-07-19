@@ -3,8 +3,9 @@
 from datetime import date, datetime, timedelta
 from typing import List, Dict, Any, Optional
 from uuid import UUID
+import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlmodel import Session, select, text
 from sqlalchemy import desc, func
  
@@ -12,12 +13,14 @@ from app.schemas import (
     ScheduleRead, ScheduleDetail, PreviewRequestWithConfig, 
     ScheduleValidationResult
 )
+from app.services.notification_service import NotificationService
 from app.services.scheduler import create_schedule, validate_schedule_constraints
 from app.services.schedule_solver import (
     generate_weekly_schedule, ScheduleConstraints, constraints_from_config
 )
-from app.models import Staff, Schedule, ScheduleConfig, Facility, ShiftAssignment
+from app.models import NotificationType, Staff, Schedule, ScheduleConfig, Facility, ShiftAssignment, User
 from app.deps import get_db, get_current_user
+from ...services.pdf_service import PDFService 
 
 from pydantic import BaseModel
 
@@ -1778,3 +1781,110 @@ async def update_schedule(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=422, detail=f"Schedule update failed: {str(e)}")
+    
+#======================== NOTIFICATIONS ===============================================
+@router.post("/{schedule_id}/publish")
+async def publish_schedule(
+    schedule_id: uuid.UUID,
+    notification_options: Dict[str, Any],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """
+    Publish a schedule and send notifications to staff
+    
+    notification_options should contain:
+    - send_whatsapp: bool
+    - send_push: bool 
+    - send_email: bool
+    - generate_pdf: bool
+    - custom_message: Optional[str]
+    """
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Get schedule
+    schedule = db.get(Schedule, schedule_id)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    
+    # Verify facility access
+    facility = db.get(Facility, schedule.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get affected staff
+    assignments = db.exec(
+        select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule_id)
+    ).all()
+    
+    staff_ids = list(set(assignment.staff_id for assignment in assignments))
+    staff_members = db.exec(
+        select(Staff).where(Staff.id.in_(staff_ids)) # type: ignore
+    ).all()
+    
+    # Generate PDF if requested
+    pdf_url = None
+    if notification_options.get('generate_pdf', False):
+        try:
+            pdf_service = PDFService()
+            pdf_data = await pdf_service.generate_schedule_pdf(
+                schedule=schedule,
+                assignments=assignments,
+                staff=staff_members,
+                facility=facility
+            )
+            # Save PDF and get URL (implement your file storage logic)
+            pdf_url = await pdf_service.save_pdf(pdf_data, f"schedule_{schedule_id}.pdf")
+        except Exception as e:
+            print(f"PDF generation failed: {e}")
+    
+    # Send notifications
+    notification_service = NotificationService(db)
+    
+    for staff_member in staff_members:
+        try:
+            # Determine channels
+            channels = ['IN_APP']  # Always send in-app
+            if notification_options.get('send_push', False):
+                channels.append('PUSH')
+            if notification_options.get('send_whatsapp', False):
+                channels.append('WHATSAPP')
+            if notification_options.get('send_email', False):
+                channels.append('EMAIL')
+            
+            # Template data
+            template_data = {
+                'staff_name': staff_member.full_name,
+                'week_start': schedule.week_start.strftime('%B %d, %Y'),
+                'facility_name': facility.name,
+                'custom_message': notification_options.get('custom_message', '')
+            }
+            
+            # Send notification
+            await notification_service.send_notification(
+                notification_type=NotificationType.SCHEDULE_PUBLISHED,
+                recipient_user_id=staff_member.id,
+                template_data=template_data,
+                channels=channels,
+                action_url=f"/schedule?week={schedule.week_start}",
+                action_text="View Schedule",
+                background_tasks=background_tasks,
+                pdf_attachment_url=pdf_url
+            )
+            
+        except Exception as e:
+            print(f"Failed to send notification to {staff_member.full_name}: {e}")
+    
+    # Mark schedule as published
+    schedule.is_published = True
+    schedule.published_at = datetime.utcnow()
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Schedule published and notifications sent to {len(staff_members)} staff members",
+        "pdf_url": pdf_url,
+        "notifications_sent": len(staff_members)
+    }

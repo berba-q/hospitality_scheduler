@@ -1,6 +1,6 @@
 # app/api/endpoints/swaps.py
 """Swaps endpoint"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Query
 from sqlmodel import Session, select
 from typing import List, Optional, Literal
 from datetime import datetime, timedelta
@@ -8,21 +8,76 @@ from uuid import UUID
 from collections import Counter, defaultdict
 from typing import Dict, Any
 
+from app.services.notification_service import NotificationService
+
 from ...deps import get_db, get_current_user
 from ...models import (
     SwapRequest, SwapHistory, Schedule, ShiftAssignment, 
     Staff, Facility, User
 )
 from ...schemas import (
-    SpecificSwapRequestCreate, AutoSwapRequestCreate, SwapRequestRead,
+    SpecificSwapRequestCreate, AutoSwapRequestCreate, SwapRequestCreate, SwapRequestRead,
     SwapRequestWithDetails, ManagerSwapDecision, StaffSwapResponse,
-    AutoAssignmentResult, SwapSummary, SwapHistoryRead, SwapRequestUpdate
+    AutoAssignmentResult, SwapStatus, SwapSummary, SwapHistoryRead, SwapRequestUpdate
 )
 from ...services.swap_service import assign_swap_coverage
 
 router = APIRouter(prefix="/swaps", tags=["emergency-swaps"])
 
 # ==================== CREATING SWAP REQUESTS ====================
+
+@router.post("/request")
+async def create_swap_request(
+    swap_data: SwapRequestCreate,
+    notification_options: Optional[Dict[str, Any]] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Create a swap request with notifications"""
+    
+    # Create swap request
+    swap_request = SwapRequest(
+        schedule_id=swap_data.schedule_id,
+        requesting_staff_id=swap_data.requesting_staff_id,
+        target_staff_id=swap_data.target_staff_id if swap_data.swap_type == SwapType.SPECIFIC else None,
+        original_day=swap_data.original_day,
+        original_shift=swap_data.original_shift,
+        target_day=swap_data.target_day,
+        target_shift=swap_data.target_shift,
+        swap_type=swap_data.swap_type,
+        reason=swap_data.reason,
+        urgency=swap_data.urgency,
+        status=SwapStatus.PENDING
+    )
+    
+    db.add(swap_request)
+    db.commit()
+    db.refresh(swap_request)
+    
+    # Send notifications based on swap type
+    notification_service = NotificationService(db)
+    
+    if notification_options is None:
+        notification_options = {
+            'send_whatsapp': True,
+            'send_push': True,
+            'send_inapp': True
+        }
+    
+    try:
+        await send_swap_notifications(
+            swap_request=swap_request,
+            notification_service=notification_service,
+            notification_options=notification_options,
+            db=db,
+            background_tasks=background_tasks
+        )
+    except Exception as e:
+        print(f"Failed to send swap notifications: {e}")
+    
+    return swap_request
+
 
 @router.post("/specific", response_model=SwapRequestRead, status_code=201)
 def create_specific_swap_request(
