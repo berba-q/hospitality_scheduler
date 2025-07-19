@@ -234,3 +234,15 @@ staff_accounts.json
 .gitignore
 hospitality-scheduler-pwa/package-lock.json
 hospitality-scheduler-pwa/package.json
+
+
+/firebase-service-account.json
+.gitignore
+/.dockerignore
+/Dockerfile
+/entrypoint.sh
+/staff_accounts.json
+.vscode/launch.json
+.vscode/tasks.json
+/hospitality-scheduler-pwa/package-lock.json
+/hospitality-scheduler-pwa/package.json
