@@ -1,3 +1,4 @@
+// components/layout/AppLayout.tsx - main app layout
 'use client'
 
 import { useSession } from 'next-auth/react'
@@ -5,14 +6,19 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { Navbar } from '@/components/navigation/Navbar'
 import { Toaster } from '@/components/ui/sonner'
+import { NotificationProvider, useRealtimeNotifications } from '@/contexts/NotificationContext'
 
 interface AppLayoutProps {
   children: React.ReactNode
 }
 
-export function AppLayout({ children }: AppLayoutProps) {
+// Inner component that uses the notification context
+function AppLayoutInner({ children }: AppLayoutProps) {
   const { data: session, status } = useSession()
   const router = useRouter()
+  
+  // Initialize real-time notifications
+  useRealtimeNotifications()
 
   useEffect(() => {
     if (status === 'loading') return
@@ -40,5 +46,16 @@ export function AppLayout({ children }: AppLayoutProps) {
       </main>
       <Toaster />
     </div>
+  )
+}
+
+// Main component that provides the notification context
+export function AppLayout({ children }: AppLayoutProps) {
+  return (
+    <NotificationProvider>
+      <AppLayoutInner>
+        {children}
+      </AppLayoutInner>
+    </NotificationProvider>
   )
 }
