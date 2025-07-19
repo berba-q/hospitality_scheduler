@@ -4,7 +4,6 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { 
   Bell, 
   BellRing, 
@@ -19,8 +18,7 @@ import {
   CheckCircle,
   RefreshCw,
   Trash2,
-  Filter,
-  BellOff
+  Filter
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -28,8 +26,20 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { useNotifications } from '@/contexts/NotificationContext'
+import { useApiClient } from '@/hooks/useApi'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+interface Notification {
+  id: string
+  title: string
+  message: string
+  notification_type: string
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  is_read: boolean
+  created_at: string
+  action_url?: string
+  action_text?: string
+}
 
 interface NotificationPreference {
   notification_type: string
@@ -40,28 +50,80 @@ interface NotificationPreference {
 }
 
 export function NotificationBell() {
+  // CRITICAL: Initialize as false to ensure popover starts closed
   const [open, setOpen] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [preferences, setPreferences] = useState<NotificationPreference[]>([])
+  const [loading, setLoading] = useState(false)
   const [filterType, setFilterType] = useState<string>('all')
   const [filterPriority, setFilterPriority] = useState<string>('all')
   const [pushToken, setPushToken] = useState('')
   const [whatsappNumber, setWhatsappNumber] = useState('')
-  const [preferencesLoading, setPreferencesLoading] = useState(false)
+  const apiClient = useApiClient()
 
-  const {
-    notifications,
-    unreadCount,
-    loading,
-    refreshNotifications,
-    markAsRead,
-    markAllAsRead
-  } = useNotifications()
+  const unreadCount = notifications.filter(n => !n.is_read).length
 
+  // Load notifications only when component mounts
+  useEffect(() => {
+    loadNotifications()
+  }, [])
+
+  // Load preferences only when popover is opened
   useEffect(() => {
     if (open) {
       loadPreferences()
     }
   }, [open])
+
+  const loadNotifications = async () => {
+    try {
+      const response = await apiClient.get('/notifications/')
+      setNotifications(response.data || [])
+    } catch (error) {
+      console.error('Failed to load notifications:', error)
+    }
+  }
+
+  const loadPreferences = async () => {
+    try {
+      const response = await apiClient.get('/notifications/preferences')
+      setPreferences(response.data || [])
+    } catch (error) {
+      console.error('Failed to load preferences:', error)
+    }
+  }
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      await apiClient.post(`/notifications/${notificationId}/read`)
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      )
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error)
+      toast.error('Failed to mark notification as read')
+    }
+  }
+
+  const markAllAsRead = async () => {
+    try {
+      await apiClient.post('/notifications/mark-all-read')
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+      toast.success('All notifications marked as read')
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error)
+      toast.error('Failed to mark all notifications as read')
+    }
+  }
+
+  const refreshNotifications = async () => {
+    setLoading(true)
+    try {
+      await loadNotifications()
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Filter notifications based on selected filters
   const filteredNotifications = notifications.filter(notification => {
@@ -74,24 +136,11 @@ export function NotificationBell() {
     return true
   })
 
-  const loadPreferences = async () => {
-    try {
-      setPreferencesLoading(true)
-      // Load preferences from API
-      // const response = await apiClient.get('/notifications/preferences')
-      // setPreferences(response.data || [])
-    } catch (error) {
-      console.error('Failed to load preferences:', error)
-    } finally {
-      setPreferencesLoading(false)
-    }
-  }
-
   const updatePreference = async (type: string, field: string, value: boolean) => {
     try {
-      // await apiClient.put(`/notifications/preferences/${type}`, {
-      //   [field]: value
-      // })
+      await apiClient.put(`/notifications/preferences/${type}`, {
+        [field]: value
+      })
       setPreferences(prev => 
         prev.map(p => p.notification_type === type ? { ...p, [field]: value } : p)
       )
@@ -104,7 +153,7 @@ export function NotificationBell() {
 
   const updatePushToken = async () => {
     try {
-      // await apiClient.put('/notifications/push-token', { token: pushToken })
+      await apiClient.put('/notifications/push-token', { token: pushToken })
       toast.success('Push token updated')
     } catch (error) {
       console.error('Failed to update push token:', error)
@@ -114,7 +163,7 @@ export function NotificationBell() {
 
   const updateWhatsAppNumber = async () => {
     try {
-      // await apiClient.put('/notifications/whatsapp-number', { number: whatsappNumber })
+      await apiClient.put('/notifications/whatsapp-number', { number: whatsappNumber })
       toast.success('WhatsApp number updated')
     } catch (error) {
       console.error('Failed to update WhatsApp number:', error)
@@ -180,7 +229,7 @@ export function NotificationBell() {
     } else if (hasUnread) {
       return 'text-blue-600'
     }
-    return 'text-gray-400'
+    return 'text-gray-500'
   }
 
   return (
@@ -189,7 +238,8 @@ export function NotificationBell() {
         <Button
           variant="ghost"
           size="sm"
-          className={`relative p-2 hover:bg-gray-100 ${getBellStyle()}`}
+          className={`relative p-2 hover:bg-gray-100 transition-colors ${getBellStyle()}`}
+          aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
         >
           {unreadCount > 0 ? (
             <BellRing className={`w-5 h-5 ${getBellStyle()}`} />
@@ -207,7 +257,7 @@ export function NotificationBell() {
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-96 p-0" align="end">
+      <PopoverContent className="w-96 p-0" align="end" side="bottom">
         <Tabs defaultValue="notifications" className="w-full">
           <div className="flex items-center justify-between p-4 border-b">
             <h3 className="font-semibold">Notifications</h3>
@@ -386,19 +436,6 @@ export function NotificationBell() {
                     <CheckCircle className="w-4 h-4 mr-2" />
                     Mark All as Read ({unreadCount})
                   </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Clear all read notifications
-                      toast.success('Read notifications cleared')
-                    }}
-                    className="w-full justify-start"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Clear Read Notifications
-                  </Button>
                 </div>
               </div>
 
@@ -445,90 +482,62 @@ export function NotificationBell() {
               <div>
                 <h4 className="font-medium mb-3">Notification Preferences</h4>
                 
-                {preferencesLoading ? (
-                  <div className="text-center py-4">
-                    <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-2" />
-                    <p className="text-xs text-gray-500">Loading preferences...</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {preferences.length === 0 ? (
-                      <p className="text-xs text-gray-500 text-center py-4">
-                        No preferences configured
-                      </p>
-                    ) : (
-                      preferences.map((pref) => (
-                        <div key={pref.notification_type} className="space-y-2">
-                          <h5 className="text-sm font-medium">
-                            {pref.notification_type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
-                          </h5>
+                <div className="space-y-4">
+                  {preferences.length === 0 ? (
+                    <p className="text-xs text-gray-500 text-center py-4">
+                      No preferences configured
+                    </p>
+                  ) : (
+                    preferences.map((pref) => (
+                      <div key={pref.notification_type} className="space-y-2">
+                        <h5 className="text-sm font-medium">
+                          {pref.notification_type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                        </h5>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <Label>In-App</Label>
+                            <Switch
+                              checked={pref.in_app_enabled}
+                              onCheckedChange={(checked) => 
+                                updatePreference(pref.notification_type, 'in_app_enabled', checked)
+                              }
+                            />
+                          </div>
                           
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="flex items-center justify-between">
-                              <Label>In-App</Label>
-                              <Switch
-                                checked={pref.in_app_enabled}
-                                onCheckedChange={(checked) => 
-                                  updatePreference(pref.notification_type, 'in_app_enabled', checked)
-                                }
-                              />
-                            </div>
-                            
-                            <div className="flex items-center justify-between">
-                              <Label>Push</Label>
-                              <Switch
-                                checked={pref.push_enabled}
-                                onCheckedChange={(checked) => 
-                                  updatePreference(pref.notification_type, 'push_enabled', checked)
-                                }
-                              />
-                            </div>
-                            
-                            <div className="flex items-center justify-between">
-                              <Label>WhatsApp</Label>
-                              <Switch
-                                checked={pref.whatsapp_enabled}
-                                onCheckedChange={(checked) => 
-                                  updatePreference(pref.notification_type, 'whatsapp_enabled', checked)
-                                }
-                              />
-                            </div>
-                            
-                            <div className="flex items-center justify-between">
-                              <Label>Email</Label>
-                              <Switch
-                                checked={pref.email_enabled}
-                                onCheckedChange={(checked) => 
-                                  updatePreference(pref.notification_type, 'email_enabled', checked)
-                                }
-                              />
-                            </div>
+                          <div className="flex items-center justify-between">
+                            <Label>Push</Label>
+                            <Switch
+                              checked={pref.push_enabled}
+                              onCheckedChange={(checked) => 
+                                updatePreference(pref.notification_type, 'push_enabled', checked)
+                              }
+                            />
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <Label>WhatsApp</Label>
+                            <Switch
+                              checked={pref.whatsapp_enabled}
+                              onCheckedChange={(checked) => 
+                                updatePreference(pref.notification_type, 'whatsapp_enabled', checked)
+                              }
+                            />
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <Label>Email</Label>
+                            <Switch
+                              checked={pref.email_enabled}
+                              onCheckedChange={(checked) => 
+                                updatePreference(pref.notification_type, 'email_enabled', checked)
+                              }
+                            />
                           </div>
                         </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Global Settings */}
-              <div>
-                <h4 className="font-medium mb-3">Global Settings</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Do Not Disturb Mode</Label>
-                    <Switch />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Sound Notifications</Label>
-                    <Switch defaultChecked />
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Desktop Notifications</Label>
-                    <Switch defaultChecked />
-                  </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
