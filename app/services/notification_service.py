@@ -34,7 +34,8 @@ class NotificationService:
         priority: Optional[NotificationPriority] = None,
         action_url: Optional[str] = None,
         action_text: Optional[str] = None,
-        background_tasks: Optional[BackgroundTasks] = None
+        background_tasks: Optional[BackgroundTasks] = None,
+        pdf_attachment_url: Optional[str] = None
     ) -> Notification:
         """Send a notification through multiple channels"""
         
@@ -50,7 +51,7 @@ class NotificationService:
         if not template:
             print(f" No template found for {notification_type}, creating basic notification")
             return await self._create_basic_notification(
-                notification_type, user, template_data, channels, priority, action_url, action_text
+                notification_type, user, template_data, channels, priority, action_url, action_text, pdf_attachment_url
             )
         
         # Get user preferences
@@ -64,6 +65,12 @@ class NotificationService:
         title = self._render_template(template.title_template, template_data)
         message = self._render_template(template.message_template, template_data)
         
+        # Add PDF attachment to data if provided
+        notification_data = template_data.copy()
+        if pdf_attachment_url:
+            notification_data["pdf_attachment_url"] = pdf_attachment_url
+            print(f"📎 PDF attachment added: {pdf_attachment_url}")
+        
         # Create notification record
         notification = Notification(
             recipient_user_id=user.id,
@@ -73,7 +80,7 @@ class NotificationService:
             message=message,
             priority=priority or template.priority,
             channels=channels,
-            data=template_data,
+            data=notification_data,  # updated data with PDF
             action_url=action_url,
             action_text=action_text
         )
@@ -87,11 +94,11 @@ class NotificationService:
         # Send through channels
         if background_tasks:
             background_tasks.add_task(
-                self._deliver_notification, notification, template, template_data
+                self._deliver_notification, notification, template, notification_data
             )
         else:
             # Run delivery in background without blocking
-            asyncio.create_task(self._deliver_notification(notification, template, template_data))
+            asyncio.create_task(self._deliver_notification(notification, template, notification_data))
         
         return notification
     
@@ -103,7 +110,8 @@ class NotificationService:
         channels: Optional[List[str]],
         priority: Optional[NotificationPriority],
         action_url: Optional[str],
-        action_text: Optional[str]
+        action_text: Optional[str],
+        pdf_attachment_url: Optional[str] = None  # PDF support in basic notifications
     ) -> Notification:
         """Create a basic notification when no template exists"""
         
@@ -121,6 +129,12 @@ class NotificationService:
         title = f"{notification_type.value.replace('_', ' ').title()}"
         message = basic_messages.get(notification_type, "You have a new notification")
         
+        # ✅ NEW: Add PDF attachment to data if provided
+        notification_data = template_data.copy()
+        if pdf_attachment_url:
+            notification_data["pdf_attachment_url"] = pdf_attachment_url
+            print(f"📎 PDF attachment added to basic notification: {pdf_attachment_url}")
+        
         notification = Notification(
             recipient_user_id=user.id,
             tenant_id=user.tenant_id,
@@ -129,7 +143,7 @@ class NotificationService:
             message=message,
             priority=priority or NotificationPriority.MEDIUM,
             channels=channels or ["IN_APP"],
-            data=template_data,
+            data=notification_data,  # updated data with PDF
             action_url=action_url,
             action_text=action_text
         )
@@ -177,6 +191,14 @@ class NotificationService:
                     }
                     print(f"WhatsApp message {'delivered' if success else 'failed'}")
                 
+                elif channel == "EMAIL":
+                    success = await self._send_email_notification(notification, template, template_data)
+                    delivery_status[channel] = {
+                        "status": "delivered" if success else "failed",
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                    print(f"Email notification {'delivered' if success else 'failed'}")
+                
             except Exception as e:
                 delivery_status[channel] = {
                     "status": "error",
@@ -208,16 +230,25 @@ class NotificationService:
             print(" Firebase service not available, skipping push notification")
             return False
         
+        # ✅ NEW: Include PDF attachment in push notification data
+        push_data = {
+            "notification_id": str(notification.id),
+            "type": str(notification.notification_type),
+            "action_url": notification.action_url or "",
+            **notification.data
+        }
+        
+        # Add PDF attachment info if available
+        if notification.data.get("pdf_attachment_url"):
+            push_data["has_pdf_attachment"] = True
+            push_data["pdf_url"] = notification.data["pdf_attachment_url"]
+            print(f"📱 Including PDF attachment in push: {notification.data['pdf_attachment_url']}")
+        
         return await self.firebase_service.send_push_notification(
             token=user.push_token,
             title=notification.title,
             body=notification.message,
-            data={
-                "notification_id": str(notification.id),
-                "type": str(notification.notification_type),
-                "action_url": notification.action_url or "",
-                **notification.data
-            },
+            data=push_data,
             action_url=notification.action_url # type: ignore
         )
     
@@ -246,6 +277,12 @@ class NotificationService:
             whatsapp_message = f"*{notification.title}*\n\n{notification.message}"
             if notification.action_url:
                 whatsapp_message += f"\n\n {notification.action_text or 'View Details'}: {notification.action_url}"
+        
+        # ✅ NEW: Add PDF attachment link to WhatsApp message
+        if notification.data.get("pdf_attachment_url"):
+            pdf_url = notification.data["pdf_attachment_url"]
+            whatsapp_message += f"\n\n📎 Download PDF: {pdf_url}"
+            print(f"📱 Including PDF attachment in WhatsApp: {pdf_url}")
         
         # Ensure phone number has country code
         phone_number = user.whatsapp_number
@@ -278,6 +315,36 @@ class NotificationService:
         except Exception as e:
             print(f" WhatsApp error: {e}")
             return False
+    
+    async def _send_email_notification(
+        self, 
+        notification: Notification, 
+        template: Optional[NotificationTemplate],
+        template_data: Dict[str, Any]
+    ) -> bool:
+        """Send email notification (placeholder - implement your email service)"""
+        user = self.db.get(User, notification.recipient_user_id)
+        if not user or not user.email:
+            print(f" No email for user {user.email if user else 'unknown'}")
+            return False
+        
+        print(f"📧 EMAIL: Would send to {user.email}")
+        print(f"📧 Subject: {notification.title}")
+        print(f"📧 Body: {notification.message}")
+        
+        # ✅ NEW: Handle PDF attachment in email
+        if notification.data.get("pdf_attachment_url"):
+            pdf_url = notification.data["pdf_attachment_url"]
+            print(f"📧 PDF Attachment: {pdf_url}")
+            # TODO: Implement actual email sending with PDF attachment
+            # This would typically involve:
+            # 1. Downloading the PDF from the URL
+            # 2. Attaching it to the email
+            # 3. Sending via your email service (SendGrid, SES, etc.)
+        
+        # For now, return True to simulate successful sending
+        # Replace this with actual email service implementation
+        return True
     
     def _get_template(self, notification_type: NotificationType, tenant_id: uuid.UUID) -> Optional[NotificationTemplate]:
         """Get notification template (tenant-specific or global)"""

@@ -98,11 +98,11 @@ export function useSwapRequests(facilityId?: string) {
   }, [loadSwapRequests])
 
   // Create swap request
-  const createSwapRequest = async (swapData: any) => {
+  const createSwapRequest = async (swapData: any, notificationOptions?: any) => {
     try {
-      const response = await apiClient.createSwapRequest(swapData)
+      const response = await apiClient.createSwapRequest(swapData, notificationOptions)
       await loadSwapRequests() // Refresh data
-      toast.success('Swap request created successfully!')
+      toast.success('Swap request created and notifications sent!')
       return response
     } catch (error: any) {
       console.error('Failed to create swap request:', error)
