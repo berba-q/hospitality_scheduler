@@ -53,8 +53,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const refreshNotifications = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await apiClient.get('/notifications/')
-      const newNotifications = response.data || []
+      const newNotifications = await apiClient.getMyNotifications()
       
       // Check for new unread notifications to show toast
       const previousUnreadIds = new Set(
@@ -94,7 +93,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const markAsRead = useCallback(async (id: string) => {
     try {
-      await apiClient.post(`/notifications/${id}/read`)
+      await apiClient.markNotificationRead(id)
       setNotifications(prev => 
         prev.map(n => n.id === id ? { ...n, is_read: true } : n)
       )
@@ -106,7 +105,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await apiClient.post('/notifications/mark-all-read')
+      await apiClient.markAllNotificationsRead()
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
       toast.success('All notifications marked as read')
     } catch (error) {

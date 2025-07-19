@@ -77,8 +77,8 @@ export function NotificationBell() {
 
   const loadNotifications = async () => {
     try {
-      const response = await apiClient.get('/notifications/')
-      setNotifications(response.data || [])
+      const response = await apiClient.getMyNotifications()
+      setNotifications(notifications || [])
     } catch (error) {
       console.error('Failed to load notifications:', error)
     }
@@ -86,8 +86,8 @@ export function NotificationBell() {
 
   const loadPreferences = async () => {
     try {
-      const response = await apiClient.get('/notifications/preferences')
-      setPreferences(response.data || [])
+      const preferences = await apiClient.getNotificationPreferences()
+      setPreferences(preferences || [])
     } catch (error) {
       console.error('Failed to load preferences:', error)
     }
@@ -95,7 +95,7 @@ export function NotificationBell() {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await apiClient.post(`/notifications/${notificationId}/read`)
+      await apiClient.markNotificationRead(notificationId)
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       )
@@ -107,7 +107,7 @@ export function NotificationBell() {
 
   const markAllAsRead = async () => {
     try {
-      await apiClient.post('/notifications/mark-all-read')
+      await apiClient.markAllNotificationsRead()
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
       toast.success('All notifications marked as read')
     } catch (error) {
@@ -138,8 +138,9 @@ export function NotificationBell() {
 
   const updatePreference = async (type: string, field: string, value: boolean) => {
     try {
-      await apiClient.put(`/notifications/preferences/${type}`, {
-        [field]: value
+      await apiClient.updateNotificationPreferences({
+      notification_type: type,
+      [field]: value
       })
       setPreferences(prev => 
         prev.map(p => p.notification_type === type ? { ...p, [field]: value } : p)
@@ -153,7 +154,7 @@ export function NotificationBell() {
 
   const updatePushToken = async () => {
     try {
-      await apiClient.put('/notifications/push-token', { token: pushToken })
+      await apiClient.updatePushToken(pushToken)
       toast.success('Push token updated')
     } catch (error) {
       console.error('Failed to update push token:', error)
@@ -163,7 +164,7 @@ export function NotificationBell() {
 
   const updateWhatsAppNumber = async () => {
     try {
-      await apiClient.put('/notifications/whatsapp-number', { number: whatsappNumber })
+      await apiClient.updateWhatsAppNumber(whatsappNumber)
       toast.success('WhatsApp number updated')
     } catch (error) {
       console.error('Failed to update WhatsApp number:', error)
