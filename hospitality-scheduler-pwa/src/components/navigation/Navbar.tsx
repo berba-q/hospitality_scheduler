@@ -38,7 +38,7 @@ export function Navbar() {
       href: '/staff',
       icon: Users,
       active: pathname === '/staff',
-      managerOnly: true
+      managerOnly: true // Only managers see staff
     },
     {
       label: 'Schedule',
@@ -52,7 +52,7 @@ export function Navbar() {
       href: '/facilities',
       icon: Building,
       active: pathname === '/facilities',
-      managerOnly: true
+      managerOnly: true // Only managers see facilities
     },
     {
       label: 'Swaps',
@@ -117,9 +117,9 @@ export function Navbar() {
             </div>
           </div>
 
-          {/* Right Side - Notification Bell + User Menu */}
+          {/* 🔥 RIGHT SIDE - NOTIFICATION BELL + USER MENU */}
           <div className="flex items-center gap-3">
-            {/* Prominent Notification Bell - Always Visible */}
+            {/* 🔔 NOTIFICATION BELL - ALWAYS VISIBLE AND PROMINENT */}
             <div className="relative">
               <NotificationBell />
             </div>
@@ -210,7 +210,7 @@ export function Navbar() {
               })}
             </div>
             
-            {/* Mobile Notification Bell */}
+            {/* 🔔 MOBILE NOTIFICATION BELL */}
             <div className="ml-3">
               <NotificationBell />
             </div>

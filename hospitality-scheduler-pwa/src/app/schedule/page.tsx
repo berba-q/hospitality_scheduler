@@ -57,7 +57,6 @@ import { useSwapRequests } from '@/hooks/useSwapRequests'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 // NEW: Import notification components
-import { NotificationBell } from '@/components/notification/NotificationBell'
 import { ScheduleSaveConfirmationDialog } from '@/components/schedule/ScheduleSaveConfirmationDialog'
 import { SwapNotificationDialog } from '@/components/swap/SwapNotificationDialog'
 
@@ -1076,9 +1075,6 @@ function StaffScheduleView({
           </div>
 
           <div className="flex items-center gap-3">
-            {/* NEW: Notification Bell for Staff */}
-            <NotificationBell />
-
             {/* Today's shifts indicator */}
             {todayAssignments.length > 0 && (
               <Card className="border-blue-200 bg-blue-50">
