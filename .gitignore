@@ -219,3 +219,18 @@ node_modules/
 node_modules
 /node_modules/
 
+firebase-service-account.json
+.gitignore
+.dockerignore
+.gitignore
+.gitignore
+Dockerfile
+entrypoint.sh
+staff_accounts.json
+.vscode/launch.json
+.vscode/tasks.json
+.gitignore
+.gitignore
+.gitignore
+hospitality-scheduler-pwa/package-lock.json
+hospitality-scheduler-pwa/package.json
