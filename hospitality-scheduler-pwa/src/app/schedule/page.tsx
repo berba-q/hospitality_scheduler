@@ -198,17 +198,54 @@ function StaffScheduleView({
     return myScheduleData.assignments
   }
 
+  // shift colors
+  const generateShiftColor = (index: number): string => {
+  const colors = [
+    '#3B82F6', // Blue
+    '#10B981', // Green  
+    '#F59E0B', // Orange
+    '#EF4444', // Red
+    '#8B5CF6', // Purple
+    '#06B6D4', // Cyan
+    '#84CC16', // Lime
+    '#F97316'  // Orange-red
+  ]
+  return colors[index % colors.length]
+}
+
+
   // Get shift names
   const getShiftName = (shiftIndex) => {
-    const shift = shifts?.find(s => s.shift_index === shiftIndex || s.id === shiftIndex)
-    return shift?.name || `Shift ${shiftIndex}`
+    console.log('🔍 Looking for shift name:', shiftIndex, 'in shifts:', shifts)
+    
+    // Try multiple matching strategies
+    const shift = shifts?.find(s => 
+      s.shift_index === shiftIndex || 
+      s.id === shiftIndex || 
+      s.shift_index === parseInt(shiftIndex) ||
+      s.id === parseInt(shiftIndex)
+    )
+    
+    const shiftName = shift?.name || `Shift ${shiftIndex}`
+    console.log(' Found shift name:', shiftName, 'for index:', shiftIndex)
+    
+    return shiftName
   }
 
   const getShiftTime = (shiftIndex) => {
-    const shift = shifts?.find(s => s.shift_index === shiftIndex || s.id === shiftIndex)
-    return shift ? `${shift.start_time} - ${shift.end_time}` : ''
+    const shift = shifts?.find(s => 
+      s.shift_index === shiftIndex || 
+      s.id === shiftIndex ||
+      s.shift_index === parseInt(shiftIndex) ||
+      s.id === parseInt(shiftIndex)
+    )
+    
+    const timeDisplay = shift ? `${shift.start_time} - ${shift.end_time}` : ''
+    console.log('Shift time for', shiftIndex, ':', timeDisplay)
+    
+    return timeDisplay
   }
-  
+    
   // Get current assignments
   const getTodayAssignments = () => {
     // Use the new data structure
@@ -368,11 +405,19 @@ function StaffScheduleView({
                     {getAssignmentsForDisplay().filter(assignment => {
                       const today = new Date().toISOString().split('T')[0]
                       return assignment.date === today
-                    }).map(assignment => (
-                      <div key={assignment.assignment_id} className="text-xs text-green-700">
-                        {getShiftName(assignment.shift)} ({getShiftTime(assignment.shift)})
-                      </div>
-                    ))}
+                    }).map(assignment => {
+                      // FIXED: Use dynamic shift lookup instead of SHIFTS constant
+                      const shift = shifts.find(s => 
+                        s.id === assignment.shift || 
+                        s.shift_index === assignment.shift ||
+                        s.id === parseInt(String(assignment.shift))
+                      )
+                      return (
+                        <div key={assignment.assignment_id} className="text-xs text-green-700">
+                          {shift?.name || getShiftName(assignment.shift)} ({shift?.time || getShiftTime(assignment.shift)})
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
@@ -1345,46 +1390,81 @@ export default function SchedulePage() {
     if (!selectedFacility) return
 
     try {
-      console.log('=== LOADING FACILITY DATA ===')
-      console.log('Selected Facility:', selectedFacility)
+      console.log('🏢 Loading facility data for:', selectedFacility.name)
       
-      // Load shifts and zones from facility data
-      const facilityShifts = selectedFacility.shifts || []
-      const facilityZones = selectedFacility.zones || []
+      // CRITICAL: Load real shifts from API instead of using SHIFTS constant
+      let facilityShifts = []
+      try {
+        facilityShifts = await apiClient.getFacilityShifts(selectedFacility.id)
+        console.log('Real shifts from API:', facilityShifts)
+      } catch (error) {
+        console.warn('Failed to load shifts from API, using fallback:', error)
+        // Fallback to the working SHIFTS constant format
+        facilityShifts = [
+          { id: 0, name: 'Morning', start_time: '06:00', end_time: '14:00', color: '#3B82F6' },
+          { id: 1, name: 'Afternoon', start_time: '14:00', end_time: '22:00', color: '#10B981' },
+          { id: 2, name: 'Evening', start_time: '22:00', end_time: '06:00', color: '#F59E0B' }
+        ]
+      }
 
-      console.log('Raw facility shifts:', facilityShifts)
-      console.log('Raw facility zones:', facilityZones)
-
-      // Ensure shifts have consistent structure
+      // Process shifts to match the working format
       const processedShifts = facilityShifts.map((shift, index) => ({
-        id: shift.id || shift.shift_id || index,
-        shift_index: shift.shift_index || index,
-        name: shift.name || `Shift ${index + 1}`,
+        id: shift.id || index,
+        name: shift.name || shift.shift_name || `Shift ${index + 1}`,
         start_time: shift.start_time || '09:00',
         end_time: shift.end_time || '17:00',
-        color: shift.color || ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'][index % 4],
-        requires_manager: shift.requires_manager || false,
-        min_staff: shift.min_staff || 1,
-        max_staff: shift.max_staff || 5,
-        is_active: shift.is_active !== false
+        color: shift.color || ['#3B82F6', '#10B981', '#F59E0B'][index] || '#3B82F6',
+        time: `${shift.start_time || '09:00'} - ${shift.end_time || '17:00'}` // Add time field like SHIFTS
       }))
 
-      console.log('Processed shifts:', processedShifts)
-
+      console.log('📅 Processed shifts:', processedShifts)
       setShifts(processedShifts)
+
+      // Load zones (keep your existing zone logic)
+      const facilityZones = selectedFacility.zones || []
       setZones(facilityZones)
 
-      // Auto-select all zones
       if (facilityZones.length > 0) {
         setSelectedZones(facilityZones.map(z => z.zone_id || z.id))
       }
+
     } catch (error) {
       console.error('Failed to load facility data:', error)
       toast.error('Failed to load facility configuration')
     }
   }
 
-  // FIXED: Load schedules when facility or date changes
+
+  // normalize assignment data
+  const normalizeAssignments = (assignments: any[]): any[] => {
+    if (!assignments) {
+      console.log('⚠️ No assignments provided, returning empty array')
+      return []
+    }
+    
+    console.log('🔧 Normalizing assignments:', assignments.length)
+    
+    const normalized = assignments.map((assignment, index) => {
+      const normalized = {
+        id: assignment.id || `assignment-${assignment.schedule_id || 'temp'}-${assignment.day}-${assignment.shift}-${assignment.staff_id}-${index}`,
+        day: Number(assignment.day),
+        shift: Number(assignment.shift),
+        staff_id: String(assignment.staff_id),
+        schedule_id: assignment.schedule_id,
+        zone_id: assignment.zone_id,
+        staff_name: assignment.staff_name,
+        staff_role: assignment.staff_role
+      }
+      
+      console.log(`Assignment ${index}:`, normalized)
+      return normalized
+    })
+    
+    console.log('✅ Normalized assignments complete:', normalized.length)
+    return normalized
+  }
+
+  //  Load schedules when facility or date changes
   useEffect(() => {
     if (selectedFacility) {
       loadSchedules()
@@ -1393,85 +1473,114 @@ export default function SchedulePage() {
 
   // FIXED: Implement loadSchedules properly
   const loadSchedules = async () => {
-    if (!selectedFacility) return
-
-    try {
-      console.log('=== LOADING SCHEDULES ===')
-      console.log('Facility ID:', selectedFacility.id)
-      console.log('Current Date:', currentDate)
-      console.log('View Period:', viewPeriod)
-      
-      // Calculate date range for schedule loading
-      const startDate = getPeriodStart(currentDate, viewPeriod)
-      let endDate = new Date(startDate)
-      
-      switch (viewPeriod) {
-        case 'daily':
-          endDate = new Date(startDate)
-          break
-        case 'weekly':
-          endDate = new Date(startDate)
-          endDate.setDate(startDate.getDate() + 6)
-          break
-        case 'monthly':
-          endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0)
-          break
+  if (!selectedFacility) {
+    console.log('No facility selected, skipping schedule load')
+    return
+  }
+  
+  try {
+    console.log('🔄 Loading schedules for facility:', selectedFacility.name)
+    
+    const schedulesData = await apiClient.getFacilitySchedules(selectedFacility.id)
+    
+    console.log('📊 Raw API response:', {
+      schedulesCount: schedulesData.length,
+      schedules: schedulesData.map(s => ({
+        id: s.id,
+        week_start: s.week_start,
+        assignments_count: s.assignments?.length || 0
+      }))
+    })
+    
+    // CRITICAL: Normalize schedule data using your working function
+    const normalizedSchedules = schedulesData.map(schedule => {
+      const normalized = {
+        ...schedule,
+        week_start: schedule.week_start.split('T')[0],
+        assignments: normalizeAssignments(schedule.assignments || []) // THIS WAS KEY
       }
-
-      console.log('Date range:', {
-        start: startDate.toISOString().split('T')[0],
-        end: endDate.toISOString().split('T')[0]
+      
+      console.log(`📋 Normalized schedule ${schedule.id}:`, {
+        original_week_start: schedule.week_start,
+        normalized_week_start: normalized.week_start,
+        assignments_count: normalized.assignments.length
       })
-
-      // Load schedules for the facility and date range
-      const facilitySchedules = await apiClient.getFacilitySchedules(
-        selectedFacility.id,
-        startDate.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0]
-      )
-
-      console.log('Raw schedules from API:', facilitySchedules)
-      setSchedules(facilitySchedules)
-
-      // Find current schedule for the date range
-      const currentSched = facilitySchedules.find(schedule => {
+      
+      return normalized
+    })
+    
+    console.log('✅ Schedules normalized:', normalizedSchedules.length)
+    setSchedules(normalizedSchedules)
+    
+    // Find schedule for current period
+    const currentPeriodSchedule = findScheduleForCurrentPeriod(normalizedSchedules, currentDate, viewPeriod)
+    
+    console.log('🔍 Current schedule found:', currentPeriodSchedule?.id || 'none')
+    setCurrentSchedule(currentPeriodSchedule || null)
+    
+  } catch (error) {
+    console.error('❌ Failed to load schedules:', error)
+    setSchedules([])
+    setCurrentSchedule(null)
+  }
+}
+// Helper function to find schedules
+  const findScheduleForCurrentPeriod = (schedules, currentDate, viewPeriod) => {
+    console.log('🔍 Finding schedule for:', {
+      currentDate: currentDate.toDateString(),
+      viewPeriod,
+      available_schedules: schedules.map(s => ({ 
+        id: s.id, 
+        week_start: s.week_start,
+        week_end: getWeekEndDate(s.week_start).toDateString()
+      }))
+    })
+    
+    // For daily and weekly views, find schedule that contains the current date
+    if (viewPeriod === 'daily' || viewPeriod === 'weekly') {
+      const targetDate = viewPeriod === 'weekly' ? getPeriodStart(currentDate, 'weekly') : currentDate
+      
+      return schedules.find(schedule => {
         const scheduleStart = new Date(schedule.week_start)
-        const scheduleEnd = new Date(scheduleStart)
-        scheduleEnd.setDate(scheduleStart.getDate() + 6)
+        const scheduleEnd = getWeekEndDate(schedule.week_start)
         
-        const isInRange = startDate >= scheduleStart && startDate <= scheduleEnd
+        const targetDateStr = targetDate.toDateString()
+        const scheduleStartStr = scheduleStart.toDateString()
+        const scheduleEndStr = scheduleEnd.toDateString()
         
-        console.log('Schedule check:', {
-          schedule_id: schedule.id,
-          schedule_start: scheduleStart.toDateString(),
-          schedule_end: scheduleEnd.toDateString(),
-          query_start: startDate.toDateString(),
-          is_in_range: isInRange,
-          assignments_count: schedule.assignments?.length || 0
-        })
+        const isWithinRange = (
+          targetDateStr === scheduleStartStr || 
+          targetDateStr === scheduleEndStr || 
+          (targetDate > scheduleStart && targetDate < scheduleEnd)
+        )
         
-        return isInRange
+        return isWithinRange
       })
-
-      if (currentSched) {
-        console.log('Current schedule found:', {
-          id: currentSched.id,
-          week_start: currentSched.week_start,
-          assignments: currentSched.assignments?.length || 0,
-          sample_assignments: currentSched.assignments?.slice(0, 3) || []
-        })
-        setCurrentSchedule(currentSched)
-      } else {
-        console.log('No current schedule found for date range')
-        setCurrentSchedule(null)
-      }
-
-    } catch (error) {
-      console.error('Failed to load schedules:', error)
-      toast.error('Failed to load schedules')
-      setSchedules([])
-      setCurrentSchedule(null)
     }
+    
+    // For monthly view, find any schedule that overlaps with the month
+    if (viewPeriod === 'monthly') {
+      const monthStart = getPeriodStart(currentDate, 'monthly')
+      const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
+      
+      return schedules.find(schedule => {
+        const scheduleStart = new Date(schedule.week_start)
+        const scheduleEnd = getWeekEndDate(schedule.week_start)
+        
+        const overlaps = (scheduleStart <= monthEnd && scheduleEnd >= monthStart)
+        return overlaps
+      })
+    }
+    
+    return null
+  }
+
+  // Helper function to get the end date of a week (6 days after start)
+  const getWeekEndDate = (weekStartString) => {
+    const weekStart = new Date(weekStartString)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+    return weekEnd
   }
 
 
