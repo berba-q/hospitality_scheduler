@@ -1,4 +1,5 @@
 from datetime import date, datetime, time
+from enum import Enum
 from typing import Optional, List, Dict, Any
 import uuid
 from sqlmodel import SQLModel, Field, Relationship, Column, JSON
@@ -120,6 +121,27 @@ class ShiftRoleRequirement(SQLModel, table=True):
     shift: FacilityShift = Relationship(back_populates="rolerequirements")
     role: FacilityRole = Relationship(back_populates="shiftrequirements")
 
+class NotificationType(str, Enum):
+    SCHEDULE_PUBLISHED = "SCHEDULE_PUBLISHED"
+    SWAP_REQUEST = "SWAP_REQUEST"
+    SWAP_APPROVED = "SWAP_APPROVED"
+    SWAP_DENIED = "SWAP_DENIED"
+    SCHEDULE_CHANGE = "SCHEDULE_CHANGE"
+    SHIFT_REMINDER = "SHIFT_REMINDER"
+    EMERGENCY_COVERAGE = "EMERGENCY_COVERAGE"
+
+class NotificationChannel(str, Enum):
+    IN_APP = "IN_APP"
+    PUSH = "PUSH"
+    WHATSAPP = "WHATSAPP"
+    EMAIL = "EMAIL"
+
+class NotificationPriority(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    URGENT = "URGENT"
+
 class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     tenant_id: uuid.UUID = Field(foreign_key="tenant.id")
@@ -127,8 +149,13 @@ class User(SQLModel, table=True):
     hashed_password: str
     is_manager: bool = False
     is_active: bool = True
-
     tenant: Tenant = Relationship(back_populates="managers")
+    # Notification settings
+    push_token: Optional[str] = None
+    whatsapp_number: Optional[str] = None
+    
+    # Relationships
+    notifications: List["Notification"] = Relationship(back_populates="recipient")
 
 class Staff(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -299,3 +326,87 @@ class ScheduleOptimization(SQLModel, table=True):
     
     # Relationships
     schedule: "Schedule" = Relationship()
+
+#===================== NOTIFICATION MODEL =============================================
+
+class Notification(SQLModel, table=True):
+    """Central notification model"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    
+    # Target and routing
+    recipient_user_id: uuid.UUID = Field(foreign_key="user.id")
+    recipient_staff_id: Optional[uuid.UUID] = Field(foreign_key="staff.id", default=None)
+    tenant_id: uuid.UUID = Field(foreign_key="tenant.id")
+    facility_id: Optional[uuid.UUID] = Field(foreign_key="facility.id", default=None)
+    
+    # Notification content
+    notification_type: NotificationType
+    title: str
+    message: str
+    priority: NotificationPriority = NotificationPriority.MEDIUM
+    
+    # Rich content and actions
+    data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    action_url: Optional[str] = None
+    action_text: Optional[str] = None
+    
+    # Delivery tracking
+    channels: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    delivery_status: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    
+    # State management
+    is_read: bool = False
+    read_at: Optional[datetime] = None
+    is_delivered: bool = False
+    delivered_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    
+    # Metadata
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
+    
+    # Relationships
+    recipient: "User" = Relationship(back_populates="notifications")
+
+class NotificationTemplate(SQLModel, table=True):
+    """Reusable notification templates"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    
+    template_name: str = Field(unique=True)
+    notification_type: NotificationType
+    
+    # Template content (supports variable substitution)
+    title_template: str
+    message_template: str
+    whatsapp_template: Optional[str] = None
+    
+    # Channel configuration
+    default_channels: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    priority: NotificationPriority = NotificationPriority.MEDIUM
+    
+    # Business rules
+    enabled: bool = True
+    tenant_id: Optional[uuid.UUID] = Field(foreign_key="tenant.id", default=None)  # null = global template
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class NotificationPreference(SQLModel, table=True):
+    """User notification preferences"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    notification_type: NotificationType
+    
+    # Channel preferences
+    in_app_enabled: bool = True
+    push_enabled: bool = True
+    whatsapp_enabled: bool = False
+    email_enabled: bool = False
+    
+    # Timing preferences
+    quiet_hours_start: Optional[str] = None  # "22:00"
+    quiet_hours_end: Optional[str] = None    # "08:00"
+    timezone: str = "UTC"
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None

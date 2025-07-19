@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Optional
 from pydantic_settings import BaseSettings
 from pydantic import AnyUrl, Field
 
@@ -14,6 +15,21 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = Field(..., env="POSTGRES_PASSWORD")
     DATABASE_URL: str = Field(..., env="DATABASE_URL") 
     REDIS_URL: str = Field("redis://redis:6379/0", env="REDIS_URL")
+    
+    # Firebase Configuration
+    FIREBASE_SERVICE_ACCOUNT_PATH: Optional[str] = None
+    FIREBASE_PROJECT_ID: Optional[str] = None
+    
+    # Twilio WhatsApp Configuration  
+    TWILIO_ACCOUNT_SID: Optional[str] = None
+    TWILIO_AUTH_TOKEN: Optional[str] = None
+    TWILIO_WHATSAPP_NUMBER: Optional[str] = None
+    
+    # Optional: Email settings (for future)
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: Optional[int] = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
     
     # New scheduling-related settings
     SMART_SCHEDULING_ENABLED: bool = Field(default=True, env="SMART_SCHEDULING_ENABLED")

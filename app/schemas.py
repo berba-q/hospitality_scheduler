@@ -3,6 +3,7 @@ from typing import Any, Dict, Literal, Optional, List
 from enum import Enum
 import uuid
 
+from .models import NotificationType, NotificationChannel, NotificationPriority
 from pydantic import BaseModel, EmailStr, ConfigDict, Field, validator
 
 
@@ -1020,3 +1021,84 @@ class CascadeDeleteConfig(BaseModel):
     notify_affected_users: bool = True
     create_audit_log: bool = True
     backup_before_delete: bool = False
+
+#======================= NOTIFICATION MANAGMENT ==============================
+class NotificationRead(BaseModel):
+    id: uuid.UUID
+    notification_type: NotificationType
+    title: str
+    message: str
+    priority: NotificationPriority
+    action_url: Optional[str] = None
+    action_text: Optional[str] = None
+    is_read: bool
+    read_at: Optional[datetime] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class NotificationCreate(BaseModel):
+    notification_type: NotificationType
+    recipient_user_id: uuid.UUID
+    title: str
+    message: str
+    priority: NotificationPriority = NotificationPriority.MEDIUM
+    channels: List[str] = ["IN_APP"]
+    action_url: Optional[str] = None
+    action_text: Optional[str] = None
+    data: Dict[str, Any] = {}
+
+class NotificationPreferenceRead(BaseModel):
+    id: uuid.UUID
+    notification_type: NotificationType
+    in_app_enabled: bool
+    push_enabled: bool
+    whatsapp_enabled: bool
+    email_enabled: bool
+    quiet_hours_start: Optional[str] = None
+    quiet_hours_end: Optional[str] = None
+    timezone: str
+    
+    class Config:
+        from_attributes = True
+
+class NotificationPreferenceUpdate(BaseModel):
+    in_app_enabled: Optional[bool] = None
+    push_enabled: Optional[bool] = None
+    whatsapp_enabled: Optional[bool] = None
+    email_enabled: Optional[bool] = None
+    quiet_hours_start: Optional[str] = None
+    quiet_hours_end: Optional[str] = None
+    timezone: Optional[str] = None
+
+class PushTokenUpdate(BaseModel):
+    push_token: str
+
+class WhatsAppNumberUpdate(BaseModel):
+    whatsapp_number: str
+
+# ==================== TEMPLATE SCHEMAS ====================
+
+class NotificationTemplateRead(BaseModel):
+    id: uuid.UUID
+    template_name: str
+    notification_type: NotificationType
+    title_template: str
+    message_template: str
+    whatsapp_template: Optional[str] = None
+    default_channels: List[str]
+    priority: NotificationPriority
+    enabled: bool
+    
+    class Config:
+        from_attributes = True
+
+class NotificationTemplateCreate(BaseModel):
+    template_name: str
+    notification_type: NotificationType
+    title_template: str
+    message_template: str
+    whatsapp_template: Optional[str] = None
+    default_channels: List[str]
+    priority: NotificationPriority = NotificationPriority.MEDIUM
