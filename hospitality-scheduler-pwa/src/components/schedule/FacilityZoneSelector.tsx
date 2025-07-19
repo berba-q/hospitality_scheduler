@@ -8,7 +8,17 @@ import { MapPin, Users, CheckCircle, Circle } from 'lucide-react'
 interface Zone {
   id: string
   name: string
-  roles: string[]
+  roles?: string[]  // Make this optional with ?
+  // Add other zone properties that might be missing
+  zone_id?: string
+  zone_name?: string
+  required_roles?: string[]
+  preferred_roles?: string[]
+  min_staff_per_shift?: number
+  max_staff_per_shift?: number
+  description?: string
+  is_active?: boolean
+  display_order?: number
 }
 
 interface FacilityZoneSelectorProps {
@@ -41,10 +51,25 @@ export function FacilityZoneSelector({
   }
 
   const getZoneStaffCount = (zone: Zone) => {
+    // Add null/undefined checks for zone.roles
+    const zoneRoles = zone.roles || []
     return staff.filter(member => 
-      zone.roles.includes(member.role) || zone.roles.length === 0
+      zoneRoles.includes(member.role) || zoneRoles.length === 0
     ).length
   }
+
+  const getZoneName = (zone: Zone) => {
+    return zone.name || zone.zone_name || 'Unnamed Zone'
+  }
+
+  const getZoneId = (zone: Zone) => {
+    return zone.id || zone.zone_id || zone.name
+  }
+
+  const getZoneRoles = (zone: Zone) => {
+  // Handle different possible role properties
+  return zone.roles || zone.required_roles || zone.preferred_roles || []
+}
 
   const getZoneColor = (zoneId: string) => {
     const colors: Record<string, string> = {
@@ -87,7 +112,9 @@ export function FacilityZoneSelector({
 
       <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
         {zones.map((zone) => {
-          const isSelected = selectedZones.includes(zone.id)
+          const zoneId = getZoneId(zone)
+          const zoneName = getZoneName(zone)
+          const isSelected = selectedZones.includes(zoneId)
           const staffCount = getZoneStaffCount(zone)
           
           return (
@@ -115,34 +142,28 @@ export function FacilityZoneSelector({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <MapPin className="w-4 h-4 text-gray-500" />
-                      <span className="font-medium text-gray-900">{zone.name}</span>
+                      <span className="font-medium text-gray-900">{zoneName}</span>
                       <Badge variant="outline" className="text-xs">
-                        {staffCount} staff
+                        {staffCount} staff available
                       </Badge>
                     </div>
                     
                     {/* Roles */}
                     <div className="flex flex-wrap gap-1">
-                      {zone.roles.length > 0 ? (
-                        zone.roles.slice(0, 3).map((role) => (
+                       {getZoneRoles(zone).slice(0, 2).map(role => (
                           <Badge 
-                            key={role} 
+                            key={role}
                             variant="outline" 
-                            className={`text-xs ${getZoneColor(zone.id)}`}
+                            className={`text-xs ${getZoneColor(zoneId)}`}
                           >
                             {role}
                           </Badge>
-                        ))
-                      ) : (
-                        <Badge variant="outline" className="text-xs text-gray-500">
-                          All roles
-                        </Badge>
-                      )}
-                      {zone.roles.length > 3 && (
-                        <Badge variant="outline" className="text-xs text-gray-500">
-                          +{zone.roles.length - 3} more
-                        </Badge>
-                      )}
+                        ))}
+                          {getZoneRoles(zone).length > 2 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{getZoneRoles(zone).length - 2}
+                          </Badge>
+                        )}
                     </div>
                   </div>
 

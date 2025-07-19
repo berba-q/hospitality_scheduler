@@ -1,4 +1,4 @@
-// schedule/page.tsx - FIXED VERSION with clean syntax
+// schedule/page.tsx - FIXED VERSION with proper data loading and modal state management
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
@@ -96,12 +96,13 @@ function StaffScheduleView({
 
   const loadMyData = async () => {
     try {
+      console.log('=== LOADING STAFF DATA ===')
       setLoading(true)
-      
+
       // Calculate date range based on view period
       const startDate = getPeriodStart(currentDate, viewPeriod)
       let endDate = new Date(startDate)
-      
+
       switch (viewPeriod) {
         case 'daily':
           endDate = new Date(startDate)
@@ -114,20 +115,30 @@ function StaffScheduleView({
           endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0)
           break
       }
-      
+
+      console.log('Staff data date range:', {
+        start: startDate.toISOString().split('T')[0],
+        end: endDate.toISOString().split('T')[0]
+      })
+
+      // FIXED: Use existing getMySchedule method
       try {
         const scheduleData = await apiClient.getMySchedule(
           startDate.toISOString().split('T')[0],
           endDate.toISOString().split('T')[0]
         )
-        
-        console.log('📊 Raw schedule data received:', scheduleData)
-        
+
+        console.log('Staff schedule data received:', scheduleData)
+
+        // Handle the correct response structure from backend
         if (scheduleData && scheduleData.assignments) {
           setMyScheduleData(scheduleData)
-          console.log(`✅ Schedule loaded: ${scheduleData.assignments.length} assignments found`)
+          console.log('Staff schedule loaded:', {
+            assignments_count: scheduleData.assignments.length,
+            sample_assignments: scheduleData.assignments.slice(0, 3)
+          })
         } else {
-          console.log('⚠️ No schedule data or assignments found')
+          console.log('No staff schedule data found')
           setMyScheduleData({ assignments: [] })
         }
       } catch (error) {
@@ -135,16 +146,18 @@ function StaffScheduleView({
         setMyScheduleData({ assignments: [] })
       }
 
+      // Get swap requests for staff
       try {
         const swaps = await apiClient.getMySwapRequests(undefined, 50)
+        console.log('Staff swap requests loaded:', swaps.length)
         setMySwapRequests(swaps)
       } catch (error) {
         console.warn('Failed to load my swap requests:', error)
         setMySwapRequests([])
       }
-      
+
     } catch (error) {
-      console.error('Failed to load my data:', error)
+      console.error('Failed to load staff data:', error)
       setMyScheduleData([])
       setMySwapRequests([])
     } finally {
@@ -152,9 +165,9 @@ function StaffScheduleView({
     }
   }
 
+   // Helper function for period start calculation
   const getPeriodStart = (date: Date, period: ViewPeriod) => {
     const result = new Date(date)
-    
     switch (period) {
       case 'daily':
         return result
@@ -169,6 +182,7 @@ function StaffScheduleView({
     }
   }
 
+  // Get my assignments from current schedule
   const getAssignmentCount = () => {
     if (!myScheduleData || !myScheduleData.assignments) {
       return 0
@@ -176,6 +190,7 @@ function StaffScheduleView({
     return myScheduleData.assignments.length
   }
 
+  // Get assignments to display
   const getAssignmentsForDisplay = () => {
     if (!myScheduleData || !myScheduleData.assignments) {
       return []
@@ -183,7 +198,7 @@ function StaffScheduleView({
     return myScheduleData.assignments
   }
 
-  // NEW: Use dynamic shifts instead of hardcoded
+  // Get shift names
   const getShiftName = (shiftIndex) => {
     const shift = shifts?.find(s => s.shift_index === shiftIndex || s.id === shiftIndex)
     return shift?.name || `Shift ${shiftIndex}`
@@ -194,13 +209,16 @@ function StaffScheduleView({
     return shift ? `${shift.start_time} - ${shift.end_time}` : ''
   }
   
+  // Get current assignments
   const getTodayAssignments = () => {
+    // Use the new data structure
     const assignments = getAssignmentsForDisplay()
     if (!assignments.length) return []
-    
+
     const today = new Date()
-    const todayDateString = today.toISOString().split('T')[0]
-    
+    const todayDateString = today.toISOString().split('T')[0] // Format: "2025-07-16"
+
+    // Filter by actual date instead of day index
     return assignments.filter(assignment => 
       assignment.date === todayDateString
     )
@@ -467,178 +485,180 @@ function StaffScheduleView({
         )}
       </div>
 
-      {/* My Swaps List Modal */}
-      <Dialog open={showMySwapsModal} onOpenChange={setShowMySwapsModal}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ArrowLeftRight className="w-5 h-5" />
-              My Swap Requests ({mySwapRequests.length})
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="overflow-y-auto max-h-[calc(80vh-120px)] space-y-4">
-            {mySwapRequests.length === 0 ? (
-              <div className="text-center py-12">
-                <ArrowLeftRight className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Swap Requests</h3>
-                <p className="text-gray-600 mb-4">You haven't submitted any swap requests yet.</p>
-                <Button 
-                  onClick={() => {
-                    setShowMySwapsModal(false)
-                    onSwapRequest && onSwapRequest(0, 0, user?.staff_id || user?.id)
-                  }}
-                  className="gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Your First Swap Request
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {mySwapRequests.map((swap, index) => (
-                  <Card key={swap.id || index} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <Badge className={
-                              swap.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              swap.status === 'approved' || swap.status === 'executed' ? 'bg-green-100 text-green-800' :
-                              swap.status === 'declined' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }>
-                              {swap.status}
-                            </Badge>
-                            {swap.urgency && swap.urgency !== 'normal' && (
+      {/* My Swaps List Modal - FIX: Only show when state is true */}
+      {showMySwapsModal && (
+        <Dialog open={showMySwapsModal} onOpenChange={setShowMySwapsModal}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ArrowLeftRight className="w-5 h-5" />
+                My Swap Requests ({mySwapRequests.length})
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="overflow-y-auto max-h-[calc(80vh-120px)] space-y-4">
+              {mySwapRequests.length === 0 ? (
+                <div className="text-center py-12">
+                  <ArrowLeftRight className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Swap Requests</h3>
+                  <p className="text-gray-600 mb-4">You haven't submitted any swap requests yet.</p>
+                  <Button 
+                    onClick={() => {
+                      setShowMySwapsModal(false)
+                      onSwapRequest && onSwapRequest(0, 0, user?.staff_id || user?.id)
+                    }}
+                    className="gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Your First Swap Request
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {mySwapRequests.map((swap, index) => (
+                    <Card key={swap.id || index} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
                               <Badge className={
-                                swap.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
-                                swap.urgency === 'emergency' ? 'bg-red-100 text-red-800' :
-                                'bg-blue-100 text-blue-800'
+                                swap.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                swap.status === 'approved' || swap.status === 'executed' ? 'bg-green-100 text-green-800' :
+                                swap.status === 'declined' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
                               }>
-                                {swap.urgency}
+                                {swap.status}
                               </Badge>
-                            )}
-                          </div>
-                          
-                          <h4 className="font-medium text-gray-900 mb-1">
-                            {swap.swap_type === 'specific' ? 'Specific Swap Request' : 'Auto Assignment Request'}
-                          </h4>
-                          
-                          <p className="text-sm text-gray-600 mb-2">
-                            {swap.reason || 'No reason provided'}
-                          </p>
-                          
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {DAYS[swap.original_day]} - {getShiftName(swap.original_shift)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {new Date(swap.created_at).toLocaleDateString()}
-                            </span>
-                            {swap.target_staff && (
+                              {swap.urgency && swap.urgency !== 'normal' && (
+                                <Badge className={
+                                  swap.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
+                                  swap.urgency === 'emergency' ? 'bg-red-100 text-red-800' :
+                                  'bg-blue-100 text-blue-800'
+                                }>
+                                  {swap.urgency}
+                                </Badge>
+                              )}
+                            </div>
+
+                            <h4 className="font-medium text-gray-900 mb-1">
+                              {swap.swap_type === 'specific' ? 'Specific Swap Request' : 'Auto Assignment Request'}
+                            </h4>
+
+                            <p className="text-sm text-gray-600 mb-2">
+                              {swap.reason || 'No reason provided'}
+                            </p>
+
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
                               <span className="flex items-center gap-1">
-                                <User className="w-3 h-3" />
-                                {swap.target_staff.full_name}
+                                <Calendar className="w-3 h-3" />
+                                {DAYS[swap.original_day]} - {shifts?.find(s => s.id === swap.original_shift)?.name || 'Unknown Shift'}
                               </span>
-                            )}
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {new Date(swap.created_at).toLocaleDateString()}
+                              </span>
+                              {swap.target_staff && (
+                                <span className="flex items-center gap-1">
+                                  <User className="w-3 h-3" />
+                                  {swap.target_staff.full_name}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedSwapForDetail(swap)
-                              setShowSwapDetailModal(true)
-                            }}
-                          >
-                            View Details
-                          </Button>
-                          
-                          {swap.status === 'pending' && (
+
+                          <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                if (confirm('Are you sure you want to cancel this swap request?')) {
-                                  toast.info('Cancel functionality coming soon')
-                                }
+                                setSelectedSwapForDetail(swap)
+                                setShowSwapDetailModal(true)
                               }}
-                              className="text-red-600 hover:text-red-700"
                             >
-                              Cancel
+                              View Details
                             </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-            
-            {mySwapRequests.length > 0 && (
-              <div className="pt-4 border-t">
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => {
-                    setShowMySwapsModal(false)
-                    onSwapRequest && onSwapRequest(0, 0, user?.staff_id || user?.id)
-                  }}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create New Swap Request
-                </Button>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Swap Details Modal */}
-      <SwapDetailModal
-        swap={selectedSwapForDetail}
-        open={showSwapDetailModal && selectedSwapForDetail !== null}
-        onClose={() => {
-          setShowSwapDetailModal(false)
-          setSelectedSwapForDetail(null)
-        }}
-        onSwapResponse={async (swapId, accepted, notes) => {
-          try {
-            await apiClient.respondToSwap(swapId, accepted, notes)
+                            {swap.status === 'pending' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  if (confirm('Are you sure you want to cancel this swap request?')) {
+                                    toast.info('Cancel functionality coming soon')
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {mySwapRequests.length > 0 && (
+                <div className="pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => {
+                      setShowMySwapsModal(false)
+                      onSwapRequest && onSwapRequest(0, 0, user?.staff_id || user?.id)
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create New Swap Request
+                  </Button>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Swap details modal - FIX: Only show when both conditions are true */}
+      {showSwapDetailModal && selectedSwapForDetail && (
+        <SwapDetailModal
+          swap={selectedSwapForDetail}
+          open={showSwapDetailModal}
+          onClose={() => {
             setShowSwapDetailModal(false)
             setSelectedSwapForDetail(null)
-            loadMyData()
-            toast.success(accepted ? 'Swap accepted!' : 'Swap declined')
-          } catch (error) {
-            console.error('❌ SwapResponse error:', error)
-            toast.error('Failed to respond to swap')
-          }
-        }}
-        onCancelSwap={async (swapId, reason) => {
-          try {
-            await apiClient.cancelSwapRequest(swapId, reason)
-            setShowSwapDetailModal(false)
-            setSelectedSwapForDetail(null)
-            loadMyData()
-            toast.success('Swap request cancelled')
-          } catch (error) {
-            console.error('❌ CancelSwap error:', error)
-            toast.error('Failed to cancel swap')
-          }
-        }}
-        user={user}
-        apiClient={apiClient}
-        shifts={shifts}
-        days={DAYS}
-      />
+          }}
+          onSwapResponse={async (swapId, accepted, notes) => {
+            try {
+              await apiClient.respondToSwap(swapId, accepted, notes)
+              setShowSwapDetailModal(false)
+              setSelectedSwapForDetail(null)
+              loadMyData() // Refresh the data
+              toast.success(accepted ? 'Swap accepted!' : 'Swap declined')
+            } catch (error) {
+              console.error('❌ SwapResponse error:', error)
+              toast.error('Failed to respond to swap')
+            }
+          }}
+          onCancelSwap={async (swapId, reason) => {
+            try {
+              await apiClient.cancelSwapRequest(swapId, reason)
+              setShowSwapDetailModal(false)
+              setSelectedSwapForDetail(null)
+              loadMyData() // Refresh the data
+              toast.success('Swap request cancelled')
+            } catch (error) {
+              console.error('❌ CancelSwap error:', error)
+              toast.error('Failed to cancel swap')
+            }
+          }}
+          user={user}
+          apiClient={apiClient}
+        />
+      )}
     </div>
   )
 }
@@ -1087,80 +1107,92 @@ function ManagerScheduleView({
         )}
       </div>
 
-      {/* Manager Modals */}
-      <SmartGenerateModal
-        open={showSmartGenerateModal}
-        onClose={() => setShowSmartGenerateModal(false)}
-        facility={selectedFacility}
-        zones={availableZones}
-        selectedZones={selectedZones}
-        staff={facilityStaff}
-        periodStart={getPeriodStart(currentDate, viewPeriod)}
-        periodType={viewPeriod}
-        onGenerate={handleSmartGenerate}
-      />
+      {/* Manager Modals - FIX: Only render when needed */}
+      {showSmartGenerateModal && (
+        <SmartGenerateModal
+          open={showSmartGenerateModal}
+          onClose={() => setShowSmartGenerateModal(false)}
+          facility={selectedFacility}
+          zones={availableZones}
+          selectedZones={selectedZones}
+          staff={facilityStaff}
+          periodStart={getPeriodStart(currentDate, viewPeriod)}
+          periodType={viewPeriod}
+          onGenerate={handleSmartGenerate}
+        />
+      )}
       
-      <ScheduleConfigModal
-        open={showConfigModal}
-        onClose={() => setShowConfigModal(false)}
-        facility={selectedFacility}
-      />
+      {showConfigModal && (
+        <ScheduleConfigModal
+          open={showConfigModal}
+          onClose={() => setShowConfigModal(false)}
+          facility={selectedFacility}
+        />
+      )}
 
-      <ScheduleListModal
-        open={showScheduleListModal}
-        onClose={() => setShowScheduleListModal(false)}
-        schedules={schedules}
-        currentSchedule={currentSchedule}
-        onScheduleSelect={handleScheduleSelect}
-        onScheduleDelete={handleDeleteSchedule}
-        isManager={true}
-      />
+      {showScheduleListModal && (
+        <ScheduleListModal
+          open={showScheduleListModal}
+          onClose={() => setShowScheduleListModal(false)}
+          schedules={schedules}
+          currentSchedule={currentSchedule}
+          onScheduleSelect={handleScheduleSelect}
+          onScheduleDelete={handleDeleteSchedule}
+          isManager={true}
+        />
+      )}
 
-      <FacilitySwapModal
-        open={showSwapDashboard}
-        onClose={() => setShowSwapDashboard(false)}
-        facility={selectedFacility}
-        swapRequests={swapRequests}
-        swapSummary={swapSummary}
-        days={DAYS}
-        shifts={shifts}
-        onApproveSwap={approveSwap}
-        onRetryAutoAssignment={retryAutoAssignment}
-        onViewSwapHistory={handleViewSwapHistory}
-        onRefresh={refreshSwaps}
-      />
+      {showSwapDashboard && (
+        <FacilitySwapModal
+          open={showSwapDashboard}
+          onClose={() => setShowSwapDashboard(false)}
+          facility={selectedFacility}
+          swapRequests={swapRequests}
+          swapSummary={swapSummary}
+          days={DAYS}
+          shifts={shifts}
+          onApproveSwap={approveSwap}
+          onRetryAutoAssignment={retryAutoAssignment}
+          onViewSwapHistory={handleViewSwapHistory}
+          onRefresh={refreshSwaps}
+        />
+      )}
 
-      {/* Save Confirmation Dialog */}
-      <ScheduleSaveConfirmationDialog
-        open={showSaveDialog}
-        onClose={() => setShowSaveDialog(false)}
-        onConfirm={handleSaveSchedule}
-        schedule={currentSchedule}
-        staffList={facilityStaff}
-        facility={selectedFacility}
-        isNewSchedule={!currentSchedule?.id || currentSchedule?.is_generated}
-      />
+      {/* Save Confirmation Dialog - FIX: Only render when needed */}
+      {showSaveDialog && (
+        <ScheduleSaveConfirmationDialog
+          open={showSaveDialog}
+          onClose={() => setShowSaveDialog(false)}
+          onConfirm={handleSaveSchedule}
+          schedule={currentSchedule}
+          staffList={facilityStaff}
+          facility={selectedFacility}
+          isNewSchedule={!currentSchedule?.id || currentSchedule?.is_generated}
+        />
+      )}
 
-      {/* Swap Notification Dialog */}
-      <SwapNotificationDialog
-        open={showSwapNotificationDialog}
-        onClose={() => setShowSwapNotificationDialog(false)}
-        onConfirm={processSwapWithNotifications}
-        swapType="staff_to_staff"
-        swapDetails={{
-          requesterName: pendingSwapData?.requester_name || 'Unknown',
-          targetStaffName: pendingSwapData?.target_staff_name,
-          originalDay: pendingSwapData?.original_day_name || 'Unknown',
-          originalShift: pendingSwapData?.original_shift_name || 'Unknown',
-          reason: pendingSwapData?.reason,
-          urgency: pendingSwapData?.urgency || 'normal'
-        }}
-        recipientStaff={facilityStaff.filter(s => 
-          pendingSwapData?.target_staff_id ? 
-          s.id === pendingSwapData.target_staff_id : 
-          true
-        )}
-      />
+      {/* Swap Notification Dialog - FIX: Only render when needed */}
+      {showSwapNotificationDialog && pendingSwapData && (
+        <SwapNotificationDialog
+          open={showSwapNotificationDialog}
+          onClose={() => setShowSwapNotificationDialog(false)}
+          onConfirm={processSwapWithNotifications}
+          swapType="staff_to_staff"
+          swapDetails={{
+            requesterName: pendingSwapData?.requester_name || 'Unknown',
+            targetStaffName: pendingSwapData?.target_staff_name,
+            originalDay: pendingSwapData?.original_day_name || 'Unknown',
+            originalShift: pendingSwapData?.original_shift_name || 'Unknown',
+            reason: pendingSwapData?.reason,
+            urgency: pendingSwapData?.urgency || 'normal'
+          }}
+          recipientStaff={facilityStaff.filter(s => 
+            pendingSwapData?.target_staff_id ? 
+            s.id === pendingSwapData.target_staff_id : 
+            true
+          )}
+        />
+      )}
     </div>
   )
 }
@@ -1180,7 +1212,7 @@ const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
 }
 
 // ============================================================================
-// MAIN SCHEDULE PAGE COMPONENT
+// MAIN SCHEDULE PAGE COMPONENT - FIXED VERSION
 // ============================================================================
 export default function SchedulePage() {
   const router = useRouter()
@@ -1208,7 +1240,7 @@ export default function SchedulePage() {
   const [filterRole, setFilterRole] = useState('all')
   const [filterZone, setFilterZone] = useState('all')
   
-  // Modal state
+  // Modal state - FIX: Initialize to false to prevent auto-opening
   const [showSmartGenerateModal, setShowSmartGenerateModal] = useState(false)
   const [showConfigModal, setShowConfigModal] = useState(false)
   
@@ -1222,7 +1254,7 @@ export default function SchedulePage() {
   const [showSwapDashboard, setShowSwapDashboard] = useState(false)
   const [facilitiesReady, setFacilitiesReady] = useState(false)
 
-  // Notification states
+  // Notification states - FIX: Initialize to false
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [showSwapNotificationDialog, setShowSwapNotificationDialog] = useState(false)
   const [pendingSwapData, setPendingSwapData] = useState(null)
@@ -1308,21 +1340,38 @@ export default function SchedulePage() {
     }
   }
 
-  // Load facility-specific shifts and zones
+  //  Load facility-specific shifts and zones
   const loadFacilityData = async () => {
     if (!selectedFacility) return
 
     try {
-      console.log('🏢 Loading facility data for:', selectedFacility.name)
+      console.log('=== LOADING FACILITY DATA ===')
+      console.log('Selected Facility:', selectedFacility)
       
       // Load shifts and zones from facility data
       const facilityShifts = selectedFacility.shifts || []
       const facilityZones = selectedFacility.zones || []
 
-      console.log('📅 Loaded shifts:', facilityShifts)
-      console.log('🏭 Loaded zones:', facilityZones)
+      console.log('Raw facility shifts:', facilityShifts)
+      console.log('Raw facility zones:', facilityZones)
 
-      setShifts(facilityShifts)
+      // Ensure shifts have consistent structure
+      const processedShifts = facilityShifts.map((shift, index) => ({
+        id: shift.id || shift.shift_id || index,
+        shift_index: shift.shift_index || index,
+        name: shift.name || `Shift ${index + 1}`,
+        start_time: shift.start_time || '09:00',
+        end_time: shift.end_time || '17:00',
+        color: shift.color || ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'][index % 4],
+        requires_manager: shift.requires_manager || false,
+        min_staff: shift.min_staff || 1,
+        max_staff: shift.max_staff || 5,
+        is_active: shift.is_active !== false
+      }))
+
+      console.log('Processed shifts:', processedShifts)
+
+      setShifts(processedShifts)
       setZones(facilityZones)
 
       // Auto-select all zones
@@ -1335,15 +1384,96 @@ export default function SchedulePage() {
     }
   }
 
-  // Load schedules when facility or date changes
+  // FIXED: Load schedules when facility or date changes
   useEffect(() => {
     if (selectedFacility) {
       loadSchedules()
     }
   }, [selectedFacility, currentDate, viewPeriod])
 
-  // Rest of the component logic would continue here...
-  // For brevity, I'll include just the essential parts
+  // FIXED: Implement loadSchedules properly
+  const loadSchedules = async () => {
+    if (!selectedFacility) return
+
+    try {
+      console.log('=== LOADING SCHEDULES ===')
+      console.log('Facility ID:', selectedFacility.id)
+      console.log('Current Date:', currentDate)
+      console.log('View Period:', viewPeriod)
+      
+      // Calculate date range for schedule loading
+      const startDate = getPeriodStart(currentDate, viewPeriod)
+      let endDate = new Date(startDate)
+      
+      switch (viewPeriod) {
+        case 'daily':
+          endDate = new Date(startDate)
+          break
+        case 'weekly':
+          endDate = new Date(startDate)
+          endDate.setDate(startDate.getDate() + 6)
+          break
+        case 'monthly':
+          endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0)
+          break
+      }
+
+      console.log('Date range:', {
+        start: startDate.toISOString().split('T')[0],
+        end: endDate.toISOString().split('T')[0]
+      })
+
+      // Load schedules for the facility and date range
+      const facilitySchedules = await apiClient.getFacilitySchedules(
+        selectedFacility.id,
+        startDate.toISOString().split('T')[0],
+        endDate.toISOString().split('T')[0]
+      )
+
+      console.log('Raw schedules from API:', facilitySchedules)
+      setSchedules(facilitySchedules)
+
+      // Find current schedule for the date range
+      const currentSched = facilitySchedules.find(schedule => {
+        const scheduleStart = new Date(schedule.week_start)
+        const scheduleEnd = new Date(scheduleStart)
+        scheduleEnd.setDate(scheduleStart.getDate() + 6)
+        
+        const isInRange = startDate >= scheduleStart && startDate <= scheduleEnd
+        
+        console.log('Schedule check:', {
+          schedule_id: schedule.id,
+          schedule_start: scheduleStart.toDateString(),
+          schedule_end: scheduleEnd.toDateString(),
+          query_start: startDate.toDateString(),
+          is_in_range: isInRange,
+          assignments_count: schedule.assignments?.length || 0
+        })
+        
+        return isInRange
+      })
+
+      if (currentSched) {
+        console.log('Current schedule found:', {
+          id: currentSched.id,
+          week_start: currentSched.week_start,
+          assignments: currentSched.assignments?.length || 0,
+          sample_assignments: currentSched.assignments?.slice(0, 3) || []
+        })
+        setCurrentSchedule(currentSched)
+      } else {
+        console.log('No current schedule found for date range')
+        setCurrentSchedule(null)
+      }
+
+    } catch (error) {
+      console.error('Failed to load schedules:', error)
+      toast.error('Failed to load schedules')
+      setSchedules([])
+      setCurrentSchedule(null)
+    }
+  }
+
 
   const getPeriodStart = (date: Date, period: ViewPeriod) => {
     const result = new Date(date)
@@ -1399,17 +1529,184 @@ export default function SchedulePage() {
     }
   }
 
-  // Placeholder functions - you'll need to implement these based on your existing logic
-  const loadSchedules = () => {}
-  const handleAssignmentChange = () => {}
-  const handleRemoveAssignment = () => {}
-  const handleSmartGenerate = () => {}
-  const handleSaveSchedule = () => {}
-  const handleDeleteSchedule = () => {}
-  const handleScheduleSelect = () => {}
-  const handleSwapRequest = () => {}
-  const handleViewSwapHistory = () => {}
-  const processSwapWithNotifications = () => {}
+  // FIXED: Implement proper handler functions
+  const handleAssignmentChange = async (dayIndex: number, shiftIndex: number, staffId: string) => {
+    if (!currentSchedule) return
+
+    try {
+      console.log('📝 Assignment change:', { dayIndex, shiftIndex, staffId })
+      
+      // Create new assignment
+      const newAssignment = {
+        day: dayIndex,
+        shift: shiftIndex,
+        staff_id: staffId,
+        schedule_id: currentSchedule.id
+      }
+
+      // Update local state immediately for responsiveness
+      const updatedSchedule = {
+        ...currentSchedule,
+        assignments: [...(currentSchedule.assignments || []), newAssignment]
+      }
+      
+      setCurrentSchedule(updatedSchedule)
+      setUnsavedChanges(true)
+      
+      toast.success('Assignment added')
+    } catch (error) {
+      console.error('Failed to add assignment:', error)
+      toast.error('Failed to add assignment')
+    }
+  }
+
+  const handleRemoveAssignment = async (assignmentId: string) => {
+    if (!currentSchedule) return
+
+    try {
+      console.log('🗑️ Removing assignment:', assignmentId)
+      
+      // Update local state
+      const updatedSchedule = {
+        ...currentSchedule,
+        assignments: currentSchedule.assignments?.filter(a => a.id !== assignmentId) || []
+      }
+      
+      setCurrentSchedule(updatedSchedule)
+      setUnsavedChanges(true)
+      
+      toast.success('Assignment removed')
+    } catch (error) {
+      console.error('Failed to remove assignment:', error)
+      toast.error('Failed to remove assignment')
+    }
+  }
+
+  const handleSmartGenerate = async (config: any) => {
+    try {
+      setLoading(true)
+      console.log('🤖 Smart generating schedule with config:', config)
+      
+      const generatedSchedule = await apiClient.generateSmartSchedule({
+        facility_id: selectedFacility.id,
+        period_start: getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0],
+        period_type: viewPeriod,
+        zones: selectedZones,
+        ...config
+      })
+
+      console.log('✅ Schedule generated:', generatedSchedule)
+      setCurrentSchedule(generatedSchedule)
+      setUnsavedChanges(true)
+      setShowSmartGenerateModal(false)
+      
+      toast.success('Smart schedule generated successfully!')
+    } catch (error) {
+      console.error('Failed to generate schedule:', error)
+      toast.error('Failed to generate schedule')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSaveSchedule = async () => {
+    if (!currentSchedule) return
+
+    try {
+      console.log('💾 Saving schedule:', currentSchedule.id)
+      
+      if (currentSchedule.id && !currentSchedule.is_generated) {
+        // Update existing schedule
+        await apiClient.updateSchedule(currentSchedule.id, currentSchedule)
+      } else {
+        // Create new schedule
+        const savedSchedule = await apiClient.createSchedule(currentSchedule)
+        setCurrentSchedule(savedSchedule)
+      }
+      
+      setUnsavedChanges(false)
+      setShowSaveDialog(false)
+      toast.success('Schedule saved successfully!')
+      
+      // Reload schedules
+      loadSchedules()
+    } catch (error) {
+      console.error('Failed to save schedule:', error)
+      toast.error('Failed to save schedule')
+    }
+  }
+
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    try {
+      console.log('🗑️ Deleting schedule:', scheduleId)
+      
+      await apiClient.deleteSchedule(scheduleId)
+      
+      // Remove from local state
+      setSchedules(schedules.filter(s => s.id !== scheduleId))
+      
+      // Clear current schedule if it was deleted
+      if (currentSchedule?.id === scheduleId) {
+        setCurrentSchedule(null)
+        setUnsavedChanges(false)
+      }
+      
+      toast.success('Schedule deleted successfully!')
+    } catch (error) {
+      console.error('Failed to delete schedule:', error)
+      toast.error('Failed to delete schedule')
+    }
+  }
+
+  const handleScheduleSelect = (schedule: any) => {
+    console.log('📋 Selecting schedule:', schedule.id)
+    setCurrentSchedule(schedule)
+    setUnsavedChanges(false)
+    setShowScheduleListModal(false)
+    
+    // Update current date to match schedule
+    if (schedule.week_start) {
+      setCurrentDate(new Date(schedule.week_start))
+    }
+  }
+
+  const handleSwapRequest = (dayIndex: number, shiftIndex: number, staffId: string) => {
+    console.log('🔄 Swap request:', { dayIndex, shiftIndex, staffId })
+    
+    // Set up swap request data
+    setSelectedAssignmentForSwap({
+      day: dayIndex,
+      shift: shiftIndex,
+      staff_id: staffId,
+      schedule_id: currentSchedule?.id
+    })
+    
+    setShowSwapModal(true)
+  }
+
+  const handleViewSwapHistory = () => {
+    console.log('📊 Viewing swap history')
+    // Implement swap history view
+    toast.info('Swap history view coming soon')
+  }
+
+  const processSwapWithNotifications = async (swapData: any) => {
+    try {
+      console.log('🔔 Processing swap with notifications:', swapData)
+      
+      // Process the swap
+      await createSwapRequest(swapData)
+      
+      // Close notification dialog
+      setShowSwapNotificationDialog(false)
+      setPendingSwapData(null)
+      
+      toast.success('Swap request processed with notifications sent!')
+    } catch (error) {
+      console.error('Failed to process swap with notifications:', error)
+      toast.error('Failed to process swap request')
+    }
+  }
 
   if (authLoading || loading) {
     return (
@@ -1508,21 +1805,23 @@ export default function SchedulePage() {
         />
       )}
 
-      {/* Swap Request Modal */}
-      <SwapRequestModal
-        open={showSwapModal}
-        onClose={() => {
-          setShowSwapModal(false)
-          setSelectedAssignmentForSwap(null)
-        }}
-        schedule={currentSchedule}
-        currentAssignment={selectedAssignmentForSwap}
-        staff={staff}
-        shifts={shifts}
-        days={DAYS}
-        isManager={isManager}
-        onSwapRequest={createSwapRequest}
-      />
+      {/* Swap Request Modal - FIX: Only render when needed */}
+      {showSwapModal && selectedAssignmentForSwap && (
+        <SwapRequestModal
+          open={showSwapModal}
+          onClose={() => {
+            setShowSwapModal(false)
+            setSelectedAssignmentForSwap(null)
+          }}
+          schedule={currentSchedule}
+          currentAssignment={selectedAssignmentForSwap}
+          staff={staff}
+          shifts={shifts}
+          days={DAYS}
+          isManager={isManager}
+          onSwapRequest={createSwapRequest}
+        />
+      )}
     </AppLayout>
   )
 }

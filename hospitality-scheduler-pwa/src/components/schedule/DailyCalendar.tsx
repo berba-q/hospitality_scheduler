@@ -1,5 +1,6 @@
 // Daily calendar component to display assignments
 
+// DailyCalendar debug fix - Enhanced logging and data structure handling
 'use client'
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,7 +20,7 @@ interface DailyCalendarProps {
   draggedStaff: any
   onAssignmentChange: (shift: number, staffId: string) => void
   onRemoveAssignment: (assignmentId: string) => void
-  getShiftAssignments?: (shift: number) => any[] // Optional override
+  getShiftAssignments?: (shift: number) => any[]
   swapRequests?: any[]
   onSwapRequest?: (day: number, shift: number, staffId: string) => void
 }
@@ -39,33 +40,45 @@ export function DailyCalendar({
 }: DailyCalendarProps) {
   const [selectedShift, setSelectedShift] = useState<number | null>(null)
 
-  console.log('DailyCalendar render:', {
-    currentDate: currentDate.toDateString(),
-    schedule: schedule ? {
-      id: schedule.id,
-      week_start: schedule.week_start,
-      assignments_count: schedule.assignments?.length || 0
-    } : null
-  })
+  // ENHANCED DEBUG LOGGING
+  console.log('=== DailyCalendar Debug Info ===')
+  console.log('Current Date:', currentDate.toDateString())
+  console.log('Schedule:', schedule ? {
+    id: schedule.id,
+    week_start: schedule.week_start,
+    assignments_count: schedule.assignments?.length || 0,
+    assignments_sample: schedule.assignments?.slice(0, 3) || []
+  } : 'NO SCHEDULE')
+  console.log('Shifts Array:', shifts.map(s => ({
+    id: s.id,
+    shift_index: s.shift_index,
+    name: s.name,
+    start_time: s.start_time,
+    end_time: s.end_time
+  })))
+  console.log('Staff Count:', staff.length)
 
   // Get staff member by ID
   const getStaffMember = (staffId: string) => {
     const staffMember = staff.find(s => s.id === staffId)
     if (!staffMember) {
-      console.warn('⚠️ Staff member not found:', staffId)
+      console.warn('Staff member not found:', staffId, 'Available staff:', staff.map(s => s.id))
     }
     return staffMember
   }
 
   // Calculate which day of the week this date represents within the schedule
   const calculateDayIndex = () => {
-    if (!schedule?.week_start) return 0
+    if (!schedule?.week_start) {
+      console.warn('No schedule week_start found')
+      return 0
+    }
     
     const scheduleStart = new Date(schedule.week_start)
     const daysDiff = Math.floor((currentDate.getTime() - scheduleStart.getTime()) / (24 * 60 * 60 * 1000))
-    const dayIndex = Math.max(0, Math.min(6, daysDiff)) // Clamp between 0-6
+    const dayIndex = Math.max(0, Math.min(6, daysDiff))
     
-    console.log('📊 Day index calculation:', {
+    console.log('Day calculation:', {
       schedule_start: scheduleStart.toDateString(),
       current_date: currentDate.toDateString(),
       days_diff: daysDiff,
@@ -75,76 +88,58 @@ export function DailyCalendar({
     return dayIndex
   }
 
-  // Get assignments for a specific shift on the current day
-  const getShiftAssignments = (shift: number) => {
-  if (!schedule?.assignments) return []
-  
-  // Calculate which day of the week this date represents
-  const calculateDayIndex = () => {
-    if (!schedule?.week_start) return 0
+  // ENHANCED: Get assignments for a specific shift on the current day
+  const getShiftAssignments = (shiftIdOrIndex: number | string) => {
+    if (!schedule?.assignments) {
+      console.log('No schedule assignments found')
+      return []
+    }
     
-    const scheduleStart = new Date(schedule.week_start)
-    const daysDiff = Math.floor((currentDate.getTime() - scheduleStart.getTime()) / (24 * 60 * 60 * 1000))
-    return Math.max(0, Math.min(6, daysDiff))
+    const dayIndex = calculateDayIndex()
+    
+    // Handle both shift ID and shift index matching
+    const assignments = schedule.assignments.filter(assignment => {
+      const matchesDay = assignment.day === dayIndex
+      const matchesShift = assignment.shift === shiftIdOrIndex || 
+                          assignment.shift_id === shiftIdOrIndex ||
+                          assignment.shift_index === shiftIdOrIndex
+      
+      if (matchesDay && matchesShift) {
+        console.log('Found matching assignment:', {
+          assignment,
+          dayIndex,
+          shiftIdOrIndex
+        })
+      }
+      
+      return matchesDay && matchesShift
+    })
+    
+    console.log(`Assignments for shift ${shiftIdOrIndex} on day ${dayIndex}:`, assignments.length)
+    return assignments
   }
-  
-  const dayIndex = calculateDayIndex()
-  return schedule.assignments.filter(a => a.day === dayIndex && a.shift === shift)
-}
 
   // Handle drop event
-  const handleDrop = (e: React.DragEvent, shift: number) => {
+  const handleDrop = (e: React.DragEvent, shiftIdOrIndex: number | string) => {
     e.preventDefault()
     
     if (!isManager || !draggedStaff) return
     
-    console.log('🎯 Drop event on daily calendar:', {
-      shift,
+    console.log('Drop event:', {
+      shiftIdOrIndex,
       draggedStaff: draggedStaff.full_name,
-      currentDate: currentDate.toDateString()
+      staffId: draggedStaff.id
     })
     
-    const dayIndex = calculateDayIndex()
-    
-    // Check if staff is already assigned to any shift on this day
-    const existingAssignments = schedule?.assignments?.filter(a => 
-      a.day === dayIndex && a.staff_id === draggedStaff.id
-    ) || []
-    
-    console.log('🔍 Checking existing assignments:', {
-      day_index: dayIndex,
-      staff_id: draggedStaff.id,
-      existing_count: existingAssignments.length
-    })
-    
-    if (existingAssignments.length > 0) {
-      toast.error(`${draggedStaff.full_name} is already assigned on ${currentDate.toLocaleDateString()}`)
-      return
-    }
-    
-    onAssignmentChange(shift, draggedStaff.id)
-    toast.success(`${draggedStaff.full_name} assigned to ${shifts[shift].name} shift`)
+    onAssignmentChange(shiftIdOrIndex as number, draggedStaff.id)
+    toast.success(`${draggedStaff.full_name} assigned to shift`)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
   }
 
-  // Get role color
-  const getRoleColor = (role: string) => {
-    const colors: Record<string, string> = {
-      'Manager': 'bg-purple-100 text-purple-800 border-purple-200',
-      'Chef': 'bg-orange-100 text-orange-800 border-orange-200',
-      'Waiter': 'bg-pink-100 text-pink-800 border-pink-200',
-      'Bartender': 'bg-red-100 text-red-800 border-red-200',
-      'Housekeeping': 'bg-green-100 text-green-800 border-green-200',
-      'Security': 'bg-gray-100 text-gray-800 border-gray-200',
-      'Front Desk Agent': 'bg-blue-100 text-blue-800 border-blue-200',
-      'Concierge': 'bg-indigo-100 text-indigo-800 border-indigo-200'
-    }
-    return colors[role] || 'bg-gray-100 text-gray-800 border-gray-200'
-  }
-
+  // Format date for display
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', { 
       weekday: 'long', 
@@ -162,12 +157,34 @@ export function DailyCalendar({
       totalAssignments: dayAssignments.length,
       coverageByShift: shifts.map(shift => ({
         ...shift,
-        assignments: dayAssignments.filter(a => a.shift === shift.id).length
+        assignments: dayAssignments.filter(a => {
+          // Check multiple possible shift identifiers
+          return a.shift === shift.id || 
+                 a.shift === shift.shift_index || 
+                 a.shift_id === shift.id ||
+                 a.shift_index === shift.shift_index
+        }).length
       }))
     }
   }
 
   const stats = getDayStats()
+
+  // Show helpful debug info if no shifts are displayed
+  if (!shifts || shifts.length === 0) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardContent className="p-6">
+          <div className="text-center">
+            <div className="text-red-600 font-medium mb-2">No Shifts Available</div>
+            <div className="text-sm text-red-500">
+              Debug: shifts array is empty or undefined
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
@@ -190,7 +207,7 @@ export function DailyCalendar({
           {formatDate(currentDate)}
           {schedule && (
             <span className="ml-2">
-              • From weekly schedule: {new Date(schedule.week_start).toLocaleDateString()}
+              Schedule: {new Date(schedule.week_start).toLocaleDateString()}
             </span>
           )}
         </div>
@@ -198,190 +215,170 @@ export function DailyCalendar({
 
       <CardContent className="p-0">
         <div className="p-6">
+          {/* Debug Info Panel */}
+          {process.env.NODE_ENV === 'development' && (
+            <Card className="mb-4 border-blue-200 bg-blue-50">
+              <CardContent className="p-3">
+                <div className="text-xs text-blue-800">
+                  <div><strong>Debug Info:</strong></div>
+                  <div>Shifts: {shifts.length}</div>
+                  <div>Schedule: {schedule ? 'Present' : 'None'}</div>
+                  <div>Assignments: {schedule?.assignments?.length || 0}</div>
+                  <div>Day Index: {calculateDayIndex()}</div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Shift Cards */}
           <div className="space-y-4">
             {shifts.map((shift) => {
-              const assignments = getShiftAssignments(shift.id)
-              const isSelected = selectedShift === shift.id
+              // Try multiple possible shift identifiers
+              const shiftId = shift.id || shift.shift_index || shift.shift_id
+              const assignments = getShiftAssignments(shiftId)
+              const isSelected = selectedShift === shiftId
+              
+              console.log(`Rendering shift ${shift.name}:`, {
+                shift,
+                shiftId,
+                assignments_count: assignments.length,
+                assignments
+              })
               
               return (
                 <Card
-                  key={shift.id}
+                  key={`shift-${shiftId}`}
                   className={`transition-all duration-200 ${
                     isManager ? 'cursor-pointer hover:shadow-md' : ''
                   } ${isSelected ? 'ring-2 ring-blue-300' : ''} ${
-                    draggedStaff ? 'hover:ring-2 hover:ring-green-300' : ''
+                    draggedStaff ? 'hover:bg-green-50 border-green-200' : ''
                   }`}
-                  onClick={() => isManager && setSelectedShift(shift.id)}
-                  onDrop={(e) => handleDrop(e, shift.id)}
+                  onClick={() => isManager && setSelectedShift(isSelected ? null : shiftId)}
+                  onDrop={(e) => handleDrop(e, shiftId)}
                   onDragOver={handleDragOver}
                 >
-                  <CardHeader className={`${shift.color} border-l-4`}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{shift.name}</CardTitle>
-                        <p className="text-sm opacity-75">{shift.time}</p>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className={`w-3 h-3 rounded-full`}
+                          style={{ backgroundColor: shift.color || '#3B82F6' }}
+                        />
+                        <span className="font-medium">{shift.name}</span>
+                        <span className="text-sm text-gray-500">
+                          {shift.start_time} - {shift.end_time}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-white/50">
-                          {assignments.length} assigned
-                        </Badge>
-                        {isManager && assignments.length === 0 && (
-                          <Badge variant="outline" className="bg-white/50 text-orange-600 border-orange-200">
-                            Drop staff here
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
+                      <Badge variant="secondary">
+                        {assignments.length} assigned
+                      </Badge>
+                    </CardTitle>
                   </CardHeader>
 
-                  <CardContent className="pt-4">
-                    {assignments.length === 0 ? (
-                      <div className="flex items-center justify-center py-8 text-gray-400">
-                        <div className="text-center">
-                          <User className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">
-                            {isManager ? 'No staff assigned - drag & drop to assign' : 'No staff scheduled'}
-                          </p>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {assignments.length === 0 ? (
+                        <div className="flex items-center justify-center h-16 border-2 border-dashed border-gray-200 rounded-lg">
+                          {isManager ? (
+                            <div className="text-center">
+                              <Plus className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                              <span className="text-sm text-gray-500">
+                                Drop staff here or click to assign
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-500">No assignment</span>
+                          )}
                         </div>
-                      </div>
-                    ) : (
-                      <div className="grid gap-3">
-                        {assignments.map((assignment) => {
+                      ) : (
+                        assignments.map((assignment, index) => {
                           const staffMember = getStaffMember(assignment.staff_id)
+                          
+                          if (!staffMember) {
+                            return (
+                              <div key={`missing-${index}`} className="p-2 bg-red-50 border border-red-200 rounded text-red-600 text-sm">
+                                Staff not found: {assignment.staff_id}
+                              </div>
+                            )
+                          }
                           
                           return (
                             <div
-                              key={assignment.id}
-                              className={`p-3 rounded-lg border ${
-                                staffMember ? getRoleColor(staffMember.role) : 'bg-red-100 text-red-800 border-red-200'
-                              } relative group transition-all duration-200 hover:shadow-sm`}
+                              key={assignment.id || `assignment-${index}`}
+                              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                  <div className="flex-shrink-0">
-                                    <User className="w-5 h-5" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-medium truncate">
-                                      {staffMember?.full_name || `Missing Staff (${assignment.staff_id})`}
-                                    </p>
-                                    <p className="text-sm opacity-75">
-                                      {staffMember?.role || 'Unknown Role'}
-                                    </p>
-                                  </div>
-                                  {staffMember?.skill_level && staffMember.skill_level > 2 && (
-                                    <div className="flex-shrink-0">
-                                      <Star className="w-4 h-4 text-yellow-500" />
-                                    </div>
-                                  )}
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                                  {staffMember.full_name.split(' ').map(n => n[0]).join('')}
                                 </div>
-                                
-                                {/* Action buttons */}
-                                <div className="flex items-center gap-2">
-                                  {/* Swap Status Indicator */}
-                                  <SwapStatusIndicator
-                                    swapRequests={swapRequests}
-                                    day={calculateDayIndex()}
-                                    shift={shift.id}
-                                    staffId={assignment.staff_id}
-                                    size="sm"
-                                  />
-
-                                  {/* Action Buttons - only show on hover */}
-                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                    {/* Swap Request Button */}
-                                    {onSwapRequest && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          onSwapRequest(calculateDayIndex(), shift.id, assignment.staff_id)
-                                        }}
-                                        className="h-7 w-7 p-0"
-                                        title="Request shift swap"
-                                      >
-                                        <ArrowLeftRight className="h-3 w-3" />
-                                      </Button>
-                                    )}
-
-                                    {/* Remove Assignment Button */}
-                                    {isManager && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 w-7 p-0"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          console.log('🗑️ Removing daily assignment:', assignment.id)
-                                          onRemoveAssignment(assignment.id)
-                                        }}
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </Button>
-                                    )}
+                                <div>
+                                  <div className="font-medium text-gray-900">
+                                    {staffMember.full_name}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {staffMember.role}
                                   </div>
                                 </div>
                               </div>
-                              {staffMember?.email && (
-                                <p className="text-xs opacity-60 mt-1">
-                                  {staffMember.email}
-                                </p>
-                              )}
+
+                              <div className="flex items-center gap-2">
+                                {swapRequests?.some(swap => 
+                                  swap.original_day === calculateDayIndex() && 
+                                  swap.original_shift === shiftId &&
+                                  swap.requester_id === staffMember.id
+                                ) && (
+                                  <SwapStatusIndicator 
+                                    status={swapRequests.find(swap => 
+                                      swap.original_day === calculateDayIndex() && 
+                                      swap.original_shift === shiftId &&
+                                      swap.requester_id === staffMember.id
+                                    )?.status}
+                                  />
+                                )}
+
+                                {onSwapRequest && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      onSwapRequest(calculateDayIndex(), shiftId, staffMember.id)
+                                    }}
+                                  >
+                                    <ArrowLeftRight className="w-4 h-4" />
+                                  </Button>
+                                )}
+
+                                {isManager && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      onRemoveAssignment(assignment.id)
+                                    }}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           )
-                    })}
-                      </div>
-                    )}
+                        })
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               )
             })}
           </div>
 
-          {/* No Schedule Message */}
+          {/* No schedule message */}
           {!schedule && (
-            <div className="text-center py-16">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Calendar className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">No Schedule Found</h3>
-              <p className="text-gray-600 mb-4">
-                No weekly schedule includes {currentDate.toLocaleDateString()}
-              </p>
-              {isManager && (
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Create Weekly Schedule
-                </Button>
-              )}
-            </div>
-          )}
-
-          {/* Daily Summary */}
-          {schedule && (
-            <div className="border-t border-gray-100 mt-6 pt-4">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <div className="text-lg font-bold text-blue-600">
-                    {stats.totalAssignments}
-                  </div>
-                  <div className="text-xs text-gray-600">Total Assignments</div>
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-green-600">
-                    {new Set(schedule.assignments?.filter(a => a.day === calculateDayIndex()).map(a => a.staff_id) || []).size}
-                  </div>
-                  <div className="text-xs text-gray-600">Staff Scheduled</div>
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-purple-600">
-                    {stats.totalAssignments * 8}
-                  </div>
-                  <div className="text-xs text-gray-600">Total Hours</div>
-                </div>
-              </div>
+            <div className="text-center py-8">
+              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Schedule</h3>
+              <p className="text-gray-600">No schedule found for this date</p>
             </div>
           )}
         </div>
