@@ -30,6 +30,9 @@ interface Shift {
   name: string
   time: string
   color: string
+  shift_index?: number   // CRITICAL: Added this field
+  start_time?: string
+  end_time?: string   // <— added
 }
 
 interface WeeklyCalendarProps {
@@ -66,10 +69,14 @@ export function WeeklyCalendar({
     return staff.find(s => s.id === staffId)
   }
 
-  // Get assignments for a specific day and shift
-  const getAssignments = (day: number, shift: number) => {
+  // Get assignments for a specific day and shiftIndex (numeric)
+  const getAssignments = (day: number, shiftIndex: number) => {
     if (!schedule?.assignments) return []
-    return schedule.assignments.filter(a => a.day === day && a.shift === shift)
+    return schedule.assignments.filter(
+      (a) =>
+        Number(a.day) === Number(day) &&
+        Number(a.shift) === Number(shiftIndex)
+    )
   }
 
   // Handle drop event
@@ -155,7 +162,8 @@ export function WeeklyCalendar({
             </div>
 
             {/* Schedule Grid */}
-            {shifts.map((shift) => (
+            {shifts.map((shift, shiftIdx) => (
+              
               <div key={`shift-${shift.id}`} className="grid grid-cols-8 border-b border-gray-100">
                 {/* Shift Header */}
                 <div className={`p-4 border-r border-gray-200 ${shift.color} border-l-4`}>
@@ -165,8 +173,9 @@ export function WeeklyCalendar({
 
                 {/* Day Cells */}
                 {days.map((day, dayIndex) => {
-                  const assignments = getAssignments(dayIndex, shift.id)
-                  const isSelected = selectedCell?.day === dayIndex && selectedCell?.shift === shift.id
+                  const shiftIndex = shift.shift_index ?? shiftIdx
+                  const assignments = getAssignments(dayIndex, shiftIndex)
+                  const isSelected = selectedCell?.day === dayIndex && selectedCell?.shift === shiftIndex
                   
                   return (
                     <div
@@ -176,8 +185,8 @@ export function WeeklyCalendar({
                       } ${isSelected ? 'bg-blue-100 ring-2 ring-blue-300' : ''} ${
                         draggedStaff ? 'hover:bg-green-50 hover:ring-2 hover:ring-green-300' : ''
                       }`}
-                      onClick={() => isManager && setSelectedCell({day: dayIndex, shift: shift.id})}
-                      onDrop={(e) => handleDrop(e, dayIndex, shift.id)}
+                      onClick={() => isManager && setSelectedCell({day: dayIndex, shift: shiftIndex})}
+                      onDrop={(e) => handleDrop(e, dayIndex, shiftIndex)}
                       onDragOver={handleDragOver}
                     >
                       <div className="space-y-2">
@@ -233,8 +242,8 @@ export function WeeklyCalendar({
                                     {/* Swap Status Indicator */}
                                     <SwapStatusIndicator
                                       swapRequests={swapRequests}
-                                      day={dayIndex} // FIXED: Use dayIndex from the loop, not calculateDayIndex()
-                                      shift={shift.id}
+                                      day={dayIndex}
+                                      shift={shiftIndex}
                                       staffId={assignment.staff_id}
                                       size="sm"
                                     />
@@ -248,7 +257,7 @@ export function WeeklyCalendar({
                                           size="sm"
                                           onClick={(e) => {
                                             e.stopPropagation()
-                                            onSwapRequest(dayIndex, shift.id, assignment.staff_id) // FIXED: Use dayIndex
+                                            onSwapRequest(dayIndex, shiftIndex, assignment.staff_id)
                                           }}
                                           className="h-7 w-7 p-0"
                                           title="Request shift swap"
