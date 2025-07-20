@@ -882,17 +882,6 @@ function ManagerScheduleView({
               )}
             </Button>
 
-            {/* Save Button */}
-            {currentSchedule && (
-              <Button
-                onClick={() => setShowSaveDialog(true)}
-                disabled={!unsavedChanges}
-                className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-              >
-                <Save className="w-4 h-4" />
-                {unsavedChanges ? 'Publish Changes' : 'Saved'}
-              </Button>
-            )}
           </div>
         </div>
 
@@ -1058,6 +1047,19 @@ function ManagerScheduleView({
                     </div>
                   </div>
                 )}
+                
+                {/* Save Button */}
+                {currentSchedule && (
+                  <Button
+                    onClick={() => setShowSaveDialog(true)}
+                    disabled={!unsavedChanges}
+                    className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                  >
+                    <Save className="w-4 h-4" />
+                    {unsavedChanges ? 'Publish Changes' : 'Saved'}
+                  </Button>
+                )}
+
               </div>
             </CardContent>
           </Card>
