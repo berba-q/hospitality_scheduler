@@ -82,12 +82,28 @@ function StaffScheduleView({
   shifts,
   zones
 }) {
+  const [showMineOnly, setShowMineOnly] = useState(false)
   const [myScheduleData, setMyScheduleData] = useState(null)
   const [mySwapRequests, setMySwapRequests] = useState([])
   const [selectedSwapForDetail, setSelectedSwapForDetail] = useState(null)
   const [showSwapDetailModal, setShowSwapDetailModal] = useState(false)
   const [showMySwapsModal, setShowMySwapsModal] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // Derive the current user's staff‑ID once
+  const myStaffId = useMemo(() => {
+    if (!user) return undefined
+
+    // 1) explicit mapping from auth payload
+    if (user.staff_id) return String(user.staff_id)
+
+    // 2) match by e‑mail in the full staff list
+    const match = staff.find((s) => s.email && s.email === user.email)
+    if (match) return String(match.id)
+
+    // 3) fall‑back: assume auth id === staff id
+    return String(user.id)
+  }, [user, staff])
   const apiClient = useApiClient()
 
   useEffect(() => {
@@ -246,18 +262,38 @@ function StaffScheduleView({
     return timeDisplay
   }
     
-  // Get current assignments
+  // ------------------------------------------------------------
+  // Resolve an assignment's ISO‑date string.
+  // Falls back to week_start + day index when no explicit `date`.
+  // ------------------------------------------------------------
+  const getAssignmentISODate = (assignment: any) => {
+    if (assignment?.date) {
+      return assignment.date                   // already ISO "YYYY‑MM‑DD"
+    }
+
+    // Derive from week_start + day index if we can
+    const weekStart =
+      myScheduleData?.week_start ??
+      currentSchedule?.week_start ??
+      null
+
+    if (!weekStart || assignment.day === undefined) {
+      return ''
+    }
+
+    const d = new Date(weekStart)
+    d.setDate(d.getDate() + Number(assignment.day))
+    return d.toISOString().split('T')[0]
+  }
+
   const getTodayAssignments = () => {
-    // Use the new data structure
     const assignments = getAssignmentsForDisplay()
-    if (!assignments.length) return []
+    if (assignments.length === 0) return []
 
-    const today = new Date()
-    const todayDateString = today.toISOString().split('T')[0] // Format: "2025-07-16"
+    const todayISO = new Date().toISOString().split('T')[0]
 
-    // Filter by actual date instead of day index
-    return assignments.filter(assignment => 
-      assignment.date === todayDateString
+    return assignments.filter(
+      (a) => getAssignmentISODate(a) === todayISO
     )
   }
 
@@ -380,6 +416,7 @@ function StaffScheduleView({
           </Card>
 
           {/* My Schedule Summary */}
+
           <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -396,25 +433,23 @@ function StaffScheduleView({
                   </Badge>
                 </div>
                 
-                {getAssignmentsForDisplay().filter(assignment => {
-                  const today = new Date().toISOString().split('T')[0]
-                  return assignment.date === today
-                }).length > 0 && (
+                {todayAssignments.length > 0 && (
                   <div>
                     <p className="text-sm font-medium text-green-800 mb-1">Today's Shifts</p>
-                    {getAssignmentsForDisplay().filter(assignment => {
-                      const today = new Date().toISOString().split('T')[0]
-                      return assignment.date === today
-                    }).map(assignment => {
-                      // FIXED: Use dynamic shift lookup instead of SHIFTS constant
-                      const shift = shifts.find(s => 
-                        s.id === assignment.shift || 
-                        s.shift_index === assignment.shift ||
-                        s.id === parseInt(String(assignment.shift))
+                    {todayAssignments.map((assignment) => {
+                      const shift = shifts.find(
+                        (s) =>
+                          s.shift_index === Number(assignment.shift) ||
+                          s.id === assignment.shift ||
+                          s.id === Number(assignment.shift)
                       )
                       return (
-                        <div key={assignment.assignment_id} className="text-xs text-green-700">
-                          {shift?.name || getShiftName(assignment.shift)} ({shift?.time || getShiftTime(assignment.shift)})
+                        <div
+                          key={assignment.id || assignment.assignment_id}
+                          className="text-xs text-green-700"
+                        >
+                          {shift?.name || getShiftName(assignment.shift)} (
+                          {shift?.time || getShiftTime(assignment.shift)})
                         </div>
                       )
                     })}
@@ -479,6 +514,9 @@ function StaffScheduleView({
               onSwapRequest={onSwapRequest}
               onAssignmentChange={() => {}}
               onRemoveAssignment={() => {}}
+              highlightStaffId={myStaffId}
+              showMineOnly={showMineOnly}
+              onToggleMineOnly={() => setShowMineOnly(!showMineOnly)}
             />
           )}
           
@@ -496,6 +534,9 @@ function StaffScheduleView({
               onSwapRequest={onSwapRequest}
               onAssignmentChange={() => {}}
               onRemoveAssignment={() => {}}
+              highlightStaffId={myStaffId}
+              showMineOnly={showMineOnly}
+              onToggleMineOnly={() => setShowMineOnly(!showMineOnly)}
             />
           )}
           
@@ -512,6 +553,8 @@ function StaffScheduleView({
                 setCurrentDate(date)
                 setViewPeriod('daily')
               }}
+              highlightStaffId={myStaffId}
+              showMineOnly={showMineOnly}
             />
           )}
         </div>
@@ -1409,14 +1452,17 @@ export default function SchedulePage() {
         ]
       }
 
-      // Process shifts to match the working format
+      // Process shifts to match the working format, include shift_index always
       const processedShifts = facilityShifts.map((shift, index) => ({
-        id: shift.id || index,
-        name: shift.name || shift.shift_name || `Shift ${index + 1}`,
-        start_time: shift.start_time || '09:00',
-        end_time: shift.end_time || '17:00',
-        color: shift.color || ['#3B82F6', '#10B981', '#F59E0B'][index] || '#3B82F6',
-        time: `${shift.start_time || '09:00'} - ${shift.end_time || '17:00'}` // Add time field like SHIFTS
+        shift_index: index, // NEW: stable column index
+        id: shift.id ?? index, // keep original id when present
+        name: shift.name ?? shift.shift_name ?? `Shift ${index + 1}`,
+        start_time: shift.start_time ?? '09:00',
+        end_time: shift.end_time ?? '17:00',
+        color:
+          shift.color ??
+          ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index % 5],
+        time: `${shift.start_time ?? '09:00'} - ${shift.end_time ?? '17:00'}`,
       }))
 
       console.log('📅 Processed shifts:', processedShifts)
@@ -1519,6 +1565,12 @@ export default function SchedulePage() {
     
     console.log('🔍 Current schedule found:', currentPeriodSchedule?.id || 'none')
     setCurrentSchedule(currentPeriodSchedule || null)
+
+    // ↑ add in dev only —  vvv CRUCIAL REMOVE THIS IN PROD
+    if (process.env.NODE_ENV === 'development') {
+      // @ts-ignore – debug helper
+      window.currentSchedule = currentPeriodSchedule
+    }
     
   } catch (error) {
     console.error('❌ Failed to load schedules:', error)

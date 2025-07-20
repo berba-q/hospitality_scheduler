@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { X, Plus, Clock, User, Star } from 'lucide-react'
 import { toast } from 'sonner'
@@ -30,9 +31,9 @@ interface Shift {
   name: string
   time: string
   color: string
-  shift_index?: number   // CRITICAL: Added this field
+  shift_index?: number   
   start_time?: string
-  end_time?: string   // <— added
+  end_time?: string   
 }
 
 interface WeeklyCalendarProps {
@@ -47,6 +48,9 @@ interface WeeklyCalendarProps {
   onRemoveAssignment: (assignmentId: string) => void
   swapRequests?: any[]
   onSwapRequest?: (day: number, shift: number, staffId: string) => void
+  highlightStaffId?: string
+  showMineOnly?: boolean
+  onToggleMineOnly?: () => void
 }
 
 export function WeeklyCalendar({
@@ -59,8 +63,11 @@ export function WeeklyCalendar({
   draggedStaff,
   onAssignmentChange,
   onRemoveAssignment,
-  swapRequests = [], // ADD THIS - with default value
-  onSwapRequest      // ADD THIS
+  swapRequests = [],
+  onSwapRequest,
+  highlightStaffId,
+  showMineOnly = false,
+  onToggleMineOnly,
 }: WeeklyCalendarProps) {
   const [selectedCell, setSelectedCell] = useState<{day: number, shift: number} | null>(null)
 
@@ -69,13 +76,22 @@ export function WeeklyCalendar({
     return staff.find(s => s.id === staffId)
   }
 
-  // Get assignments for a specific day and shiftIndex (numeric)
+  // Return assignments for a given day/shift column.
+  // If showMineOnly is active, keep just the current staff member’s rows.
   const getAssignments = (day: number, shiftIndex: number) => {
     if (!schedule?.assignments) return []
-    return schedule.assignments.filter(
+
+    const base = schedule.assignments.filter(
       (a) =>
         Number(a.day) === Number(day) &&
         Number(a.shift) === Number(shiftIndex)
+    )
+
+    if (!showMineOnly) return base
+    if (!highlightStaffId) return base // nothing to filter by → show all
+
+    return base.filter(
+      (a) => String(a.staff_id) === String(highlightStaffId)
     )
   }
 
@@ -137,9 +153,16 @@ export function WeeklyCalendar({
             Weekly Schedule
           </span>
           {!isManager && (
-            <Badge variant="outline" className="text-xs">
-              View Only
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={showMineOnly}
+                onCheckedChange={() => onToggleMineOnly && onToggleMineOnly()}
+                className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+              />
+              <span className="text-xs text-gray-500 uppercase tracking-wide">
+                Mine Only
+              </span>
+            </div>
           )}
         </CardTitle>
       </CardHeader>
@@ -214,6 +237,8 @@ export function WeeklyCalendar({
                               <div
                                 key={assignment.id}
                                 className={`p-3 rounded-lg border ${
+                                    assignment.staff_id === highlightStaffId ? 'ring-2 ring-indigo-500' : ''
+                                  } ${
                                   staffMember ? getRoleColor(staffMember.role) : 'bg-red-100 text-red-800 border-red-200'
                                 } relative group transition-all duration-200 hover:shadow-sm`}
                               >
