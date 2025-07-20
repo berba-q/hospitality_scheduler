@@ -88,40 +88,38 @@ export function DailyCalendar({
     return dayIndex
   }
 
-  // ENHANCED: Get assignments for a specific shift on the current day
-  const getShiftAssignments = (shiftIdOrIndex: number | string) => {
+  // ------------------------------------------------------------------
+  // Get assignments for a specific shift *index* on the current day
+  // ------------------------------------------------------------------
+  const getShiftAssignments = (shiftIndex: number) => {
     if (!schedule?.assignments) {
-      console.log('No schedule assignments found')
+      console.log('[DailyCalendar] No schedule assignments found')
       return []
     }
-    
+
     const dayIndex = calculateDayIndex()
-    
-    // Convert to number for consistent comparison
-    const targetShift = typeof shiftIdOrIndex === 'string' ? parseInt(shiftIdOrIndex) : shiftIdOrIndex
-    
-    // Simple direct matching - assignments only have 'shift' field
-    const assignments = schedule.assignments.filter(assignment => {
-    console.log('Raw assignment object:', assignment)
-    console.log('Assignment keys:', Object.keys(assignment))
-    
-    const matchesDay = assignment.day === dayIndex
-    const matchesShift = assignment.shift === targetShift
-    
-    console.log('Assignment check:', {
-      assignment_day: assignment.day,
-      assignment_shift: assignment.shift,
-      target_day: dayIndex,
-      target_shift: targetShift,
-      day_match: matchesDay,
-      shift_match: matchesShift,
-      full_assignment: assignment
+
+    console.log('[DailyCalendar] 🔍 Looking for assignments', {
+      dayIndex,
+      shiftIndex,
+      totalAssignments: schedule.assignments.length,
     })
-    
-    return matchesDay && matchesShift
-  })
-    
-    console.log(`✅ Found ${assignments.length} assignments for day ${dayIndex}, shift ${targetShift}`)
+
+    // Filter assignments by day and shift index
+    const assignments = schedule.assignments.filter((assignment) => {
+      const matchesDay = Number(assignment.day) === dayIndex
+      const matchesShift =
+        Number(assignment.shift) === Number(shiftIndex) || // primary check
+        assignment.shift_index === shiftIndex ||           // fallback if normalised elsewhere
+        assignment.shift_id === shiftIndex                 // ultra‑defensive
+
+      return matchesDay && matchesShift
+    })
+
+    console.log(
+      `[DailyCalendar] ✅ Found ${assignments.length} assignments for day ${dayIndex}, shift ${shiftIndex}`,
+    )
+
     return assignments
   }
 
@@ -176,22 +174,6 @@ export function DailyCalendar({
 
   const stats = getDayStats()
 
-  // Show helpful debug info if no shifts are displayed
-  if (!shifts || shifts.length === 0) {
-    return (
-      <Card className="border-red-200 bg-red-50">
-        <CardContent className="p-6">
-          <div className="text-center">
-            <div className="text-red-600 font-medium mb-2">No Shifts Available</div>
-            <div className="text-sm text-red-500">
-              Debug: shifts array is empty or undefined
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
     <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
       <CardHeader>
@@ -221,27 +203,12 @@ export function DailyCalendar({
 
       <CardContent className="p-0">
         <div className="p-6">
-          {/* Debug Info Panel */}
-          {process.env.NODE_ENV === 'development' && (
-            <Card className="mb-4 border-blue-200 bg-blue-50">
-              <CardContent className="p-3">
-                <div className="text-xs text-blue-800">
-                  <div><strong>Debug Info:</strong></div>
-                  <div>Shifts: {shifts.length}</div>
-                  <div>Schedule: {schedule ? 'Present' : 'None'}</div>
-                  <div>Assignments: {schedule?.assignments?.length || 0}</div>
-                  <div>Day Index: {calculateDayIndex()}</div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Shift Cards */}
           <div className="space-y-4">
             {shifts.map((shift, index) => {
               // Try multiple possible shift identifiers
               const shiftId = shift.id || shift.shift_index || shift.shift_id
-              const assignments = getShiftAssignments(shift.shift_index ?? shift.id ?? index)
+              const assignments = getShiftAssignments(shift.shift_index)
               const isSelected = selectedShift === shiftId
               
               console.log(`Rendering shift ${shift.name}:`, {
