@@ -16,3 +16,7 @@ pandas
 openpyxl
 faker>=25
 ortools>=9.9
+httpx>=0.28.1
+firebase-admin>=7.0.0
+twilio>=9.6.5
+reportlab>=4.4.2
