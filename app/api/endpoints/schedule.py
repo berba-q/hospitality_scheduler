@@ -8,6 +8,7 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlmodel import Session, select, text
 from sqlalchemy import desc, func
+from sqlalchemy import and_
  
 from app.schemas import (
     ScheduleRead, ScheduleDetail, PreviewRequestWithConfig, 
@@ -18,7 +19,7 @@ from app.services.scheduler import create_schedule, validate_schedule_constraint
 from app.services.schedule_solver import (
     generate_weekly_schedule, ScheduleConstraints, constraints_from_config
 )
-from app.models import NotificationType, Staff, Schedule, ScheduleConfig, Facility, ShiftAssignment, User
+from app.models import NotificationType, Staff, Schedule, ScheduleConfig, Facility, ShiftAssignment, User, ZoneAssignment
 from app.deps import get_db, get_current_user
 from ...services.pdf_service import PDFService 
 
@@ -1497,7 +1498,7 @@ def get_schedule(schedule_id: str, db: Session = Depends(get_db), current_user =
 
 @router.get("/facility/{facility_id}")
 def get_facility_schedules(facility_id: str, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    """Get all schedules for a facility WITH assignments"""
+    """Get all schedules for a facility WITH assignments AND staff data"""
     # Verify facility access
     facility = db.get(Facility, facility_id)
     if not facility or facility.tenant_id != current_user.tenant_id:
@@ -1508,23 +1509,39 @@ def get_facility_schedules(facility_id: str, db: Session = Depends(get_db), curr
         select(Schedule).where(Schedule.facility_id == facility_id).order_by(desc(Schedule.week_start))
     ).all()
     
-    # Build response with assignments for each schedule
+    # Build response with assignments AND staff data for each schedule
     result = []
     for schedule in schedules:
-        # Get assignments for this schedule
-        assignments = db.exec(
-            select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule.id)
+        # join to get assignments with staff data
+        assignments_with_data = db.exec(
+            select(ShiftAssignment, Staff, ZoneAssignment)
+            .join(Staff, ShiftAssignment.staff_id == Staff.id)
+            .outerjoin(ZoneAssignment, 
+                and_(
+                    ZoneAssignment.schedule_id == ShiftAssignment.schedule_id,
+                    ZoneAssignment.staff_id == ShiftAssignment.staff_id,
+                    ZoneAssignment.day == ShiftAssignment.day,        # Exact day match
+                    ZoneAssignment.shift == ShiftAssignment.shift     # Exact shift match
+                )
+            )
+            .where(ShiftAssignment.schedule_id == schedule.id)
         ).all()
         
-        # Format assignments
+        # Format assignments with staff information
         formatted_assignments = []
-        for assignment in assignments:
+        for assignment, staff, zone_assignment in assignments_with_data:
             formatted_assignments.append({
                 'id': f"{schedule.id}-{assignment.day}-{assignment.shift}-{assignment.staff_id}",
                 'day': assignment.day,
                 'shift': assignment.shift,
                 'staff_id': str(assignment.staff_id),
-                'schedule_id': str(schedule.id)
+                'schedule_id': str(schedule.id),
+                # FIXED: Add the missing staff information
+                'staff_name': staff.full_name,
+                'staff_role': staff.role,
+                'staff_email': staff.email,
+                'staff_skill_level': staff.skill_level,
+                'zone_id': zone_assignment.zone_id if zone_assignment else None
             })
         
         # Build schedule response
@@ -1534,10 +1551,16 @@ def get_facility_schedules(facility_id: str, db: Session = Depends(get_db), curr
             "week_start": schedule.week_start.isoformat(),
             "created_at": schedule.created_at.isoformat() if schedule.created_at else None,
             "updated_at": schedule.updated_at.isoformat() if schedule.updated_at else None,
-            "assignments": formatted_assignments  # ← Include assignments!
+            "assignments": formatted_assignments  # Now includes staff data!
         }
         
         result.append(schedule_data)
+        
+        # Debug logging
+        print(f"Schedule {schedule.id}: {len(formatted_assignments)} assignments with staff data")
+        if formatted_assignments:
+            sample = formatted_assignments[0]
+            print(f"Sample assignment with zone: day={sample['day']}, shift={sample['shift']}, zone_id={sample['zone_id']}")
     
     return result
 

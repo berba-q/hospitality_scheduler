@@ -97,25 +97,31 @@ export function DailyCalendar({
     
     const dayIndex = calculateDayIndex()
     
-    // Handle both shift ID and shift index matching
+    // Convert to number for consistent comparison
+    const targetShift = typeof shiftIdOrIndex === 'string' ? parseInt(shiftIdOrIndex) : shiftIdOrIndex
+    
+    // Simple direct matching - assignments only have 'shift' field
     const assignments = schedule.assignments.filter(assignment => {
-      const matchesDay = assignment.day === dayIndex
-      const matchesShift = assignment.shift === shiftIdOrIndex || 
-                          assignment.shift_id === shiftIdOrIndex ||
-                          assignment.shift_index === shiftIdOrIndex
-      
-      if (matchesDay && matchesShift) {
-        console.log('Found matching assignment:', {
-          assignment,
-          dayIndex,
-          shiftIdOrIndex
-        })
-      }
-      
-      return matchesDay && matchesShift
+    console.log('Raw assignment object:', assignment)
+    console.log('Assignment keys:', Object.keys(assignment))
+    
+    const matchesDay = assignment.day === dayIndex
+    const matchesShift = assignment.shift === targetShift
+    
+    console.log('Assignment check:', {
+      assignment_day: assignment.day,
+      assignment_shift: assignment.shift,
+      target_day: dayIndex,
+      target_shift: targetShift,
+      day_match: matchesDay,
+      shift_match: matchesShift,
+      full_assignment: assignment
     })
     
-    console.log(`Assignments for shift ${shiftIdOrIndex} on day ${dayIndex}:`, assignments.length)
+    return matchesDay && matchesShift
+  })
+    
+    console.log(`✅ Found ${assignments.length} assignments for day ${dayIndex}, shift ${targetShift}`)
     return assignments
   }
 
@@ -232,10 +238,10 @@ export function DailyCalendar({
 
           {/* Shift Cards */}
           <div className="space-y-4">
-            {shifts.map((shift) => {
+            {shifts.map((shift, index) => {
               // Try multiple possible shift identifiers
               const shiftId = shift.id || shift.shift_index || shift.shift_id
-              const assignments = getShiftAssignments(shiftId)
+              const assignments = getShiftAssignments(shift.shift_index ?? shift.id ?? index)
               const isSelected = selectedShift === shiftId
               
               console.log(`Rendering shift ${shift.name}:`, {
