@@ -4,6 +4,7 @@ from enum import Enum
 import uuid
 
 from .models import NotificationType, NotificationChannel, NotificationPriority
+from .models import SwapStatus
 from pydantic import BaseModel, EmailStr, ConfigDict, Field, validator
 
 
@@ -412,29 +413,24 @@ class QuickUnavailabilityCreate(BaseModel):
         return v
 
 # Base swap request schemas
-
-class SwapStatus(str, Enum):
-    PENDING = "pending"
-    MANAGER_APPROVED = "manager_approved"
-    STAFF_ACCEPTED = "staff_accepted"
-    STAFF_DECLINED = "staff_declined"
-    ASSIGNED = "assigned"
-    ASSIGNMENT_FAILED = "assignment_failed"
-    EXECUTED = "executed"
-    DECLINED = "declined"
 class SwapRequestCreate(BaseModel):
     schedule_id: uuid.UUID
     original_day: int = Field(ge=0, le=6, description="Day of week (0=Monday)")
     original_shift: int = Field(ge=0, le=2, description="Shift number (0=morning, 1=afternoon, 2=evening)")
+    original_zone_id: Optional[str] = None  # ← NEW: Zone tracking for role verification
     reason: str = Field(min_length=1, max_length=500)
     urgency: Literal["low", "normal", "high", "emergency"] = "normal"
     expires_at: Optional[datetime] = None
+    requires_manager_final_approval: bool = True 
+    role_verification_required: bool = True  
+
 
 class SpecificSwapRequestCreate(SwapRequestCreate):
     """Request to swap with a specific staff member"""
     target_staff_id: uuid.UUID
     target_day: int = Field(ge=0, le=6)
     target_shift: int = Field(ge=0, le=2)
+    target_zone_id: Optional[str] = None
     swap_type: Literal["specific"] = "specific"
 
 class AutoSwapRequestCreate(SwapRequestCreate):
@@ -452,42 +448,86 @@ class SwapRequestUpdate(BaseModel):
     reason: Optional[str] = None
     urgency: Optional[Literal["low", "normal", "high", "emergency"]] = None
     expires_at: Optional[datetime] = None
+    original_zone_id: Optional[str] = None
+    requires_manager_final_approval: Optional[bool] = None
+    role_verification_required: Optional[bool] = None
 
 class SwapRequestRead(BaseModel):
+    """Enhanced swap request read schema with new workflow fields"""
     id: uuid.UUID
     schedule_id: uuid.UUID
     requesting_staff_id: uuid.UUID
     original_day: int
     original_shift: int
+    original_zone_id: Optional[str] = None  
     swap_type: str
     
     # Optional fields based on swap type
     target_staff_id: Optional[uuid.UUID] = None
     target_day: Optional[int] = None
     target_shift: Optional[int] = None
+    target_zone_id: Optional[str] = None  
     assigned_staff_id: Optional[uuid.UUID] = None
     
     reason: str
     urgency: str
-    status: SwapStatus
+    status: SwapStatus  
     
+    # ==================== ENHANCED APPROVAL TRACKING ====================
     target_staff_accepted: Optional[bool] = None
+    assigned_staff_accepted: Optional[bool] = None  
     manager_approved: Optional[bool] = None
+    manager_final_approved: Optional[bool] = None  
     manager_notes: Optional[str] = None
     
+    # ==================== WORKFLOW CONFIGURATION ====================
+    requires_manager_final_approval: bool
+    role_verification_required: bool
+    
+    # ==================== ROLE AUDIT FIELDS ====================
+    original_shift_role_id: Optional[uuid.UUID] = None
+    assigned_staff_role_id: Optional[uuid.UUID] = None
+    target_staff_role_id: Optional[uuid.UUID] = None
+    role_match_override: bool = False
+    role_match_reason: Optional[str] = None
+    
+    # ==================== ENHANCED TIMESTAMPS ====================
     created_at: datetime
+    manager_approved_at: Optional[datetime] = None  
+    staff_responded_at: Optional[datetime] = None   
+    manager_final_approved_at: Optional[datetime] = None  
     expires_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
 
 class SwapRequestWithDetails(SwapRequestRead):
-    """Swap request with related staff info"""
+    """Swap request with related staff info and role details"""
     requesting_staff: "StaffRead"
     target_staff: Optional["StaffRead"] = None
     assigned_staff: Optional["StaffRead"] = None
     
+    # ==================== ROLE DETAILS FOR DISPLAY ====================
+    original_shift_role_name: Optional[str] = None
+    assigned_staff_role_name: Optional[str] = None
+    target_staff_role_name: Optional[str] = None
+    
     model_config = ConfigDict(from_attributes=True)
+
+# ==================== SWAP REQUEST RESPONSE SCHEMAS ====================
+class PotentialAssignmentResponse(BaseModel):
+    """Staff response to potential auto-assignment (NEW)"""
+    accepted: bool
+    notes: Optional[str] = None
+    availability_confirmed: bool = True
+
+class ManagerFinalApproval(BaseModel):
+    """Manager's final approval for swap execution (ENHANCED)"""
+    approved: bool
+    notes: Optional[str] = None
+    override_role_verification: bool = False  # Allow manager to override role checks
+    role_override_reason: Optional[str] = None  # Required if override is True
+
 
 # Manager action schemas
 class ManagerSwapDecision(BaseModel):
@@ -495,36 +535,209 @@ class ManagerSwapDecision(BaseModel):
     notes: Optional[str] = None
 
 class StaffSwapResponse(BaseModel):
-    """Staff response to a specific swap request"""
+    """Enhanced staff response to swap requests"""
     accepted: bool
     notes: Optional[str] = None
+    confirm_availability: bool = True
 
 # Auto-assignment result
 class AutoAssignmentResult(BaseModel):
+    """Enhanced auto-assignment result with role verification"""
     success: bool
     assigned_staff_id: Optional[uuid.UUID] = None
     assigned_staff_name: Optional[str] = None
-    reason: Optional[str] = None  # Why assignment failed
+    reason: Optional[str] = None  # Assignment success/failure reason
+    
+    # ==================== ROLE VERIFICATION INFO ====================
+    role_match_level: Optional[str] = None  # "exact_match", "compatible", etc.
+    role_compatibility_score: Optional[int] = None  # 0-100
+    skill_level_match: Optional[bool] = None
+    
+    # ==================== ALTERNATIVE SUGGESTIONS ====================
     alternatives: Optional[list[dict]] = None  # Alternative staff suggestions
+    emergency_options: Optional[list[dict]] = None  # Emergency override options
+    
+    # ==================== AUDIT INFORMATION ====================
+    assignment_criteria_used: Optional[dict] = None  # What criteria were used
+    staff_considered_count: Optional[int] = None
+    rejection_reasons: Optional[dict] = None  # Why other staff were rejected
+
+# ==================== SWAP WORKFLOW SCHEMAS ====================
+class SwapWorkflowStatus(BaseModel):
+    """Current workflow status with next actions (NEW)"""
+    current_status: SwapStatus
+    next_action_required: str
+    next_action_by: Literal["manager", "staff", "system"]
+    can_execute: bool
+    blocking_reasons: list[str] = []
+    estimated_completion: Optional[datetime] = None
+    
+class RoleMatchAudit(BaseModel):
+    """Audit information for role matching in swaps (NEW)"""
+    original_shift_role: Optional[str] = None  # Role name for display
+    assigned_staff_role: Optional[str] = None
+    target_staff_role: Optional[str] = None
+    roles_compatible: bool
+    match_level: str  # "exact_match", "compatible", "emergency_override"
+    override_applied: bool = False
+    override_reason: Optional[str] = None
+    skill_levels_compatible: bool = True
+    minimum_skill_required: Optional[int] = None
 
 # Swap summary for dashboards
 class SwapSummary(BaseModel):
+    """Enhanced swap summary for dashboards"""
     facility_id: uuid.UUID
+    
+    # ==================== STATUS COUNTS ====================
     pending_swaps: int
+    manager_approval_needed: int  # ← NEW
+    potential_assignments: int  # ← NEW
+    staff_responses_needed: int  # ← NEW
+    manager_final_approval_needed: int  # ← NEW
     urgent_swaps: int
     auto_swaps_needing_assignment: int
     specific_swaps_awaiting_response: int
     recent_completions: int
+    
+    # ==================== ROLE VERIFICATION STATS ====================
+    role_compatible_assignments: int  # ← NEW
+    role_override_assignments: int  # ← NEW
+    failed_role_verifications: int  # ← NEW
+    
+    # ==================== TIMING METRICS ====================
+    average_approval_time_hours: Optional[float] = None  # ← NEW
+    average_staff_response_time_hours: Optional[float] = None  # ← NEW
+    pending_over_24h: int  # ← NEW
+
 
 class SwapHistoryRead(BaseModel):
+    """ swap history with role information"""
     id: uuid.UUID
     swap_request_id: uuid.UUID
-    action: str
+    action: str  # "requested", "manager_approved", "staff_accepted", "role_verified", etc.
     actor_staff_id: Optional[uuid.UUID] = None
     notes: Optional[str] = None
     created_at: datetime
     
+    # ==================== HISTORY FIELDS ====================
+    role_information: Optional[dict] = None  # Role matching info at time of action
+    system_action: bool = False  # Was this a system-generated action?
+    notification_sent: bool = False  # Was notification sent for this action?
+    
     model_config = ConfigDict(from_attributes=True)
+
+class SwapAnalytics(BaseModel):
+    """Detailed swap analytics for management insights"""
+    facility_id: uuid.UUID
+    period_start: datetime
+    period_end: datetime
+    
+    # ==================== VOLUME METRICS ====================
+    total_requests: int
+    auto_requests: int
+    specific_requests: int
+    completed_swaps: int
+    failed_swaps: int
+    
+    # ==================== ROLE ANALYSIS ====================
+    role_compatibility_rate: float  # Percentage of assignments with compatible roles
+    most_requested_roles: list[dict]  # Which roles are most often needed for swaps
+    role_coverage_gaps: list[dict]  # Roles that are hard to cover
+    
+    # ==================== STAFF BEHAVIOR ====================
+    most_helpful_staff: list[dict]  # Staff who accept swaps most often
+    staff_acceptance_rates: dict  # staff_id -> acceptance_rate
+    emergency_coverage_providers: list[dict]  # Staff who help in emergencies
+    
+    # ==================== TIMING ANALYSIS ====================
+    average_resolution_time: float  # Hours from request to completion
+    manager_approval_time: float  # Average manager response time
+    staff_response_time: float  # Average staff response time
+    
+    # ==================== RECOMMENDATIONS ====================
+    recommendations: list[str]  # System recommendations for improvement
+    
+# ==================== VALIDATION SCHEMAS ====================
+
+class SwapValidationError(BaseModel):
+    """Validation errors for swap requests"""
+    error_code: str
+    error_message: str
+    field: Optional[str] = None
+    suggested_fix: Optional[str] = None
+
+class SwapValidationResult(BaseModel):
+    """Result of swap request validation"""
+    is_valid: bool
+    errors: list[SwapValidationError] = []
+    warnings: list[str] = []
+    
+    # ==================== ROLE VALIDATION ====================
+    role_verification_passed: bool = True
+    zone_requirements_met: bool = True
+    skill_requirements_met: bool = True
+    
+    # ==================== AVAILABILITY VALIDATION ====================
+    staff_available: bool = True
+    no_conflicts: bool = True
+    within_work_limits: bool = True
+    
+    # ==================== BULK OPERATIONS ====================
+
+class BulkSwapApproval(BaseModel):
+    """Bulk approval of multiple swap requests"""
+    swap_ids: list[uuid.UUID] = Field(min_items=1, max_items=50)
+    approved: bool
+    notes: Optional[str] = None
+    apply_to_similar: bool = False  # Apply same decision to similar requests
+
+class BulkSwapResult(BaseModel):
+    """Result of bulk swap operations"""
+    total_processed: int
+    successful: int
+    failed: int
+    results: list[dict]  # Individual results per swap
+    errors: list[str] = []
+    
+# ==================== NOTIFICATION INTEGRATION ====================
+
+class SwapNotificationData(BaseModel):
+    """Data structure for swap-related notifications"""
+    swap_id: uuid.UUID
+    swap_type: str
+    requesting_staff_name: str
+    target_staff_name: Optional[str] = None
+    assigned_staff_name: Optional[str] = None
+    original_shift_info: str  # "Monday Morning" format
+    target_shift_info: Optional[str] = None
+    urgency: str
+    reason: str
+    role_match_info: Optional[str] = None  # Role compatibility information
+    next_action_required: str
+    deadline: Optional[datetime] = None
+    
+# ==================== EXPORT SCHEMAS ====================
+
+class SwapExportOptions(BaseModel):
+    """Options for exporting swap data"""
+    include_audit_trail: bool = True
+    include_role_information: bool = True
+    include_staff_details: bool = True
+    date_range_start: Optional[datetime] = None
+    date_range_end: Optional[datetime] = None
+    status_filter: Optional[list[SwapStatus]] = None
+    format: Literal["excel", "csv", "pdf"] = "excel"
+
+class SwapExportResult(BaseModel):
+    """Result of swap export operation"""
+    success: bool
+    file_url: Optional[str] = None
+    records_exported: int
+    file_size_bytes: int
+    export_timestamp: datetime
+
+
     
 # Smart Scheduling Schemas
 class ZoneConfiguration(BaseModel):

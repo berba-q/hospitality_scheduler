@@ -2,7 +2,7 @@ from datetime import date, datetime, time
 from enum import Enum
 from typing import Optional, List, Dict, Any
 import uuid
-from sqlmodel import SQLModel, Field, Relationship, Column, JSON
+from sqlmodel import SQLModel, Field, Relationship, Index, Column, JSON
 
 
 class Tenant(SQLModel, table=True):
@@ -230,6 +230,24 @@ class ScheduleConfig(SQLModel, table=True):
     weekend_restrictions: bool = Field(default=False)
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+# ==================== SWAP STATUS ENUM ====================
+
+class SwapStatus(str, Enum):
+    """
+    Enum for swap request status values to prevent typos and ensure consistency
+    """
+    PENDING = "pending"
+    MANAGER_APPROVED = "manager_approved"
+    POTENTIAL_ASSIGNMENT = "potential_assignment"  # System found potential staff for auto swap
+    STAFF_ACCEPTED = "staff_accepted"
+    MANAGER_FINAL_APPROVAL = "manager_final_approval"  # Waiting for manager's final confirmation
+    EXECUTED = "executed"
+    STAFF_DECLINED = "staff_declined"
+    ASSIGNMENT_DECLINED = "assignment_declined"
+    ASSIGNMENT_FAILED = "assignment_failed"
+    DECLINED = "declined"
+    CANCELLED = "cancelled"
 
 class SwapRequest(SQLModel, table=True):
     
@@ -240,16 +258,16 @@ class SwapRequest(SQLModel, table=True):
     # Original shift details
     original_day: int
     original_shift: int
+    original_zone_id: Optional[str] = None
     
-    # Swap type: "specific" or "auto"
+   # Swap type and target details
     swap_type: str = Field(description="specific or auto")
-    
-    # For specific swaps
     target_staff_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staff.id")
-    target_day: Optional[int] = None
-    target_shift: Optional[int] = None
-    
-    # For auto swaps - system will fill this when approved
+    target_day: Optional[int] = Field(default=None, ge=0, le=6)
+    target_shift: Optional[int] = Field(default=None, ge=0, le=2)
+    target_zone_id: Optional[str] = None  # Track target zone for specific swaps
+
+    # Auto-assignment details
     assigned_staff_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staff.id")
     
     # Request details
@@ -257,20 +275,66 @@ class SwapRequest(SQLModel, table=True):
     urgency: str = Field(default="normal", description="low, normal, high, emergency")
     
     # Status tracking
-    status: str = Field(
-    default="pending", 
-    description="pending, manager_approved, staff_accepted, staff_declined, assigned, assignment_declined, assignment_failed, executed, declined, cancelled"
+    status: SwapStatus = Field(
+        default=SwapStatus.PENDING, 
+        description="Current status of the swap request using enum for type safety"
     )
     
     # Approval workflow
     target_staff_accepted: Optional[bool] = None  # For specific swaps
+    assigned_staff_accepted: Optional[bool] = None 
     manager_approved: Optional[bool] = None
+    manager_final_approved: Optional[bool] = None
     manager_notes: Optional[str] = None
+    
+    # ==================== WORKFLOW CONFIGURATION ====================
+    requires_manager_final_approval: bool = Field(default=True)  # Configure approval flow
+    role_verification_required: bool = Field(default=True)  # Enforce role checking
+    
+    # ==================== ROLE AUDIT TRACKING ====================
+    # Cache the role ID that was matched for auto-assignments (for audit purposes)
+    original_shift_role_id: Optional[uuid.UUID] = Field(default=None, foreign_key="facilityrole.id", description="Role required for original shift")
+    assigned_staff_role_id: Optional[uuid.UUID] = Field(default=None, foreign_key="facilityrole.id", description="Role of assigned staff member")
+    target_staff_role_id: Optional[uuid.UUID] = Field(default=None, foreign_key="facilityrole.id", description="Role of target staff member (specific swaps)")
+    role_match_override: bool = Field(default=False, description="Manager overrode role verification")
+    role_match_reason: Optional[str] = Field(default=None, description="Reason for role override or match details")
+    
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    expires_at: Optional[datetime] = None  # Auto-expire requests
+    manager_approved_at: Optional[datetime] = None  # Track approval timing
+    staff_responded_at: Optional[datetime] = None   # Track response timing
+    manager_final_approved_at: Optional[datetime] = None # NEW: Track final approval
+    expires_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    
+    # ==================== DATABASE CONSTRAINTS ====================
+    __table_args__ = (
+        # Prevent multiple active requests for the same shift slot
+        Index(
+            'idx_unique_active_swap_request',
+            'schedule_id', 'requesting_staff_id', 'original_day', 'original_shift',
+            unique=True,
+            postgresql_where="status NOT IN ('executed', 'declined', 'cancelled', 'staff_declined', 'assignment_failed')"
+        ),
+        
+        # Prevent duplicate specific swap requests between same staff/shifts
+        Index(
+            'idx_unique_specific_swap',
+            'schedule_id', 'requesting_staff_id', 'target_staff_id', 
+            'original_day', 'original_shift', 'target_day', 'target_shift',
+            unique=True,
+            postgresql_where="swap_type = 'specific' AND status NOT IN ('executed', 'declined', 'cancelled', 'staff_declined')"
+        ),
+        
+        # Prevent staff from being auto-assigned to multiple swaps simultaneously
+        Index(
+            'idx_unique_auto_assignment',
+            'schedule_id', 'assigned_staff_id', 'original_day', 'original_shift',
+            unique=True,
+            postgresql_where="swap_type = 'auto' AND assigned_staff_id IS NOT NULL AND status IN ('potential_assignment', 'staff_accepted', 'manager_final_approval')"
+        ),
+    )
 
 class SwapHistory(SQLModel, table=True):
     """Track all swap actions for audit trail"""
