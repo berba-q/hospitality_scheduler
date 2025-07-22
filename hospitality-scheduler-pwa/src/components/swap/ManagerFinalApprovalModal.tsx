@@ -27,6 +27,7 @@ import {
   Settings,
   Info
 } from 'lucide-react'
+import { SwapStatus, SwapUrgency } from '@/types/swaps'
 
 interface ManagerFinalApprovalModalProps {
   swap: any
@@ -141,14 +142,14 @@ export function ManagerFinalApprovalModal({
                 <Badge variant="outline">
                   {swap?.swap_type === 'auto' ? 'Auto Assignment' : 'Specific Swap'}
                 </Badge>
-                <Badge 
+                <Badge
                   className={
-                    swap?.urgency === 'emergency' ? 'bg-red-100 text-red-800' :
-                    swap?.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
+                    swap?.urgency === SwapUrgency.Emergency ? 'bg-red-100 text-red-800' :
+                    swap?.urgency === SwapUrgency.High      ? 'bg-orange-100 text-orange-800' :
                     'bg-blue-100 text-blue-800'
                   }
                 >
-                  {swap?.urgency?.charAt(0).toUpperCase() + swap?.urgency?.slice(1)} Priority
+                  {String(swap?.urgency)?.charAt(0).toUpperCase() + String(swap?.urgency)?.slice(1)} Priority
                 </Badge>
               </div>
             </CardContent>
@@ -311,7 +312,9 @@ export function BulkSwapManager({
   const [ignoreRoleIssues, setIgnoreRoleIssues] = useState(false)
   const [roleOverrideReason, setRoleOverrideReason] = useState('')
 
-  const eligibleSwaps = swaps.filter(swap => swap.status === 'pending')
+  const eligibleSwaps = swaps.filter(
+    swap => swap.status === SwapStatus.ManagerFinalApproval
+  )
   const selectedEligibleSwaps = eligibleSwaps.filter(swap => selectedSwaps.includes(swap.id))
   const hasRoleIssues = selectedEligibleSwaps.some(swap => 
     swap.role_match_override || 

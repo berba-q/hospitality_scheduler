@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+
 import { 
   Clock, 
   CheckCircle, 
@@ -21,10 +22,12 @@ import {
   ArrowRight
 } from 'lucide-react'
 
+import { SwapStatus, SwapUrgency } from '@/types/swaps'
+
 interface WorkflowStatusIndicatorProps {
   swap: any
   workflowStatus?: {
-    current_status: string
+    current_status: SwapStatus
     next_action_required: string
     next_action_by: 'manager' | 'staff' | 'system'
     can_execute: boolean
@@ -36,73 +39,80 @@ interface WorkflowStatusIndicatorProps {
   compact?: boolean
 }
 
-const STATUS_CONFIG = {
-  'pending': {
-    label: 'Pending Approval',
+// Map any legacy status strings from old workflow to current enum values.
+// This lets us display older records without blowing up the UI.
+const LEGACY_STATUS_MAP: Record<string, SwapStatus> = {
+  manager_approved: SwapStatus.ManagerFinalApproval,
+  potential_assignment: SwapStatus.AwaitingTarget,
+  assigned: SwapStatus.AwaitingTarget,
+}
+
+const STATUS_CONFIG: Record<SwapStatus, {
+  label: string
+  color: string
+  icon: React.ComponentType<{ className?: string }>
+  progress: number
+}> = {
+  [SwapStatus.Pending]: {
+    label: 'Requested',
     color: 'bg-yellow-100 text-yellow-800',
     icon: Clock,
-    progress: 10
+    progress: 10,
   },
-  'manager_approved': {
-    label: 'Manager Approved',
-    color: 'bg-blue-100 text-blue-800',
-    icon: CheckCircle,
-    progress: 30
-  },
-  'potential_assignment': {
-    label: 'Finding Coverage',
+  [SwapStatus.AwaitingTarget]: {
+    label: 'Awaiting Staff Response',
     color: 'bg-purple-100 text-purple-800',
     icon: Target,
-    progress: 50
+    progress: 35,
   },
-  'staff_accepted': {
+  [SwapStatus.StaffAccepted]: {
     label: 'Staff Accepted',
     color: 'bg-green-100 text-green-800',
     icon: CheckCircle,
-    progress: 70
+    progress: 60,
   },
-  'manager_final_approval': {
+  [SwapStatus.ManagerFinalApproval]: {
     label: 'Final Approval',
     color: 'bg-indigo-100 text-indigo-800',
     icon: Shield,
-    progress: 90
+    progress: 85,
   },
-  'executed': {
+  [SwapStatus.Executed]: {
     label: 'Completed',
     color: 'bg-green-100 text-green-800',
     icon: CheckCircle,
-    progress: 100
+    progress: 100,
   },
-  'staff_declined': {
+  [SwapStatus.StaffDeclined]: {
     label: 'Staff Declined',
     color: 'bg-red-100 text-red-800',
     icon: XCircle,
-    progress: 0
+    progress: 0,
   },
-  'assignment_declined': {
+  [SwapStatus.AssignmentDeclined]: {
     label: 'Assignment Declined',
     color: 'bg-red-100 text-red-800',
     icon: XCircle,
-    progress: 0
+    progress: 0,
   },
-  'assignment_failed': {
+  [SwapStatus.AssignmentFailed]: {
     label: 'Assignment Failed',
     color: 'bg-red-100 text-red-800',
     icon: AlertTriangle,
-    progress: 0
+    progress: 0,
   },
-  'declined': {
+  [SwapStatus.Declined]: {
     label: 'Declined',
     color: 'bg-red-100 text-red-800',
     icon: XCircle,
-    progress: 0
+    progress: 0,
   },
-  'cancelled': {
+  [SwapStatus.Cancelled]: {
     label: 'Cancelled',
     color: 'bg-gray-100 text-gray-800',
     icon: XCircle,
-    progress: 0
-  }
+    progress: 0,
+  },
 }
 
 const ACTION_CONFIG = {
@@ -128,8 +138,13 @@ export function WorkflowStatusIndicator({
   onActionClick,
   compact = false
 }: WorkflowStatusIndicatorProps) {
-  const currentStatus = swap.status
-  const statusConfig = STATUS_CONFIG[currentStatus] || STATUS_CONFIG['pending']
+  const rawStatus: string = swap.status
+  const normalizedStatus: SwapStatus =
+    (LEGACY_STATUS_MAP[rawStatus] as SwapStatus) ||
+    (rawStatus as SwapStatus) ||
+    SwapStatus.Pending
+
+  const statusConfig = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG[SwapStatus.Pending]
   const StatusIcon = statusConfig.icon
 
   if (compact) {
@@ -139,7 +154,7 @@ export function WorkflowStatusIndicator({
           <StatusIcon className="h-3 w-3 mr-1" />
           {statusConfig.label}
         </Badge>
-        {swap.urgency === 'emergency' && (
+        {swap.urgency === SwapUrgency.Emergency && (
           <Badge className="bg-red-100 text-red-800">
             <AlertTriangle className="h-3 w-3 mr-1" />
             Emergency
@@ -254,11 +269,11 @@ export function WorkflowStatusIndicator({
             {swap.swap_type === 'auto' ? 'Auto Assignment' : 'Specific Swap'}
           </Badge>
           
-          <Badge 
+          <Badge
             className={
-              swap.urgency === 'emergency' ? 'bg-red-100 text-red-800' :
-              swap.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
-              swap.urgency === 'normal' ? 'bg-blue-100 text-blue-800' :
+              swap.urgency === SwapUrgency.Emergency ? 'bg-red-100 text-red-800' :
+              swap.urgency === SwapUrgency.High      ? 'bg-orange-100 text-orange-800' :
+              swap.urgency === SwapUrgency.Normal    ? 'bg-blue-100 text-blue-800' :
               'bg-gray-100 text-gray-800'
             }
           >
@@ -298,30 +313,28 @@ export function WorkflowStatusIndicator({
 // ==================== WORKFLOW STEPPER COMPONENT ====================
 
 interface WorkflowStepperProps {
-  currentStatus: string
+  currentStatus: SwapStatus
   swapType: 'auto' | 'specific'
 }
 
-const WORKFLOW_STEPS = {
+const WORKFLOW_STEPS: Record<'auto' | 'specific', { id: SwapStatus; label: string; icon: any }[]> = {
   auto: [
-    { id: 'pending', label: 'Requested', icon: Clock },
-    { id: 'manager_approved', label: 'Approved', icon: CheckCircle },
-    { id: 'potential_assignment', label: 'Finding Staff', icon: Target },
-    { id: 'staff_accepted', label: 'Staff Accepted', icon: User },
-    { id: 'manager_final_approval', label: 'Final Approval', icon: Shield },
-    { id: 'executed', label: 'Completed', icon: CheckCircle }
+    { id: SwapStatus.Pending,               label: 'Requested',       icon: Clock },
+    { id: SwapStatus.AwaitingTarget,       label: 'Awaiting Staff',  icon: Target },
+    { id: SwapStatus.StaffAccepted,        label: 'Staff Accepted',  icon: User },
+    { id: SwapStatus.ManagerFinalApproval,label: 'Final Approval',  icon: Shield },
+    { id: SwapStatus.Executed,              label: 'Completed',       icon: CheckCircle },
   ],
   specific: [
-    { id: 'pending', label: 'Requested', icon: Clock },
-    { id: 'manager_approved', label: 'Approved', icon: CheckCircle },
-    { id: 'staff_accepted', label: 'Staff Accepted', icon: User },
-    { id: 'manager_final_approval', label: 'Final Approval', icon: Shield },
-    { id: 'executed', label: 'Completed', icon: CheckCircle }
-  ]
+    { id: SwapStatus.Pending,               label: 'Requested',       icon: Clock },
+    { id: SwapStatus.StaffAccepted,        label: 'Staff Accepted',  icon: User },
+    { id: SwapStatus.ManagerFinalApproval,label: 'Final Approval',  icon: Shield },
+    { id: SwapStatus.Executed,              label: 'Completed',       icon: CheckCircle },
+  ],
 }
 
 export function WorkflowStepper({ currentStatus, swapType }: WorkflowStepperProps) {
-  const steps = WORKFLOW_STEPS[swapType]
+  const steps = WORKFLOW_STEPS[swapType] || WORKFLOW_STEPS.auto
   const currentIndex = steps.findIndex(step => step.id === currentStatus)
 
   return (
@@ -377,6 +390,15 @@ export function PotentialAssignmentCard({
   onRespond, 
   loading = false 
 }: PotentialAssignmentCardProps) {
+  // Only render meaningful content if this swap is awaiting the target staff's response.
+  // (Legacy 'potential_assignment' / 'assigned' still treated as awaiting_target.)
+  const rawStatus: string = swap.status
+  const isActive =
+    rawStatus === SwapStatus.AwaitingTarget ||
+    rawStatus === 'potential_assignment' ||
+    rawStatus === 'assigned'
+
+  // If it isn't active, we still render but visually mute the card.
   const [notes, setNotes] = React.useState('')
   const [showNotes, setShowNotes] = React.useState(false)
 
@@ -389,7 +411,7 @@ export function PotentialAssignmentCard({
   }
 
   return (
-    <Card className="border-purple-200 bg-purple-50">
+    <Card className={`border-purple-200 bg-purple-50 ${!isActive ? 'opacity-60 pointer-events-none' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
