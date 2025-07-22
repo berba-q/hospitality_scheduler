@@ -14,8 +14,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/                         # ignore ONLY the top‑level build artefact folder
+/lib64/                       # ignore top‑level compiled libs
 parts/
 sdist/
 var/
@@ -222,16 +222,11 @@ node_modules
 firebase-service-account.json
 .gitignore
 .dockerignore
-.gitignore
-.gitignore
 Dockerfile
 entrypoint.sh
 staff_accounts.json
 .vscode/launch.json
 .vscode/tasks.json
-.gitignore
-.gitignore
-.gitignore
 hospitality-scheduler-pwa/package-lock.json
 hospitality-scheduler-pwa/package.json
 
