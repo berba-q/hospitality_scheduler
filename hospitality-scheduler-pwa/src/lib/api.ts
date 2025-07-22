@@ -1,5 +1,7 @@
 // API client to communicate with the backend server
 // Api client implemtation for backend communication
+import { SwapStatus, SwapUrgency } from '@/types/swaps'
+
 export interface ApiConfig {
   baseUrl: string
   headers?: Record<string, string>
@@ -19,14 +21,14 @@ export interface ExportConfig {
     history: boolean
   }
   filters: {
-    status?: string[]
-    urgency?: string[]
+    status?: SwapStatus[]
+    urgency?: SwapUrgency[]
     swapType?: string[]
   }
 }
 
 export interface WorkflowStatus {
-  current_status: string
+  current_status: SwapStatus
   next_action_required: string
   next_action_by: 'manager' | 'staff' | 'system'
   can_execute: boolean
@@ -652,7 +654,7 @@ export class ApiClient {
   }
 
 
-  async getMySwapRequests(status?: string, limit = 20) {
+  async getMySwapRequests(status?: SwapStatus, limit = 20) {
     const params = new URLSearchParams()
     if (status) params.append('status', status)
     params.append('limit', limit.toString())
@@ -959,7 +961,7 @@ export class ApiClient {
   }
 
   // Swap Requests
-  async getSwapRequests(facilityId?: string, status?: string, urgency?: string) {
+  async getSwapRequests(facilityId?: string, status?: SwapStatus, urgency?: SwapUrgency) {
     return this.getSwapRequestsWithFilters({
       facility_id: facilityId,
       status,
@@ -973,8 +975,8 @@ export class ApiClient {
 
   async getSwapRequestsWithFilters(filters: {
     facility_id?: string
-    status?: string
-    urgency?: string
+    status?: SwapStatus
+    urgency?: SwapUrgency
     swap_type?: string
     limit?: number
   } = {}) {
@@ -1009,7 +1011,7 @@ export class ApiClient {
 
   async getSwapWorkflowStatus(swapId: string) {
     return this.request<{
-      current_status: string
+      current_status: SwapStatus
       next_action_required: string
       next_action_by: 'manager' | 'staff' | 'system'
       can_execute: boolean
@@ -1069,8 +1071,8 @@ export class ApiClient {
       timingMetrics: boolean // NEW
     }
     filters: {
-      status?: string[]
-      urgency?: string[]
+      status?: SwapStatus[]
+      urgency?: SwapUrgency[]
       swapType?: string[]
       roleCompatibility?: 'all' | 'compatible_only' | 'overrides_only' // NEW
     }
@@ -1367,8 +1369,8 @@ async getGlobalSwapStatistics() {
   }
 
   async getFacilitySwaps(facilityId: string, options: {
-    status?: string
-    urgency?: string
+    status?: SwapStatus
+    urgency?: SwapUrgency
     limit?: number
   } = {}) {
     const params = new URLSearchParams()
@@ -1529,7 +1531,7 @@ async getGlobalSwapStatistics() {
   async getAvailableSwapActions(swapId: string) {
     return this.request<{
       swap_id: string
-      current_status: string
+      current_status: SwapStatus
       user_role: 'staff' | 'manager' | 'system'
       available_actions: Array<{
         action: string
@@ -1552,7 +1554,7 @@ async getGlobalSwapStatistics() {
     original_day: number
     original_shift: number
     zone_id?: string
-    urgency?: string
+    urgency?: SwapUrgency
   }) {
     return this.request<{
       facility_id: string
@@ -1681,8 +1683,8 @@ async getGlobalSwapStatistics() {
 
   async searchSwapsAdvanced(query: string, filters: {
     facility_id?: string
-    status?: string
-    urgency?: string
+    status?: SwapStatus
+    urgency?: SwapUrgency
     swap_type?: string
     date_from?: string
     date_to?: string
@@ -1699,7 +1701,7 @@ async getGlobalSwapStatistics() {
     return this.request<any[]>(`/v1/swaps/search?${params.toString()}`)
   }
 
-  async getStaffSwapRequests(status?: string, limit = 50) {
+  async getStaffSwapRequests(status?: SwapStatus, limit = 50) {
     const params = new URLSearchParams()
     if (status) params.append('status', status)
     params.append('limit', limit.toString())
@@ -1750,8 +1752,8 @@ async getGlobalSwapStatistics() {
 
   async searchSwaps(query: string, filters: {
     facility_id?: string
-    status?: string
-    urgency?: string
+    status?: SwapStatus
+    urgency?: SwapUrgency
     date_from?: string
     date_to?: string
   } = {}) {
