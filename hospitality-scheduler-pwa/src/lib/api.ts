@@ -25,6 +25,51 @@ export interface ExportConfig {
   }
 }
 
+export interface WorkflowStatus {
+  current_status: string
+  next_action_required: string
+  next_action_by: 'manager' | 'staff' | 'system'
+  can_execute: boolean
+  blocking_reasons: string[]
+  estimated_completion?: string
+}
+
+export interface SwapValidationResult {
+  is_valid: boolean
+  errors: Array<{
+    error_code: string
+    error_message: string
+    field?: string
+    suggested_fix?: string
+  }>
+  warnings: string[]
+  role_verification_passed: boolean
+  zone_requirements_met: boolean
+  skill_requirements_met: boolean
+  staff_available: boolean
+  no_conflicts: boolean
+  within_work_limits: boolean
+}
+
+export interface SwapSummary {
+  facility_id: string
+  pending_swaps: number
+  manager_approval_needed: number
+  potential_assignments: number
+  staff_responses_needed: number
+  manager_final_approval_needed: number
+  urgent_swaps: number
+  auto_swaps_needing_assignment: number
+  specific_swaps_awaiting_response: number
+  recent_completions: number
+  role_compatible_assignments: number
+  role_override_assignments: number
+  failed_role_verifications: number
+  average_approval_time_hours?: number
+  average_staff_response_time_hours?: number
+  pending_over_24h: number
+}
+
 export class ApiClient {
   private config: ApiConfig
 
@@ -60,6 +105,52 @@ export class ApiClient {
     }
 
     // Handle empty responses (like 204 No Content)
+    if (response.status === 204) {
+      return {} as T
+    }
+
+    try {
+      return response.json()
+    } catch {
+      return {} as T
+    }
+  }
+
+  private async requestWithParams<T>(
+    endpoint: string,
+    options: RequestInit & { params?: Record<string, string> } = {}
+  ): Promise<T> {
+    const { params, ...requestOptions } = options
+    
+    let url = `${this.config.baseUrl}${endpoint}`
+    
+    if (params) {
+      const searchParams = new URLSearchParams()
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, value)
+        }
+      })
+      
+      const queryString = searchParams.toString()
+      if (queryString) {
+        url += `?${queryString}`
+      }
+    }
+    
+    const response = await fetch(url, {
+      ...requestOptions,
+      headers: {
+        ...this.getHeaders(),
+        ...requestOptions.headers,
+      },
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`API Error ${response.status}: ${error}`)
+    }
+
     if (response.status === 204) {
       return {} as T
     }
@@ -1147,15 +1238,129 @@ export class ApiClient {
     }>(`/v1/swaps/conflicts/${scheduleId}/${day}/${shift}`)
   }
 
+  async emergencyOverride(swapId: string, reason: string, assignedStaffId?: string) {
+    const params = new URLSearchParams()
+    params.append('override_reason', reason)
+    if (assignedStaffId) {
+      params.append('assigned_staff_id', assignedStaffId)
+    }
+    
+    return this.request<{
+      message: string
+      swap_id: string
+      new_status: string
+      override_reason: string
+      executed_at: string
+    }>(`/v1/swaps/${swapId}/emergency-override?${params.toString()}`, {
+      method: 'POST'
+    })
+  }
+
 
   async getSwapHistory(swapId: string) {
     return this.request<any[]>(`/v1/swaps/${swapId}/history`)
   }
 
+  async cleanupExpiredSwaps(dryRun: boolean = true, daysOld: number = 30) {
+    return this.request<{
+      dry_run: boolean
+      cutoff_date: string
+      old_swaps_found: number
+      naturally_expired_found: number
+      total_to_cleanup: number
+      cleaned_up: number
+      message: string
+    }>('/v1/swaps/cleanup/expired', {
+      method: 'POST',
+      body: JSON.stringify({ dry_run: dryRun, days_old: daysOld })
+    })
+  }
+
+  async exportSwapData(facilityId: string, options: {
+  format: 'excel' | 'csv' | 'pdf'
+  period_start?: string
+  period_end?: string
+  include_history?: boolean
+  include_analytics?: boolean
+}) {
+  const params = new URLSearchParams()
+  Object.entries(options).forEach(([key, value]) => {
+    if (value !== undefined) {
+      params.append(key, value.toString())
+    }
+  })
+  
+  return this.request<{
+    export_summary: any
+    download_url: string
+    expires_at: string
+  }>(`/v1/swaps/export/${facilityId}?${params.toString()}`)
+}
+
+// 5. Health check
+async getSwapHealthCheck() {
+  return this.request<{
+    status: 'healthy' | 'unhealthy'
+    timestamp: string
+    database_connected: boolean
+    total_swaps_in_system: number
+    pending_swaps: number
+    service_version: string
+    features: string[]
+    error?: string
+  }>('/v1/swaps/health')
+}
+
+//  Testing notifications (dev only)
+async testSwapNotifications(swapId: string, notificationType: string) {
+  return this.request<{
+    message: string
+    error?: string
+  }>(`/v1/swaps/${swapId}/test-notifications`, {
+    method: 'POST',
+    body: JSON.stringify({ notification_type: notificationType })
+  })
+}
+
   // Global swaps
   async getGlobalSwapSummary() {
     return this.request<any>('/v1/swaps/global-summary')
   }
+
+  // 6. Global statistics
+async getGlobalSwapStatistics() {
+  return this.request<{
+    tenant_id: string
+    generated_at: string
+    total_swaps: number
+    status_distribution: Record<string, { count: number; percentage: number }>
+    type_distribution: {
+      auto: { count: number; percentage: number }
+      specific: { count: number; percentage: number }
+    }
+    urgency_distribution: Record<string, { count: number; percentage: number }>
+    success_metrics: {
+      successful_swaps: number
+      failed_swaps: number
+      success_rate: number
+      failure_rate: number
+    }
+    role_statistics: {
+      total_overrides: number
+      override_rate: number
+    }
+    time_based_metrics: {
+      swaps_today: number
+      swaps_this_week: number
+      swaps_this_month: number
+    }
+    data_quality: {
+      complete_records: number
+      records_with_notes: number
+      records_with_timestamps: number
+    }
+  }>('/v1/swaps/statistics/global')
+}
 
   async getFacilitiesSwapSummary() {
     return this.request<any[]>('/v1/swaps/facilities-summary')
@@ -1245,9 +1450,11 @@ export class ApiClient {
 
   async updateSwapRequest(swapId: string, updateData: {
     reason?: string
-    urgency?: string
+    urgency?: 'low' | 'normal' | 'high' | 'emergency'
     expires_at?: string
-    status?: string
+    original_zone_id?: string
+    requires_manager_final_approval?: boolean
+    role_verification_required?: boolean
   }) {
     return this.request<any>(`/v1/swaps/${swapId}`, {
       method: 'PUT',
@@ -1256,9 +1463,11 @@ export class ApiClient {
   }
 
   async cancelSwapRequest(swapId: string, reason?: string) {
-    return this.request<any>(`/v1/swaps/${swapId}/cancel`, {
-      method: 'PUT',
-      body: JSON.stringify({ reason })
+    const params = reason ? `?reason=${encodeURIComponent(reason)}` : ''
+    return this.request<{
+      message: string
+    }>(`/v1/swaps/${swapId}${params}`, {
+      method: 'DELETE'
     })
   }
 

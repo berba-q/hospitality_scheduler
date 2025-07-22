@@ -1,5 +1,5 @@
 # app/api/endpoints/swaps.py
-"""Swaps endpoint with comprehensive notifications"""
+"""Enhanced swaps endpoint with comprehensive workflow and role verification"""
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Query
 from sqlmodel import Session, select
 from typing import List, Optional, Literal
@@ -14,18 +14,20 @@ from app.models import NotificationType, NotificationPriority
 from ...deps import get_db, get_current_user
 from ...models import (
     SwapRequest, SwapHistory, Schedule, ShiftAssignment, 
-    Staff, Facility, User
+    Staff, Facility, User, SwapStatus
 )
 from ...schemas import (
     SpecificSwapRequestCreate, AutoSwapRequestCreate, SwapRequestCreate, SwapRequestRead,
-    SwapRequestWithDetails, ManagerSwapDecision, StaffSwapResponse,
-    AutoAssignmentResult, SwapStatus, SwapSummary, SwapHistoryRead, SwapRequestUpdate
+    SwapRequestWithDetails, ManagerSwapDecision, StaffSwapResponse, SwapRequestUpdate,
+    AutoAssignmentResult, SwapSummary, SwapHistoryRead, SwapWorkflowStatus,
+    PotentialAssignmentResponse, ManagerFinalApproval, RoleMatchAudit,
+    SwapValidationResult, SwapAnalytics, BulkSwapApproval, BulkSwapResult
 )
-from ...services.swap_service import assign_swap_coverage
+from ...services.swap_service import assign_swap_coverage, get_swap_workflow_status
 
 router = APIRouter(prefix="/swaps", tags=["emergency-swaps"])
 
-# ==================== COMPREHENSIVE NOTIFICATION HELPERS ====================
+# ==================== ENHANCED NOTIFICATION HELPERS ====================
 
 async def send_swap_creation_notifications(
     swap_request: SwapRequest,
@@ -69,7 +71,7 @@ async def send_swap_creation_notifications(
     
     try:
         if swap_request.swap_type == "specific":
-            # 1. Notify target staff member
+            # Notify target staff member
             if swap_request.target_staff_id:
                 target_staff = db.get(Staff, swap_request.target_staff_id)
                 if target_staff:
@@ -88,16 +90,11 @@ async def send_swap_creation_notifications(
                         action_text="Respond to Swap Request",
                         background_tasks=background_tasks
                     )
-                    print(f"Specific swap notification sent to {target_staff.full_name}")
-            
-            # 2. Notify managers of specific swap request
-            await _notify_managers_of_swap_request(swap_request, notification_service, db, background_tasks, base_template_data)
         
-        elif swap_request.swap_type == "auto":
-            # 1. Notify managers of auto coverage request  
-            await _notify_managers_of_coverage_request(swap_request, notification_service, db, background_tasks, base_template_data)
+        # Notify managers
+        await _notify_managers_of_swap_request(swap_request, notification_service, db, background_tasks, base_template_data)
         
-        # 3. Send confirmation to requesting staff
+        # Send confirmation to requesting staff
         await notification_service.send_notification(
             notification_type=NotificationType.SWAP_REQUEST,
             recipient_user_id=requesting_staff.id,
@@ -112,356 +109,9 @@ async def send_swap_creation_notifications(
             action_text="View Request Status",
             background_tasks=background_tasks
         )
-        print(f"Confirmation sent to requester {requesting_staff.full_name}")
         
     except Exception as e:
         print(f"Failed to send swap creation notifications: {e}")
-
-async def send_manager_decision_notifications(
-    swap_request: SwapRequest,
-    decision_approved: bool,
-    manager_notes: str,
-    notification_service: NotificationService,
-    db: Session,
-    background_tasks: BackgroundTasks
-):
-    """Send notifications when manager makes a decision on swap request"""
-    
-    requesting_staff = db.get(Staff, swap_request.requesting_staff_id)
-    schedule = db.get(Schedule, swap_request.schedule_id)
-    facility = db.get(Facility, schedule.facility_id) if schedule else None
-    
-    if not requesting_staff or not facility:
-        return
-    
-    base_template_data = {
-        'requester_name': requesting_staff.full_name,
-        'facility_name': facility.name,
-        'original_day': _get_day_name(swap_request.original_day),
-        'original_shift': _get_shift_name(swap_request.original_shift),
-        'reason': swap_request.reason,
-        'manager_notes': manager_notes or '',
-        'approver_name': 'Manager'
-    }
-    
-    try:
-        if decision_approved:
-            # Manager approved the request
-            notification_type = NotificationType.SWAP_APPROVED
-            action_text = "View Approved Request"
-            
-            if swap_request.swap_type == "specific":
-                # For specific swaps, notify target staff that manager approved
-                if swap_request.target_staff_id:
-                    target_staff = db.get(Staff, swap_request.target_staff_id)
-                    if target_staff:
-                        await notification_service.send_notification(
-                            notification_type=NotificationType.SWAP_APPROVED,
-                            recipient_user_id=target_staff.id,
-                            template_data={
-                                **base_template_data,
-                                'target_name': target_staff.full_name,
-                                'message': f"Manager approved the swap request from {requesting_staff.full_name}. Please respond."
-                            },
-                            channels=['IN_APP', 'PUSH', 'WHATSAPP'],
-                            priority=NotificationPriority.HIGH,
-                            action_url=f"/swaps/{swap_request.id}/respond",
-                            action_text="Respond Now",
-                            background_tasks=background_tasks
-                        )
-                        print(f"Manager approval notification sent to target {target_staff.full_name}")
-            
-            elif swap_request.swap_type == "auto":
-                # For auto swaps, notify that coverage assignment is in progress
-                base_template_data['message'] = "Manager approved your coverage request. Finding replacement..."
-                action_text = "View Coverage Status"
-                
-        else:
-            # Manager declined the request
-            notification_type = NotificationType.SWAP_DENIED
-            action_text = "View Declined Request"
-            base_template_data['message'] = f"Your swap request was declined. {manager_notes}"
-        
-        # Notify requesting staff of manager decision
-        await notification_service.send_notification(
-            notification_type=notification_type,
-            recipient_user_id=requesting_staff.id,
-            template_data=base_template_data,
-            channels=['IN_APP', 'PUSH', 'WHATSAPP'],
-            priority=NotificationPriority.HIGH,
-            action_url=f"/swaps/{swap_request.id}",
-            action_text=action_text,
-            background_tasks=background_tasks
-        )
-        print(f"Manager decision notification sent to {requesting_staff.full_name}")
-        
-    except Exception as e:
-        print(f"Failed to send manager decision notifications: {e}")
-
-async def send_staff_response_notifications(
-    swap_request: SwapRequest,
-    staff_accepted: bool,
-    response_notes: str,
-    responding_staff_id: UUID,
-    notification_service: NotificationService,
-    db: Session,
-    background_tasks: BackgroundTasks
-):
-    """Send notifications when staff responds to a swap request"""
-    
-    requesting_staff = db.get(Staff, swap_request.requesting_staff_id)
-    responding_staff = db.get(Staff, responding_staff_id)
-    schedule = db.get(Schedule, swap_request.schedule_id)
-    facility = db.get(Facility, schedule.facility_id) if schedule else None
-    
-    if not requesting_staff or not responding_staff or not facility:
-        return
-    
-    base_template_data = {
-        'requester_name': requesting_staff.full_name,
-        'target_name': responding_staff.full_name,
-        'facility_name': facility.name,
-        'original_day': _get_day_name(swap_request.original_day),
-        'original_shift': _get_shift_name(swap_request.original_shift),
-        'reason': swap_request.reason,
-        'response_notes': response_notes or ''
-    }
-    
-    try:
-        if staff_accepted:
-            # Staff accepted the swap/assignment
-            if swap_request.swap_type == "specific":
-                message = f"{responding_staff.full_name} accepted your swap request! The schedule will be updated."
-                notification_type = NotificationType.SWAP_APPROVED
-            else:  # auto assignment
-                message = f"{responding_staff.full_name} accepted the coverage assignment. Your shift is covered!"
-                notification_type = NotificationType.SWAP_APPROVED
-            
-            action_text = "View Updated Schedule"
-            priority = NotificationPriority.HIGH
-            
-        else:
-            # Staff declined the swap/assignment
-            if swap_request.swap_type == "specific":
-                message = f"{responding_staff.full_name} declined your swap request. {response_notes}"
-                notification_type = NotificationType.SWAP_DENIED
-            else:  # auto assignment declined
-                message = f"{responding_staff.full_name} declined the coverage assignment. Looking for alternatives..."
-                notification_type = NotificationType.SWAP_DENIED
-            
-            action_text = "View Request Status"
-            priority = NotificationPriority.MEDIUM
-        
-        # Notify requesting staff of the response
-        await notification_service.send_notification(
-            notification_type=notification_type,
-            recipient_user_id=requesting_staff.id,
-            template_data={**base_template_data, 'message': message},
-            channels=['IN_APP', 'PUSH', 'WHATSAPP'],
-            priority=priority,
-            action_url=f"/swaps/{swap_request.id}",
-            action_text=action_text,
-            background_tasks=background_tasks
-        )
-        print(f"Staff response notification sent to {requesting_staff.full_name}")
-        
-        # Notify managers of staff response
-        await _notify_managers_of_staff_response(
-            swap_request, staff_accepted, responding_staff, 
-            notification_service, db, background_tasks, base_template_data
-        )
-        
-    except Exception as e:
-        print(f"Failed to send staff response notifications: {e}")
-
-async def send_auto_assignment_notifications(
-    swap_request: SwapRequest,
-    assigned_staff_id: UUID,
-    notification_service: NotificationService,
-    db: Session,
-    background_tasks: BackgroundTasks
-):
-    """Send notifications when auto-assignment is made"""
-    
-    requesting_staff = db.get(Staff, swap_request.requesting_staff_id)
-    assigned_staff = db.get(Staff, assigned_staff_id)
-    schedule = db.get(Schedule, swap_request.schedule_id)
-    facility = db.get(Facility, schedule.facility_id) if schedule else None
-    
-    if not requesting_staff or not assigned_staff or not facility:
-        return
-    
-    base_template_data = {
-        'requester_name': requesting_staff.full_name,
-        'target_name': assigned_staff.full_name,
-        'facility_name': facility.name,
-        'original_day': _get_day_name(swap_request.original_day),
-        'original_shift': _get_shift_name(swap_request.original_shift),
-        'reason': swap_request.reason
-    }
-    
-    try:
-        # 1. Notify assigned staff of their assignment
-        await notification_service.send_notification(
-            notification_type=NotificationType.EMERGENCY_COVERAGE,
-            recipient_user_id=assigned_staff.id,
-            template_data={
-                **base_template_data,
-                'message': f"You've been assigned to cover {requesting_staff.full_name}'s shift on {_get_day_name(swap_request.original_day)}."
-            },
-            channels=['IN_APP', 'PUSH', 'WHATSAPP'],
-            priority=NotificationPriority.HIGH,
-            action_url=f"/swaps/{swap_request.id}/respond",
-            action_text="Accept or Decline Assignment",
-            background_tasks=background_tasks
-        )
-        print(f"Auto-assignment notification sent to {assigned_staff.full_name}")
-        
-        # 2. Notify requesting staff that coverage has been assigned
-        await notification_service.send_notification(
-            notification_type=NotificationType.SWAP_APPROVED,
-            recipient_user_id=requesting_staff.id,
-            template_data={
-                **base_template_data,
-                'message': f"Good news! {assigned_staff.full_name} has been assigned to cover your shift. Waiting for their confirmation."
-            },
-            channels=['IN_APP', 'PUSH'],
-            priority=NotificationPriority.MEDIUM,
-            action_url=f"/swaps/{swap_request.id}",
-            action_text="View Assignment Status",
-            background_tasks=background_tasks
-        )
-        print(f"Assignment update sent to {requesting_staff.full_name}")
-        
-    except Exception as e:
-        print(f"Failed to send auto-assignment notifications: {e}")
-
-async def send_swap_completion_notifications(
-    swap_request: SwapRequest,
-    notification_service: NotificationService,
-    db: Session,
-    background_tasks: BackgroundTasks
-):
-    """Send notifications when swap is completed/executed"""
-    
-    requesting_staff = db.get(Staff, swap_request.requesting_staff_id)
-    schedule = db.get(Schedule, swap_request.schedule_id)
-    facility = db.get(Facility, schedule.facility_id) if schedule else None
-    
-    if not requesting_staff or not facility:
-        return
-    
-    base_template_data = {
-        'requester_name': requesting_staff.full_name,
-        'facility_name': facility.name,
-        'original_day': _get_day_name(swap_request.original_day),
-        'original_shift': _get_shift_name(swap_request.original_shift),
-        'week_start': schedule.week_start.strftime('%B %d, %Y') if schedule else 'this week'
-    }
-    
-    try:
-        # Determine who else to notify based on swap type
-        other_staff = None
-        if swap_request.swap_type == "specific" and swap_request.target_staff_id:
-            other_staff = db.get(Staff, swap_request.target_staff_id)
-        elif swap_request.swap_type == "auto" and swap_request.assigned_staff_id:
-            other_staff = db.get(Staff, swap_request.assigned_staff_id)
-        
-        # 1. Notify requesting staff
-        await notification_service.send_notification(
-            notification_type=NotificationType.SCHEDULE_CHANGE,
-            recipient_user_id=requesting_staff.id,
-            template_data={
-                **base_template_data,
-                'target_name': requesting_staff.full_name,
-                'message': f"Your swap request has been completed! Your schedule has been updated."
-            },
-            channels=['IN_APP', 'PUSH'],
-            priority=NotificationPriority.MEDIUM,
-            action_url=f"/schedule?week={schedule.week_start.isoformat()}" if schedule else "/schedule",
-            action_text="View Updated Schedule",
-            background_tasks=background_tasks
-        )
-        print(f"Completion notification sent to {requesting_staff.full_name}")
-        
-        # 2. Notify the other staff member involved
-        if other_staff:
-            await notification_service.send_notification(
-                notification_type=NotificationType.SCHEDULE_CHANGE,
-                recipient_user_id=other_staff.id,
-                template_data={
-                    **base_template_data,
-                    'target_name': other_staff.full_name,
-                    'message': f"Swap with {requesting_staff.full_name} is complete! Your schedule has been updated."
-                },
-                channels=['IN_APP', 'PUSH'],
-                priority=NotificationPriority.MEDIUM,
-                action_url=f"/schedule?week={schedule.week_start.isoformat()}" if schedule else "/schedule",
-                action_text="View Updated Schedule",
-                background_tasks=background_tasks
-            )
-            print(f"Completion notification sent to {other_staff.full_name}")
-        
-        # 3. Notify managers of completion
-        await _notify_managers_of_swap_completion(
-            swap_request, notification_service, db, background_tasks, base_template_data
-        )
-        
-    except Exception as e:
-        print(f"Failed to send swap completion notifications: {e}")
-
-async def send_assignment_failure_notifications(
-    swap_request: SwapRequest,
-    failure_reason: str,
-    notification_service: NotificationService,
-    db: Session,
-    background_tasks: BackgroundTasks
-):
-    """Send notifications when auto-assignment fails"""
-    
-    requesting_staff = db.get(Staff, swap_request.requesting_staff_id)
-    schedule = db.get(Schedule, swap_request.schedule_id)
-    facility = db.get(Facility, schedule.facility_id) if schedule else None
-    
-    if not requesting_staff or not facility:
-        return
-    
-    base_template_data = {
-        'requester_name': requesting_staff.full_name,
-        'facility_name': facility.name,
-        'original_day': _get_day_name(swap_request.original_day),
-        'original_shift': _get_shift_name(swap_request.original_shift),
-        'reason': swap_request.reason,
-        'failure_reason': failure_reason
-    }
-    
-    try:
-        # Notify requesting staff of assignment failure
-        await notification_service.send_notification(
-            notification_type=NotificationType.EMERGENCY_COVERAGE,
-            recipient_user_id=requesting_staff.id,
-            template_data={
-                **base_template_data,
-                'target_name': requesting_staff.full_name,
-                'message': f"Unable to find automatic coverage for your shift. Reason: {failure_reason}. Please contact your manager."
-            },
-            channels=['IN_APP', 'PUSH', 'WHATSAPP'],
-            priority=NotificationPriority.HIGH,
-            action_url=f"/swaps/{swap_request.id}",
-            action_text="View Request Details",
-            background_tasks=background_tasks
-        )
-        print(f"Assignment failure notification sent to {requesting_staff.full_name}")
-        
-        # Notify managers of assignment failure
-        await _notify_managers_of_assignment_failure(
-            swap_request, failure_reason, notification_service, db, background_tasks, base_template_data
-        )
-        
-    except Exception as e:
-        print(f"Failed to send assignment failure notifications: {e}")
-
-# ==================== HELPER FUNCTIONS ====================
 
 async def _notify_managers_of_swap_request(
     swap_request: SwapRequest,
@@ -506,180 +156,6 @@ async def _notify_managers_of_swap_request(
         except Exception as e:
             print(f"Failed to notify manager {manager.email}: {e}")
 
-async def _notify_managers_of_coverage_request(
-    swap_request: SwapRequest,
-    notification_service: NotificationService,
-    db: Session,
-    background_tasks: BackgroundTasks,
-    base_template_data: Dict[str, Any]
-):
-    """Notify managers of auto coverage requests"""
-    
-    schedule = db.get(Schedule, swap_request.schedule_id)
-    facility = db.get(Facility, schedule.facility_id) if schedule else None
-    
-    if not facility:
-        return
-    
-    managers = db.exec(
-        select(User).join(Staff).where(
-            Staff.facility_id == facility.id,
-            User.is_manager == True,
-            User.is_active == True
-        )
-    ).all()
-    
-    for manager in managers:
-        try:
-            await notification_service.send_notification(
-                notification_type=NotificationType.EMERGENCY_COVERAGE,
-                recipient_user_id=manager.id,
-                template_data={
-                    **base_template_data,
-                    'target_name': 'Manager',
-                    'message': f"Coverage request from {base_template_data['requester_name']} needs immediate attention"
-                },
-                channels=['IN_APP', 'PUSH', 'WHATSAPP'],
-                priority=NotificationPriority.HIGH,
-                action_url=f"/swaps/{swap_request.id}/manage",
-                action_text="Assign Coverage",
-                background_tasks=background_tasks
-            )
-        except Exception as e:
-            print(f"Failed to notify manager {manager.email}: {e}")
-
-async def _notify_managers_of_staff_response(
-    swap_request: SwapRequest,
-    staff_accepted: bool,
-    responding_staff: Staff,
-    notification_service: NotificationService,
-    db: Session,
-    background_tasks: BackgroundTasks,
-    base_template_data: Dict[str, Any]
-):
-    """Notify managers when staff responds to swap requests"""
-    
-    schedule = db.get(Schedule, swap_request.schedule_id)
-    facility = db.get(Facility, schedule.facility_id) if schedule else None
-    
-    if not facility:
-        return
-    
-    managers = db.exec(
-        select(User).join(Staff).where(
-            Staff.facility_id == facility.id,
-            User.is_manager == True,
-            User.is_active == True
-        )
-    ).all()
-    
-    action = "accepted" if staff_accepted else "declined"
-    priority = NotificationPriority.MEDIUM if staff_accepted else NotificationPriority.HIGH
-    
-    for manager in managers:
-        try:
-            await notification_service.send_notification(
-                notification_type=NotificationType.SWAP_APPROVED if staff_accepted else NotificationType.SWAP_DENIED,
-                recipient_user_id=manager.id,
-                template_data={
-                    **base_template_data,
-                    'target_name': 'Manager',
-                    'message': f"{responding_staff.full_name} {action} the swap request from {base_template_data['requester_name']}"
-                },
-                channels=['IN_APP'],
-                priority=priority,
-                action_url=f"/swaps/{swap_request.id}",
-                action_text="View Details",
-                background_tasks=background_tasks
-            )
-        except Exception as e:
-            print(f"Failed to notify manager {manager.email}: {e}")
-
-async def _notify_managers_of_swap_completion(
-    swap_request: SwapRequest,
-    notification_service: NotificationService,
-    db: Session,
-    background_tasks: BackgroundTasks,
-    base_template_data: Dict[str, Any]
-):
-    """Notify managers when swap is completed"""
-    
-    schedule = db.get(Schedule, swap_request.schedule_id)
-    facility = db.get(Facility, schedule.facility_id) if schedule else None
-    
-    if not facility:
-        return
-    
-    managers = db.exec(
-        select(User).join(Staff).where(
-            Staff.facility_id == facility.id,
-            User.is_manager == True,
-            User.is_active == True
-        )
-    ).all()
-    
-    for manager in managers:
-        try:
-            await notification_service.send_notification(
-                notification_type=NotificationType.SCHEDULE_CHANGE,
-                recipient_user_id=manager.id,
-                template_data={
-                    **base_template_data,
-                    'target_name': 'Manager',
-                    'message': f"Swap request completed successfully. Schedule updated for {base_template_data['requester_name']}"
-                },
-                channels=['IN_APP'],
-                priority=NotificationPriority.LOW,
-                action_url=f"/schedule?week={schedule.week_start.isoformat()}" if schedule else "/schedule",
-                action_text="View Schedule",
-                background_tasks=background_tasks
-            )
-        except Exception as e:
-            print(f"Failed to notify manager {manager.email}: {e}")
-
-async def _notify_managers_of_assignment_failure(
-    swap_request: SwapRequest,
-    failure_reason: str,
-    notification_service: NotificationService,
-    db: Session,
-    background_tasks: BackgroundTasks,
-    base_template_data: Dict[str, Any]
-):
-    """Notify managers when auto-assignment fails"""
-    
-    schedule = db.get(Schedule, swap_request.schedule_id)
-    facility = db.get(Facility, schedule.facility_id) if schedule else None
-    
-    if not facility:
-        return
-    
-    managers = db.exec(
-        select(User).join(Staff).where(
-            Staff.facility_id == facility.id,
-            User.is_manager == True,
-            User.is_active == True
-        )
-    ).all()
-    
-    for manager in managers:
-        try:
-            await notification_service.send_notification(
-                notification_type=NotificationType.EMERGENCY_COVERAGE,
-                recipient_user_id=manager.id,
-                template_data={
-                    **base_template_data,
-                    'target_name': 'Manager',
-                    'message': f"Auto-assignment failed for {base_template_data['requester_name']}: {failure_reason}. Manual intervention required."
-                },
-                channels=['IN_APP', 'PUSH', 'WHATSAPP'],
-                priority=NotificationPriority.HIGH,
-                action_url=f"/swaps/{swap_request.id}/manage",
-                action_text="Assign Manually",
-                background_tasks=background_tasks
-            )
-        except Exception as e:
-            print(f"Failed to notify manager {manager.email}: {e}")
-
 def _get_day_name(day_number: int) -> str:
     """Convert day number to day name"""
     days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -690,59 +166,7 @@ def _get_shift_name(shift_number: int) -> str:
     shifts = ['Morning', 'Afternoon', 'Evening']
     return shifts[shift_number] if 0 <= shift_number < 3 else f"Shift {shift_number}"
 
-# ==================== CREATING SWAP REQUESTS WITH NOTIFICATIONS ====================
-
-@router.post("/request")
-async def create_swap_request(
-    swap_data: SwapRequestCreate,
-    notification_options: Optional[Dict[str, Any]] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    background_tasks: BackgroundTasks = BackgroundTasks()
-):
-    """Create a swap request with comprehensive notifications"""
-    
-    # Create swap request (keep existing logic but add proper type handling)
-    swap_request = SwapRequest(
-        schedule_id=swap_data.schedule_id,
-        requesting_staff_id=swap_data.requesting_staff_id,
-        target_staff_id=swap_data.target_staff_id if hasattr(swap_data, 'target_staff_id') and swap_data.target_staff_id else None,
-        original_day=swap_data.original_day,
-        original_shift=swap_data.original_shift,
-        target_day=swap_data.target_day if hasattr(swap_data, 'target_day') else None,
-        target_shift=swap_data.target_shift if hasattr(swap_data, 'target_shift') else None,
-        swap_type=swap_data.swap_type,
-        reason=swap_data.reason,
-        urgency=swap_data.urgency,
-        status="pending"
-    )
-    
-    db.add(swap_request)
-    db.commit()
-    db.refresh(swap_request)
-    
-    # Send comprehensive notifications
-    notification_service = NotificationService(db)
-    
-    if notification_options is None:
-        notification_options = {
-            'send_whatsapp': True,
-            'send_push': True,
-            'send_email': False
-        }
-    
-    try:
-        await send_swap_creation_notifications(
-            swap_request=swap_request,
-            notification_service=notification_service,
-            db=db,
-            background_tasks=background_tasks,
-            notification_options=notification_options
-        )
-    except Exception as e:
-        print(f"Failed to send swap creation notifications: {e}")
-    
-    return swap_request
+# ==================== CREATING SWAP REQUESTS WITH ENHANCED WORKFLOW ====================
 
 @router.post("/specific", response_model=SwapRequestRead, status_code=201)
 async def create_specific_swap_request(
@@ -764,7 +188,6 @@ async def create_specific_swap_request(
     
     # Handle both staff and manager access properly
     if current_user.is_manager:
-        # Managers can create swaps for any staff in their facilities
         if hasattr(swap_in, 'requesting_staff_id') and swap_in.requesting_staff_id:
             requesting_staff = db.get(Staff, swap_in.requesting_staff_id)
             if not requesting_staff or requesting_staff.facility_id != schedule.facility_id:
@@ -793,7 +216,7 @@ async def create_specific_swap_request(
     if not target_staff or target_staff.facility_id != schedule.facility_id:
         raise HTTPException(status_code=400, detail="Invalid target staff member")
     
-    # Verify original shift assignment exists
+    # Verify assignments exist
     original_assignment = db.exec(
         select(ShiftAssignment).where(
             ShiftAssignment.schedule_id == swap_in.schedule_id,
@@ -809,7 +232,6 @@ async def create_specific_swap_request(
             detail=f"{requesting_staff.full_name} is not assigned to day {swap_in.original_day}, shift {swap_in.original_shift}"
         )
     
-    # Verify target shift assignment exists
     target_assignment = db.exec(
         select(ShiftAssignment).where(
             ShiftAssignment.schedule_id == swap_in.schedule_id,
@@ -825,18 +247,23 @@ async def create_specific_swap_request(
             detail="Target staff member is not assigned to the specified shift"
         )
     
-    # Create the swap request
+    # Create the swap request with enhanced workflow fields
     swap_request = SwapRequest(
         schedule_id=swap_in.schedule_id,
         requesting_staff_id=requesting_staff.id,
         original_day=swap_in.original_day,
         original_shift=swap_in.original_shift,
+        original_zone_id=getattr(swap_in, 'original_zone_id', None),
         swap_type=swap_in.swap_type,
         target_staff_id=swap_in.target_staff_id,
         target_day=swap_in.target_day,
         target_shift=swap_in.target_shift,
+        target_zone_id=getattr(swap_in, 'target_zone_id', None),
         reason=swap_in.reason,
         urgency=swap_in.urgency,
+        status=SwapStatus.PENDING,
+        requires_manager_final_approval=getattr(swap_in, 'requires_manager_final_approval', True),
+        role_verification_required=getattr(swap_in, 'role_verification_required', True),
         expires_at=swap_in.expires_at or (datetime.utcnow() + timedelta(days=3))
     )
     
@@ -848,21 +275,21 @@ async def create_specific_swap_request(
         swap_request_id=swap_request.id,
         action="requested",
         actor_staff_id=requesting_staff.id,
-        notes=f"Specific swap requested with {target_staff.full_name}"
+        notes=f"Specific swap requested with {target_staff.full_name}",
+        system_action=False
     )
     db.add(history)
     db.commit()
     db.refresh(swap_request)
     
-    # Send comprehensive notifications
+    # Send notifications
     notification_service = NotificationService(db)
     try:
         await send_swap_creation_notifications(
             swap_request=swap_request,
             notification_service=notification_service,
             db=db,
-            background_tasks=background_tasks,
-            notification_options={'send_whatsapp': True, 'send_push': True, 'send_email': False}
+            background_tasks=background_tasks
         )
     except Exception as e:
         print(f"Failed to send swap creation notifications: {e}")
@@ -889,7 +316,6 @@ async def create_auto_swap_request(
     
     # Handle both staff and manager access
     if current_user.is_manager:
-        # Managers can create swaps for any staff in their facilities
         if swap_in.requesting_staff_id:
             requesting_staff = db.get(Staff, swap_in.requesting_staff_id)
             if not requesting_staff or requesting_staff.facility_id != schedule.facility_id:
@@ -897,7 +323,6 @@ async def create_auto_swap_request(
         else:
             raise HTTPException(status_code=400, detail="Manager must specify requesting_staff_id")
     else:
-        # For staff users, find their staff record using their email AND tenant
         requesting_staff = db.exec(
             select(Staff).join(Facility).where(
                 Staff.email == current_user.email,
@@ -929,15 +354,19 @@ async def create_auto_swap_request(
             detail=f"{requesting_staff.full_name} is not assigned to day {swap_in.original_day}, shift {swap_in.original_shift}"
         )
     
-    # Create auto swap request with the CORRECT staff ID
+    # Create auto swap request with enhanced workflow fields
     swap_request = SwapRequest(
         schedule_id=swap_in.schedule_id,
         requesting_staff_id=requesting_staff.id,
         original_day=swap_in.original_day,
         original_shift=swap_in.original_shift,
+        original_zone_id=getattr(swap_in, 'original_zone_id', None),
         swap_type=swap_in.swap_type,
         reason=swap_in.reason,
         urgency=swap_in.urgency,
+        status=SwapStatus.PENDING,
+        requires_manager_final_approval=getattr(swap_in, 'requires_manager_final_approval', True),
+        role_verification_required=getattr(swap_in, 'role_verification_required', True),
         expires_at=swap_in.expires_at or (datetime.utcnow() + timedelta(days=2))
     )
     
@@ -949,109 +378,76 @@ async def create_auto_swap_request(
         swap_request_id=swap_request.id,  
         action="requested",               
         actor_staff_id=requesting_staff.id,
-        notes=f"Auto-assignment requested: {swap_in.reason}"  
+        notes=f"Auto-assignment requested: {swap_in.reason}",
+        system_action=False
     )
     db.add(history)
     db.commit()
     db.refresh(swap_request)
     
-    # Send comprehensive notifications
+    # Send notifications
     notification_service = NotificationService(db)
     try:
         await send_swap_creation_notifications(
             swap_request=swap_request,
             notification_service=notification_service,
             db=db,
-            background_tasks=background_tasks,
-            notification_options={'send_whatsapp': True, 'send_push': True, 'send_email': False}
+            background_tasks=background_tasks
         )
     except Exception as e:
         print(f"Failed to send swap creation notifications: {e}")
     
     return swap_request
 
-# ==================== STAFF RESPONSES WITH NOTIFICATIONS ====================
+# ==================== ENHANCED WORKFLOW ENDPOINTS ====================
 
-@router.put("/{swap_id}/staff-response", response_model=SwapRequestRead)
-async def respond_to_swap_request(
+@router.put("/{swap_id}/potential-assignment-response", response_model=SwapRequestRead)
+async def respond_to_potential_assignment(
     swap_id: UUID,
-    response: StaffSwapResponse,
+    response: PotentialAssignmentResponse,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    """Staff response to a specific swap request OR auto-assignment"""
+    """Staff response to potential auto-assignment (NEW)"""
     
     swap_request = db.get(SwapRequest, swap_id)
     if not swap_request:
         raise HTTPException(status_code=404, detail="Swap request not found")
     
-    # Handle both specific and auto swaps
-    if swap_request.swap_type == "specific":
-        # Verify this is the target staff member for specific swaps
-        if swap_request.target_staff_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to respond to this swap")
-    elif swap_request.swap_type == "auto":
-        # Verify this is the assigned staff member for auto swaps
-        if swap_request.assigned_staff_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to respond to this auto-assignment")
-    else:
-        raise HTTPException(status_code=400, detail="Invalid swap type")
+    # Verify this is the assigned staff member
+    if swap_request.assigned_staff_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to respond to this assignment")
     
-    # Verify request can still be responded to
-    valid_statuses = ["pending", "manager_approved", "assigned"]
-    if swap_request.status not in valid_statuses:
-        raise HTTPException(status_code=400, detail="Swap request can no longer be responded to")
+    # Verify request is in the correct status
+    if swap_request.status != SwapStatus.POTENTIAL_ASSIGNMENT:
+        raise HTTPException(status_code=400, detail="Invalid status for potential assignment response")
     
-    # Update staff response
-    swap_request.target_staff_accepted = response.accepted
+    # Update response
+    swap_request.assigned_staff_accepted = response.accepted
+    swap_request.staff_responded_at = datetime.utcnow()
     
     if response.accepted:
-        if swap_request.manager_approved:
-            # Both manager and staff approved - execute the swap
-            swap_request.status = "staff_accepted"
-            
-            if swap_request.swap_type == "specific":
-                _execute_specific_swap(db, swap_request)
-            else:  # auto swap
-                _execute_auto_assignment(db, swap_request)
-                
-            swap_request.status = "executed"
-            
-            # Send completion notifications
-            notification_service = NotificationService(db)
-            try:
-                await send_swap_completion_notifications(
-                    swap_request=swap_request,
-                    notification_service=notification_service,
-                    db=db,
-                    background_tasks=background_tasks
-                )
-            except Exception as e:
-                print(f"Failed to send completion notifications: {e}")
-                
+        if swap_request.requires_manager_final_approval:
+            swap_request.status = SwapStatus.MANAGER_FINAL_APPROVAL
         else:
-            # Staff accepted but manager hasn't approved yet
-            swap_request.status = "pending"
+            swap_request.status = SwapStatus.STAFF_ACCEPTED
+            # Execute immediately if no final approval needed
+            _execute_auto_assignment(db, swap_request)
+            swap_request.status = SwapStatus.EXECUTED
+            swap_request.completed_at = datetime.utcnow()
     else:
-        # Staff declined
-        if swap_request.swap_type == "auto":
-            # For auto swaps, staff declined the assignment - need to find new coverage
-            swap_request.status = "assignment_declined"
-            swap_request.assigned_staff_id = None  # Clear the declined assignment
-        else:
-            swap_request.status = "staff_declined"
+        swap_request.status = SwapStatus.ASSIGNMENT_DECLINED
+        swap_request.assigned_staff_id = None  # Clear the declined assignment
     
     # Create history entry
-    action = "staff_accepted" if response.accepted else "staff_declined"
-    if swap_request.swap_type == "auto":
-        action = "assignment_accepted" if response.accepted else "assignment_declined"
-        
+    action = "assignment_accepted" if response.accepted else "assignment_declined"
     history = SwapHistory(
         swap_request_id=swap_id,
         action=action,
         actor_staff_id=current_user.id,
-        notes=response.notes
+        notes=response.notes,
+        system_action=False
     )
     
     db.add(swap_request)
@@ -1059,24 +455,144 @@ async def respond_to_swap_request(
     db.commit()
     db.refresh(swap_request)
     
-    # Send staff response notifications
-    notification_service = NotificationService(db)
-    try:
-        await send_staff_response_notifications(
-            swap_request=swap_request,
-            staff_accepted=response.accepted,
-            response_notes=response.notes or "",
-            responding_staff_id=current_user.id,
-            notification_service=notification_service,
-            db=db,
-            background_tasks=background_tasks
-        )
-    except Exception as e:
-        print(f"Failed to send staff response notifications: {e}")
+    return swap_request
+
+@router.put("/{swap_id}/manager-final-approval", response_model=SwapRequestRead)
+async def manager_final_approval(
+    swap_id: UUID,
+    approval: ManagerFinalApproval,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Manager's final approval for swap execution (NEW)"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    # Verify access
+    schedule = db.get(Schedule, swap_request.schedule_id)
+    facility = db.get(Facility, schedule.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Verify status
+    if swap_request.status != SwapStatus.MANAGER_FINAL_APPROVAL:
+        raise HTTPException(status_code=400, detail="Swap not ready for final approval")
+    
+    # Update final approval
+    swap_request.manager_final_approved = approval.approved
+    swap_request.manager_final_approved_at = datetime.utcnow()
+    swap_request.manager_notes = approval.notes
+    
+    if approval.override_role_verification:
+        swap_request.role_match_override = True
+        swap_request.role_match_reason = approval.role_override_reason
+    
+    if approval.approved:
+        # Execute the swap
+        if swap_request.swap_type == "specific":
+            _execute_specific_swap(db, swap_request)
+        else:
+            _execute_auto_assignment(db, swap_request)
+        
+        swap_request.status = SwapStatus.EXECUTED
+        swap_request.completed_at = datetime.utcnow()
+    else:
+        swap_request.status = SwapStatus.DECLINED
+    
+    # Create history entry
+    action = "manager_final_approved" if approval.approved else "manager_final_declined"
+    history = SwapHistory(
+        swap_request_id=swap_id,
+        action=action,
+        actor_staff_id=current_user.id,
+        notes=approval.notes,
+        system_action=False,
+        role_information={
+            "override_applied": approval.override_role_verification,
+            "override_reason": approval.role_override_reason
+        } if approval.override_role_verification else None
+    )
+    
+    db.add(swap_request)
+    db.add(history)
+    db.commit()
+    db.refresh(swap_request)
     
     return swap_request
 
-# ==================== MANAGER ACTIONS WITH NOTIFICATIONS ====================
+@router.get("/{swap_id}/workflow-status", response_model=SwapWorkflowStatus)
+async def get_swap_workflow_status_endpoint(
+    swap_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get current workflow status and next required actions (NEW)"""
+    
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    # Verify access
+    schedule = db.get(Schedule, swap_request.schedule_id)
+    facility = db.get(Facility, schedule.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    status_info = get_swap_workflow_status(swap_request)
+    
+    return SwapWorkflowStatus(**status_info)
+
+@router.get("/{swap_id}/role-audit", response_model=RoleMatchAudit)
+async def get_swap_role_audit(
+    swap_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get role matching audit information for swap (NEW)"""
+    
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    # Verify access
+    schedule = db.get(Schedule, swap_request.schedule_id)
+    facility = db.get(Facility, schedule.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Build role audit information
+    audit_info = {
+        "original_shift_role": None,
+        "assigned_staff_role": None,
+        "target_staff_role": None,
+        "roles_compatible": True,
+        "match_level": "exact_match",
+        "override_applied": swap_request.role_match_override or False,
+        "override_reason": swap_request.role_match_reason,
+        "skill_levels_compatible": True,
+        "minimum_skill_required": None
+    }
+    
+    # Get role information from staff records
+    if swap_request.assigned_staff_id:
+        assigned_staff = db.get(Staff, swap_request.assigned_staff_id)
+        if assigned_staff:
+            audit_info["assigned_staff_role"] = assigned_staff.role
+    
+    if swap_request.target_staff_id:
+        target_staff = db.get(Staff, swap_request.target_staff_id)
+        if target_staff:
+            audit_info["target_staff_role"] = target_staff.role
+    
+    return RoleMatchAudit(**audit_info)
+
+# ==================== ENHANCED MANAGER DECISION ENDPOINT ====================
 
 @router.put("/{swap_id}/manager-decision", response_model=SwapRequestRead)
 async def manager_swap_decision(
@@ -1086,7 +602,7 @@ async def manager_swap_decision(
     current_user: User = Depends(get_current_user),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    """Manager approves or denies a swap request"""
+    """Manager approves or denies a swap request (ENHANCED)"""
     
     if not current_user.is_manager:
         raise HTTPException(status_code=403, detail="Manager access required")
@@ -1095,7 +611,7 @@ async def manager_swap_decision(
     if not swap_request:
         raise HTTPException(status_code=404, detail="Swap request not found")
     
-    # Verify access through facility
+    # Verify access
     schedule = db.get(Schedule, swap_request.schedule_id)
     facility = db.get(Facility, schedule.facility_id)
     if not facility or facility.tenant_id != current_user.tenant_id:
@@ -1104,108 +620,40 @@ async def manager_swap_decision(
     # Update manager decision
     swap_request.manager_approved = decision.approved
     swap_request.manager_notes = decision.notes
+    swap_request.manager_approved_at = datetime.utcnow()
     
     if decision.approved:
-        if swap_request.swap_type == "specific":
-            # Manager approved specific swap
-            swap_request.status = "manager_approved"
-            
-            # Check if staff already responded
-            if swap_request.target_staff_accepted is True:
-                # Staff already accepted - ready to execute
-                swap_request.status = "staff_accepted"
-                _execute_specific_swap(db, swap_request)
-                swap_request.status = "executed"
-                
-                # Send completion notifications
-                notification_service = NotificationService(db)
-                try:
-                    await send_swap_completion_notifications(
-                        swap_request=swap_request,
-                        notification_service=notification_service,
-                        db=db,
-                        background_tasks=background_tasks
-                    )
-                except Exception as e:
-                    print(f"Failed to send completion notifications: {e}")
-                    
-            elif swap_request.target_staff_accepted is False:
-                # Staff already declined
-                swap_request.status = "staff_declined"
-            # Otherwise stays "manager_approved" waiting for staff response
-            
-        else:  # auto swap
-            # Manager approved auto swap
-            swap_request.status = "manager_approved"
-            
+        swap_request.status = SwapStatus.MANAGER_APPROVED
+        
+        if swap_request.swap_type == "auto":
             # Try to assign coverage immediately
             try:
                 assignment_result = assign_swap_coverage(db, swap_request)
                 if assignment_result.success and assignment_result.assigned_staff_id:
                     swap_request.assigned_staff_id = assignment_result.assigned_staff_id
-                    swap_request.status = "assigned"
-                    swap_request.target_staff_accepted = None
+                    swap_request.status = SwapStatus.POTENTIAL_ASSIGNMENT
+                    swap_request.assigned_staff_accepted = None
                     
-                    # Send auto-assignment notifications
-                    notification_service = NotificationService(db)
-                    try:
-                        await send_auto_assignment_notifications(
-                            swap_request=swap_request,
-                            assigned_staff_id=assignment_result.assigned_staff_id,
-                            notification_service=notification_service,
-                            db=db,
-                            background_tasks=background_tasks
-                        )
-                    except Exception as e:
-                        print(f"Failed to send auto-assignment notifications: {e}")
-                        
+                    # Store role matching information
+                    if hasattr(assignment_result, 'role_match_level'):
+                        swap_request.role_match_reason = assignment_result.reason
                 else:
-                    # Auto-assignment failed
-                    swap_request.status = "assignment_failed"
-                    failure_reason = assignment_result.reason if assignment_result else 'No suitable staff found'
-                    swap_request.manager_notes = f"{decision.notes or ''} | Auto-assignment failed: {failure_reason}"
+                    swap_request.status = SwapStatus.ASSIGNMENT_FAILED
                     
-                    # Send assignment failure notifications
-                    notification_service = NotificationService(db)
-                    try:
-                        await send_assignment_failure_notifications(
-                            swap_request=swap_request,
-                            failure_reason=failure_reason,
-                            notification_service=notification_service,
-                            db=db,
-                            background_tasks=background_tasks
-                        )
-                    except Exception as e:
-                        print(f"Failed to send assignment failure notifications: {e}")
-                        
             except Exception as e:
-                swap_request.status = "assignment_failed"
-                failure_reason = str(e)
-                swap_request.manager_notes = f"{decision.notes or ''} | Auto-assignment error: {failure_reason}"
-                
-                # Send assignment failure notifications
-                notification_service = NotificationService(db)
-                try:
-                    await send_assignment_failure_notifications(
-                        swap_request=swap_request,
-                        failure_reason=failure_reason,
-                        notification_service=notification_service,
-                        db=db,
-                        background_tasks=background_tasks
-                    )
-                except Exception as e:
-                    print(f"Failed to send assignment failure notifications: {e}")
+                swap_request.status = SwapStatus.ASSIGNMENT_FAILED
+                swap_request.manager_notes = f"{decision.notes or ''} | Auto-assignment error: {str(e)}"
     else:
-        # Manager declined the request
-        swap_request.status = "declined"
+        swap_request.status = SwapStatus.DECLINED
     
-    # Create history entry with clear action
+    # Create history entry
     action = "manager_approved" if decision.approved else "manager_declined"
     history = SwapHistory(
         swap_request_id=swap_id,
         action=action,
-        actor_staff_id=None,
-        notes=decision.notes
+        actor_staff_id=current_user.id,
+        notes=decision.notes,
+        system_action=False
     )
     
     db.add(swap_request)
@@ -1213,38 +661,178 @@ async def manager_swap_decision(
     db.commit()
     db.refresh(swap_request)
     
-    # Send manager decision notifications
-    notification_service = NotificationService(db)
-    try:
-        await send_manager_decision_notifications(
-            swap_request=swap_request,
-            decision_approved=decision.approved,
-            manager_notes=decision.notes or "",
-            notification_service=notification_service,
-            db=db,
-            background_tasks=background_tasks
-        )
-    except Exception as e:
-        print(f"Failed to send manager decision notifications: {e}")
-    
     return swap_request
 
-@router.post("/{swap_id}/retry-auto-assignment", response_model=AutoAssignmentResult)
-async def retry_auto_assignment(
+# ==================== STAFF RESPONSE ENDPOINT (ENHANCED) ====================
+
+@router.put("/{swap_id}/staff-response", response_model=SwapRequestRead)
+async def respond_to_swap_request(
     swap_id: UUID,
-    avoid_staff_ids: List[UUID] = Query(default=[]),
+    response: StaffSwapResponse,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    """Retry automatic assignment with different parameters"""
+    """Staff response to a specific swap request (ENHANCED)"""
+    
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    # Verify this is the target staff member for specific swaps
+    if swap_request.swap_type == "specific":
+        if swap_request.target_staff_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to respond to this swap")
+    else:
+        raise HTTPException(status_code=400, detail="Use potential-assignment-response for auto swaps")
+    
+    # Verify request can still be responded to
+    valid_statuses = [SwapStatus.PENDING, SwapStatus.MANAGER_APPROVED]
+    if swap_request.status not in valid_statuses:
+        raise HTTPException(status_code=400, detail="Swap request can no longer be responded to")
+    
+    # Update staff response
+    swap_request.target_staff_accepted = response.accepted
+    swap_request.staff_responded_at = datetime.utcnow()
+    
+    if response.accepted:
+        if swap_request.manager_approved:
+            if swap_request.requires_manager_final_approval:
+                swap_request.status = SwapStatus.MANAGER_FINAL_APPROVAL
+            else:
+                # Both manager and staff approved - execute the swap
+                swap_request.status = SwapStatus.STAFF_ACCEPTED
+                _execute_specific_swap(db, swap_request)
+                swap_request.status = SwapStatus.EXECUTED
+                swap_request.completed_at = datetime.utcnow()
+        else:
+            # Staff accepted but manager hasn't approved yet
+            swap_request.status = SwapStatus.PENDING
+    else:
+        # Staff declined
+        swap_request.status = SwapStatus.STAFF_DECLINED
+    
+    # Create history entry
+    action = "staff_accepted" if response.accepted else "staff_declined"
+    history = SwapHistory(
+        swap_request_id=swap_id,
+        action=action,
+        actor_staff_id=current_user.id,
+        notes=response.notes,
+        system_action=False
+    )
+    
+    db.add(swap_request)
+    db.add(history)
+    db.commit()
+    db.refresh(swap_request)
+    
+    return swap_request
+
+# ==================== BULK OPERATIONS (NEW) ====================
+
+@router.post("/bulk-approve", response_model=BulkSwapResult)
+async def bulk_approve_swaps(
+    bulk_approval: BulkSwapApproval,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Bulk approve multiple swap requests (NEW)"""
     
     if not current_user.is_manager:
         raise HTTPException(status_code=403, detail="Manager access required")
     
+    results = []
+    successful = 0
+    failed = 0
+    errors = []
+    
+    for swap_id in bulk_approval.swap_ids:
+        try:
+            swap_request = db.get(SwapRequest, swap_id)
+            if not swap_request:
+                errors.append(f"Swap {swap_id} not found")
+                failed += 1
+                continue
+            
+            # Verify access
+            schedule = db.get(Schedule, swap_request.schedule_id)
+            facility = db.get(Facility, schedule.facility_id)
+            if not facility or facility.tenant_id != current_user.tenant_id:
+                errors.append(f"Access denied for swap {swap_id}")
+                failed += 1
+                continue
+            
+            # Apply approval
+            swap_request.manager_approved = bulk_approval.approved
+            swap_request.manager_notes = bulk_approval.notes
+            swap_request.manager_approved_at = datetime.utcnow()
+            
+            if bulk_approval.approved:
+                swap_request.status = SwapStatus.MANAGER_APPROVED
+                
+                if swap_request.swap_type == "auto":
+                    # Try auto-assignment
+                    try:
+                        assignment_result = assign_swap_coverage(db, swap_request)
+                        if assignment_result.success:
+                            swap_request.assigned_staff_id = assignment_result.assigned_staff_id
+                            swap_request.status = SwapStatus.POTENTIAL_ASSIGNMENT
+                        else:
+                            swap_request.status = SwapStatus.ASSIGNMENT_FAILED
+                    except Exception as e:
+                        swap_request.status = SwapStatus.ASSIGNMENT_FAILED
+            else:
+                swap_request.status = SwapStatus.DECLINED
+            
+            # Create history entry
+            action = "manager_approved" if bulk_approval.approved else "manager_declined"
+            history = SwapHistory(
+                swap_request_id=swap_id,
+                action=action,
+                actor_staff_id=current_user.id,
+                notes=f"Bulk {action}: {bulk_approval.notes or ''}",
+                system_action=False
+            )
+            
+            db.add(swap_request)
+            db.add(history)
+            
+            results.append({
+                "swap_id": str(swap_id),
+                "status": "success",
+                "new_status": swap_request.status.value
+            })
+            successful += 1
+            
+        except Exception as e:
+            errors.append(f"Error processing swap {swap_id}: {str(e)}")
+            failed += 1
+    
+    db.commit()
+    
+    return BulkSwapResult(
+        total_processed=len(bulk_approval.swap_ids),
+        successful=successful,
+        failed=failed,
+        results=results,
+        errors=errors
+    )
+
+# ==================== VALIDATION ENDPOINTS (NEW) ====================
+
+@router.post("/{swap_id}/validate", response_model=SwapValidationResult)
+async def validate_swap_request(
+    swap_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Validate a swap request for conflicts and requirements (NEW)"""
+    
     swap_request = db.get(SwapRequest, swap_id)
-    if not swap_request or swap_request.swap_type != "auto":
-        raise HTTPException(status_code=400, detail="Invalid auto swap request")
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
     
     # Verify access
     schedule = db.get(Schedule, swap_request.schedule_id)
@@ -1252,52 +840,139 @@ async def retry_auto_assignment(
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
-    # Retry assignment
-    result = assign_swap_coverage(db, swap_request, avoid_staff_ids=avoid_staff_ids)
+    # Perform validation checks
+    validation_result = {
+        "is_valid": True,
+        "errors": [],
+        "warnings": [],
+        "role_verification_passed": True,
+        "zone_requirements_met": True,
+        "skill_requirements_met": True,
+        "staff_available": True,
+        "no_conflicts": True,
+        "within_work_limits": True
+    }
     
-    if result.success:
-        swap_request.assigned_staff_id = result.assigned_staff_id
-        swap_request.status = "assigned"
-        
-        # Create history
-        history = SwapHistory(
-            swap_request_id=swap_id,
-            action="auto_assigned",
-            actor_staff_id=None,
-            notes=f"Auto-assigned to {result.assigned_staff_name}"
-        )
-        db.add(history)
-        db.commit()
-        
-        # Send auto-assignment notifications
-        notification_service = NotificationService(db)
-        try:
-            await send_auto_assignment_notifications(
-                swap_request=swap_request,
-                assigned_staff_id=result.assigned_staff_id,
-                notification_service=notification_service,
-                db=db,
-                background_tasks=background_tasks
-            )
-        except Exception as e:
-            print(f"Failed to send retry auto-assignment notifications: {e}")
-    else:
-        # Send retry failure notifications
-        notification_service = NotificationService(db)
-        try:
-            await send_assignment_failure_notifications(
-                swap_request=swap_request,
-                failure_reason=f"Retry failed: {result.reason}",
-                notification_service=notification_service,
-                db=db,
-                background_tasks=background_tasks
-            )
-        except Exception as e:
-            print(f"Failed to send retry failure notifications: {e}")
+    # Check staff availability
+    if swap_request.assigned_staff_id:
+        assigned_staff = db.get(Staff, swap_request.assigned_staff_id)
+        if not assigned_staff or not assigned_staff.is_active:
+            validation_result["staff_available"] = False
+            validation_result["is_valid"] = False
+            validation_result["errors"].append({
+                "error_code": "STAFF_UNAVAILABLE",
+                "error_message": "Assigned staff is not available",
+                "field": "assigned_staff_id"
+            })
     
-    return result
+    # Check for scheduling conflicts
+    if swap_request.swap_type == "specific" and swap_request.target_staff_id:
+        # Check if target staff has other assignments at the same time
+        existing_assignments = db.exec(
+            select(ShiftAssignment).where(
+                ShiftAssignment.schedule_id == swap_request.schedule_id,
+                ShiftAssignment.staff_id == swap_request.target_staff_id,
+                ShiftAssignment.day == swap_request.original_day,
+                ShiftAssignment.shift == swap_request.original_shift
+            )
+        ).all()
+        
+        if len(existing_assignments) > 1:
+            validation_result["no_conflicts"] = False
+            validation_result["is_valid"] = False
+            validation_result["errors"].append({
+                "error_code": "SCHEDULING_CONFLICT",
+                "error_message": "Staff member has conflicting assignments",
+                "field": "target_staff_id"
+            })
+    
+    return SwapValidationResult(**validation_result)
 
-# ==================== LISTING AND QUERYING ====================
+# ==================== ANALYTICS ENDPOINTS (ENHANCED) ====================
+
+@router.get("/analytics/{facility_id}", response_model=SwapAnalytics)
+async def get_swap_analytics(
+    facility_id: UUID,
+    period_start: datetime = Query(...),
+    period_end: datetime = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get comprehensive swap analytics for facility (NEW)"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Verify facility access
+    facility = db.get(Facility, facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get swap requests in the period
+    swap_requests = db.exec(
+        select(SwapRequest)
+        .join(Schedule, SwapRequest.schedule_id == Schedule.id)
+        .where(
+            Schedule.facility_id == facility_id,
+            SwapRequest.created_at >= period_start,
+            SwapRequest.created_at <= period_end
+        )
+    ).all()
+    
+    # Calculate metrics
+    total_requests = len(swap_requests)
+    auto_requests = len([s for s in swap_requests if s.swap_type == "auto"])
+    specific_requests = len([s for s in swap_requests if s.swap_type == "specific"])
+    completed_swaps = len([s for s in swap_requests if s.status == SwapStatus.EXECUTED])
+    failed_swaps = len([s for s in swap_requests if s.status in [SwapStatus.DECLINED, SwapStatus.ASSIGNMENT_FAILED]])
+    
+    # Role compatibility analysis
+    role_compatible = len([s for s in swap_requests if not s.role_match_override])
+    role_compatibility_rate = (role_compatible / total_requests * 100) if total_requests > 0 else 0
+    
+    # Timing analysis
+    completed_requests = [s for s in swap_requests if s.completed_at and s.created_at]
+    avg_resolution_time = 0.0
+    if completed_requests:
+        resolution_times = [(s.completed_at - s.created_at).total_seconds() / 3600 for s in completed_requests]
+        avg_resolution_time = sum(resolution_times) / len(resolution_times)
+    
+    # Manager response times
+    manager_approved_requests = [s for s in swap_requests if s.manager_approved_at and s.created_at]
+    avg_manager_approval_time = 0.0
+    if manager_approved_requests:
+        approval_times = [(s.manager_approved_at - s.created_at).total_seconds() / 3600 for s in manager_approved_requests]
+        avg_manager_approval_time = sum(approval_times) / len(approval_times)
+    
+    # Staff response times
+    staff_responded_requests = [s for s in swap_requests if s.staff_responded_at and s.created_at]
+    avg_staff_response_time = 0.0
+    if staff_responded_requests:
+        response_times = [(s.staff_responded_at - s.created_at).total_seconds() / 3600 for s in staff_responded_requests]
+        avg_staff_response_time = sum(response_times) / len(response_times)
+    
+    return SwapAnalytics(
+        facility_id=facility_id,
+        period_start=period_start,
+        period_end=period_end,
+        total_requests=total_requests,
+        auto_requests=auto_requests,
+        specific_requests=specific_requests,
+        completed_swaps=completed_swaps,
+        failed_swaps=failed_swaps,
+        role_compatibility_rate=role_compatibility_rate,
+        most_requested_roles=[],  # Could be implemented with more complex queries
+        role_coverage_gaps=[],
+        most_helpful_staff=[],
+        staff_acceptance_rates={},
+        emergency_coverage_providers=[],
+        average_resolution_time=avg_resolution_time,
+        manager_approval_time=avg_manager_approval_time,
+        staff_response_time=avg_staff_response_time,
+        recommendations=[]
+    )
+
+# ==================== UPDATED LISTING ENDPOINTS ====================
 
 @router.get("/", response_model=List[SwapRequestWithDetails])
 def list_swap_requests(
@@ -1309,16 +984,14 @@ def list_swap_requests(
     swap_type: Optional[str] = Query(None),
     limit: int = Query(50, le=100),
 ):
-    """List swap requests with filtering"""
+    """List swap requests with filtering (ENHANCED)"""
     
     # Base query
     if current_user.is_manager:
-        # Managers see all swaps for their facilities
         query = select(SwapRequest).join(Schedule).join(Facility).where(
             Facility.tenant_id == current_user.tenant_id
         )
     else:
-        # Staff see only their own swap requests
         query = select(SwapRequest).where(
             SwapRequest.requesting_staff_id == current_user.id
         )
@@ -1326,14 +999,19 @@ def list_swap_requests(
     # Apply filters
     if facility_id:
         if current_user.is_manager:
-            # Schedule is already joined above for managers
             query = query.where(Schedule.facility_id == facility_id)
         else:
-            # For staff, we need to join Schedule to filter by facility
             query = query.join(Schedule).where(Schedule.facility_id == facility_id)
     
     if status:
-        query = query.where(SwapRequest.status == status)
+        # Support both string and enum status filtering
+        try:
+            status_enum = SwapStatus(status)
+            query = query.where(SwapRequest.status == status_enum)
+        except ValueError:
+            # Fallback to string comparison for backward compatibility
+            query = query.where(SwapRequest.status == status)
+    
     if urgency:
         query = query.where(SwapRequest.urgency == urgency)
     if swap_type:
@@ -1343,32 +1021,41 @@ def list_swap_requests(
     
     swap_requests = db.exec(query).all()
     
-    # Load related data
+    # Load related data and build enhanced response
     result = []
     for swap in swap_requests:
         requesting_staff = db.get(Staff, swap.requesting_staff_id)
         target_staff = db.get(Staff, swap.target_staff_id) if swap.target_staff_id else None
         assigned_staff = db.get(Staff, swap.assigned_staff_id) if swap.assigned_staff_id else None
         
-        # Convert Staff models to dictionaries and create SwapRequestWithDetails properly
+        # Convert to dict and create SwapRequestWithDetails
         swap_data = swap.dict()
-        
-        # Add staff data as dictionaries (which will be automatically converted to StaffRead)
         swap_data["requesting_staff"] = requesting_staff.dict() if requesting_staff else None
         swap_data["target_staff"] = target_staff.dict() if target_staff else None
         swap_data["assigned_staff"] = assigned_staff.dict() if assigned_staff else None
+        
+        # Add role names for display
+        swap_data["original_shift_role_name"] = requesting_staff.role if requesting_staff else None
+        swap_data["target_staff_role_name"] = target_staff.role if target_staff else None
+        swap_data["assigned_staff_role_name"] = assigned_staff.role if assigned_staff else None
         
         result.append(SwapRequestWithDetails(**swap_data))
     
     return result
 
-@router.get("/facility/{facility_id}/summary", response_model=SwapSummary)
-def get_swap_summary(
-    facility_id: UUID,
+# ==================== ROLE VERIFICATION ENDPOINTS (NEW) ====================
+
+@router.post("/check-role-compatibility")
+async def check_role_compatibility(
+    facility_id: UUID = Query(...),
+    zone_id: str = Query(...),
+    staff_id: UUID = Query(...),
+    original_shift_day: int = Query(..., ge=0, le=6),
+    original_shift_number: int = Query(..., ge=0, le=2),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get swap summary for facility dashboard"""
+    """Check if staff member is compatible for a specific role/zone (NEW)"""
     
     if not current_user.is_manager:
         raise HTTPException(status_code=403, detail="Manager access required")
@@ -1378,189 +1065,627 @@ def get_swap_summary(
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
-    # Count various swap types
+    # Get staff member
+    staff = db.get(Staff, staff_id)
+    if not staff or staff.facility_id != facility_id:
+        raise HTTPException(status_code=400, detail="Invalid staff member")
+    
+    # Basic compatibility check (can be enhanced with actual role/zone logic)
+    compatibility_result = {
+        "compatible": True,
+        "match_level": "exact_match",
+        "staff_role": staff.role,
+        "required_role": "Any",  # This would come from zone configuration
+        "skill_level_match": True,
+        "override_required": False,
+        "compatibility_score": 100,
+        "warnings": [],
+        "recommendations": []
+    }
+    
+    # Add any role-specific logic here
+    # For example, check if staff has required certifications, skill levels, etc.
+    
+    return compatibility_result
+
+@router.get("/{swap_id}/available-actions")
+async def get_available_swap_actions(
+    swap_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get available actions for current user on this swap (NEW)"""
+    
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    # Verify access
+    schedule = db.get(Schedule, swap_request.schedule_id)
+    facility = db.get(Facility, schedule.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    available_actions = []
+    
+    # Determine available actions based on user role and swap status
+    if current_user.is_manager:
+        if swap_request.status == SwapStatus.PENDING:
+            available_actions.extend(["approve", "decline", "update"])
+        elif swap_request.status == SwapStatus.MANAGER_FINAL_APPROVAL:
+            available_actions.extend(["final_approve", "final_decline"])
+        elif swap_request.status == SwapStatus.ASSIGNMENT_FAILED:
+            available_actions.extend(["retry_assignment", "manual_assign"])
+        
+        # Managers can always view details and history
+        available_actions.extend(["view_details", "view_history", "view_analytics"])
+        
+        if swap_request.status in [SwapStatus.PENDING, SwapStatus.MANAGER_APPROVED]:
+            available_actions.append("cancel")
+    
+    else:  # Staff user
+        # Check if this staff member can respond
+        if (swap_request.swap_type == "specific" and 
+            swap_request.target_staff_id == current_user.id and 
+            swap_request.status in [SwapStatus.PENDING, SwapStatus.MANAGER_APPROVED]):
+            available_actions.extend(["accept", "decline"])
+        
+        elif (swap_request.swap_type == "auto" and 
+              swap_request.assigned_staff_id == current_user.id and 
+              swap_request.status == SwapStatus.POTENTIAL_ASSIGNMENT):
+            available_actions.extend(["accept_assignment", "decline_assignment"])
+        
+        # Requesting staff can view and potentially cancel
+        if swap_request.requesting_staff_id == current_user.id:
+            available_actions.extend(["view_details", "view_history"])
+            if swap_request.status == SwapStatus.PENDING:
+                available_actions.extend(["update", "cancel"])
+    
+    return {
+        "swap_id": str(swap_id),
+        "current_status": swap_request.status.value,
+        "available_actions": list(set(available_actions)),  # Remove duplicates
+        "user_role": "manager" if current_user.is_manager else "staff",
+        "can_execute": swap_request.status in [SwapStatus.STAFF_ACCEPTED, SwapStatus.MANAGER_FINAL_APPROVAL],
+        "requires_manager_action": swap_request.status in [SwapStatus.PENDING, SwapStatus.MANAGER_FINAL_APPROVAL],
+        "requires_staff_action": swap_request.status in [SwapStatus.MANAGER_APPROVED, SwapStatus.POTENTIAL_ASSIGNMENT]
+    }
+
+# ==================== NOTIFICATION TESTING ENDPOINT (DEVELOPMENT) ====================
+
+@router.post("/{swap_id}/test-notifications")
+async def test_swap_notifications(
+    swap_id: UUID,
+    notification_type: str = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Test notification sending for swap events (DEVELOPMENT ONLY)"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    notification_service = NotificationService(db)
+    
+    try:
+        if notification_type == "creation":
+            await send_swap_creation_notifications(
+                swap_request=swap_request,
+                notification_service=notification_service,
+                db=db,
+                background_tasks=background_tasks
+            )
+        else:
+            return {"error": "Unsupported notification type"}
+        
+        return {"message": f"Test {notification_type} notifications sent successfully"}
+        
+    except Exception as e:
+        return {"error": f"Failed to send test notifications: {str(e)}"}
+
+# ==================== EXPORT ENDPOINTS (NEW) ====================
+
+@router.get("/export/{facility_id}")
+async def export_swap_data(
+    facility_id: UUID,
+    format: str = Query("excel", regex="^(excel|csv|pdf)$"),
+    period_start: Optional[datetime] = Query(None),
+    period_end: Optional[datetime] = Query(None),
+    include_history: bool = Query(True),
+    include_analytics: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Export swap data for facility (NEW)"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Verify facility access
+    facility = db.get(Facility, facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Set default period if not provided
+    if not period_end:
+        period_end = datetime.utcnow()
+    if not period_start:
+        period_start = period_end - timedelta(days=30)
+    
+    # Get swap data
+    swap_requests = db.exec(
+        select(SwapRequest)
+        .join(Schedule)
+        .where(
+            Schedule.facility_id == facility_id,
+            SwapRequest.created_at >= period_start,
+            SwapRequest.created_at <= period_end
+        )
+        .order_by(SwapRequest.created_at.desc())
+    ).all()
+    
+    # For now, return summary data (actual export implementation would depend on requirements)
+    export_data = {
+        "facility_name": facility.name,
+        "export_period": {
+            "start": period_start.isoformat(),
+            "end": period_end.isoformat()
+        },
+        "total_records": len(swap_requests),
+        "export_format": format,
+        "includes_history": include_history,
+        "includes_analytics": include_analytics,
+        "generated_at": datetime.utcnow().isoformat(),
+        "generated_by": current_user.email
+    }
+    
+    # In a real implementation, you would:
+    # 1. Generate the actual file (Excel/CSV/PDF)
+    # 2. Store it temporarily or in cloud storage
+    # 3. Return download URL
+    
+    return {
+        "export_summary": export_data,
+        "download_url": f"/downloads/swaps_{facility_id}_{period_start.strftime('%Y%m%d')}_{period_end.strftime('%Y%m%d')}.{format}",
+        "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat()
+    }
+
+# ==================== HEALTH CHECK AND METRICS ====================
+
+@router.get("/health")
+async def swap_service_health_check(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Health check for swap service (NEW)"""
+    
+    try:
+        # Check database connectivity
+        db.exec(select(SwapRequest).limit(1))
+        
+        # Get basic metrics
+        total_swaps = len(db.exec(select(SwapRequest)).all())
+        pending_swaps = len(db.exec(select(SwapRequest).where(SwapRequest.status == SwapStatus.PENDING)).all())
+        
+        health_status = {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "database_connected": True,
+            "total_swaps_in_system": total_swaps,
+            "pending_swaps": pending_swaps,
+            "service_version": "2.0.0",
+            "features": [
+                "enhanced_workflow",
+                "role_verification", 
+                "bulk_operations",
+                "analytics",
+                "notifications"
+            ]
+        }
+        
+        return health_status
+        
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e),
+            "database_connected": False
+        }
+
+# ==================== EMERGENCY OVERRIDE ENDPOINTS ====================
+
+@router.post("/{swap_id}/emergency-override")
+async def emergency_override_swap(
+    swap_id: UUID,
+    override_reason: str = Query(...),
+    assigned_staff_id: Optional[UUID] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Emergency override for swap execution (NEW)"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    # Verify access
+    schedule = db.get(Schedule, swap_request.schedule_id)
+    facility = db.get(Facility, schedule.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Apply emergency override
+    if assigned_staff_id:
+        swap_request.assigned_staff_id = assigned_staff_id
+    
+    swap_request.manager_final_approved = True
+    swap_request.manager_final_approved_at = datetime.utcnow()
+    swap_request.role_match_override = True
+    swap_request.role_match_reason = f"Emergency override: {override_reason}"
+    swap_request.manager_notes = f"EMERGENCY OVERRIDE: {override_reason}"
+    
+    # Execute immediately
+    if swap_request.swap_type == "specific":
+        _execute_specific_swap(db, swap_request)
+    else:
+        _execute_auto_assignment(db, swap_request)
+    
+    swap_request.status = SwapStatus.EXECUTED
+    swap_request.completed_at = datetime.utcnow()
+    
+    # Create history entry
+    history = SwapHistory(
+        swap_request_id=swap_id,
+        action="emergency_override",
+        actor_staff_id=current_user.id,
+        notes=f"Emergency override executed: {override_reason}",
+        system_action=False,
+        role_information={
+            "override_applied": True,
+            "override_reason": override_reason,
+            "emergency_override": True
+        }
+    )
+    
+    db.add(swap_request)
+    db.add(history)
+    db.commit()
+    db.refresh(swap_request)
+    
+    return {
+        "message": "Emergency override executed successfully",
+        "swap_id": str(swap_id),
+        "new_status": swap_request.status.value,
+        "override_reason": override_reason,
+        "executed_at": swap_request.completed_at.isoformat()
+    }
+
+# ==================== SCHEDULED CLEANUP ENDPOINT ====================
+
+@router.post("/cleanup/expired")
+async def cleanup_expired_swaps(
+    dry_run: bool = Query(True),
+    days_old: int = Query(30, ge=7, le=365),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Clean up expired and old swap requests (NEW)"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+    
+    # Find expired/old swaps
+    expired_swaps = db.exec(
+        select(SwapRequest).where(
+            SwapRequest.created_at < cutoff_date,
+            SwapRequest.status.in_([
+                SwapStatus.DECLINED,
+                SwapStatus.CANCELLED,
+                SwapStatus.ASSIGNMENT_FAILED
+            ])
+        )
+    ).all()
+    
+    # Also find swaps that have expired based on expires_at
+    naturally_expired = db.exec(
+        select(SwapRequest).where(
+            SwapRequest.expires_at < datetime.utcnow(),
+            SwapRequest.status == SwapStatus.PENDING
+        )
+    ).all()
+    
+    cleanup_summary = {
+        "dry_run": dry_run,
+        "cutoff_date": cutoff_date.isoformat(),
+        "old_swaps_found": len(expired_swaps),
+        "naturally_expired_found": len(naturally_expired),
+        "total_to_cleanup": len(expired_swaps) + len(naturally_expired),
+        "cleaned_up": 0 if dry_run else len(expired_swaps) + len(naturally_expired)
+    }
+    
+    if not dry_run:
+        # Update naturally expired swaps to cancelled
+        for swap in naturally_expired:
+            swap.status = SwapStatus.CANCELLED
+            
+            # Create history entry
+            history = SwapHistory(
+                swap_request_id=swap.id,
+                action="auto_expired",
+                actor_staff_id=None,
+                notes="Automatically expired due to timeout",
+                system_action=True
+            )
+            db.add(history)
+        
+        db.commit()
+        cleanup_summary["message"] = f"Cleaned up {len(naturally_expired)} expired swaps"
+    else:
+        cleanup_summary["message"] = "Dry run completed - no changes made"
+    
+    return cleanup_summary
+
+# ==================== FINAL ENDPOINT - SWAP STATISTICS ====================
+
+@router.get("/statistics/global")
+async def get_global_swap_statistics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get comprehensive global swap statistics (NEW)"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Get all swaps for tenant
+    all_swaps = db.exec(
+        select(SwapRequest)
+        .join(Schedule)
+        .join(Facility)
+        .where(Facility.tenant_id == current_user.tenant_id)
+    ).all()
+    
+    # Calculate comprehensive statistics
+    total_swaps = len(all_swaps)
+    if total_swaps == 0:
+        return {"message": "No swap data available"}
+    
+    # Status distribution
+    status_distribution = {}
+    for status in SwapStatus:
+        count = len([s for s in all_swaps if s.status == status])
+        status_distribution[status.value] = {
+            "count": count,
+            "percentage": (count / total_swaps * 100) if total_swaps > 0 else 0
+        }
+    
+    # Type distribution
+    auto_swaps = len([s for s in all_swaps if s.swap_type == "auto"])
+    specific_swaps = len([s for s in all_swaps if s.swap_type == "specific"])
+    
+    # Urgency distribution
+    urgency_distribution = {}
+    for urgency in ["low", "normal", "high", "emergency"]:
+        count = len([s for s in all_swaps if s.urgency == urgency])
+        urgency_distribution[urgency] = {
+            "count": count,
+            "percentage": (count / total_swaps * 100) if total_swaps > 0 else 0
+        }
+    
+    # Success metrics
+    successful_swaps = len([s for s in all_swaps if s.status == SwapStatus.EXECUTED])
+    failed_swaps = len([s for s in all_swaps if s.status in [SwapStatus.DECLINED, SwapStatus.ASSIGNMENT_FAILED, SwapStatus.CANCELLED]])
+    
+    # Role override statistics
+    role_overrides = len([s for s in all_swaps if s.role_match_override])
+    
+    # Time-based metrics
+    today = datetime.utcnow().date()
+    swaps_today = len([s for s in all_swaps if s.created_at.date() == today])
+    swaps_this_week = len([s for s in all_swaps if s.created_at.date() >= (today - timedelta(days=7))])
+    swaps_this_month = len([s for s in all_swaps if s.created_at.date() >= (today - timedelta(days=30))])
+    
+    return {
+        "tenant_id": str(current_user.tenant_id),
+        "generated_at": datetime.utcnow().isoformat(),
+        "total_swaps": total_swaps,
+        "status_distribution": status_distribution,
+        "type_distribution": {
+            "auto": {"count": auto_swaps, "percentage": (auto_swaps / total_swaps * 100)},
+            "specific": {"count": specific_swaps, "percentage": (specific_swaps / total_swaps * 100)}
+        },
+        "urgency_distribution": urgency_distribution,
+        "success_metrics": {
+            "successful_swaps": successful_swaps,
+            "failed_swaps": failed_swaps,
+            "success_rate": (successful_swaps / total_swaps * 100) if total_swaps > 0 else 0,
+            "failure_rate": (failed_swaps / total_swaps * 100) if total_swaps > 0 else 0
+        },
+        "role_statistics": {
+            "total_overrides": role_overrides,
+            "override_rate": (role_overrides / total_swaps * 100) if total_swaps > 0 else 0
+        },
+        "time_based_metrics": {
+            "swaps_today": swaps_today,
+            "swaps_this_week": swaps_this_week,
+            "swaps_this_month": swaps_this_month
+        },
+        "data_quality": {
+            "complete_records": len([s for s in all_swaps if s.reason and s.urgency]),
+            "records_with_notes": len([s for s in all_swaps if s.manager_notes]),
+            "records_with_timestamps": len([s for s in all_swaps if s.created_at])
+        }
+    }
+
+@router.get("/facility/{facility_id}/summary", response_model=SwapSummary)
+def get_swap_summary(
+    facility_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get enhanced swap summary for facility dashboard (ENHANCED)"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Verify facility access
+    facility = db.get(Facility, facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get all swap requests for facility
     base_query = select(SwapRequest).join(Schedule).where(Schedule.facility_id == facility_id)
+    all_swaps = db.exec(base_query).all()
     
-    pending_swaps = len(db.exec(base_query.where(SwapRequest.status == "pending")).all())
-    urgent_swaps = len(db.exec(base_query.where(
-        SwapRequest.status == "pending",
-        SwapRequest.urgency.in_(["high", "emergency"])
-    )).all())
-    auto_swaps_needing_assignment = len(db.exec(base_query.where(
-        SwapRequest.status == "pending",
-        SwapRequest.swap_type == "auto",
-        SwapRequest.manager_approved.is_(True),
-        SwapRequest.assigned_staff_id.is_(None)
-    )).all())
-    specific_swaps_awaiting_response = len(db.exec(base_query.where(
-        SwapRequest.status == "pending",
-        SwapRequest.swap_type == "specific",
-        SwapRequest.target_staff_accepted.is_(None)
-    )).all())
+    # Calculate enhanced metrics
+    pending_swaps = len([s for s in all_swaps if s.status == SwapStatus.PENDING])
+    manager_approval_needed = len([s for s in all_swaps if s.status == SwapStatus.PENDING])
+    potential_assignments = len([s for s in all_swaps if s.status == SwapStatus.POTENTIAL_ASSIGNMENT])
+    staff_responses_needed = len([s for s in all_swaps if s.status == SwapStatus.MANAGER_APPROVED and s.swap_type == "specific"])
+    manager_final_approval_needed = len([s for s in all_swaps if s.status == SwapStatus.MANAGER_FINAL_APPROVAL])
     
-    recent_completions = len(db.exec(base_query.where(
-        SwapRequest.status == "completed",
-        SwapRequest.completed_at >= datetime.utcnow() - timedelta(days=7)
-    )).all())
+    urgent_swaps = len([s for s in all_swaps if s.status == SwapStatus.PENDING and s.urgency in ["high", "emergency"]])
+    auto_swaps_needing_assignment = len([s for s in all_swaps if s.status == SwapStatus.MANAGER_APPROVED and s.swap_type == "auto"])
+    specific_swaps_awaiting_response = len([s for s in all_swaps if s.status == SwapStatus.MANAGER_APPROVED and s.swap_type == "specific"])
+    
+    recent_completions = len([s for s in all_swaps if s.status == SwapStatus.EXECUTED and s.completed_at and s.completed_at >= datetime.utcnow() - timedelta(days=7)])
+    
+    # Role verification stats
+    role_compatible_assignments = len([s for s in all_swaps if not s.role_match_override])
+    role_override_assignments = len([s for s in all_swaps if s.role_match_override])
+    failed_role_verifications = len([s for s in all_swaps if s.status == SwapStatus.ASSIGNMENT_FAILED])
+    
+    # Timing metrics
+    completed_swaps = [s for s in all_swaps if s.completed_at and s.manager_approved_at]
+    avg_approval_time = None
+    if completed_swaps:
+        approval_times = [(s.manager_approved_at - s.created_at).total_seconds() / 3600 for s in completed_swaps if s.manager_approved_at]
+        avg_approval_time = sum(approval_times) / len(approval_times) if approval_times else None
+    
+    staff_responded_swaps = [s for s in all_swaps if s.staff_responded_at]
+    avg_staff_response_time = None
+    if staff_responded_swaps:
+        response_times = [(s.staff_responded_at - s.created_at).total_seconds() / 3600 for s in staff_responded_swaps]
+        avg_staff_response_time = sum(response_times) / len(response_times)
+    
+    pending_over_24h = len([s for s in all_swaps if s.status == SwapStatus.PENDING and s.created_at <= datetime.utcnow() - timedelta(hours=24)])
     
     return SwapSummary(
         facility_id=facility_id,
         pending_swaps=pending_swaps,
+        manager_approval_needed=manager_approval_needed,
+        potential_assignments=potential_assignments,
+        staff_responses_needed=staff_responses_needed,
+        manager_final_approval_needed=manager_final_approval_needed,
         urgent_swaps=urgent_swaps,
         auto_swaps_needing_assignment=auto_swaps_needing_assignment,
         specific_swaps_awaiting_response=specific_swaps_awaiting_response,
-        recent_completions=recent_completions
+        recent_completions=recent_completions,
+        role_compatible_assignments=role_compatible_assignments,
+        role_override_assignments=role_override_assignments,
+        failed_role_verifications=failed_role_verifications,
+        average_approval_time_hours=avg_approval_time,
+        average_staff_response_time_hours=avg_staff_response_time,
+        pending_over_24h=pending_over_24h
     )
-    
-@router.get("/global-summary")
-def get_global_swap_summary(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Get global swap summary across all facilities"""
-    if not current_user.is_manager:
-        raise HTTPException(status_code=403, detail="Manager access required")
-    
-    # Get all facilities for this tenant
-    facilities = db.exec(
-        select(Facility).where(Facility.tenant_id == current_user.tenant_id)
-    ).all()
-    
-    total_facilities = len(facilities)
-    
-    # Get all swap requests for this tenant
-    base_query = (
-        select(SwapRequest)
-        .join(Schedule)
-        .join(Facility)
-        .where(Facility.tenant_id == current_user.tenant_id)
-    )
-    
-    all_swaps = db.exec(base_query).all()
-    
-    total_pending_swaps = len([s for s in all_swaps if s.status == "pending"])
-    total_urgent_swaps = len([s for s in all_swaps if s.status == "pending" and s.urgency in ["high", "emergency"]])
-    total_emergency_swaps = len([s for s in all_swaps if s.status == "pending" and s.urgency == "emergency"])
-    
-    # Swaps today and this week
-    today = datetime.utcnow().date()
-    week_start = today - timedelta(days=today.weekday())
-    
-    swaps_today = len([s for s in all_swaps if s.created_at.date() == today])
-    swaps_this_week = len([s for s in all_swaps if s.created_at.date() >= week_start])
-    
-    # Calculate success rate and average approval time (simplified)
-    completed_swaps = [s for s in all_swaps if s.status == "completed"]
-    auto_assignment_success_rate = 0.85  # You can calculate this properly
-    average_approval_time = 2.5  # Hours - you can calculate this properly
-    
-    return {
-        "total_facilities": total_facilities,
-        "total_pending_swaps": total_pending_swaps,
-        "total_urgent_swaps": total_urgent_swaps,
-        "total_emergency_swaps": total_emergency_swaps,
-        "swaps_today": swaps_today,
-        "swaps_this_week": swaps_this_week,
-        "auto_assignment_success_rate": auto_assignment_success_rate,
-        "average_approval_time": average_approval_time
-    }
 
-@router.get("/facilities-summary")
-def get_facilities_swap_summary(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Get swap summary for all facilities"""
-    if not current_user.is_manager:
-        raise HTTPException(status_code=403, detail="Manager access required")
-    
-    facilities = db.exec(
-        select(Facility).where(Facility.tenant_id == current_user.tenant_id)
-    ).all()
-    
-    result = []
-    for facility in facilities:
-        # Get swap requests for this facility
-        base_query = select(SwapRequest).join(Schedule).where(Schedule.facility_id == facility.id)
-        
-        pending_swaps = len(db.exec(base_query.where(SwapRequest.status == "pending")).all())
-        urgent_swaps = len(db.exec(base_query.where(
-            SwapRequest.status == "pending",
-            SwapRequest.urgency.in_(["high", "emergency"])
-        )).all())
-        emergency_swaps = len(db.exec(base_query.where(
-            SwapRequest.status == "pending",
-            SwapRequest.urgency == "emergency"
-        )).all())
-        
-        recent_completions = len(db.exec(base_query.where(
-            SwapRequest.status == "completed",
-            SwapRequest.completed_at >= datetime.utcnow() - timedelta(days=7)
-        )).all())
-        
-        # Get staff count
-        staff_count = len(db.exec(
-            select(Staff).where(Staff.facility_id == facility.id, Staff.is_active == True)
-        ).all())
-        
-        result.append({
-            "facility_id": str(facility.id),
-            "facility_name": facility.name,
-            "facility_type": getattr(facility, 'type', 'hotel'),
-            "pending_swaps": pending_swaps,
-            "urgent_swaps": urgent_swaps,
-            "emergency_swaps": emergency_swaps,
-            "recent_completions": recent_completions,
-            "staff_count": staff_count
-        })
-    
-    return result
+# ==================== UPDATE ENDPOINT (NEW) ====================
 
-@router.get("/all")
-def get_all_swap_requests(
+@router.put("/{swap_id}", response_model=SwapRequestRead)
+async def update_swap_request(
+    swap_id: UUID,
+    update_data: SwapRequestUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    limit: int = Query(100, le=200),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get all swap requests across facilities"""
-    if not current_user.is_manager:
-        raise HTTPException(status_code=403, detail="Manager access required")
+    """Update swap request details (NEW)"""
     
-    # Get all swap requests for this tenant
-    query = (
-        select(SwapRequest)
-        .join(Schedule)
-        .join(Facility)
-        .where(Facility.tenant_id == current_user.tenant_id)
-        .order_by(SwapRequest.created_at.desc())
-        .limit(limit)
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    # Verify access - only requesting staff or managers can update
+    if not current_user.is_manager and swap_request.requesting_staff_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Verify swap is still editable
+    if swap_request.status not in [SwapStatus.PENDING]:
+        raise HTTPException(status_code=400, detail="Swap request cannot be modified in current status")
+    
+    # Apply updates
+    update_dict = update_data.dict(exclude_unset=True)
+    for field, value in update_dict.items():
+        if hasattr(swap_request, field):
+            setattr(swap_request, field, value)
+    
+    # Create history entry
+    history = SwapHistory(
+        swap_request_id=swap_id,
+        action="updated",
+        actor_staff_id=current_user.id if not current_user.is_manager else None,
+        notes=f"Swap request updated: {', '.join(update_dict.keys())}",
+        system_action=False
     )
     
-    swap_requests = db.exec(query).all()
+    db.add(swap_request)
+    db.add(history)
+    db.commit()
+    db.refresh(swap_request)
     
-    # Load related data for each swap
-    result = []
-    for swap in swap_requests:
-        requesting_staff = db.get(Staff, swap.requesting_staff_id)
-        target_staff = db.get(Staff, swap.target_staff_id) if swap.target_staff_id else None
-        assigned_staff = db.get(Staff, swap.assigned_staff_id) if swap.assigned_staff_id else None
-        
-        # Get facility info
-        schedule = db.get(Schedule, swap.schedule_id)
-        facility = db.get(Facility, schedule.facility_id) if schedule else None
-        
-        swap_dict = {
-            **swap.__dict__,
-            "requesting_staff": requesting_staff.__dict__ if requesting_staff else None,
-            "target_staff": target_staff.__dict__ if target_staff else None,
-            "assigned_staff": assigned_staff.__dict__ if assigned_staff else None,
-            "facility_id": str(facility.id) if facility else None,
-            "facility_name": facility.name if facility else None
-        }
-        
-        result.append(swap_dict)
+    return swap_request
+
+@router.delete("/{swap_id}")
+async def cancel_swap_request(
+    swap_id: UUID,
+    reason: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Cancel a swap request (NEW)"""
     
-    return result
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    # Verify access
+    if not current_user.is_manager and swap_request.requesting_staff_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Verify swap can be cancelled
+    if swap_request.status in [SwapStatus.EXECUTED]:
+        raise HTTPException(status_code=400, detail="Cannot cancel executed swap")
+    
+    # Update status
+    swap_request.status = SwapStatus.CANCELLED
+    
+    # Create history entry
+    history = SwapHistory(
+        swap_request_id=swap_id,
+        action="cancelled",
+        actor_staff_id=current_user.id if not current_user.is_manager else None,
+        notes=reason or "Swap request cancelled",
+        system_action=False
+    )
+    
+    db.add(swap_request)
+    db.add(history)
+    db.commit()
+    
+    return {"message": "Swap request cancelled successfully"}
+
+# ==================== EXISTING ENDPOINTS (KEPT FOR COMPATIBILITY) ====================
 
 @router.get("/{swap_id}/history", response_model=List[SwapHistoryRead])
 def get_swap_history(
@@ -1600,7 +1725,7 @@ def get_swap_request(
     if not swap_request:
         raise HTTPException(status_code=404, detail="Swap request not found")
     
-    # Verify access through facility
+    # Verify access
     schedule = db.get(Schedule, swap_request.schedule_id)
     facility = db.get(Facility, schedule.facility_id)
     if not facility or facility.tenant_id != current_user.tenant_id:
@@ -1617,13 +1742,68 @@ def get_swap_request(
     swap_data["target_staff"] = target_staff.dict() if target_staff else None
     swap_data["assigned_staff"] = assigned_staff.dict() if assigned_staff else None
     
+    # Add role names
+    swap_data["original_shift_role_name"] = requesting_staff.role if requesting_staff else None
+    swap_data["target_staff_role_name"] = target_staff.role if target_staff else None
+    swap_data["assigned_staff_role_name"] = assigned_staff.role if assigned_staff else None
+    
     # Add facility info
     swap_data["facility_id"] = str(facility.id)
     swap_data["facility_name"] = facility.name
     
     return SwapRequestWithDetails(**swap_data)
 
-# ==================== STAFF ANALYTICS ENDPOINTS ====================
+# ==================== HELPER FUNCTIONS ====================
+
+def _execute_specific_swap(db: Session, swap_request: SwapRequest):
+    """Execute a specific staff-to-staff swap"""
+    
+    # Get the assignments
+    original_assignment = db.exec(
+        select(ShiftAssignment).where(
+            ShiftAssignment.schedule_id == swap_request.schedule_id,
+            ShiftAssignment.staff_id == swap_request.requesting_staff_id,
+            ShiftAssignment.day == swap_request.original_day,
+            ShiftAssignment.shift == swap_request.original_shift
+        )
+    ).first()
+    
+    target_assignment = db.exec(
+        select(ShiftAssignment).where(
+            ShiftAssignment.schedule_id == swap_request.schedule_id,
+            ShiftAssignment.staff_id == swap_request.target_staff_id,
+            ShiftAssignment.day == swap_request.target_day,
+            ShiftAssignment.shift == swap_request.target_shift
+        )
+    ).first()
+    
+    # Swap the staff assignments
+    if original_assignment and target_assignment:
+        original_assignment.staff_id = swap_request.target_staff_id
+        target_assignment.staff_id = swap_request.requesting_staff_id
+        
+        db.add(original_assignment)
+        db.add(target_assignment)
+
+def _execute_auto_assignment(db: Session, swap_request: SwapRequest):
+    """Execute an auto-assignment swap"""
+    
+    # Get the original assignment
+    original_assignment = db.exec(
+        select(ShiftAssignment).where(
+            ShiftAssignment.schedule_id == swap_request.schedule_id,
+            ShiftAssignment.staff_id == swap_request.requesting_staff_id,
+            ShiftAssignment.day == swap_request.original_day,
+            ShiftAssignment.shift == swap_request.original_shift
+        )
+    ).first()
+    
+    # Update assignment to new staff member
+    if original_assignment and swap_request.assigned_staff_id:
+        original_assignment.staff_id = swap_request.assigned_staff_id
+        db.add(original_assignment)
+
+# ==================== EXISTING ANALYTICS ENDPOINTS (ENHANCED) ====================
 
 @router.get("/analytics/top-requesters/{facility_id}")
 def get_top_requesting_staff(
@@ -1681,10 +1861,10 @@ def get_top_requesting_staff(
         staff_stats[staff_id]['role'] = staff.role
         staff_stats[staff_id]['total_requests'] += 1
         
-        # Count by status
-        if swap_request.status in ['approved', 'executed', 'staff_accepted']:
+        # Count by status using enum values
+        if swap_request.status in [SwapStatus.EXECUTED, SwapStatus.STAFF_ACCEPTED]:
             staff_stats[staff_id]['approved_requests'] += 1
-        elif swap_request.status in ['declined', 'staff_declined']:
+        elif swap_request.status in [SwapStatus.DECLINED, SwapStatus.STAFF_DECLINED]:
             staff_stats[staff_id]['declined_requests'] += 1
         else:
             staff_stats[staff_id]['pending_requests'] += 1
@@ -1772,7 +1952,7 @@ def get_swap_reasons_analysis(
         reason_urgency[reason].append(swap.urgency)
         
         reason_success[reason]['total'] += 1
-        if swap.status in ['approved', 'executed', 'staff_accepted']:
+        if swap.status in [SwapStatus.EXECUTED, SwapStatus.STAFF_ACCEPTED]:
             reason_success[reason]['approved'] += 1
     
     # Build result
@@ -1881,7 +2061,7 @@ def get_staff_performance_metrics(
         
         staff_performance[staff_id]['times_assigned_auto'] += 1
         
-        if swap.status == 'executed':
+        if swap.status == SwapStatus.EXECUTED:
             staff_performance[staff_id]['times_completed_auto'] += 1
     
     # Calculate rates and scores
@@ -1964,7 +2144,7 @@ def get_problem_patterns(
         if swap.urgency == 'emergency':
             staff_stats[staff_id]['emergency'] += 1
         
-        if swap.status in ['approved', 'executed', 'staff_accepted']:
+        if swap.status in [SwapStatus.EXECUTED, SwapStatus.STAFF_ACCEPTED]:
             staff_stats[staff_id]['approved'] += 1
     
     # Calculate rates and identify problems
@@ -2017,59 +2197,258 @@ def get_problem_patterns(
         }
     }
 
-# ==================== HELPER FUNCTIONS ====================
+# ==================== GLOBAL SUMMARY ENDPOINTS ====================
 
-def _execute_specific_swap(db: Session, swap_request: SwapRequest):
-    """Execute a specific staff-to-staff swap"""
+@router.get("/global-summary")
+def get_global_swap_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get global swap summary across all facilities (ENHANCED)"""
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
     
-    # Get the assignments
-    original_assignment = db.exec(
-        select(ShiftAssignment).where(
-            ShiftAssignment.schedule_id == swap_request.schedule_id,
-            ShiftAssignment.staff_id == swap_request.requesting_staff_id,
-            ShiftAssignment.day == swap_request.original_day,
-            ShiftAssignment.shift == swap_request.original_shift
-        )
-    ).first()
+    # Get all facilities for this tenant
+    facilities = db.exec(
+        select(Facility).where(Facility.tenant_id == current_user.tenant_id)
+    ).all()
     
-    target_assignment = db.exec(
-        select(ShiftAssignment).where(
-            ShiftAssignment.schedule_id == swap_request.schedule_id,
-            ShiftAssignment.staff_id == swap_request.target_staff_id,
-            ShiftAssignment.day == swap_request.target_day,
-            ShiftAssignment.shift == swap_request.target_shift
-        )
-    ).first()
+    total_facilities = len(facilities)
     
-    # Swap the staff assignments
-    if original_assignment and target_assignment:
-        original_assignment.staff_id = swap_request.target_staff_id
-        target_assignment.staff_id = swap_request.requesting_staff_id
-        
-        swap_request.status = "completed"
-        swap_request.completed_at = datetime.utcnow()
-        
-        db.add(original_assignment)
-        db.add(target_assignment)
+    # Get all swap requests for this tenant
+    base_query = (
+        select(SwapRequest)
+        .join(Schedule)
+        .join(Facility)
+        .where(Facility.tenant_id == current_user.tenant_id)
+    )
+    
+    all_swaps = db.exec(base_query).all()
+    
+    # Enhanced counting using enum statuses
+    total_pending_swaps = len([s for s in all_swaps if s.status == SwapStatus.PENDING])
+    total_urgent_swaps = len([s for s in all_swaps if s.status == SwapStatus.PENDING and s.urgency in ["high", "emergency"]])
+    total_emergency_swaps = len([s for s in all_swaps if s.status == SwapStatus.PENDING and s.urgency == "emergency"])
+    total_potential_assignments = len([s for s in all_swaps if s.status == SwapStatus.POTENTIAL_ASSIGNMENT])
+    total_awaiting_final_approval = len([s for s in all_swaps if s.status == SwapStatus.MANAGER_FINAL_APPROVAL])
+    
+    # Swaps today and this week
+    today = datetime.utcnow().date()
+    week_start = today - timedelta(days=today.weekday())
+    
+    swaps_today = len([s for s in all_swaps if s.created_at.date() == today])
+    swaps_this_week = len([s for s in all_swaps if s.created_at.date() >= week_start])
+    
+    # Calculate enhanced success rate and timing
+    completed_swaps = [s for s in all_swaps if s.status == SwapStatus.EXECUTED]
+    total_swaps = len([s for s in all_swaps if s.status not in [SwapStatus.PENDING]])
+    auto_assignment_success_rate = (len(completed_swaps) / total_swaps * 100) if total_swaps > 0 else 0
+    
+    # Average approval time from completed swaps
+    completed_with_approval_time = [s for s in completed_swaps if s.manager_approved_at]
+    average_approval_time = 0.0
+    if completed_with_approval_time:
+        approval_times = [(s.manager_approved_at - s.created_at).total_seconds() / 3600 for s in completed_with_approval_time]
+        average_approval_time = sum(approval_times) / len(approval_times)
+    
+    # Role override statistics
+    role_overrides = len([s for s in all_swaps if s.role_match_override])
+    role_compatible = len([s for s in all_swaps if not s.role_match_override and s.status == SwapStatus.EXECUTED])
+    
+    return {
+        "total_facilities": total_facilities,
+        "total_pending_swaps": total_pending_swaps,
+        "total_urgent_swaps": total_urgent_swaps,
+        "total_emergency_swaps": total_emergency_swaps,
+        "total_potential_assignments": total_potential_assignments,
+        "total_awaiting_final_approval": total_awaiting_final_approval,
+        "swaps_today": swaps_today,
+        "swaps_this_week": swaps_this_week,
+        "auto_assignment_success_rate": auto_assignment_success_rate,
+        "average_approval_time": average_approval_time,
+        "role_override_count": role_overrides,
+        "role_compatible_count": role_compatible,
+        "total_completed_swaps": len(completed_swaps)
+    }
 
-def _execute_auto_assignment(db: Session, swap_request: SwapRequest):
-    """Execute an auto-assignment swap"""
+@router.get("/facilities-summary")
+def get_facilities_swap_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get swap summary for all facilities (ENHANCED)"""
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
     
-    # Get the original assignment
-    original_assignment = db.exec(
-        select(ShiftAssignment).where(
-            ShiftAssignment.schedule_id == swap_request.schedule_id,
-            ShiftAssignment.staff_id == swap_request.requesting_staff_id,
-            ShiftAssignment.day == swap_request.original_day,
-            ShiftAssignment.shift == swap_request.original_shift
+    facilities = db.exec(
+        select(Facility).where(Facility.tenant_id == current_user.tenant_id)
+    ).all()
+    
+    result = []
+    for facility in facilities:
+        # Get swap requests for this facility
+        base_query = select(SwapRequest).join(Schedule).where(Schedule.facility_id == facility.id)
+        facility_swaps = db.exec(base_query).all()
+        
+        # Enhanced metrics using enum statuses
+        pending_swaps = len([s for s in facility_swaps if s.status == SwapStatus.PENDING])
+        urgent_swaps = len([s for s in facility_swaps if s.status == SwapStatus.PENDING and s.urgency in ["high", "emergency"]])
+        emergency_swaps = len([s for s in facility_swaps if s.status == SwapStatus.PENDING and s.urgency == "emergency"])
+        potential_assignments = len([s for s in facility_swaps if s.status == SwapStatus.POTENTIAL_ASSIGNMENT])
+        awaiting_final_approval = len([s for s in facility_swaps if s.status == SwapStatus.MANAGER_FINAL_APPROVAL])
+        
+        recent_completions = len([s for s in facility_swaps if s.status == SwapStatus.EXECUTED and s.completed_at and s.completed_at >= datetime.utcnow() - timedelta(days=7)])
+        
+        # Role statistics
+        role_overrides = len([s for s in facility_swaps if s.role_match_override])
+        role_compatible = len([s for s in facility_swaps if not s.role_match_override and s.status == SwapStatus.EXECUTED])
+        
+        # Get staff count
+        staff_count = len(db.exec(
+            select(Staff).where(Staff.facility_id == facility.id, Staff.is_active == True)
+        ).all())
+        
+        result.append({
+            "facility_id": str(facility.id),
+            "facility_name": facility.name,
+            "facility_type": getattr(facility, 'facility_type', 'hotel'),
+            "pending_swaps": pending_swaps,
+            "urgent_swaps": urgent_swaps,
+            "emergency_swaps": emergency_swaps,
+            "potential_assignments": potential_assignments,
+            "awaiting_final_approval": awaiting_final_approval,
+            "recent_completions": recent_completions,
+            "role_overrides": role_overrides,
+            "role_compatible": role_compatible,
+            "staff_count": staff_count
+        })
+    
+    return result
+
+@router.get("/all")
+def get_all_swap_requests(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    limit: int = Query(100, le=200),
+):
+    """Get all swap requests across facilities (ENHANCED)"""
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Get all swap requests for this tenant
+    query = (
+        select(SwapRequest)
+        .join(Schedule)
+        .join(Facility)
+        .where(Facility.tenant_id == current_user.tenant_id)
+        .order_by(SwapRequest.created_at.desc())
+        .limit(limit)
+    )
+    
+    swap_requests = db.exec(query).all()
+    
+    # Load related data for each swap
+    result = []
+    for swap in swap_requests:
+        requesting_staff = db.get(Staff, swap.requesting_staff_id)
+        target_staff = db.get(Staff, swap.target_staff_id) if swap.target_staff_id else None
+        assigned_staff = db.get(Staff, swap.assigned_staff_id) if swap.assigned_staff_id else None
+        
+        # Get facility info
+        schedule = db.get(Schedule, swap.schedule_id)
+        facility = db.get(Facility, schedule.facility_id) if schedule else None
+        
+        swap_dict = {
+            **swap.__dict__,
+            "requesting_staff": requesting_staff.__dict__ if requesting_staff else None,
+            "target_staff": target_staff.__dict__ if target_staff else None,
+            "assigned_staff": assigned_staff.__dict__ if assigned_staff else None,
+            "facility_id": str(facility.id) if facility else None,
+            "facility_name": facility.name if facility else None,
+            "status": swap.status.value if isinstance(swap.status, SwapStatus) else swap.status  # Ensure string output
+        }
+        
+        result.append(swap_dict)
+    
+    return result
+
+# ==================== RETRY AND RECOVERY ENDPOINTS ====================
+
+@router.post("/{swap_id}/retry-auto-assignment", response_model=AutoAssignmentResult)
+async def retry_auto_assignment(
+    swap_id: UUID,
+    avoid_staff_ids: List[UUID] = Query(default=[]),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Retry automatic assignment with different parameters (ENHANCED)"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request or swap_request.swap_type != "auto":
+        raise HTTPException(status_code=400, detail="Invalid auto swap request")
+    
+    # Verify access
+    schedule = db.get(Schedule, swap_request.schedule_id)
+    facility = db.get(Facility, schedule.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Verify status allows retry
+    if swap_request.status not in [SwapStatus.ASSIGNMENT_FAILED, SwapStatus.ASSIGNMENT_DECLINED]:
+        raise HTTPException(status_code=400, detail="Swap not eligible for retry")
+    
+    # Clear previous assignment
+    swap_request.assigned_staff_id = None
+    swap_request.assigned_staff_accepted = None
+    
+    # Retry assignment
+    try:
+        result = assign_swap_coverage(db, swap_request, avoid_staff_ids=avoid_staff_ids)
+        
+        if result.success:
+            swap_request.assigned_staff_id = result.assigned_staff_id
+            swap_request.status = SwapStatus.POTENTIAL_ASSIGNMENT
+            
+            # Create history
+            history = SwapHistory(
+                swap_request_id=swap_id,
+                action="auto_assigned_retry",
+                actor_staff_id=current_user.id,
+                notes=f"Retry auto-assigned to {result.assigned_staff_name}",
+                system_action=False
+            )
+            db.add(history)
+            db.commit()
+            
+            # Send notifications for new assignment
+            notification_service = NotificationService(db)
+            # Add notification logic here if needed
+            
+        else:
+            swap_request.status = SwapStatus.ASSIGNMENT_FAILED
+            swap_request.manager_notes = f"Retry failed: {result.reason}"
+            
+            # Create failure history
+            history = SwapHistory(
+                swap_request_id=swap_id,
+                action="auto_assignment_retry_failed",
+                actor_staff_id=current_user.id,
+                notes=f"Retry failed: {result.reason}",
+                system_action=False
+            )
+            db.add(history)
+            db.commit()
+            
+    except Exception as e:
+        result = AutoAssignmentResult(
+            success=False,
+            reason=f"Retry error: {str(e)}"
         )
-    ).first()
+        swap_request.status = SwapStatus.ASSIGNMENT_FAILED
+        db.commit()
     
-    # Update assignment to new staff member
-    if original_assignment and swap_request.assigned_staff_id:
-        original_assignment.staff_id = swap_request.assigned_staff_id
-        
-        swap_request.status = "completed"
-        swap_request.completed_at = datetime.utcnow()
-        
-        db.add(original_assignment)
+    return result

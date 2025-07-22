@@ -30,3 +30,6 @@ export function useAuth() {
     provider: session?.provider,
   }
 }
+
+// Re-export for convenience
+export { ApiClient, createAuthenticatedApiClient, apiClient } from '@/lib/api'
