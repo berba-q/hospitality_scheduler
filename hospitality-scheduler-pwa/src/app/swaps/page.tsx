@@ -41,6 +41,10 @@ import {
   Brain,
   Settings
 } from 'lucide-react'
+// NEW – enum types and helper components
+import { SwapStatus, SwapUrgency } from '@/types/swaps'
+import {WorkflowStatusIndicator} from '@/components/swap/WorkflowStatusIndicator'
+import {ManagerFinalApprovalModal} from '@/components/swap/ManagerFinalApprovalModal'
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -85,6 +89,7 @@ export default function SwapsPage() {
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
   const [showDetailedTools, setShowDetailedTools] = useState(false)
   const [detailedToolsTab, setDetailedToolsTab] = useState('all')
+  const [showManagerModal, setShowManagerModal] = useState(false)
 
     // Advanced search state
   const [advancedFilters, setAdvancedFilters] = useState({})
@@ -180,7 +185,7 @@ export default function SwapsPage() {
   }
 
   const handleSelectAll = (swaps: any[]) => {
-    const eligibleSwaps = swaps.filter(swap => swap.status === 'pending').map(swap => swap.id)
+    const eligibleSwaps = swaps.filter(swap => swap.status === SwapStatus.manager_final_approval).map(swap => swap.id)
     setSelectedSwaps(eligibleSwaps)
   }
 
@@ -188,22 +193,6 @@ export default function SwapsPage() {
     setSelectedSwaps([])
   }
 
-  const handleBulkApprove = async (approved: boolean, notes?: string) => {
-    if (selectedSwaps.length === 0) {
-      toast.error('No swaps selected')
-      return
-    }
-
-    try {
-      await apiClient.bulkApproveSwaps(selectedSwaps, approved, notes)
-      await loadManagerData()
-      setSelectedSwaps([])
-      toast.success(`${selectedSwaps.length} swap${selectedSwaps.length > 1 ? 's' : ''} ${approved ? 'approved' : 'declined'}`)
-    } catch (error) {
-      console.error('Bulk operation failed:', error)
-      toast.error('Failed to process bulk operation')
-    }
-  }
   
   const handleApproveSwap = async (swapId: string, approved: boolean, notes?: string) => {
     try {
@@ -290,8 +279,8 @@ export default function SwapsPage() {
 
   const handleTakeAction = () => {
     const emergencySwaps = allSwapRequests.filter(swap => 
-      (swap.urgency === 'emergency' || swap.urgency === 'high') && 
-      swap.status === 'pending'
+      (swap.urgency === SwapUrgency.Emergency || swap.urgency === SwapUrgency.High) && 
+      swap.status === SwapStatus.manager_final_approval
     )
     
     if (emergencySwaps.length === 0) {
@@ -307,7 +296,7 @@ export default function SwapsPage() {
       // Many swaps: open detailed filtered view
       setDetailedToolsTab('all')
       setShowDetailedTools(true)
-      setUrgencyFilter('emergency')
+      setUrgencyFilter(SwapUrgency.Emergency)
       toast.success(`Found ${emergencySwaps.length} urgent swaps - opened detailed view`)
     }
   }
@@ -335,10 +324,10 @@ export default function SwapsPage() {
   })
 
   // Calculate counts for tabs
-  const pendingCount = allSwapRequests.filter(s => s.status === 'pending').length
-  const urgentCount = allSwapRequests.filter(s => ['high', 'emergency'].includes(s.urgency)).length
+  const pendingCount = allSwapRequests.filter(s => s.status === SwapStatus.manager_final_approval).length
+  const urgentCount = allSwapRequests.filter(s => [SwapUrgency.High, SwapUrgency.Emergency].includes(s.urgency)).length
   const emergencyCount = allSwapRequests.filter(s => 
-                            s.urgency === 'emergency' && s.status === 'pending'
+                            s.urgency === SwapUrgency.Emergency && s.status === SwapStatus.manager_final_approval
                           ).length
 
   // Smart insights for managers
@@ -554,7 +543,7 @@ export default function SwapsPage() {
                       Immediate Action Required
                     </div>
                     <Badge variant="destructive">
-                      {allSwapRequests.filter(s => s.urgency === 'emergency' && s.status === 'pending'|| (s.urgency === 'high' && s.status === 'pending')).length}
+                      {allSwapRequests.filter(s => s.urgency === SwapUrgency.Emergency && s.status === SwapStatus.manager_final_approval || (s.urgency === SwapUrgency.High && s.status === SwapStatus.manager_final_approval)).length}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
@@ -562,8 +551,8 @@ export default function SwapsPage() {
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {allSwapRequests
                       .filter(swap => 
-                        swap.urgency === 'emergency' && swap.status === 'pending'|| 
-                        (swap.urgency === 'high' && swap.status === 'pending')
+                        swap.urgency === SwapUrgency.Emergency && swap.status === SwapStatus.manager_final_approval|| 
+                        (swap.urgency === SwapUrgency.High && swap.status === SwapStatus.manager_final_approval)
                       )
                       .slice(0, 8)
                       .map((swap) => (
@@ -575,11 +564,12 @@ export default function SwapsPage() {
                               onChange={(e) => handleSelectSwap(swap.id, e.target.checked)}
                               className="rounded"
                             />
+                            <WorkflowStatusIndicator swap={swap} compact />
                             <div>
                               <p className="font-medium text-sm">{swap.requesting_staff?.full_name}</p>
                               <p className="text-xs text-gray-600 truncate max-w-48">{swap.reason}</p>
                               <div className="flex items-center gap-2 mt-1">
-                                <Badge variant={swap.urgency === 'emergency' ? 'destructive' : 'secondary'} className="text-xs">
+                                <Badge variant={swap.urgency === SwapUrgency.Emergency ? 'destructive' : 'secondary'} className="text-xs">
                                   {swap.urgency}
                                 </Badge>
                                 <span className="text-xs text-gray-500">
@@ -621,34 +611,17 @@ export default function SwapsPage() {
                   {/* Quick Bulk Actions for Emergency/High Priority */}
                   {selectedSwaps.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-red-200">
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          className="bg-green-600 hover:bg-green-700 text-white flex-1"
-                          onClick={() => handleBulkApprove(true)}
-                        >
-                          Approve Selected ({selectedSwaps.length})
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="border-red-200 text-red-700 flex-1"
-                          onClick={() => handleBulkApprove(false)}
-                        >
-                          Decline Selected
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={handleClearSelection}
-                        >
-                          Clear
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                        onClick={() => setShowManagerModal(true)}
+                      >
+                        Review &amp; Final Approve ({selectedSwaps.length})
+                      </Button>
                     </div>
                   )}
                   
-                  {allSwapRequests.filter(s => s.urgency === 'emergency' && s.status === 'pending'|| (s.urgency === 'high' && s.status === 'pending')).length === 0 && (
+                  {allSwapRequests.filter(s => s.urgency === SwapUrgency.Emergency && s.status === SwapStatus.manager_final_approval|| (s.urgency === SwapUrgency.High && s.status === SwapStatus.manager_final_approval)).length === 0 && (
                     <div className="text-center py-8 text-gray-500">
                       <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
                       <p className="text-sm font-medium">No urgent requests!</p>
@@ -689,8 +662,8 @@ export default function SwapsPage() {
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {allSwapRequests
                       .filter(swap => 
-                        swap.status === 'pending' && 
-                        !['emergency', 'high'].includes(swap.urgency)
+                        swap.status === SwapStatus.manager_final_approval && 
+                        ![SwapUrgency.Emergency, SwapUrgency.High].includes(swap.urgency)
                       )
                       .slice(0, 6)
                       .map((swap) => (
@@ -702,6 +675,7 @@ export default function SwapsPage() {
                               onChange={(e) => handleSelectSwap(swap.id, e.target.checked)}
                               className="rounded"
                             />
+                            <WorkflowStatusIndicator swap={swap} compact />
                             <div>
                               <p className="font-medium text-sm">{swap.requesting_staff?.full_name}</p>
                               <p className="text-xs text-gray-600 truncate max-w-48">{swap.reason}</p>
@@ -732,18 +706,18 @@ export default function SwapsPage() {
                       ))}
                   </div>
                   
-                  {allSwapRequests.filter(s => s.status === 'pending' && !['emergency', 'high'].includes(s.urgency)).length > 6 && (
+                  {allSwapRequests.filter(s => s.status === SwapStatus.manager_final_approval && ![SwapUrgency.Emergency, SwapUrgency.High].includes(s.urgency)).length > 6 && (
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="w-full mt-3"
                       onClick={() => setActiveTab('detailed')}
                     >
-                      View All {allSwapRequests.filter(s => s.status === 'pending' && !['emergency', 'high'].includes(s.urgency)).length} Pending
+                      View All {allSwapRequests.filter(s => s.status === SwapStatus.manager_final_approval && ![SwapUrgency.Emergency, SwapUrgency.High].includes(s.urgency)).length} Pending
                     </Button>
                   )}
 
-                  {allSwapRequests.filter(s => s.status === 'pending' && !['emergency', 'high'].includes(s.urgency)).length === 0 && (
+                  {allSwapRequests.filter(s => s.status === SwapStatus.manager_final_approval && ![SwapUrgency.Emergency, SwapUrgency.High].includes(s.urgency)).length === 0 && (
                     <div className="text-center py-4 text-gray-500">
                       <p className="text-sm">No pending approvals</p>
                     </div>
@@ -1121,13 +1095,13 @@ export default function SwapsPage() {
                         swapRequests={filteredSwapRequests}
                         swapSummary={{
                           facility_id: selectedFacility || 'all',
-                          pending_swaps: filteredSwapRequests.filter(swap => swap.status === 'pending').length,
-                          urgent_swaps: filteredSwapRequests.filter(swap => ['high', 'emergency'].includes(swap.urgency)).length,
+                          pending_swaps: filteredSwapRequests.filter(swap => swap.status === SwapStatus.manager_final_approval).length,
+                          urgent_swaps: filteredSwapRequests.filter(swap => [SwapUrgency.High, SwapUrgency.Emergency].includes(swap.urgency)).length,
                           auto_swaps_needing_assignment: filteredSwapRequests.filter(swap => 
-                            swap.swap_type === 'auto' && swap.status === 'pending' && !swap.assigned_staff_id
+                            swap.swap_type === 'auto' && swap.status === SwapStatus.manager_final_approval && !swap.assigned_staff_id
                           ).length,
                           specific_swaps_awaiting_response: filteredSwapRequests.filter(swap =>
-                            swap.swap_type === 'specific' && swap.status === 'pending' && swap.target_staff_accepted === null
+                            swap.swap_type === 'specific' && swap.status === SwapStatus.manager_final_approval && swap.target_staff_accepted === null
                           ).length,
                           recent_completions: filteredSwapRequests.filter(swap => 
                             swap.status === 'completed' && 
@@ -1293,8 +1267,6 @@ export default function SwapsPage() {
         
         </div>
       </div>
-
-      {/* All Modals - Using your existing components */}
       
       {/* Facility Detail Modal */}
       <FacilityDetailModal
@@ -1334,6 +1306,18 @@ export default function SwapsPage() {
         facilitySummaries={facilitySummaries}
         allSwapRequests={allSwapRequests}
         onExport={handleExport}
+      />
+
+      {/* Manager Final Approval Modal */}
+      <ManagerFinalApprovalModal
+        open={showManagerModal}
+        onClose={() => setShowManagerModal(false)}
+        swaps={allSwapRequests.filter(s => selectedSwaps.includes(s.id))}
+        onDecision={async () => {
+          await loadManagerData()
+          setSelectedSwaps([])
+          setShowManagerModal(false)
+        }}
       />
     </AppLayout>
   )

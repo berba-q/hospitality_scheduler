@@ -28,6 +28,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
+import { WorkflowStatusIndicator, WorkflowStepper } from './WorkflowStatusIndicator'
+import { ManagerFinalApprovalModal } from './ManagerFinalApprovalModal'
+import { SwapStatus, SwapUrgency } from '@/types/swaps'
+
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const SHIFTS = ['Morning (6AM-2PM)', 'Afternoon (2PM-10PM)', 'Evening (10PM-6AM)']
@@ -90,28 +94,54 @@ function SwapDetailModal({ swap, open, onClose, onSwapResponse, onCancelSwap, us
   const canRespond = isForMe && swap.status === 'pending' && swap.target_staff_accepted === null
   const canCancel = isMyRequest && ['pending', 'manager_approved'].includes(swap.status)
 
-  const getStatusColor = (status) => {
-    const colors = {
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'manager_approved': 'bg-green-100 text-green-800',
-      'staff_accepted': 'bg-green-100 text-green-800',
-      'assigned': 'bg-blue-100 text-blue-800',
-      'executed': 'bg-green-100 text-green-800',
-      'declined': 'bg-red-100 text-red-800',
-      'cancelled': 'bg-gray-100 text-gray-800'
-    }
-    return colors[status] || 'bg-gray-100 text-gray-800'
+  // ---------- new workflow helpers ----------
+  const workflowStatus = {
+    current_status: swap.status as SwapStatus,
+    next_action_required:
+      swap.status === 'awaiting_target'
+        ? 'staff'
+        : swap.status === 'staff_accepted'
+        ? 'manager'
+        : 'system',
+    next_action_by:
+      swap.status === 'awaiting_target'
+        ? swap.target_staff_name
+        : swap.status === 'staff_accepted'
+        ? 'Manager'
+        : 'System',
+    can_execute: swap.status === 'manager_final_approval',
+    blocking_reasons: [],
+    estimated_completion: swap.expires_at,
   }
 
-  const getUrgencyColor = (urgency) => {
-    const colors = {
-      'emergency': 'bg-red-500 text-white',
-      'high': 'bg-orange-500 text-white',
-      'normal': 'bg-blue-500 text-white',
-      'low': 'bg-gray-500 text-white'
+  const availableActions = [
+    ...(canRespond
+      ? [
+          { id: 'accept', label: 'Accept', variant: 'primary' },
+          { id: 'decline', label: 'Decline', variant: 'destructive' },
+        ]
+      : []),
+    ...(canCancel
+      ? [{ id: 'cancel', label: 'Cancel', variant: 'destructive' }]
+      : []),
+  ]
+
+  const handleActionClick = (id: string) => {
+    switch (id) {
+      case 'accept':
+        handleResponse(true)
+        break
+      case 'decline':
+        handleResponse(false)
+        break
+      case 'cancel':
+        handleCancel()
+        break
+      default:
+        break
     }
-    return colors[urgency] || 'bg-gray-500 text-white'
   }
+  // -------------------------------------------
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -120,16 +150,23 @@ function SwapDetailModal({ swap, open, onClose, onSwapResponse, onCancelSwap, us
           <DialogTitle className="flex items-center gap-3">
             <ArrowLeftRight className="w-5 h-5" />
             Swap Request Details
-            <div className="flex gap-2 ml-auto">
-              <Badge className={getStatusColor(swap.status)}>
-                {swap.status.replace('_', ' ')}
-              </Badge>
-              <Badge className={getUrgencyColor(swap.urgency)}>
-                {swap.urgency}
-              </Badge>
-            </div>
           </DialogTitle>
         </DialogHeader>
+
+        {/* Workflow indicator & stepper */}
+        <div className="mb-6 space-y-4">
+          <WorkflowStatusIndicator
+            swap={swap}
+            workflowStatus={workflowStatus}
+            availableActions={availableActions}
+            onActionClick={handleActionClick}
+          />
+
+          <WorkflowStepper
+            currentStatus={swap.status}
+            swapType={swap.swap_type}
+          />
+        </div>
 
         <Tabs defaultValue="details" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
@@ -245,122 +282,6 @@ function SwapDetailModal({ swap, open, onClose, onSwapResponse, onCancelSwap, us
               </CardContent>
             </Card>
 
-            {/* Action Buttons */}
-            {(canRespond || canCancel) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Available Actions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-3">
-                    {canRespond && !showResponseForm && (
-                      <>
-                        <Button
-                          onClick={() => {
-                            setResponseType('accept')
-                            setShowResponseForm(true)
-                          }}
-                          className="gap-2 bg-green-600 hover:bg-green-700"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          Accept Swap Request
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setResponseType('decline')
-                            setShowResponseForm(true)
-                          }}
-                          className="gap-2 text-red-600 hover:text-red-700"
-                        >
-                          <XCircle className="w-4 h-4" />
-                          Decline Swap Request
-                        </Button>
-                      </>
-                    )}
-
-                    {canCancel && !showCancelForm && (
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowCancelForm(true)}
-                        className="gap-2 text-red-600 hover:text-red-700"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        Cancel My Request
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Response Form */}
-                  {showResponseForm && (
-                    <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                      <h4 className="font-medium mb-3">
-                        {responseType === 'accept' ? 'Accept' : 'Decline'} Swap Request
-                      </h4>
-                      <Textarea
-                        placeholder={`Add a note about your ${responseType}ance (optional)...`}
-                        value={responseNotes}
-                        onChange={(e) => setResponseNotes(e.target.value)}
-                        className="mb-3"
-                        rows={3}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleResponse(responseType === 'accept')}
-                          className={responseType === 'accept' ? 
-                            'bg-green-600 hover:bg-green-700' : 
-                            'bg-red-600 hover:bg-red-700'
-                          }
-                        >
-                          Confirm {responseType === 'accept' ? 'Accept' : 'Decline'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setShowResponseForm(false)
-                            setResponseNotes('')
-                            setResponseType(null)
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Cancel Form */}
-                  {showCancelForm && (
-                    <div className="mt-4 p-4 border border-red-200 rounded-lg bg-red-50">
-                      <h4 className="font-medium mb-3 text-red-800">Cancel Swap Request</h4>
-                      <Textarea
-                        placeholder="Reason for cancellation (optional)..."
-                        value={cancelReason}
-                        onChange={(e) => setCancelReason(e.target.value)}
-                        className="mb-3"
-                        rows={3}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={handleCancel}
-                          className="bg-red-600 hover:bg-red-700"
-                        >
-                          Confirm Cancellation
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setShowCancelForm(false)
-                            setCancelReason('')
-                          }}
-                        >
-                          Keep Request
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </TabsContent>
 
           <TabsContent value="people" className="space-y-6">

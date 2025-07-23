@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { BulkSwapManager } from './ManagerFinalApprovalModal'
 import { 
   ArrowLeftRight, 
   Clock, 
@@ -191,7 +192,12 @@ export function SwapManagementDashboard({
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedTab, setSelectedTab] = useState('pending')
+  const [selectedSwaps, setSelectedSwaps] = useState<string[]>([])
 
+  // ------------------------------------------------------------------
+  // Enhanced summary counts returned by backend (manager-facing)
+  // ------------------------------------------------------------------
+  const enhancedSummary = swapSummary   // alias for clarity
   // Filter swaps by different categories
   const pendingSwaps = swapRequests.filter(swap => swap.status === 'pending')
   const approvedSwaps = swapRequests.filter(swap => 
@@ -242,6 +248,40 @@ export function SwapManagementDashboard({
     } catch (error) {
       console.error('Failed to approve swap:', error)
       toast.error('Failed to process swap decision')
+    } finally {
+      setLoading('')
+    }
+  }
+
+  // Bulk swap manager callback ------------------------------------------------
+  const handleBulkAction = async (
+    action: 'approve' | 'decline' | 'retry',
+    notes?: string
+  ) => {
+    if (selectedSwaps.length === 0) return
+    try {
+      setLoading('bulk')
+      for (const id of selectedSwaps) {
+        const swap = swapRequests.find(s => s.id === id)
+        if (!swap) continue
+
+        switch (action) {
+          case 'approve':
+            await onApproveSwap(id, true, notes)
+            break
+          case 'decline':
+            await onApproveSwap(id, false, notes)
+            break
+          case 'retry':
+            await onRetryAutoAssignment(id)
+            break
+        }
+      }
+      toast.success('Bulk action completed')
+      setSelectedSwaps([])
+    } catch (err) {
+      console.error('Bulk action failed', err)
+      toast.error('Bulk action failed')
     } finally {
       setLoading('')
     }
@@ -431,80 +471,65 @@ export function SwapManagementDashboard({
 
   return (
     <div className="space-y-8">
-      {/* Improved Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Manager Summary Cards (new workflow) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Pending Approval */}
         <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
           <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-amber-50 rounded-xl group-hover:bg-amber-100 transition-colors">
-                  <Hourglass className="h-6 w-6 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-gray-900">{pendingSwaps.length}</p>
-                  <p className="text-sm font-medium text-amber-600 mt-1">Pending Review</p>
-                  <p className="text-xs text-gray-500">Awaiting manager decision</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
-          <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-blue-50 rounded-xl group-hover:bg-blue-100 transition-colors">
-                  <CheckCircle className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-gray-900">{approvedSwaps.length}</p>
-                  <p className="text-sm font-medium text-blue-600 mt-1">Approved</p>
-                  <p className="text-xs text-gray-500">Ready for execution</p>
-                </div>
-              </div>
-            </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Pending Approval</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{enhancedSummary?.manager_approval_needed ?? 0}</div>
+            <div className="text-xs text-gray-500">Needs your decision</div>
           </CardContent>
         </Card>
 
+        {/* Potential Assignments */}
         <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
           <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-purple-50 rounded-xl group-hover:bg-purple-100 transition-colors">
-                  <PlayCircle className="h-6 w-6 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-gray-900">{inProgressSwaps.length}</p>
-                  <p className="text-sm font-medium text-purple-600 mt-1">In Progress</p>
-                  <p className="text-xs text-gray-500">Being executed</p>
-                </div>
-              </div>
-            </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Potential Assignments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{enhancedSummary?.potential_assignments ?? 0}</div>
+            <div className="text-xs text-gray-500">Awaiting staff response</div>
           </CardContent>
         </Card>
 
+        {/* Final Approval */}
         <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
-          <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-emerald-50 rounded-xl group-hover:bg-emerald-100 transition-colors">
-                  <TrendingUp className="h-6 w-6 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-gray-900">{completedSwaps.length}</p>
-                  <p className="text-sm font-medium text-emerald-600 mt-1">Completed</p>
-                  <p className="text-xs text-gray-500">Successfully executed</p>
-                </div>
-              </div>
-            </div>
+          <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Final Approval</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{enhancedSummary?.manager_final_approval_needed ?? 0}</div>
+            <div className="text-xs text-gray-500">Ready to execute</div>
+          </CardContent>
+        </Card>
+
+        {/* Role Overrides */}
+        <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
+          <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Role Overrides</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{enhancedSummary?.role_override_assignments ?? 0}</div>
+            <div className="text-xs text-gray-500">This period</div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Bulk Action Manager */}
+      <BulkSwapManager
+        swaps={swapRequests}
+        selectedSwaps={selectedSwaps}
+        onSelectionChange={setSelectedSwaps}
+        onBulkAction={handleBulkAction}
+        loading={loading === 'bulk'}
+      />
 
       {/* Improved Search and Filters */}
       <Card className="shadow-sm">

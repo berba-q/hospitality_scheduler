@@ -31,6 +31,8 @@ import { toast } from 'sonner'
 import SwapDetailModal from '@/components/swap/SwapDetailModal'
 import { StaffSwapRequestDialog } from '@/components/swap/StaffSwapRequestDialog'
 import { SwapRequestsList } from '@/components/swap/SwapRequestsList'
+import { PotentialAssignmentCard } from './WorkflowStatusIndicator'
+import { SwapStatus } from '@/types/swaps'
 
 interface StaffSwapDashboardProps {
   user: any
@@ -66,6 +68,22 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedShiftForSwap, setSelectedShiftForSwap] = useState(null)
+
+  // ------------------------------------------------------------
+  // derived identifiers & assignment list
+  const userId = user?.staff_id || user?.id
+
+  const potentialAssignments = swapRequests.filter(
+    swap =>
+      (
+        swap.status === SwapStatus.awaiting_target ||
+        swap.status === 'potential_assignment' || // legacy
+        swap.status === 'assigned'               // legacy auto‑match
+      ) &&
+      (swap.target_staff_id === userId ||
+       swap.assigned_staff_id === userId)
+  )
+  // ------------------------------------------------------------
 
   useEffect(() => {
     loadAllData()
@@ -204,7 +222,7 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
       // Requests that need my action
       actionNeeded: swapRequests.filter(swap => {
         const needsAction = (swap.user_role === 'target' || swap.user_role === 'assigned') &&
-                           ['pending', 'manager_approved'].includes(swap.status) &&
+                           ['pending', 'awaiting_target', 'manager_final_approval'].includes(swap.status) &&
                            swap.can_respond
         console.log(`🔍 Checking if swap ${swap.id} needs action:`, {
           user_role: swap.user_role,
@@ -502,6 +520,26 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
                         </CardContent>
                       </Card>
                     </div>
+
+                    {/* Coverage Requests awaiting my response */}
+                    {potentialAssignments.length > 0 && (
+                      <Card className="border-l-4 border-l-purple-500 bg-purple-50">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                          <CardTitle>Coverage Requests</CardTitle>
+                          <Badge>{potentialAssignments.length}</Badge>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {potentialAssignments.map(assignment => (
+                            <PotentialAssignmentCard
+                              key={assignment.id}
+                              swap={assignment}
+                              onRespond={handleSwapResponse}
+                              loading={false}
+                            />
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
 
                     {/* Recent Activity */}
                     <div>
