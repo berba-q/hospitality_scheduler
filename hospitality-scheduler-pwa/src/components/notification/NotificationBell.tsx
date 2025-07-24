@@ -63,10 +63,11 @@ export function NotificationBell() {
 
   const unreadCount = notifications.filter(n => !n.is_read).length
 
-  // Load notifications only when component mounts
+  // Load notifications after apiClient is available (token injected)
   useEffect(() => {
     loadNotifications()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiClient])
 
   // Load preferences only when popover is opened
   useEffect(() => {
@@ -77,8 +78,13 @@ export function NotificationBell() {
 
   const loadNotifications = async () => {
     try {
-      const response = await apiClient.getMyNotifications()
-      setNotifications(notifications || [])
+      // fetch only unread, in‑app, delivered items for the bell
+      const response = await apiClient.getMyNotifications({
+        unreadOnly: true,
+        inAppOnly: true,
+        deliveredOnly: true,
+      })
+      setNotifications(response || [])
     } catch (error) {
       console.error('Failed to load notifications:', error)
     }

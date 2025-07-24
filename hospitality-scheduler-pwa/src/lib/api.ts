@@ -1408,11 +1408,11 @@ async getGlobalSwapStatistics() {
       average_approval_time_hours?: number
       average_staff_response_time_hours?: number
       pending_over_24h: number
-    }>(`/v1/swaps/${facilityId}/summary`)
+    }>(`/v1/swaps/facility/${facilityId}/summary`)
   }
 
   async getFacilitySwapSummary(facilityId: string) {
-    return this.request<any>(`/v1/swaps/facility/${facilityId}/summary`)
+    return this.request<any>(`/v1/swaps/facility/${facilityId}/summary/`)
   }
 
   async createSwapRequest(swapData: any, notificationOptions?: {
@@ -1903,18 +1903,31 @@ async getGlobalSwapStatistics() {
   }
   // ==================== NOTIFICATIONS ====================
 
+  /**
+   * Fetch current‑user notifications.
+   *
+   * The backend now recognises several aliases, so we always send *all*
+   * three booleans using the camelCase naming the React hooks expect.
+   */
   async getMyNotifications(options: {
     limit?: number
     offset?: number
-    unread_only?: boolean
+    unreadOnly?: boolean            // camelCase for frontend convenience
+    inAppOnly?: boolean
+    deliveredOnly?: boolean
   } = {}) {
     const params = new URLSearchParams()
-    if (options.limit) params.append('limit', options.limit.toString())
-    if (options.offset) params.append('offset', options.offset.toString())
-    if (options.unread_only) params.append('unread_only', options.unread_only.toString())
 
-    const queryString = params.toString()
-    return this.request<any[]>(`/v1/notifications/${queryString ? `?${queryString}` : ''}`)
+    if (options.limit !== undefined)       params.append('limit', options.limit.toString())
+    if (options.offset !== undefined)      params.append('offset', options.offset.toString())
+    if (options.unreadOnly)                params.append('unreadOnly', 'true')
+    if (options.inAppOnly)                 params.append('inAppOnly', 'true')
+    if (options.deliveredOnly)             params.append('deliveredOnly', 'true')
+
+    const query = params.toString()
+    const endpoint = `/v1/notifications${query ? `?${query}` : ''}`  // ⚠ no trailing slash
+
+    return this.request<any[]>(endpoint)
   }
 
   async markNotificationRead(notificationId: string) {
@@ -1983,13 +1996,13 @@ async getGlobalSwapStatistics() {
 
 // Create API client instance
 export const apiClient = new ApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
 })
 
 // Helper to create authenticated API client
 export function createAuthenticatedApiClient(accessToken: string) {
   return new ApiClient({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },

@@ -1,6 +1,7 @@
 import uvicorn
 from .core.config import get_settings
 from .api.api_v1 import api_router
+import app.logging_config # Ensure logging is configured
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded

@@ -1,4 +1,5 @@
 import json
+import asyncio
 from faker import Faker
 from sqlmodel import SQLModel, Session, select, create_engine, delete
 from app.models import (
@@ -6,12 +7,18 @@ from app.models import (
     ScheduleConfig, StaffUnavailability, SwapRequest, SwapHistory,
     ZoneAssignment, ScheduleTemplate, ScheduleOptimization,
     # NEW: Facility management models
-    FacilityShift, FacilityRole, FacilityZone, ShiftRoleRequirement
+    FacilityShift, FacilityRole, FacilityZone, ShiftRoleRequirement,
+    # NEW: Notification system models
+    Notification, NotificationTemplate, NotificationPreference,
+    NotificationType, NotificationPriority, SwapStatus
 )
 from app.core.security import hash_password
 from app.core.config import get_settings
-from random import choice, randint, shuffle
-from datetime import date, timedelta
+from app.services.notification_service import NotificationService
+from random import choice, randint, shuffle  # randint still used elsewhere
+from datetime import date, timedelta, datetime
+from typing import List, Dict, Any
+import uuid
 
 fake = Faker()
 settings = get_settings()
@@ -32,6 +39,11 @@ def reset_database(session):
     session.execute(delete(ShiftAssignment))
     session.execute(delete(Schedule))
     
+    # NEW: Delete notification system tables
+    session.execute(delete(Notification))
+    session.execute(delete(NotificationPreference))
+    session.execute(delete(NotificationTemplate))
+    
     # NEW: Delete facility management tables
     session.execute(delete(ShiftRoleRequirement))
     session.execute(delete(FacilityShift))
@@ -45,6 +57,228 @@ def reset_database(session):
     
     session.commit()
     print("✅ Database reset complete!")
+
+def create_notification_templates(session, tenant_id):
+    """Create notification templates for the enhanced workflow"""
+    print("📧 Creating notification templates...")
+    
+    templates = [
+        {
+            "template_name": "schedule_published",
+            "notification_type": NotificationType.SCHEDULE_PUBLISHED,
+            "title_template": "📅 New Schedule Published",
+            "message_template": "Hi $staff_name! Your schedule for the week of $week_start is now available at $facility_name.",
+            "whatsapp_template": "*Schedule Alert* 📅\n\nHi $staff_name! Your schedule for the week of $week_start is ready.\n\n📍 $facility_name\n\nView schedule: $action_url",
+            "default_channels": ["IN_APP", "PUSH", "WHATSAPP"],
+            "priority": NotificationPriority.HIGH
+        },
+        {
+            "template_name": "swap_request_created",
+            "notification_type": NotificationType.SWAP_REQUEST,
+            "title_template": "🔄 Shift Swap Request",
+            "message_template": "$requester_name wants to swap their $original_day $original_shift shift with you. Reason: $reason",
+            "whatsapp_template": "*Swap Request* 🔄\n\n$requester_name would like to swap shifts with you:\n\n📅 $original_day\n⏰ $original_shift\n📝 Reason: $reason\n\nRespond here: $action_url",
+            "default_channels": ["IN_APP", "PUSH", "WHATSAPP"],
+            "priority": NotificationPriority.HIGH
+        },
+        {
+            "template_name": "swap_approved",
+            "notification_type": NotificationType.SWAP_APPROVED,
+            "title_template": "✅ Swap Request Approved",
+            "message_template": "Great news! Your swap request for $original_day $original_shift has been approved by $approver_name.",
+            "whatsapp_template": "✅ *Swap Approved!*\n\nYour shift swap has been approved:\n\n📅 $original_day\n⏰ $original_shift\n👤 Approved by: $approver_name\n\nView updated schedule: $action_url",
+            "default_channels": ["IN_APP", "PUSH"],
+            "priority": NotificationPriority.HIGH
+        },
+        {
+            "template_name": "emergency_coverage",
+            "notification_type": NotificationType.EMERGENCY_COVERAGE,
+            "title_template": "🚨 Urgent Coverage Needed",
+            "message_template": "$requester_name at $facility_name needs urgent coverage for $original_day $original_shift. Can you help?",
+            "whatsapp_template": "*🚨 URGENT COVERAGE NEEDED*\n\n$requester_name needs immediate help:\n\n📍 $facility_name\n📅 $original_day\n⏰ $original_shift\n📝 $reason\n\nCan you cover? Respond: $action_url",
+            "default_channels": ["IN_APP", "PUSH", "WHATSAPP"],
+            "priority": NotificationPriority.URGENT
+        },
+        {
+            "template_name": "schedule_change",
+            "notification_type": NotificationType.SCHEDULE_CHANGE,
+            "title_template": "📋 Schedule Update",
+            "message_template": "Your schedule at $facility_name has been updated. Please review the changes for the week of $week_start.",
+            "whatsapp_template": "*Schedule Update* 📋\n\nYour schedule has been updated:\n\n📍 $facility_name\n📅 Week of $week_start\n\nView changes: $action_url",
+            "default_channels": ["IN_APP", "PUSH"],
+            "priority": NotificationPriority.MEDIUM
+        },
+        {
+            "template_name": "swap_response_needed",
+            "notification_type": NotificationType.SWAP_REQUEST,
+            "title_template": "⏰ Swap Response Needed",
+            "message_template": "Please respond to $requester_name's swap request for $original_day $original_shift. Request expires in $hours_until_expiry hours.",
+            "whatsapp_template": "*Response Needed* ⏰\n\nPlease respond to swap request from $requester_name:\n\n📅 $original_day\n⏰ $original_shift\n⌛ Expires in $hours_until_expiry hours\n\nRespond now: $action_url",
+            "default_channels": ["IN_APP", "PUSH", "WHATSAPP"],
+            "priority": NotificationPriority.HIGH
+        },
+        {
+            "template_name": "auto_assignment_available",
+            "notification_type": NotificationType.EMERGENCY_COVERAGE,
+            "title_template": "💼 Pick-up Shift Available",
+            "message_template": "A $original_shift shift is available for pick-up at $facility_name on $original_day. Interested?",
+            "whatsapp_template": "*Shift Available* 💼\n\nExtra shift opportunity:\n\n📍 $facility_name\n📅 $original_day\n⏰ $original_shift\n💰 Rate: $hourly_rate/hour\n\nClaim it: $action_url",
+            "default_channels": ["IN_APP", "PUSH", "WHATSAPP"],
+            "priority": NotificationPriority.MEDIUM
+        }
+    ]
+    
+    created_templates = []
+    for template_data in templates:
+        template = NotificationTemplate(
+            **template_data,
+            tenant_id=tenant_id
+        )
+        created_templates.append(template)
+        session.add(template)
+    
+    session.commit()
+    print(f"✅ Created {len(created_templates)} notification templates")
+    return created_templates
+
+def create_notification_preferences(session, users):
+    """Create notification preferences for users"""
+    print("🔧 Creating user notification preferences...")
+    
+    preferences_created = 0
+    for user in users:
+        # Create preferences for each notification type
+        for notification_type in NotificationType:
+            # Different preferences based on user type
+            if user.is_manager:
+                # Managers get all notifications across all channels
+                preference = NotificationPreference(
+                    user_id=user.id,
+                    notification_type=notification_type,
+                    in_app_enabled=True,
+                    push_enabled=True,
+                    whatsapp_enabled=True,
+                    email_enabled=True,
+                    quiet_hours_start="22:00",
+                    quiet_hours_end="07:00",
+                    timezone="America/New_York"
+                )
+            else:
+                # Staff get targeted preferences
+                if notification_type in [NotificationType.SCHEDULE_PUBLISHED, NotificationType.SCHEDULE_CHANGE]:
+                    # High priority for schedule notifications
+                    preference = NotificationPreference(
+                        user_id=user.id,
+                        notification_type=notification_type,
+                        in_app_enabled=True,
+                        push_enabled=True,
+                        whatsapp_enabled=choice([True, False]),  # Some prefer WhatsApp, some don't
+                        email_enabled=False,
+                        quiet_hours_start="23:00",
+                        quiet_hours_end="08:00",
+                        timezone="America/New_York"
+                    )
+                elif notification_type in [NotificationType.SWAP_REQUEST, NotificationType.EMERGENCY_COVERAGE]:
+                    # Medium priority for swap notifications
+                    preference = NotificationPreference(
+                        user_id=user.id,
+                        notification_type=notification_type,
+                        in_app_enabled=True,
+                        push_enabled=choice([True, False]),  # Some prefer push, some don't
+                        whatsapp_enabled=choice([True, False]),
+                        email_enabled=False,
+                        quiet_hours_start="23:00",
+                        quiet_hours_end="08:00",
+                        timezone="America/New_York"
+                    )
+                else:
+                    # Default preferences for other types
+                    preference = NotificationPreference(
+                        user_id=user.id,
+                        notification_type=notification_type,
+                        in_app_enabled=True,
+                        push_enabled=False,
+                        whatsapp_enabled=False,
+                        email_enabled=False,
+                        timezone="America/New_York"
+                    )
+            
+            session.add(preference)
+            preferences_created += 1
+    
+    session.commit()
+    print(f"✅ Created {preferences_created} notification preferences")
+
+async def create_sample_notifications(session, users, facilities):
+    """Create sample notifications to demonstrate the system"""
+    print("📧 Creating sample notifications...")
+    
+    # Create notifications directly without using the notification service 
+    # to avoid session issues during seeding
+    created_notifications = []
+    
+    # Sample notification data
+    sample_notifications = [
+        {
+            "type": NotificationType.SCHEDULE_PUBLISHED,
+            "title": "📅 New Schedule Published",
+            "message": "Your schedule for the week of January 27, 2025 is now available at Seaside Hotel.",
+            "channels": ["IN_APP", "PUSH"],
+            "priority": NotificationPriority.HIGH
+        },
+        {
+            "type": NotificationType.SWAP_REQUEST,
+            "title": "🔄 Shift Swap Request", 
+            "message": "Sarah Wilson wants to swap their Friday Evening Shift with you. Reason: Family emergency",
+            "channels": ["IN_APP", "PUSH", "WHATSAPP"],
+            "priority": NotificationPriority.HIGH
+        },
+        {
+            "type": NotificationType.EMERGENCY_COVERAGE,
+            "title": "🚨 Urgent Coverage Needed",
+            "message": "Mike Johnson at Downtown Bistro needs urgent coverage for Saturday Dinner Service. Can you help?",
+            "channels": ["IN_APP", "PUSH", "WHATSAPP"],
+            "priority": NotificationPriority.URGENT
+        }
+    ]
+    
+    # Demo recipients: all managers plus first 10 users
+    notification_users = [u for u in users if u.is_manager][:5] + users[:10]
+    
+    for user in notification_users:
+        # Each user gets 1-3 notifications
+        user_notifications = sample_notifications[:randint(1, 3)]
+        
+        for notification_data in user_notifications:
+            try:
+                # Create notification directly in the database
+                notification = Notification(
+                    recipient_user_id=user.id,
+                    tenant_id=user.tenant_id,
+                    notification_type=notification_data["type"],
+                    title=notification_data["title"],
+                    message=notification_data["message"],
+                    channels=notification_data["channels"],
+                    priority=notification_data["priority"],
+                    delivery_status={
+                        channel: {
+                            "status": "delivered",
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                        for channel in notification_data["channels"]
+                    },
+                    is_delivered=True,
+                    delivered_at=datetime.utcnow(),
+                    is_read=False  # force unread so it shows in the bell
+                )
+                session.add(notification)
+                created_notifications.append(notification)
+            except Exception as e:
+                print(f"⚠️  Failed to create notification for {user.email}: {e}")
+    
+    session.commit()
+    print(f"✅ Created {len(created_notifications)} sample notifications")
+    return created_notifications
 
 def get_facility_templates():
     """Define facility templates with shifts, roles, and zones"""
@@ -449,6 +683,159 @@ def create_enhanced_schedules(session, facilities, staff_objs, base_date):
     
     session.commit()
 
+def create_enhanced_swap_requests(session, facilities, staff_objs, base_date):
+    """Create enhanced swap requests with new workflow features"""
+    print("🔄 Creating enhanced swap requests with workflow statuses...")
+    
+    recent_schedules = session.exec(
+        select(Schedule).where(Schedule.week_start >= base_date)
+    ).all()
+    
+    enhanced_swap_reasons = [
+        "Family emergency - need someone to cover",
+        "Doctor appointment that I can't reschedule", 
+        "Personal matter - willing to trade shifts",
+        "Childcare conflict, need coverage",
+        "Previously scheduled vacation",
+        "Medical appointment",
+        "Family commitment that came up",
+        "School event for my child",
+        "Transportation issues on this day",
+        "Requested time off for personal reasons",
+        "Sick family member needs care",
+        "Wedding to attend",
+        "Court appearance",
+        "Graduation ceremony"
+    ]
+    
+    urgency_levels = ["low", "normal", "high", "emergency"]
+    
+    # Enhanced swap statuses with new workflow states (using correct enum values)
+    swap_statuses = [
+        SwapStatus.PENDING,
+        SwapStatus.MANAGER_APPROVED,
+        SwapStatus.STAFF_ACCEPTED,
+        SwapStatus.STAFF_DECLINED,
+        SwapStatus.POTENTIAL_ASSIGNMENT,  # Fixed: was ASSIGNED which doesn't exist
+        SwapStatus.ASSIGNMENT_FAILED,
+        SwapStatus.EXECUTED,
+        SwapStatus.DECLINED,
+        SwapStatus.ASSIGNMENT_DECLINED,
+        SwapStatus.MANAGER_FINAL_APPROVAL,  # Fixed: was MANAGER_FINAL_APPROVAL_NEEDED
+        SwapStatus.CANCELLED
+    ]
+    
+    created_swaps = 0
+    for schedule in recent_schedules[:3]:  # Create swaps for first 3 schedules
+        assignments = session.exec(
+            select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule.id)
+        ).all()
+        
+        if len(assignments) < 2:
+            continue
+            
+        # Create 5-8 swap requests per schedule to show workflow variety
+        for _ in range(randint(5, 8)):
+            requesting_assignment = choice(assignments)
+            
+            # Determine swap type (60% specific, 40% auto)
+            swap_type = "specific" if randint(1, 10) <= 6 else "auto"
+            
+            # Base swap request data
+            swap_data = {
+                "schedule_id": schedule.id,
+                "requesting_staff_id": requesting_assignment.staff_id,
+                "original_day": requesting_assignment.day,
+                "original_shift": requesting_assignment.shift,
+                "swap_type": swap_type,
+                "reason": choice(enhanced_swap_reasons),
+                "urgency": choice(urgency_levels),
+                "expires_at": datetime.utcnow() + timedelta(days=randint(1, 7)),
+                "requires_manager_final_approval": choice([True, False]),
+                "role_verification_required": choice([True, False])
+            }
+            
+            if swap_type == "specific":
+                # Specific swap with target staff
+                target_assignment = choice([a for a in assignments if a.id != requesting_assignment.id])
+                swap_data.update({
+                    "target_staff_id": target_assignment.staff_id,
+                    "target_day": target_assignment.day,
+                    "target_shift": target_assignment.shift,
+                })
+            
+            # Set realistic status based on workflow progression
+            status = choice(swap_statuses)
+            swap_data["status"] = status
+            
+            # Set workflow-specific fields based on status
+            if status == SwapStatus.MANAGER_APPROVED:
+                swap_data["manager_approved"] = True
+                swap_data["manager_approved_at"] = datetime.utcnow() - timedelta(hours=randint(1, 24))
+            elif status == SwapStatus.STAFF_ACCEPTED:
+                swap_data["target_staff_accepted"] = True
+                swap_data["staff_response_at"] = datetime.utcnow() - timedelta(hours=randint(1, 48))
+            elif status == SwapStatus.STAFF_DECLINED:
+                swap_data["target_staff_accepted"] = False
+                swap_data["staff_response_at"] = datetime.utcnow() - timedelta(hours=randint(1, 48))
+            elif status == SwapStatus.POTENTIAL_ASSIGNMENT and swap_type == "auto":
+                # For auto swaps, assign someone
+                facility_staff = [s for s in staff_objs if s.facility_id == schedule.facility_id and s.id != requesting_assignment.staff_id]
+                if facility_staff:
+                    swap_data["assigned_staff_id"] = choice(facility_staff).id
+                    swap_data["assignment_method"] = choice(["auto", "manual"])
+            elif status == SwapStatus.POTENTIAL_ASSIGNMENT:
+                # Potential assignment awaiting staff response
+                facility_staff = [s for s in staff_objs if s.facility_id == schedule.facility_id and s.id != requesting_assignment.staff_id]
+                if facility_staff:
+                    swap_data["assigned_staff_id"] = choice(facility_staff).id
+                    swap_data["assignment_method"] = "auto"
+            
+            # Create the swap request
+            swap_request = SwapRequest(**swap_data)
+            session.add(swap_request)
+            session.flush()
+            
+            # Create history entry
+            history = SwapHistory(
+                swap_request_id=swap_request.id,
+                action="requested",
+                actor_staff_id=requesting_assignment.staff_id,
+                notes=f"{'Specific' if swap_type == 'specific' else 'Auto-assignment'} requested: {swap_data['reason']}",
+                system_action=False
+            )
+            session.add(history)
+            
+            # Add additional history entries for progressed statuses
+            if status != SwapStatus.PENDING:
+                if status in [SwapStatus.MANAGER_APPROVED, SwapStatus.STAFF_ACCEPTED, SwapStatus.EXECUTED, SwapStatus.MANAGER_FINAL_APPROVAL]:
+                    # Manager approval history
+                    manager_history = SwapHistory(
+                        swap_request_id=swap_request.id,
+                        action="manager_approved",
+                        actor_staff_id=requesting_assignment.staff_id,  # For demo purposes
+                        notes="Manager approved the swap request",
+                        timestamp=datetime.utcnow() - timedelta(hours=randint(1, 12))
+                    )
+                    session.add(manager_history)
+                
+                if status in [SwapStatus.STAFF_ACCEPTED, SwapStatus.EXECUTED]:
+                    # Staff acceptance history
+                    staff_history = SwapHistory(
+                        swap_request_id=swap_request.id,
+                        action="staff_accepted",
+                        actor_staff_id=swap_data.get("target_staff_id", swap_data.get("assigned_staff_id")),
+                        notes="Staff member accepted the swap",
+                        timestamp=datetime.utcnow() - timedelta(hours=randint(1, 6))
+                    )
+                    session.add(staff_history)
+            
+            created_swaps += 1
+    
+    session.commit()
+    print(f"✅ Created {created_swaps} enhanced swap requests with workflow progression")
+    return created_swaps
+
 def save_accounts_to_json(all_accounts, staff_accounts):
     """Save account information to JSON files for reference"""
     
@@ -502,7 +889,8 @@ def save_accounts_to_json(all_accounts, staff_accounts):
     print(f"✅ Saved account data to demo_accounts.json and staff_accounts.json")
     return account_data
 
-def seed():
+async def seed():
+    """Main seeding function with async support for notifications"""
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         # Reset database first
@@ -515,6 +903,9 @@ def seed():
         session.refresh(tenant)
         print(f"✅ Created tenant: {tenant.name}")
 
+        # 📧 CREATE NOTIFICATION TEMPLATES FIRST
+        notification_templates = create_notification_templates(session, tenant.id)
+        
         # Create facilities with enhanced types
         facilities_data = [
             {"name": "Seaside Hotel", "location": "123 Ocean Drive, Miami Beach", "type": "hotel"},
@@ -563,6 +954,15 @@ def seed():
             facilities, tenant.id, session
         )
         
+        # Get all users for notification setup
+        all_users = session.exec(select(User).where(User.tenant_id == tenant.id)).all()
+        
+        # 🔧 CREATE NOTIFICATION PREFERENCES
+        create_notification_preferences(session, all_users)
+        
+        # 📧 CREATE SAMPLE NOTIFICATIONS
+        sample_notifications = await create_sample_notifications(session, all_users[:15], facilities[:3])
+        
         # 📄 SAVE ACCOUNTS TO JSON
         account_data = save_accounts_to_json(all_accounts, staff_accounts)
         
@@ -570,96 +970,8 @@ def seed():
         base_date = date.today()
         create_enhanced_schedules(session, facilities, staff_objs, base_date)
         
-        # 🔄 CREATE SAMPLE SWAP REQUESTS
-        print("🔄 Creating sample swap requests...")
-        
-        recent_schedules = session.exec(
-            select(Schedule).where(Schedule.week_start >= base_date)
-        ).all()
-        
-        swap_reasons = [
-            "Family emergency - need someone to cover",
-            "Doctor appointment that I can't reschedule", 
-            "Personal matter - willing to trade shifts",
-            "Childcare conflict, need coverage",
-            "Previously scheduled vacation",
-            "Medical appointment",
-            "Family commitment that came up",
-            "School event for my child",
-            "Transportation issues on this day",
-            "Requested time off for personal reasons"
-        ]
-        
-        urgency_levels = ["low", "normal", "high", "emergency"]
-        swap_statuses = [
-            "pending", 
-            "manager_approved", 
-            "staff_accepted", 
-            "staff_declined", 
-            "assigned", 
-            "assignment_failed", 
-            "executed", 
-            "declined"
-        ]
-        
-        created_swaps = 0
-        for schedule in recent_schedules[:3]:  # Create swaps for first 3 schedules
-            assignments = session.exec(
-                select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule.id)
-            ).all()
-            
-            if len(assignments) < 2:
-                continue
-                
-            # Create 3-5 swap requests per schedule
-            for _ in range(randint(3, 5)):
-                requesting_assignment = choice(assignments)
-                
-                # 60% chance of specific swap, 40% chance of auto swap
-                if randint(1, 10) <= 6:
-                    # Specific swap
-                    target_assignment = choice([a for a in assignments if a.id != requesting_assignment.id])
-                    
-                    swap_request = SwapRequest(
-                        schedule_id=schedule.id,
-                        requesting_staff_id=requesting_assignment.staff_id,
-                        original_day=requesting_assignment.day,
-                        original_shift=requesting_assignment.shift,
-                        swap_type="specific",
-                        target_staff_id=target_assignment.staff_id,
-                        target_day=target_assignment.day,
-                        target_shift=target_assignment.shift,
-                        reason=choice(swap_reasons),
-                        urgency=choice(urgency_levels),
-                        status=choice(swap_statuses),
-                        target_staff_accepted=choice([True, False, None]),
-                        manager_approved=choice([True, False, None])
-                    )
-                else:
-                    # Auto swap
-                    swap_request = SwapRequest(
-                        schedule_id=schedule.id,
-                        requesting_staff_id=requesting_assignment.staff_id,
-                        original_day=requesting_assignment.day,
-                        original_shift=requesting_assignment.shift,
-                        swap_type="auto",
-                        reason=choice(swap_reasons),
-                        urgency=choice(urgency_levels),
-                        status=choice(swap_statuses),
-                        manager_approved=choice([True, False, None])
-                    )
-                    
-                    # If approved, maybe assign someone
-                    if swap_request.status in ["manager_approved", "executed"] and randint(1, 10) <= 7:
-                        facility_staff = [s for s in staff_objs if s.facility_id == schedule.facility_id and s.id != requesting_assignment.staff_id]
-                        if facility_staff:
-                            swap_request.assigned_staff_id = choice(facility_staff).id
-                
-                session.add(swap_request)
-                created_swaps += 1
-        
-        session.commit()
-        print(f"✅ Created {created_swaps} sample swap requests")
+        # 🔄 CREATE ENHANCED SWAP REQUESTS WITH NEW WORKFLOW
+        created_swaps = create_enhanced_swap_requests(session, facilities, staff_objs, base_date)
         
         # 🔧 CREATE SAMPLE SCHEDULE CONFIGURATIONS
         print("🔧 Creating sample schedule configurations...")
@@ -773,10 +1085,16 @@ def seed():
         print(f"🔄 Shifts: {len(all_shifts)}")
         print(f"👔 Roles: {len(all_roles)}")
         print(f"🏢 Zones: {len(all_zones)}")
-        print(f"📅 Schedules: {len(recent_schedules)}")
+        print(f"📅 Schedules: {len([s for s in session.exec(select(Schedule)).all()])}")
         print(f"🔄 Swap Requests: {created_swaps}")
         print(f"⚙️  Schedule Configs: {created_configs}")
         print(f"❌ Unavailabilities: {len(unavailabilities)}")
+        
+        # NEW: Notification system summary
+        print(f"\n📧 NOTIFICATION SYSTEM:")
+        print(f"📄 Templates: {len(notification_templates)}")
+        print(f"🔧 Preferences: {len([p for p in session.exec(select(NotificationPreference)).all()])}")
+        print(f"📨 Sample Notifications: {len(sample_notifications)}")
         
         print(f"\n📁 Files Generated:")
         print(f"   • demo_accounts.json - Complete account list")
@@ -803,6 +1121,11 @@ def seed():
         print(f"   ✅ Realistic role-based staff assignments")
         print(f"   ✅ Template-based facility setup")
         print(f"   ✅ Staff unavailability tracking")
+        print(f"   ✅ Comprehensive notification system")
+        print(f"   ✅ Enhanced swap workflow with status tracking")
+        print(f"   ✅ Notification templates and preferences")
+        print(f"   ✅ Workflow history tracking")
+        print(f"   ✅ Role verification and compatibility")
         
         print(f"\n📋 TESTING NOTES:")
         print(f"   • All staff emails match User accounts!")
@@ -810,8 +1133,15 @@ def seed():
         print(f"   • Manager password: manager123") 
         print(f"   • Each facility has custom shifts, roles, and zones")
         print(f"   • Schedules use facility-specific shift definitions")
+        print(f"   • Notifications can be tested via API endpoints")
+        print(f"   • Swap requests include enhanced workflow states")
         print(f"   • Check facility management endpoints for full features")
+        print(f"   • Use /notifications/test endpoints to verify delivery")
         print("="*80)
 
+def main():
+    """Entry point that handles async execution"""
+    asyncio.run(seed())
+
 if __name__ == "__main__":
-    seed()
+    main()

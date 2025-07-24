@@ -563,22 +563,17 @@ def get_swap_workflow_status(swap_request: SwapRequest) -> Dict[str, Any]:
             'next_action_by': 'manager'
         })
     
-    elif swap_request.status == SwapStatus.MANAGER_APPROVED:
-        if swap_request.swap_type == "auto":
-            status_info.update({
-                'next_action_required': 'System finding suitable staff',
-                'next_action_by': 'system'
-            })
-        else:  # specific swap
-            status_info.update({
-                'next_action_required': 'Target staff response',
-                'next_action_by': 'staff'
-            })
-    
     elif swap_request.status == SwapStatus.POTENTIAL_ASSIGNMENT:
         status_info.update({
             'next_action_required': 'Assigned staff approval',
             'next_action_by': 'staff'
+        })
+
+    elif swap_request.status == SwapStatus.MANAGER_FINAL_APPROVAL:
+        status_info.update({
+            'next_action_required': 'Ready for execution',
+            'next_action_by': 'system',
+            'can_execute': True
         })
     
     elif swap_request.status == SwapStatus.STAFF_ACCEPTED:

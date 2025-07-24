@@ -2,6 +2,8 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlmodel import Session, select, func, desc
+from sqlalchemy import cast
+from sqlalchemy.dialects.postgresql import JSONB
 from typing import List, Optional
 from datetime import datetime
 import uuid
@@ -22,16 +24,34 @@ def get_my_notifications(
     current_user: User = Depends(get_current_user),
     limit: int = Query(50, le=100),
     offset: int = Query(0),
-    unread_only: bool = Query(False)
+    unread_only:      bool = Query(False, alias="unread"),          # snake
+    unread_camel:     bool = Query(False, alias="unreadOnly"),      # camel
+    in_app_only:      bool = Query(False, alias="in_app"),
+    in_app_camel:     bool = Query(False, alias="inAppOnly"),
+    delivered_only:   bool = Query(False, alias="delivered"),
+    delivered_camel:  bool = Query(False, alias="deliveredOnly"),
 ):
+    # merge aliases
+    unread     = unread_only or unread_camel
+    in_app     = in_app_only or in_app_camel
+    delivered  = delivered_only or delivered_camel
     """Get current user's notifications"""
     
     query = select(Notification).where(
         Notification.recipient_user_id == current_user.id
     )
-    
-    if unread_only:
-        query = query.where(Notification.is_read == False)
+
+    if unread:
+        query = query.where(Notification.is_read.is_(False))
+
+    if delivered:
+        query = query.where(Notification.is_delivered.is_(True)) # type: ignore
+
+    if in_app:
+        # channels is stored as JSONB/JSON; use the Postgres @> containment operator
+        query = query.where(
+            cast(Notification.channels, JSONB).contains(['IN_APP'])
+        )
     
     query = query.order_by(desc(Notification.created_at)).offset(offset).limit(limit)
     

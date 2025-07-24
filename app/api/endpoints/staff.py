@@ -5,7 +5,14 @@ from datetime import datetime, timedelta, date
 from uuid import UUID
 
 from ...deps import get_db, get_current_user
-from ...models import Staff, Facility, Schedule, ShiftAssignment, SwapRequest
+from ...models import (
+    Staff,
+    Facility,
+    Schedule,
+    ShiftAssignment,
+    SwapRequest,
+    SwapStatus,        # NEW: workflow enum
+)
 from ...schemas import StaffCreate, StaffDuplicateCheck, StaffRead, StaffUpdate
 
 router = APIRouter(prefix="/staff", tags=["staff"])
@@ -314,7 +321,7 @@ def get_my_dashboard_stats(
         select(SwapRequest).where(
             SwapRequest.assigned_staff_id == staff.id,
             SwapRequest.created_at >= recent_date,
-            SwapRequest.status.in_(["executed", "assigned"])
+            SwapRequest.status.in_([SwapStatus.EXECUTED, SwapStatus.STAFF_ACCEPTED])
         )
     ).all()
     
@@ -436,7 +443,7 @@ def get_my_swap_requests(
             "requesting_staff": requesting_staff.dict() if requesting_staff else None,
             "target_staff": target_staff.dict() if target_staff else None,
             "assigned_staff": assigned_staff.dict() if assigned_staff else None,
-            "can_respond": user_role in ["target", "assigned"] and swap.status == "manager_approved"
+            "can_respond": user_role in ["target", "assigned"] and swap.status == SwapStatus.POTENTIAL_ASSIGNMENT
         })
     
     return result

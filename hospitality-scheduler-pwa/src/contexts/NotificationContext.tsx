@@ -36,25 +36,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(false)
   const apiClient = useApiClient()
 
-  // Auto-refresh notifications every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refreshNotifications()
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  // Initial load
-  useEffect(() => {
-    refreshNotifications()
-  }, [])
-
   const refreshNotifications = useCallback(async () => {
     try {
       setLoading(true)
-      const newNotifications = await apiClient.getMyNotifications()
-      
+      const newNotifications = await apiClient.getMyNotifications({
+        unreadOnly: true,
+        inAppOnly: true,
+        deliveredOnly: true,
+      })
+
       // Check for new unread notifications to show toast
       const previousUnreadIds = new Set(
         notifications.filter(n => !n.is_read).map(n => n.id)
@@ -90,6 +80,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setLoading(false)
     }
   }, [notifications, apiClient])
+
+  // Auto‑refresh notifications every 30 s.
+  // By depending on `refreshNotifications`, the interval always calls
+  // the current callback (with a valid JWT), eliminating 401 spam.
+  useEffect(() => {
+    const id = setInterval(() => {
+      refreshNotifications()
+    }, 30_000)
+
+    return () => clearInterval(id)
+  }, [refreshNotifications])
+
+  // Initial load (runs again if the authorised callback changes)
+  useEffect(() => {
+    refreshNotifications()
+  }, [refreshNotifications])
 
   const markAsRead = useCallback(async (id: string) => {
     try {
