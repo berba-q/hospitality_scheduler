@@ -10,7 +10,7 @@ import string
 import asyncio
 
 from ..models import (
-    Notification, NotificationTemplate, NotificationPreference,
+    Facility, Notification, NotificationTemplate, NotificationPreference, Schedule, SwapRequest,
     User, Staff, NotificationType, NotificationPriority
 )
 from ..core.config import get_settings
@@ -123,7 +123,8 @@ class NotificationService:
             NotificationType.SWAP_DENIED: "Your swap request has been declined",
             NotificationType.EMERGENCY_COVERAGE: "Urgent coverage needed",
             NotificationType.SHIFT_REMINDER: "Shift reminder",
-            NotificationType.SCHEDULE_CHANGE: "Schedule has been updated"
+            NotificationType.SCHEDULE_CHANGE: "Schedule has been updated",
+            NotificationType.SWAP_ASSIGNMENT: "You have been assigned to cover a shift"  # ✅ NEW
         }
         
         title = f"{notification_type.value.replace('_', ' ').title()}"
@@ -316,6 +317,68 @@ class NotificationService:
             print(f" WhatsApp error: {e}")
             return False
     
+    # ✅ FIXED: Auto-assignment notification method
+    async def send_auto_assignment_notification(
+        self, 
+        swap_request: SwapRequest, 
+        background_tasks: BackgroundTasks
+    ):
+        """Notify assigned staff about auto-assignment"""
+        
+        if not swap_request.assigned_staff_id:
+            print("⚠️ No assigned staff ID found for auto-assignment notification")
+            return
+        
+        assigned_staff = self.db.get(Staff, swap_request.assigned_staff_id)
+        if not assigned_staff:
+            print(f"⚠️ Assigned staff {swap_request.assigned_staff_id} not found")
+            return
+        
+        assigned_user = self.db.exec(
+            select(User).where(User.email == assigned_staff.email)
+        ).first()
+        
+        if not assigned_user:
+            print(f"⚠️ No user account found for assigned staff {assigned_staff.email}")
+            return
+        
+        requesting_staff = self.db.get(Staff, swap_request.requesting_staff_id)
+        schedule = self.db.get(Schedule, swap_request.schedule_id)
+        facility = self.db.get(Facility, schedule.facility_id) if schedule else None
+        
+        # ✅ FIXED: Use self.send_notification instead of self.notification_service.send_notification
+        await self.send_notification(
+            notification_type=NotificationType.SWAP_ASSIGNMENT,
+            recipient_user_id=assigned_user.id,
+            template_data={
+                "assigned_staff_name": assigned_staff.full_name,
+                "requester_name": requesting_staff.full_name if requesting_staff else "Staff member",
+                "facility_name": facility.name if facility else "Facility",
+                "original_day": self._get_day_name(swap_request.original_day),
+                "original_shift": self._get_shift_name(swap_request.original_shift),
+                "reason": swap_request.reason or "Coverage needed",
+                "urgency": swap_request.urgency
+            },
+            channels=["IN_APP", "PUSH", "WHATSAPP"],
+            priority=NotificationPriority.HIGH if swap_request.urgency == "emergency" else NotificationPriority.MEDIUM,
+            action_url=f"/swaps/{swap_request.id}",
+            action_text="Accept or Decline",
+            background_tasks=background_tasks
+        )
+    
+        print(f"✅ Auto-assignment notification queued for {assigned_staff.full_name}")
+    
+    # ✅ NEW: Helper methods for day and shift names
+    def _get_day_name(self, day: int) -> str:
+        """Convert day number to name"""
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        return days[day] if 0 <= day < 7 else f"Day {day}"
+    
+    def _get_shift_name(self, shift: int) -> str:
+        """Convert shift number to name"""
+        shifts = ["Morning", "Afternoon", "Evening"]
+        return shifts[shift] if 0 <= shift < 3 else f"Shift {shift}"
+    
     async def _send_email_notification(
         self, 
         notification: Notification, 
@@ -411,6 +474,7 @@ class NotificationService:
                 "reason": "Not specified",
                 "urgency": "Normal",
                 "action_url": "#",
+                "assigned_staff_name": "Staff member",  # ✅ NEW for auto-assignments
                 **data  # Override with actual data
             }
             return string.Template(template).safe_substitute(safe_data)

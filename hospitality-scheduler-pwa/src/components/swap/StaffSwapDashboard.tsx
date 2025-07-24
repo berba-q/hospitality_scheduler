@@ -19,7 +19,8 @@ import {
   Zap,
   ThumbsUp,
   History,
-  TrendingUp
+  TrendingUp,
+  Target
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,6 +38,64 @@ import { SwapStatus } from '@/types/swaps'
 interface StaffSwapDashboardProps {
   user: any
   apiClient: any
+}
+
+// ✅ NEW: Helper function to normalize status values
+const normalizeSwapStatus = (status: string): string => {
+  const statusMap: Record<string, string> = {
+    'potential_assignment': 'awaiting_target',
+    'assigned': 'awaiting_target',
+    'manager_approved': 'awaiting_target', // For specific swaps
+  }
+  
+  return statusMap[status] || status
+}
+
+// ✅ NEW: Helper function to determine if user is assigned to a swap
+const isUserAssignedToSwap = (swap: any, userId: string): boolean => {
+  // Check if user is target staff for specific swaps
+  if (swap.swap_type === 'specific' && swap.target_staff_id === userId) {
+    return true
+  }
+  
+  // Check if user is auto-assigned staff
+  if (swap.swap_type === 'auto' && swap.assigned_staff_id === userId) {
+    return true
+  }
+  
+  // Fallback: check user_role from backend
+  if (swap.user_role === 'target' || swap.user_role === 'assigned') {
+    return true
+  }
+  
+  return false
+}
+
+// ✅ NEW: Helper function to determine if user can respond to a swap
+const canUserRespondToSwap = (swap: any, userId: string): boolean => {
+  const normalizedStatus = normalizeSwapStatus(swap.status)
+  
+  // Must be assigned to the swap
+  if (!isUserAssignedToSwap(swap, userId)) {
+    return false
+  }
+  
+  // Must be in a respondable status
+  const respondableStatuses = ['pending', 'awaiting_target', 'manager_approved']
+  if (!respondableStatuses.includes(normalizedStatus)) {
+    return false
+  }
+  
+  // Check if already responded
+  if (swap.swap_type === 'specific' && swap.target_staff_accepted !== null) {
+    return false
+  }
+  
+  if (swap.swap_type === 'auto' && swap.assigned_staff_accepted !== null) {
+    return false
+  }
+  
+  return true
 }
 
 function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
@@ -69,21 +128,20 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedShiftForSwap, setSelectedShiftForSwap] = useState(null)
 
-  // ------------------------------------------------------------
-  // derived identifiers & assignment list
+  // ✅ UPDATED: Better user ID handling and assignment detection
   const userId = user?.staff_id || user?.id
 
-  const potentialAssignments = swapRequests.filter(
-    swap =>
-      (
-        swap.status === SwapStatus.awaiting_target ||
-        swap.status === 'potential_assignment' || // legacy
-        swap.status === 'assigned'               // legacy auto‑match
-      ) &&
-      (swap.target_staff_id === userId ||
-       swap.assigned_staff_id === userId)
-  )
-  // ------------------------------------------------------------
+  const potentialAssignments = swapRequests.filter(swap => {
+    const normalizedStatus = normalizeSwapStatus(swap.status)
+    
+    // Must be awaiting target response
+    if (normalizedStatus !== 'awaiting_target') {
+      return false
+    }
+    
+    // Must be assigned to this user
+    return isUserAssignedToSwap(swap, userId)
+  })
 
   useEffect(() => {
     loadAllData()
@@ -121,12 +179,23 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
       console.log('Raw swaps response:', swapsData)
       
       const swapArray = Array.isArray(swapsData) ? swapsData : (swapsData?.data || [])
-      setSwapRequests(swapArray)
       
-      // Load other data...
-      console.log('✅ Processed swap requests:', swapArray.length)
-      if (swapArray.length > 0) {
-        console.log('📋 Sample swap structure:', swapArray[0])
+      // ✅ NEW: Process and normalize swap statuses
+      const processedSwaps = swapArray.map(swap => ({
+        ...swap,
+        status: normalizeSwapStatus(swap.status),
+        // ✅ NEW: Add helper flags for easier filtering
+        isAutoAssignment: swap.swap_type === 'auto',
+        isForCurrentUser: isUserAssignedToSwap(swap, userId),
+        canRespond: canUserRespondToSwap(swap, userId)
+      }))
+      
+      setSwapRequests(processedSwaps)
+      
+      console.log('✅ Processed swap requests:', processedSwaps.length)
+      if (processedSwaps.length > 0) {
+        console.log('📋 Sample processed swap:', processedSwaps[0])
+        console.log('🎯 Auto-assignments for user:', processedSwaps.filter(s => s.isAutoAssignment && s.isForCurrentUser).length)
       }
       
       // Load additional staff data if available
@@ -136,14 +205,14 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
         setPersonalStats(prev => ({
           ...prev,
           ...statsData,
-          totalRequests: swapArray.length
+          totalRequests: processedSwaps.length
         }))
       } catch (error) {
         console.warn(' Stats API not available:', error)
         // Set basic stats from swap data
         setPersonalStats(prev => ({
           ...prev,
-          totalRequests: swapArray.length
+          totalRequests: processedSwaps.length
         }))
       }
       
@@ -172,8 +241,6 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
       }
     }
 
-    // ✅ Get the correct user identifier from either field
-    const userId = user?.staff_id || user?.id
     console.log('🆔 Using user ID for filtering:', userId)
 
     // Log sample swap data structure
@@ -181,56 +248,34 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
       console.log('📋 Sample swap data structure:', {
         requesting_staff_id: swapRequests[0]?.requesting_staff_id,
         target_staff_id: swapRequests[0]?.target_staff_id,
+        assigned_staff_id: swapRequests[0]?.assigned_staff_id,
         status: swapRequests[0]?.status,
-        user_role: swapRequests[0]?.user_role // This comes from the backend
+        user_role: swapRequests[0]?.user_role,
+        isAutoAssignment: swapRequests[0]?.isAutoAssignment,
+        isForCurrentUser: swapRequests[0]?.isForCurrentUser,
+        canRespond: swapRequests[0]?.canRespond
       })
     }
 
     const categorized = {
-      // 🔥 FIXED: Use the user_role field provided by the backend API
+      // ✅ UPDATED: Better filtering for user's requests
       myRequests: swapRequests.filter(swap => {
         const isMyRequest = swap.user_role === 'requester' || 
                            swap.requesting_staff_id === userId ||
                            swap.requesting_staff_id === user?.id
-        console.log(`🔍 Checking if swap ${swap.id} is my request:`, {
-          user_role: swap.user_role,
-          requesting_staff_id: swap.requesting_staff_id,
-          userId,
-          result: isMyRequest
-        })
         return isMyRequest
       }),
       
-      // Requests directed at me
+      // ✅ UPDATED: Better filtering for requests directed at user
       forMe: swapRequests.filter(swap => {
-        const isForMe = swap.user_role === 'target' || 
-                       swap.user_role === 'assigned' ||
-                       swap.target_staff_id === userId ||
-                       swap.target_staff_id === user?.id ||
-                       swap.assigned_staff_id === userId ||
-                       swap.assigned_staff_id === user?.id
-        console.log(`🔍 Checking if swap ${swap.id} is for me:`, {
-          user_role: swap.user_role,
-          target_staff_id: swap.target_staff_id,
-          assigned_staff_id: swap.assigned_staff_id,
-          userId,
-          result: isForMe
-        })
-        return isForMe
+        return swap.isForCurrentUser || 
+               swap.user_role === 'target' || 
+               swap.user_role === 'assigned'
       }),
       
-      // Requests that need my action
+      // ✅ UPDATED: Better filtering for action needed
       actionNeeded: swapRequests.filter(swap => {
-        const needsAction = (swap.user_role === 'target' || swap.user_role === 'assigned') &&
-                           ['pending', 'awaiting_target', 'manager_final_approval'].includes(swap.status) &&
-                           swap.can_respond
-        console.log(`🔍 Checking if swap ${swap.id} needs action:`, {
-          user_role: swap.user_role,
-          status: swap.status,
-          can_respond: swap.can_respond,
-          result: needsAction
-        })
-        return needsAction
+        return swap.canRespond && swap.isForCurrentUser
       }),
       
       // Historical requests
@@ -244,10 +289,7 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
         const involvesMe = ['requester', 'target', 'assigned'].includes(swap.user_role) ||
                           swap.requesting_staff_id === userId ||
                           swap.requesting_staff_id === user?.id ||
-                          swap.target_staff_id === userId ||
-                          swap.target_staff_id === user?.id ||
-                          swap.assigned_staff_id === userId ||
-                          swap.assigned_staff_id === user?.id
+                          swap.isForCurrentUser
         return involvesMe
       })
     }
@@ -257,11 +299,12 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
       forMe: categorized.forMe.length,
       actionNeeded: categorized.actionNeeded.length,
       history: categorized.history.length,
-      all: categorized.all.length
+      all: categorized.all.length,
+      autoAssignments: categorized.forMe.filter(s => s.isAutoAssignment).length
     })
 
     return categorized
-  }, [swapRequests, user?.id, user?.staff_id])
+  }, [swapRequests, user?.id, user?.staff_id, userId])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -302,12 +345,11 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
   const handleCreateSwap = async (swapData) => {
     try {
       console.log('🔍 AUTH DEBUG: Current user from useAuth:', user)
-      console.log('🔍 AUTH DEBUG: Session data:', session) // Add session import if needed
+      console.log('🔍 AUTH DEBUG: Session data:', session)
       console.log('🔍 AUTH DEBUG: User ID being used:', user?.id)
       console.log('🔍 AUTH DEBUG: Staff ID being used:', user?.staff_id)
       console.log('Creating swap with data:', swapData)
       
-      // ✅ FIX: Use the single createSwapRequest method that handles both types
       const result = await apiClient.createSwapRequest(swapData)
       
       console.log('✅ Swap created successfully:', result)
@@ -320,7 +362,7 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
     } catch (error) {
       console.error('❌ Failed to create swap:', error)
       toast.error(error.message || 'Failed to create swap request')
-      throw error // Re-throw so dialog can handle it
+      throw error
     }
   }
 
@@ -391,6 +433,12 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
                 <div>
                   <p className="text-green-100 text-sm font-medium">Requests for Me</p>
                   <p className="text-3xl font-bold">{filteredAndCategorizedData.forMe.length}</p>
+                  {/* ✅ NEW: Show auto-assignments count */}
+                  {filteredAndCategorizedData.forMe.filter(s => s.isAutoAssignment).length > 0 && (
+                    <p className="text-green-100 text-xs">
+                      {filteredAndCategorizedData.forMe.filter(s => s.isAutoAssignment).length} auto-assignment(s)
+                    </p>
+                  )}
                 </div>
                 <User className="w-8 h-8 text-green-200" />
               </div>
@@ -476,6 +524,12 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
                               <h3 className="font-medium text-red-800">Action Required</h3>
                               <p className="text-sm text-red-600">
                                 You have {filteredAndCategorizedData.actionNeeded.length} swap request{filteredAndCategorizedData.actionNeeded.length > 1 ? 's' : ''} waiting for your response
+                                {/* ✅ NEW: Show auto-assignment indicator */}
+                                {filteredAndCategorizedData.actionNeeded.filter(s => s.isAutoAssignment).length > 0 && (
+                                  <span className="ml-1">
+                                    ({filteredAndCategorizedData.actionNeeded.filter(s => s.isAutoAssignment).length} auto-assignment{filteredAndCategorizedData.actionNeeded.filter(s => s.isAutoAssignment).length > 1 ? 's' : ''})
+                                  </span>
+                                )}
                               </p>
                             </div>
                             <Button
@@ -521,21 +575,39 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
                       </Card>
                     </div>
 
-                    {/* Coverage Requests awaiting my response */}
+                    {/* ✅ UPDATED: Coverage Requests with better auto-assignment handling */}
                     {potentialAssignments.length > 0 && (
                       <Card className="border-l-4 border-l-purple-500 bg-purple-50">
                         <CardHeader className="flex flex-row items-center justify-between">
-                          <CardTitle>Coverage Requests</CardTitle>
+                          <CardTitle className="flex items-center gap-2">
+                            <Target className="w-5 h-5" />
+                            Coverage Requests
+                            {/* ✅ NEW: Show auto-assignment indicator in title */}
+                            {potentialAssignments.filter(s => s.isAutoAssignment).length > 0 && (
+                              <Badge variant="secondary" className="ml-2">
+                                {potentialAssignments.filter(s => s.isAutoAssignment).length} auto-assigned
+                              </Badge>
+                            )}
+                          </CardTitle>
                           <Badge>{potentialAssignments.length}</Badge>
                         </CardHeader>
                         <CardContent className="space-y-3">
                           {potentialAssignments.map(assignment => (
-                            <PotentialAssignmentCard
-                              key={assignment.id}
-                              swap={assignment}
-                              onRespond={handleSwapResponse}
-                              loading={false}
-                            />
+                            <div key={assignment.id} className="relative">
+                              {/* ✅ NEW: Auto-assignment indicator */}
+                              {assignment.isAutoAssignment && (
+                                <div className="absolute top-2 right-2 z-10">
+                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                    Auto-assigned
+                                  </Badge>
+                                </div>
+                              )}
+                              <PotentialAssignmentCard
+                                swap={assignment}
+                                onRespond={handleSwapResponse}
+                                loading={false}
+                              />
+                            </div>
                           ))}
                         </CardContent>
                       </Card>
@@ -562,6 +634,7 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
                                           swap.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                                           swap.status === 'executed' ? 'bg-green-100 text-green-800' :
                                           swap.status === 'declined' ? 'bg-red-100 text-red-800' :
+                                          swap.status === 'awaiting_target' ? 'bg-purple-100 text-purple-800' :
                                           'bg-gray-100 text-gray-800'
                                         }>
                                           {swap.status}
@@ -569,6 +642,12 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
                                         <Badge variant="outline" className="text-xs">
                                           {swap.user_role}
                                         </Badge>
+                                        {/* ✅ NEW: Auto-assignment indicator */}
+                                        {swap.isAutoAssignment && (
+                                          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                            auto
+                                          </Badge>
+                                        )}
                                         <span className="text-sm text-gray-500">
                                           {new Date(swap.created_at).toLocaleDateString()}
                                         </span>
@@ -779,4 +858,5 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
     </div>
   )
 }
+
 export default StaffSwapDashboard
