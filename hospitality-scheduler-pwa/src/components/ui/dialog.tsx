@@ -1,3 +1,5 @@
+// Enhanced dialog.tsx with size variants
+
 "use client"
 
 import * as React from "react"
@@ -46,13 +48,26 @@ function DialogOverlay({
   )
 }
 
+// Size variants for different dialog types
+const dialogSizes = {
+  sm: "sm:max-w-md",           // 448px - Small forms, confirmations
+  md: "sm:max-w-lg",           // 512px - Default (original size)
+  lg: "sm:max-w-2xl",          // 672px - Medium forms, details
+  xl: "sm:max-w-4xl",          // 896px - Large forms, tables
+  "2xl": "sm:max-w-6xl",       // 1152px - Dashboard views
+  "3xl": "sm:max-w-7xl",       // 1280px - Full management interfaces
+  full: "sm:max-w-[95vw]",     // 95% viewport - Maximum space
+}
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  size = "lg", // Changed default from "md" to "lg" for wider dialogs
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  size?: keyof typeof dialogSizes
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">
@@ -60,7 +75,8 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200",
+          dialogSizes[size], // Use the size variant
           className
         )}
         {...props}
@@ -141,3 +157,6 @@ export {
   DialogTitle,
   DialogTrigger,
 }
+
+// Export the size type for TypeScript
+export type DialogSize = keyof typeof dialogSizes

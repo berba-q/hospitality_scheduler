@@ -78,6 +78,16 @@ interface SwapSummary {
   auto_swaps_needing_assignment: number
   specific_swaps_awaiting_response: number
   recent_completions: number
+  manager_approval_needed?: number
+  potential_assignments?: number
+  staff_responses_needed?: number
+  manager_final_approval_needed?: number
+  role_compatible_assignments?: number
+  role_override_assignments?: number
+  failed_role_verifications?: number
+  average_approval_time_hours?: number
+  average_staff_response_time_hours?: number
+  pending_over_24h?: number
 }
 
 interface SwapManagementDashboardProps {
@@ -197,21 +207,52 @@ export function SwapManagementDashboard({
   // ------------------------------------------------------------------
   // Enhanced summary counts returned by backend (manager-facing)
   // ------------------------------------------------------------------
+  const NEEDS_MANAGER_ACTION = ['pending', 'manager_final_approval']
+  const NEEDS_STAFF_ACTION = ['manager_approved', 'potential_assignment'] 
+  const ACTIONABLE_STATUSES = [...NEEDS_MANAGER_ACTION, ...NEEDS_STAFF_ACTION]
+  const COMPLETED_STATUSES = ['executed', 'declined', 'staff_declined', 'cancelled', 'assignment_failed']
+
   const enhancedSummary = swapSummary   // alias for clarity
   // Filter swaps by different categories
-  const pendingSwaps = swapRequests.filter(swap => swap.status === 'pending')
-  const approvedSwaps = swapRequests.filter(swap => 
-    ['manager_approved', 'staff_accepted', 'assigned'].includes(swap.status)
-  )
-  const inProgressSwaps = swapRequests.filter(swap => 
-    ['staff_accepted', 'assigned'].includes(swap.status)
-  )
-  const completedSwaps = swapRequests.filter(swap => 
-    ['executed'].includes(swap.status)
-  )
-  const allHistorySwaps = swapRequests.filter(swap => 
-    ['executed', 'declined', 'staff_declined', 'cancelled'].includes(swap.status)
-  )
+  // Urgent swaps that need immediate action (any actionable status + emergency urgency)
+const urgentSwaps = swapRequests.filter(swap => 
+  ACTIONABLE_STATUSES.includes(swap.status) && swap.urgency === 'emergency'
+)
+
+// All pending approval items (manager OR staff action needed)
+const pendingSwaps = swapRequests.filter(swap => 
+  ACTIONABLE_STATUSES.includes(swap.status)
+)
+
+// Items specifically needing manager action
+const managerActionNeeded = swapRequests.filter(swap => 
+  NEEDS_MANAGER_ACTION.includes(swap.status)
+)
+
+// Items specifically needing staff action  
+const staffActionNeeded = swapRequests.filter(swap =>
+  NEEDS_STAFF_ACTION.includes(swap.status)
+)
+
+// Approved but not yet executed
+const approvedSwaps = swapRequests.filter(swap => 
+  ['manager_approved', 'staff_accepted', 'potential_assignment'].includes(swap.status)
+)
+
+// In progress (staff accepted, waiting for execution)
+const inProgressSwaps = swapRequests.filter(swap => 
+  ['staff_accepted', 'manager_final_approval'].includes(swap.status)
+)
+
+// Completed (executed successfully)
+const completedSwaps = swapRequests.filter(swap => 
+  swap.status === 'executed'
+)
+
+// All historical items (completed, declined, cancelled)
+const allHistorySwaps = swapRequests.filter(swap => 
+  COMPLETED_STATUSES.includes(swap.status)
+)
 
   // Search and filter logic
   const filterSwaps = (swaps: SwapRequest[]) => {
