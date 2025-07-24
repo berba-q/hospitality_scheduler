@@ -130,6 +130,7 @@ class NotificationType(str, Enum):
     SCHEDULE_CHANGE = "SCHEDULE_CHANGE"
     SHIFT_REMINDER = "SHIFT_REMINDER"
     EMERGENCY_COVERAGE = "EMERGENCY_COVERAGE"
+    SWAP_ASSIGNMENT = "SWAP_ASSIGNMENT"
 
 class NotificationChannel(str, Enum):
     IN_APP = "IN_APP"
