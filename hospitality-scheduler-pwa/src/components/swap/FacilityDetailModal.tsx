@@ -136,7 +136,7 @@ export function FacilityDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent size ="3xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -154,14 +154,7 @@ export function FacilityDetailModal({
                 </div>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            
           </DialogTitle>
         </DialogHeader>
         
