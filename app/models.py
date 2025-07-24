@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Optional, List, Dict, Any
 import uuid
 from sqlmodel import SQLModel, Field, Relationship, Index, Column, JSON
+from sqlalchemy import Column, Enum as SQLEnum
 
 
 class Tenant(SQLModel, table=True):
@@ -275,9 +276,19 @@ class SwapRequest(SQLModel, table=True):
     urgency: str = Field(default="normal", description="low, normal, high, emergency")
     
     # Status tracking
-    status: SwapStatus = Field(
-        default=SwapStatus.PENDING, 
-        description="Current status of the swap request using enum for type safety"
+    status: str = Field(
+        default="pending",  # Use string default instead of enum
+        sa_column=Column(
+            SQLEnum(
+                "pending", "manager_approved", "potential_assignment", 
+                "staff_accepted", "manager_final_approval", "executed",
+                "staff_declined", "assignment_declined", "assignment_failed",
+                "declined", "cancelled",
+                name="swapstatus",
+                create_constraint=True,
+                validate_strings=True
+            )
+        )
     )
     
     # Approval workflow
@@ -342,6 +353,7 @@ class SwapHistory(SQLModel, table=True):
     swap_request_id: uuid.UUID = Field(foreign_key="swaprequest.id")
     action: str = Field(description="requested, accepted, declined, approved, auto_assigned, completed")
     actor_staff_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staff.id")
+    actor_user_id: Optional[uuid.UUID] = Field(default=None, foreign_key="user.id")
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     

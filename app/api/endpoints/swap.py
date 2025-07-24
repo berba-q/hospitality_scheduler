@@ -423,11 +423,12 @@ async def create_specific_swap_request(
     
     # Create history entry
     history = SwapHistory(
-        swap_request_id=swap_request.id,
-        action="requested",
-        actor_staff_id=requesting_staff.id,
-        notes=f"Specific swap requested with {target_staff.full_name}",
-        system_action=False
+    swap_request_id=swap_request.id,
+    action="requested",
+    actor_staff_id=requesting_staff.id,
+    actor_user_id=current_user.id, 
+    notes=f"Specific swap requested with {target_staff.full_name}",
+    system_action=False
     )
     db.add(history)
     db.commit()
@@ -526,12 +527,13 @@ async def create_auto_swap_request(
     
     # Create history entry
     history = SwapHistory(
-        swap_request_id=swap_request.id,  
-        action="requested",               
-        actor_staff_id=requesting_staff.id,
-        notes=f"Auto-assignment requested: {swap_in.reason}",
-        system_action=False
-    )
+    swap_request_id=swap_request.id,  
+    action="requested",               
+    actor_staff_id=requesting_staff.id,
+    actor_user_id=current_user.id,  # ← ADD THIS LINE
+    notes=f"Auto-assignment requested: {swap_in.reason}",
+    system_action=False
+    )   
     db.add(history)
     db.commit()
     db.refresh(swap_request)
@@ -718,11 +720,12 @@ async def update_swap_request(
     
     # Create history entry
     history = SwapHistory(
-        swap_request_id=swap_id,
-        action="updated",
-        actor_staff_id=current_user.id if not current_user.is_manager else None,
-        notes=f"Swap request updated: {', '.join(update_dict.keys())}",
-        system_action=False
+    swap_request_id=swap_id,
+    action="updated",
+    actor_staff_id=current_user.id if not current_user.is_manager else None,
+    actor_user_id=current_user.id,  # ← ADD THIS LINE
+    notes=f"Swap request updated: {', '.join(update_dict.keys())}",
+    system_action=False
     )
     
     db.add(swap_request)
@@ -758,11 +761,12 @@ async def cancel_swap_request(
     
     # Create history entry
     history = SwapHistory(
-        swap_request_id=swap_id,
-        action="cancelled",
-        actor_staff_id=current_user.id if not current_user.is_manager else None,
-        notes=reason or "Swap request cancelled",
-        system_action=False
+    swap_request_id=swap_id,
+    action="cancelled",
+    actor_staff_id=current_user.id if not current_user.is_manager else None,
+    actor_user_id=current_user.id,  # ← ADD THIS LINE
+    notes=reason or "Swap request cancelled",
+    system_action=False
     )
     
     db.add(swap_request)
@@ -796,6 +800,12 @@ async def manager_swap_decision(
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
+    # rollback hanging transactions
+    try:
+        db.rollback()  # Clear any pending rollback
+    except Exception:
+        pass  # Ignore if no transaction to rollback
+    
     # Update manager decision
     swap_request.manager_approved = decision.approved
     swap_request.manager_notes = decision.notes
@@ -828,11 +838,12 @@ async def manager_swap_decision(
     # Create history entry
     action = "manager_approved" if decision.approved else "manager_declined"
     history = SwapHistory(
-        swap_request_id=swap_id,
-        action=action,
-        actor_staff_id=current_user.id,
-        notes=decision.notes,
-        system_action=False
+    swap_request_id=swap_id,
+    action=action,
+    actor_staff_id=None,
+    actor_user_id=current_user.id,  # ← ADD THIS LINE
+    notes=decision.notes,
+    system_action=False
     )
     
     db.add(swap_request)
@@ -891,13 +902,22 @@ async def respond_to_swap_request(
     
     # Create history entry
     action = "staff_accepted" if response.accepted else "staff_declined"
+    staff_record = db.exec(
+    select(Staff).where(
+        Staff.email == current_user.email,
+        Staff.is_active == True
+    )
+    ).first()
+
     history = SwapHistory(
         swap_request_id=swap_id,
         action=action,
-        actor_staff_id=current_user.id,
+        actor_staff_id=staff_record.id if staff_record else None,  # ← UPDATED
+        actor_user_id=current_user.id,  # ← ADD THIS LINE
         notes=response.notes,
         system_action=False
     )
+
     
     db.add(swap_request)
     db.add(history)
