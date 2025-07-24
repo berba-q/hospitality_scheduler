@@ -851,7 +851,24 @@ async def manager_swap_decision(
     db.commit()
     db.refresh(swap_request)
     
-    return swap_request
+    # OPTIMIZATION: Return full swap details instead of just basic swap
+    # Load related staff data
+    requesting_staff = db.get(Staff, swap_request.requesting_staff_id)
+    target_staff = db.get(Staff, swap_request.target_staff_id) if swap_request.target_staff_id else None
+    assigned_staff = db.get(Staff, swap_request.assigned_staff_id) if swap_request.assigned_staff_id else None
+    
+    # Convert to SwapRequestWithDetails
+    swap_data = swap_request.dict()
+    swap_data["requesting_staff"] = requesting_staff.dict() if requesting_staff else None
+    swap_data["target_staff"] = target_staff.dict() if target_staff else None
+    swap_data["assigned_staff"] = assigned_staff.dict() if assigned_staff else None
+    
+    # Add role names
+    swap_data["original_shift_role_name"] = requesting_staff.role if requesting_staff else None
+    swap_data["target_staff_role_name"] = target_staff.role if target_staff else None
+    swap_data["assigned_staff_role_name"] = assigned_staff.role if assigned_staff else None
+    
+    return SwapRequestWithDetails(**swap_data)
 
 @router.put("/{swap_id}/staff-response", response_model=SwapRequestRead)
 async def respond_to_swap_request(

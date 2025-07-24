@@ -146,7 +146,8 @@ export function useSwapRequests(facilityId?: string) {
   // Enhanced manager approval with workflow awareness
   const approveSwap = useCallback(async (swapId: string, approved: boolean, notes?: string) => {
     try {
-      const response = await apiClient.ManagerSwapDecision(swapId, { 
+      // Backend now returns the updated SwapRequestWithDetails
+      const updatedSwap = await apiClient.ManagerSwapDecision(swapId, { 
         approved, 
         notes,
         notification_options: {
@@ -156,15 +157,31 @@ export function useSwapRequests(facilityId?: string) {
         }
       })
       
-      await loadSwapRequests()
+      // OPTIMIZATION: Update the swap in place instead of refetching all data
+      setSwapRequests(prevSwaps => 
+        prevSwaps.map(swap => 
+          swap.id === swapId ? updatedSwap : swap
+        )
+      )
+      
+      // Still refresh the summary data (this is quick)
+      if (facilityId) {
+        try {
+          const summary = await apiClient.getSwapSummary(facilityId)
+          setSwapSummary(summary)
+        } catch (error) {
+          console.warn('Failed to refresh summary:', error)
+        }
+      }
+      
       toast.success(approved ? 'Swap approved - finding coverage...' : 'Swap declined')
-      return response
+      return updatedSwap
     } catch (error: any) {
       console.error('Failed to process enhanced swap decision:', error)
       toast.error('Failed to process swap decision')
       throw error
     }
-  }, [loadSwapRequests, apiClient])
+  }, [apiClient, facilityId])
 
   // NEW: Respond to potential assignment (for auto swaps)
   const respondToPotentialAssignment = useCallback(async (
