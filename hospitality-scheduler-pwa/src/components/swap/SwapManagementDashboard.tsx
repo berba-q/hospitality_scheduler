@@ -215,14 +215,14 @@ export function SwapManagementDashboard({
   const enhancedSummary = swapSummary   // alias for clarity
   // Filter swaps by different categories
   // Urgent swaps that need immediate action (any actionable status + emergency urgency)
-const urgentSwaps = swapRequests.filter(swap => 
-  ACTIONABLE_STATUSES.includes(swap.status) && swap.urgency === 'emergency'
-)
+  const urgentSwaps = swapRequests.filter(swap => 
+  NEEDS_MANAGER_ACTION.includes(swap.status) && swap.urgency === 'emergency'  // ✅ ADD
+  )
 
 // All pending approval items (manager OR staff action needed)
-const pendingSwaps = swapRequests.filter(swap => 
-  ACTIONABLE_STATUSES.includes(swap.status)
-)
+  const pendingSwaps = swapRequests.filter(swap => 
+    NEEDS_MANAGER_ACTION.includes(swap.status)  // ✅ ADD
+  )
 
 // Items specifically needing manager action
 const managerActionNeeded = swapRequests.filter(swap => 

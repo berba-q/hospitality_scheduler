@@ -2,8 +2,8 @@
 // This hook manages the state and API interactions for swap requests 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useApiClient } from '@/hooks/useApi'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useApiClient, useAuth } from '@/hooks/useApi'
 import { toast } from 'sonner'
 
 // Enhanced types for better TypeScript support
@@ -58,12 +58,19 @@ export function useSwapRequests(facilityId?: string) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [workflowStatuses, setWorkflowStatuses] = useState<Record<string, WorkflowStatus>>({})
+
   const apiClient = useApiClient()
+  const { isLoading: authLoading, isAuthenticated } = useAuth()
 
   // load function with workflow status
   const loadSwapRequests = useCallback(async (filters?: SwapFilters) => {
     console.log('=== LOAD SWAP REQUESTS CALLED ===')
     console.log('facilityId:', facilityId, 'filters:', filters)
+    
+    if (authLoading || !apiClient || !isAuthenticated) {
+      console.log('Skipping API call - auth not ready:', { authLoading, hasApiClient: !!apiClient, isAuthenticated })
+      return
+    }
     
     setLoading(true)
     setError(null)
@@ -145,7 +152,16 @@ export function useSwapRequests(facilityId?: string) {
 
   // Enhanced manager approval with workflow awareness
   const approveSwap = useCallback(async (swapId: string, approved: boolean, notes?: string) => {
+    // Check if API client is ready
+    if (!apiClient) {
+      toast.error('Authentication not ready. Please wait and try again.')
+      return
+    }
+
     try {
+      console.log(`=== APPROVING SWAP ${swapId} ===`)
+      console.log('Approved:', approved, 'Notes:', notes)
+      
       // Backend now returns the updated SwapRequestWithDetails
       const updatedSwap = await apiClient.ManagerSwapDecision(swapId, { 
         approved, 
@@ -157,20 +173,31 @@ export function useSwapRequests(facilityId?: string) {
         }
       })
       
-      // OPTIMIZATION: Update the swap in place instead of refetching all data
-      setSwapRequests(prevSwaps => 
-        prevSwaps.map(swap => 
+      console.log('Updated swap returned from API:', updatedSwap)
+      console.log('New status:', updatedSwap.status)
+      
+      // OPTIMIZED: Update the swap in place with proper state management
+      setSwapRequests(prevSwaps => {
+        const newSwaps = prevSwaps.map(swap => 
           swap.id === swapId ? updatedSwap : swap
         )
-      )
+        
+        console.log('Updated swaps array length:', newSwaps.length)
+        console.log('Updated swap in array:', newSwaps.find(s => s.id === swapId))
+        
+        return newSwaps
+      })
       
-      // Still refresh the summary data (this is quick)
+      // Refresh the summary data to ensure counts are accurate
       if (facilityId) {
         try {
           const summary = await apiClient.getSwapSummary(facilityId)
+          console.log('Updated summary:', summary)
           setSwapSummary(summary)
         } catch (error) {
           console.warn('Failed to refresh summary:', error)
+          // If summary refresh fails, do a full reload to ensure consistency
+          setTimeout(() => loadSwapRequests(), 1000)
         }
       }
       
@@ -181,7 +208,7 @@ export function useSwapRequests(facilityId?: string) {
       toast.error('Failed to process swap decision')
       throw error
     }
-  }, [apiClient, facilityId])
+  }, [apiClient, facilityId, loadSwapRequests])
 
   // NEW: Respond to potential assignment (for auto swaps)
   const respondToPotentialAssignment = useCallback(async (
@@ -508,23 +535,59 @@ export function useSwapRequests(facilityId?: string) {
     }
   }, [validateSwapRequest, loadSwapRequests, apiClient])
 
+  // DEBUG
+  useEffect(() => {
+    console.log('=== SwapRequests State Changed ===')
+    console.log('Total swaps:', swapRequests.length)
+    console.log('Pending swaps:', swapRequests.filter(s => s.status === 'pending').length)
+    console.log('Manager approved swaps:', swapRequests.filter(s => s.status === 'manager_approved').length)
+    console.log('Potential assignments:', swapRequests.filter(s => s.status === 'potential_assignment').length)
+    console.log('All statuses:', [...new Set(swapRequests.map(s => s.status))])
+  }, [swapRequests])
+
   // ==================== ENHANCED COMPUTED VALUES ====================
 
   // Enhanced computed values with workflow states
-  const pendingSwaps = swapRequests.filter((swap: any) => swap.status === 'pending')
-  const urgentSwaps = swapRequests.filter((swap: any) => ['high', 'emergency'].includes(swap.urgency))
-  const completedSwaps = swapRequests.filter((swap: any) => swap.status === 'executed')
-  
+  const pendingSwaps = useMemo(() => 
+  swapRequests.filter((swap: any) => swap.status === 'pending'), 
+  [swapRequests]
+)
+
+const urgentSwaps = useMemo(() => 
+  swapRequests.filter((swap: any) => ['high', 'emergency'].includes(swap.urgency)), 
+  [swapRequests]
+)
+
+const completedSwaps = useMemo(() => 
+  swapRequests.filter((swap: any) => swap.status === 'executed'), 
+  [swapRequests]
+)
   // NEW: Workflow-specific computed values
-  const potentialAssignments = swapRequests.filter((swap: any) => swap.status === 'potential_assignment')
-  const awaitingStaffResponse = swapRequests.filter((swap: any) => 
+  const potentialAssignments = useMemo(() => 
+  swapRequests.filter((swap: any) => swap.status === 'potential_assignment'), 
+  [swapRequests]
+)
+
+  const awaitingStaffResponse = useMemo(() => 
+  swapRequests.filter((swap: any) => 
     ['manager_approved', 'potential_assignment'].includes(swap.status)
-  )
-  const awaitingFinalApproval = swapRequests.filter((swap: any) => swap.status === 'staff_accepted')
-  const roleOverrides = swapRequests.filter((swap: any) => swap.role_match_override === true)
-  const roleCompatible = swapRequests.filter((swap: any) => 
+  ), [swapRequests]
+)
+
+  const awaitingFinalApproval = useMemo(() => 
+  swapRequests.filter((swap: any) => swap.status === 'staff_accepted'), 
+  [swapRequests]
+)
+
+  const roleOverrides = useMemo(() => 
+  swapRequests.filter((swap: any) => swap.role_match_override === true), 
+  [swapRequests]
+)
+  const roleCompatible = useMemo(() => 
+  swapRequests.filter((swap: any) => 
     swap.role_match_override === false && swap.assigned_staff_id
-  )
+  ), [swapRequests]
+)
 
   // ==================== EXISTING OPERATIONS (KEPT FOR COMPATIBILITY) ====================
 
@@ -594,17 +657,20 @@ export function useSwapRequests(facilityId?: string) {
   // Load data on mount and when facilityId changes
   useEffect(() => {
     console.log('=== Enhanced useSwapRequests useEffect ===')
-    if (facilityId !== undefined) {
+    console.log('Auth state:', { authLoading, isAuthenticated, hasApiClient: !!apiClient })
+    
+    // FIXED: Only load when auth is ready and apiClient exists
+    if (!authLoading && isAuthenticated && apiClient && facilityId !== undefined) {
       loadSwapRequests()
     }
-  }, [loadSwapRequests, facilityId])
+  }, [loadSwapRequests, authLoading, isAuthenticated, apiClient, facilityId])
 
   return {
     // ==================== DATA ====================
     swapRequests,
     swapSummary,
     workflowStatuses,
-    loading,
+    loading: loading || authLoading,
     error,
     
     // ==================== COMPUTED VALUES ====================
@@ -642,6 +708,9 @@ export function useSwapRequests(facilityId?: string) {
     // ==================== BULK OPERATIONS ====================
     bulkApprove,
     bulkRetry,
+
+    // ==================== STATE MANAGEMENT ====================
+    isReady: !authLoading && !!apiClient && isAuthenticated,
     
     // ==================== CORE OPERATIONS (ENHANCED) ====================
     createSwapRequest,

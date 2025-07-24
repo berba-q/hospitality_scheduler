@@ -103,9 +103,10 @@ export default function SwapsPage() {
   ]
 
   const NEEDS_MANAGER_ACTION = ['pending', 'manager_final_approval']
-  const NEEDS_STAFF_ACTION = ['manager_approved', 'potential_assignment']
-  const ACTIONABLE_STATUSES = [...NEEDS_MANAGER_ACTION, ...NEEDS_STAFF_ACTION]
+  const NEEDS_STAFF_ACTION = ['manager_approved', 'potential_assignment'] 
   const COMPLETED_STATUSES = ['executed', 'declined', 'staff_declined', 'cancelled', 'assignment_failed']
+  const ACTIONABLE_STATUSES = [...NEEDS_MANAGER_ACTION, ...NEEDS_STAFF_ACTION]
+
 
 
   // ============================================================================
@@ -286,7 +287,7 @@ export default function SwapsPage() {
   const handleTakeAction = () => {
     const emergencySwaps = allSwapRequests.filter(swap => 
       (swap.urgency === SwapUrgency.Emergency || swap.urgency === SwapUrgency.High) && 
-      ACTIONABLE_STATUSES.includes(swap.status)
+      NEEDS_MANAGER_ACTION.includes(swap.status)
     )
     
     if (emergencySwaps.length === 0) {
@@ -328,14 +329,14 @@ export default function SwapsPage() {
   })
 
   // Calculate counts for tabs
-  const pendingCount = allSwapRequests.filter(s => ACTIONABLE_STATUSES.includes(s.status)).length
+  const pendingCount = allSwapRequests.filter(s => NEEDS_MANAGER_ACTION.includes(s.status)).length
   const urgentCount = allSwapRequests.filter(s => 
     [SwapUrgency.High, SwapUrgency.Emergency].includes(s.urgency as SwapUrgency) &&
-    ACTIONABLE_STATUSES.includes(s.status)
+    NEEDS_MANAGER_ACTION.includes(s.status) 
   ).length
   const emergencyCount = allSwapRequests.filter(s => 
     s.urgency === SwapUrgency.Emergency && 
-    ACTIONABLE_STATUSES.includes(s.status)
+    NEEDS_MANAGER_ACTION.includes(s.status)
   ).length
 
   // Smart insights for managers
@@ -551,10 +552,10 @@ export default function SwapsPage() {
                       Immediate Action Required
                     </div>
                     <Badge variant="destructive">
-                      {allSwapRequests.filter(s => 
-                          [SwapUrgency.Emergency, SwapUrgency.High].includes(s.urgency as SwapUrgency) && 
-                          ACTIONABLE_STATUSES.includes(s.status)
-                        ).length}
+                      {allSwapRequests.filter(swap => 
+                        (swap.urgency === SwapUrgency.Emergency || swap.urgency === SwapUrgency.High) && 
+                        NEEDS_MANAGER_ACTION.includes(swap.status)
+                      ).length}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
@@ -563,7 +564,7 @@ export default function SwapsPage() {
                     {allSwapRequests
                       .filter(swap => 
                           [SwapUrgency.Emergency, SwapUrgency.High].includes(swap.urgency as SwapUrgency) && 
-                          ACTIONABLE_STATUSES.includes(swap.status)
+                          NEEDS_MANAGER_ACTION.includes(swap.status)
                         )
                       .slice(0, 8)
                       .map((swap) => (
@@ -748,6 +749,70 @@ export default function SwapsPage() {
                     ).length === 0 && (
                     <div className="text-center py-4 text-gray-500">
                       <p className="text-sm">No pending approvals</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Awaiting Staff Response */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-blue-600" />
+                      Awaiting Staff Response
+                    </div>
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                      {allSwapRequests.filter(s => NEEDS_STAFF_ACTION.includes(s.status)).length}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {allSwapRequests
+                      .filter(swap => NEEDS_STAFF_ACTION.includes(swap.status))
+                      .slice(0, 6)
+                      .map((swap) => (
+                        <div key={swap.id} className="flex items-center justify-between p-2 bg-blue-50 rounded">
+                          <div className="flex items-center gap-3">
+                            <WorkflowStatusIndicator swap={swap} compact />
+                            <div>
+                              <p className="font-medium text-sm">{swap.requesting_staff?.full_name}</p>
+                              <p className="text-xs text-gray-600 truncate max-w-48">{swap.reason}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge className="text-xs bg-blue-100 text-blue-800">
+                                  {swap.status === 'potential_assignment' ? 'Finding Coverage' : 'Waiting Response'}
+                                </Badge>
+                                {swap.assigned_staff && (
+                                  <span className="text-xs text-blue-600">
+                                    → {swap.assigned_staff.full_name}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs text-gray-500">
+                                {facilitySummaries.find(f => f.facility_id === swap.facility_id)?.facility_name}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-8 text-xs"
+                              onClick={() => handleViewSwapHistory(swap.id)}
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                  
+                  {allSwapRequests.filter(s => NEEDS_STAFF_ACTION.includes(s.status)).length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <CheckCircle className="h-8 w-8 mx-auto mb-2 text-blue-500" />
+                      <p className="text-sm font-medium">All caught up!</p>
+                      <p className="text-xs">No swaps waiting for staff response.</p>
                     </div>
                   )}
                 </CardContent>
