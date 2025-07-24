@@ -129,7 +129,7 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
   const [selectedShiftForSwap, setSelectedShiftForSwap] = useState(null)
 
   // ✅ UPDATED: Better user ID handling and assignment detection
-  const userId = user?.staff_id || user?.id
+  const userId = user?.staffId || user?.id
 
   const potentialAssignments = swapRequests.filter(swap => {
     const normalizedStatus = normalizeSwapStatus(swap.status)
@@ -142,6 +142,32 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
     // Must be assigned to this user
     return isUserAssignedToSwap(swap, userId)
   })
+
+  console.log('🔍 ===== DEBUGGING DISABLED BUTTONS =====')
+console.log('👤 Current user:', user)
+console.log('🆔 User ID:', userId)
+console.log('📊 Potential assignments:', potentialAssignments.length)
+
+// Debug the first assignment in detail
+if (potentialAssignments.length > 0) {
+  const assignment = potentialAssignments[0]
+  console.log('📋 Assignment Details:')
+  console.log('   Swap ID:', assignment.id)
+  console.log('   Swap Type:', assignment.swap_type)
+  console.log('   Status:', assignment.status)
+  console.log('   Assigned Staff ID:', assignment.assigned_staff_id)
+  console.log('   Assigned Staff Accepted:', assignment.assigned_staff_accepted)
+  console.log('   Your ID:', userId)
+  console.log('   IDs Match?', userId === assignment.assigned_staff_id)
+  console.log('   Already Responded?', assignment.assigned_staff_accepted !== null)
+
+  // Check what's blocking buttons
+  const canRespond = (userId === assignment.assigned_staff_id) && (assignment.assigned_staff_accepted === null)
+  console.log('🎯 CAN RESPOND?', canRespond)
+} else {
+  console.log('❌ No potential assignments found!')
+}
+console.log('🔍 ===== END DEBUGGING =====')
 
   useEffect(() => {
     loadAllData()

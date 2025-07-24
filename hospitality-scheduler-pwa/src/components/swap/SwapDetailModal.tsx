@@ -145,7 +145,7 @@ function SwapDetailModal({ swap, open, onClose, onSwapResponse, onCancelSwap, us
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent size = "2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <ArrowLeftRight className="w-5 h-5" />

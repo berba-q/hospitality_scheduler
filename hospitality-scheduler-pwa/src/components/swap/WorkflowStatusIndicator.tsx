@@ -346,7 +346,7 @@ export function WorkflowStepper({ currentStatus, swapType }: WorkflowStepperProp
         const isUpcoming = index > currentIndex
 
         return (
-          <div key={step.id} className="flex items-center">
+          <div key={step.id || index} className="flex items-center">
             <div className={`
               flex items-center justify-center w-8 h-8 rounded-full border-2 
               ${isCompleted ? 'bg-green-500 border-green-500 text-white' :
@@ -393,10 +393,10 @@ export function PotentialAssignmentCard({
   // Only render meaningful content if this swap is awaiting the target staff's response.
   // (Legacy 'potential_assignment' / 'assigned' still treated as awaiting_target.)
   const rawStatus: string = swap.status
+  const normalizedStatus = rawStatus === 'potential_assignment' ? 'awaiting_target' : rawStatus
   const isActive =
-    rawStatus === SwapStatus.AwaitingTarget ||
-    rawStatus === 'potential_assignment' ||
-    rawStatus === 'assigned'
+  normalizedStatus === 'awaiting_target' ||
+  normalizedStatus === SwapStatus.AwaitingTarget
 
   // If it isn't active, we still render but visually mute the card.
   const [notes, setNotes] = React.useState('')
