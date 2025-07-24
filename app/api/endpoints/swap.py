@@ -1601,6 +1601,37 @@ def get_swap_summary(
         pending_over_24h=pending_over_24h
     )
 
+
+# ==================== COLLECTION ENDPOINTS (NEW) ====================
+
+@router.get("/all", response_model=List[SwapRequestWithDetails])
+def get_all_swap_requests(
+    limit: int = Query(200, le=300),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return *all* swap requests the current user is allowed to see.
+    Managers will receive every swap for their tenant, while
+    staff will only receive the swaps they are directly involved in.
+    Placed **before** the dynamic `/{swap_id}` route so the literal
+    path segment `/all` is not swallowed by the UUID matcher.
+    """
+    return list_swap_requests(  # re‑use the existing helper
+        db=db,
+        current_user=current_user,
+        facility_id=None,
+        status=None,
+        urgency=None,
+        swap_type=None,
+        limit=limit,
+    )
+
+
+
+# ==================== DASHBOARD SUMMARY ENDPOINTS (NEW) ====================
+
+
 # ==================== UPDATE ENDPOINT (NEW) ====================
 
 @router.put("/{swap_id}", response_model=SwapRequestRead)
@@ -2198,79 +2229,6 @@ def get_problem_patterns(
     }
 
 # ==================== GLOBAL SUMMARY ENDPOINTS ====================
-
-@router.get("/global-summary")
-def get_global_swap_summary(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Get global swap summary across all facilities (ENHANCED)"""
-    if not current_user.is_manager:
-        raise HTTPException(status_code=403, detail="Manager access required")
-    
-    # Get all facilities for this tenant
-    facilities = db.exec(
-        select(Facility).where(Facility.tenant_id == current_user.tenant_id)
-    ).all()
-    
-    total_facilities = len(facilities)
-    
-    # Get all swap requests for this tenant
-    base_query = (
-        select(SwapRequest)
-        .join(Schedule)
-        .join(Facility)
-        .where(Facility.tenant_id == current_user.tenant_id)
-    )
-    
-    all_swaps = db.exec(base_query).all()
-    
-    # Enhanced counting using enum statuses
-    total_pending_swaps = len([s for s in all_swaps if s.status == SwapStatus.PENDING])
-    total_urgent_swaps = len([s for s in all_swaps if s.status == SwapStatus.PENDING and s.urgency in ["high", "emergency"]])
-    total_emergency_swaps = len([s for s in all_swaps if s.status == SwapStatus.PENDING and s.urgency == "emergency"])
-    total_potential_assignments = len([s for s in all_swaps if s.status == SwapStatus.POTENTIAL_ASSIGNMENT])
-    total_awaiting_final_approval = len([s for s in all_swaps if s.status == SwapStatus.MANAGER_FINAL_APPROVAL])
-    
-    # Swaps today and this week
-    today = datetime.utcnow().date()
-    week_start = today - timedelta(days=today.weekday())
-    
-    swaps_today = len([s for s in all_swaps if s.created_at.date() == today])
-    swaps_this_week = len([s for s in all_swaps if s.created_at.date() >= week_start])
-    
-    # Calculate enhanced success rate and timing
-    completed_swaps = [s for s in all_swaps if s.status == SwapStatus.EXECUTED]
-    total_swaps = len([s for s in all_swaps if s.status not in [SwapStatus.PENDING]])
-    auto_assignment_success_rate = (len(completed_swaps) / total_swaps * 100) if total_swaps > 0 else 0
-    
-    # Average approval time from completed swaps
-    completed_with_approval_time = [s for s in completed_swaps if s.manager_approved_at]
-    average_approval_time = 0.0
-    if completed_with_approval_time:
-        approval_times = [(s.manager_approved_at - s.created_at).total_seconds() / 3600 for s in completed_with_approval_time]
-        average_approval_time = sum(approval_times) / len(approval_times)
-    
-    # Role override statistics
-    role_overrides = len([s for s in all_swaps if s.role_match_override])
-    role_compatible = len([s for s in all_swaps if not s.role_match_override and s.status == SwapStatus.EXECUTED])
-    
-    return {
-        "total_facilities": total_facilities,
-        "total_pending_swaps": total_pending_swaps,
-        "total_urgent_swaps": total_urgent_swaps,
-        "total_emergency_swaps": total_emergency_swaps,
-        "total_potential_assignments": total_potential_assignments,
-        "total_awaiting_final_approval": total_awaiting_final_approval,
-        "swaps_today": swaps_today,
-        "swaps_this_week": swaps_this_week,
-        "auto_assignment_success_rate": auto_assignment_success_rate,
-        "average_approval_time": average_approval_time,
-        "role_override_count": role_overrides,
-        "role_compatible_count": role_compatible,
-        "total_completed_swaps": len(completed_swaps)
-    }
-
 @router.get("/facilities-summary")
 def get_facilities_swap_summary(
     db: Session = Depends(get_db),
