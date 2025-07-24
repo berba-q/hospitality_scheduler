@@ -2,7 +2,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { useApiClient } from '@/hooks/useApi'
+import { useApiClient, useAuth } from '@/hooks/useApi'
 import { toast } from 'sonner'
 
 interface Notification {
@@ -34,11 +34,26 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
+  
+  // FIXED: Get both apiClient and auth status
   const apiClient = useApiClient()
+  const { isLoading: authLoading, isAuthenticated } = useAuth()
 
   const refreshNotifications = useCallback(async () => {
+    // FIXED: Don't make API calls if auth is not ready
+    if (authLoading || !apiClient || !isAuthenticated) {
+      console.log('🔔 Skipping notification refresh - auth not ready:', { 
+        authLoading, 
+        hasApiClient: !!apiClient, 
+        isAuthenticated 
+      })
+      return
+    }
+
     try {
       setLoading(true)
+      console.log('🔔 Refreshing notifications...')
+      
       const newNotifications = await apiClient.getMyNotifications({
         unreadOnly: true,
         inAppOnly: true,
@@ -74,30 +89,54 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       })
 
       setNotifications(newNotifications)
+      console.log(`🔔 Loaded ${newNotifications.length} notifications`)
     } catch (error) {
       console.error('Failed to refresh notifications:', error)
+      // Don't show error toast if it's just auth not ready
+      if (!authLoading && isAuthenticated) {
+        toast.error('Failed to load notifications')
+      }
     } finally {
       setLoading(false)
     }
-  }, [notifications, apiClient])
+  }, [notifications, apiClient, authLoading, isAuthenticated]) // FIXED: Added auth dependencies
 
-  // Auto‑refresh notifications every 30 s.
-  // By depending on `refreshNotifications`, the interval always calls
-  // the current callback (with a valid JWT), eliminating 401 spam.
+  // FIXED: Auto-refresh only when auth is ready
   useEffect(() => {
+    // Don't start interval if auth is not ready
+    if (authLoading || !apiClient || !isAuthenticated) {
+      return
+    }
+
+    console.log('🔔 Starting notification auto-refresh interval')
     const id = setInterval(() => {
       refreshNotifications()
     }, 30_000)
 
-    return () => clearInterval(id)
-  }, [refreshNotifications])
+    return () => {
+      console.log('🔔 Stopping notification auto-refresh interval')
+      clearInterval(id)
+    }
+  }, [refreshNotifications, authLoading, apiClient, isAuthenticated]) // FIXED: Added auth deps
 
-  // Initial load (runs again if the authorised callback changes)
+  // FIXED: Initial load only when auth is ready
   useEffect(() => {
-    refreshNotifications()
-  }, [refreshNotifications])
+    // Only load when auth is completely ready
+    if (!authLoading && isAuthenticated && apiClient) {
+      console.log('🔔 Auth ready - loading initial notifications')
+      refreshNotifications()
+    } else {
+      console.log('🔔 Auth not ready - waiting...', { authLoading, isAuthenticated, hasApiClient: !!apiClient })
+    }
+  }, [authLoading, isAuthenticated, apiClient]) // FIXED: Simpler dependencies
 
   const markAsRead = useCallback(async (id: string) => {
+    // FIXED: Check auth before making API call
+    if (!apiClient || !isAuthenticated) {
+      toast.error('Authentication required')
+      return
+    }
+
     try {
       await apiClient.markNotificationRead(id)
       setNotifications(prev => 
@@ -107,9 +146,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       console.error('Failed to mark notification as read:', error)
       toast.error('Failed to mark notification as read')
     }
-  }, [apiClient])
+  }, [apiClient, isAuthenticated])
 
   const markAllAsRead = useCallback(async () => {
+    // FIXED: Check auth before making API call
+    if (!apiClient || !isAuthenticated) {
+      toast.error('Authentication required')
+      return
+    }
+
     try {
       await apiClient.markAllNotificationsRead()
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
@@ -118,7 +163,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       console.error('Failed to mark all notifications as read:', error)
       toast.error('Failed to mark all notifications as read')
     }
-  }, [apiClient])
+  }, [apiClient, isAuthenticated])
 
   const addNotification = useCallback((notification: Notification) => {
     setNotifications(prev => [notification, ...prev])
@@ -133,7 +178,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const value: NotificationContextType = {
     notifications,
     unreadCount,
-    loading,
+    loading: loading || authLoading, // FIXED: Include auth loading
     refreshNotifications,
     markAsRead,
     markAllAsRead,
@@ -156,48 +201,50 @@ export function useNotifications() {
   return context
 }
 
-// Real-time notification hook using WebSocket or Server-Sent Events
+// FIXED: Real-time notification hook with auth checks
 export function useRealtimeNotifications() {
   const { addNotification, refreshNotifications } = useNotifications()
+  const { isLoading: authLoading, isAuthenticated } = useAuth()
+  const apiClient = useApiClient()
 
   useEffect(() => {
-    // Option 1: WebSocket connection (if you implement WebSocket support)
-    // const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL}/notifications`)
-    // ws.onmessage = (event) => {
-    //   const notification = JSON.parse(event.data)
-    //   addNotification(notification)
-    // }
+    // FIXED: Don't start polling if auth is not ready
+    if (authLoading || !apiClient || !isAuthenticated) {
+      console.log('🔔 Realtime notifications waiting for auth...')
+      return
+    }
 
-    // Option 2: Server-Sent Events (if you implement SSE support)
-    // const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_API_URL}/notifications/stream`)
-    // eventSource.onmessage = (event) => {
-    //   const notification = JSON.parse(event.data)
-    //   addNotification(notification)
-    // }
+    console.log('🔔 Starting realtime notification polling')
 
     // Option 3: Polling with exponential backoff (current implementation)
     let pollInterval = 5000 // Start with 5 seconds
     const maxInterval = 60000 // Max 1 minute
+    let timeoutId: NodeJS.Timeout
     
     const poll = async () => {
       try {
-        await refreshNotifications()
-        pollInterval = 5000 // Reset to 5 seconds on success
+        // Double-check auth is still ready before polling
+        if (!authLoading && isAuthenticated && apiClient) {
+          await refreshNotifications()
+          pollInterval = 5000 // Reset to 5 seconds on success
+        }
       } catch (error) {
+        console.warn('Notification polling error:', error)
         pollInterval = Math.min(pollInterval * 1.5, maxInterval) // Exponential backoff
       }
       
-      setTimeout(poll, pollInterval)
+      // Schedule next poll only if auth is still ready
+      if (!authLoading && isAuthenticated && apiClient) {
+        timeoutId = setTimeout(poll, pollInterval)
+      }
     }
 
     // Start polling after initial delay
-    const timeoutId = setTimeout(poll, pollInterval)
+    timeoutId = setTimeout(poll, pollInterval)
 
     return () => {
+      console.log('🔔 Stopping realtime notification polling')
       clearTimeout(timeoutId)
-      // Clean up WebSocket or EventSource if used
-      // ws?.close()
-      // eventSource?.close()
     }
-  }, [addNotification, refreshNotifications])
+  }, [addNotification, refreshNotifications, authLoading, isAuthenticated, apiClient]) // FIXED: Added auth deps
 }
