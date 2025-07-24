@@ -344,15 +344,69 @@ console.log('🔍 ===== END DEBUGGING =====')
     setShowDetailModal(true)
   }
 
-  const handleSwapResponse = async (swapId, accepted, notes = '') => {
+  // ✅ COMPLETELY FIXED: Smart API method detection and calling
+  const handleSwapResponse = async (swapId: string, accepted: boolean, notes: string = '') => {
     try {
-      await apiClient.respondToSwap(swapId, accepted, notes)
+      console.log('🔄 Dashboard handling swap response:', { swapId, accepted, notes })
+      
+      // Find the swap to determine type and status
+      const swap = swapRequests.find(s => s.id === swapId)
+      if (!swap) {
+        throw new Error('Swap not found')
+      }
+
+      console.log('🔍 Swap details for response:', {
+        id: swap.id,
+        type: swap.swap_type,
+        status: swap.status,
+        originalStatus: swapRequests.find(s => s.id === swapId)?.status
+      })
+
+      // ✅ Detect swap type and status to use correct API method
+      if (swap.swap_type === 'auto' && 
+          ['potential_assignment', 'awaiting_target'].includes(swap.status)) {
+        
+        // ✅ For auto assignments awaiting response, use respondToPotentialAssignment
+        console.log('🔄 Using respondToPotentialAssignment for auto swap')
+        await apiClient.respondToPotentialAssignment(swapId, {
+          accepted,
+          notes,
+          availability_confirmed: true
+        })
+        
+      } else if (swap.swap_type === 'specific' && 
+                 ['pending', 'manager_approved', 'awaiting_target'].includes(swap.status)) {
+        
+        // ✅ For specific swaps, use RespondToSwap (correct capitalization)
+        console.log('🔄 Using RespondToSwap for specific swap')
+        await apiClient.RespondToSwap(swapId, {
+          accepted,
+          notes,
+          confirm_availability: true
+        })
+        
+      } else {
+        throw new Error(`Cannot respond to swap in status: ${swap.status} with type: ${swap.swap_type}`)
+      }
+
+      // ✅ Refresh data after successful response
       await loadAllData()
+      
+      // ✅ Close modal if it's open
       setShowDetailModal(false)
+      
+      // ✅ Show success toast
       toast.success(accepted ? 'Swap request accepted!' : 'Swap request declined')
+      
     } catch (error) {
-      console.error('Failed to respond to swap:', error)
-      toast.error('Failed to respond to swap request')
+      console.error('❌ Failed to respond to swap:', error)
+      
+      // ✅ Show specific error message
+      const errorMessage = error?.message || 'Failed to respond to swap request'
+      toast.error(errorMessage)
+      
+      // Re-throw error so calling components can handle it
+      throw error
     }
   }
 

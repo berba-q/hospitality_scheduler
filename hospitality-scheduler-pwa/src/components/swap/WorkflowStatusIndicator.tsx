@@ -1,4 +1,4 @@
-// components/swap/WorkflowStatusIndicator.tsx
+// components/swap/WorkflowStatusIndicator.tsx (FIXED)
 'use client'
 
 import React from 'react'
@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { toast } from 'sonner'
 
 import { 
   Clock, 
@@ -34,8 +35,10 @@ interface WorkflowStatusIndicatorProps {
     blocking_reasons: string[]
     estimated_completion?: string
   }
-  availableActions?: string[]
+  availableActions?: (string | { id: string; label: string; variant?: string })[]
   onActionClick?: (action: string, swapId: string) => void
+  apiClient?: any //API client for direct calls
+  onSuccess?: () => void // Success callback
   compact?: boolean
 }
 
@@ -136,6 +139,8 @@ export function WorkflowStatusIndicator({
   workflowStatus,
   availableActions = [],
   onActionClick,
+  apiClient, //  API client for direct calls
+  onSuccess, // Success callback
   compact = false
 }: WorkflowStatusIndicatorProps) {
   const rawStatus: string = swap.status
@@ -146,6 +151,196 @@ export function WorkflowStatusIndicator({
 
   const statusConfig = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG[SwapStatus.Pending]
   const StatusIcon = statusConfig.icon
+
+  // ✅ FIXED: Handle action clicks with proper API calls and toast messages
+  const handleActionClick = async (action: string) => {
+    // If parent provided onActionClick, use that first
+    if (onActionClick) {
+      onActionClick(action, swap.id)
+      return
+    }
+
+    // ✅ Handle API calls directly if apiClient is provided
+    if (!apiClient) {
+      console.warn('No onActionClick handler or apiClient provided')
+      toast.error('Action not available - no API client configured')
+      return
+    }
+
+    // ✅ Show loading toast for immediate feedback
+    const loadingToast = toast.loading(`Processing ${action}...`)
+
+    try {
+      switch (action) {
+        case 'accept':
+        case 'accept_assignment':
+          await handleAcceptAction()
+          break
+        case 'decline':
+        case 'decline_assignment':
+          await handleDeclineAction()
+          break
+        case 'approve':
+          await handleApproveAction()
+          break
+        case 'final_approve':
+          await handleFinalApproveAction()
+          break
+        default:
+          console.warn('Unhandled action:', action)
+          toast.error(`Action "${action}" is not yet implemented`)
+      }
+    } catch (error) {
+      console.error('❌ Action failed:', error)
+      
+      // ✅ Show specific error message
+      const errorMessage = error?.message || `Failed to ${action}`
+      toast.error(errorMessage)
+    } finally {
+      // ✅ Dismiss loading toast
+      toast.dismiss(loadingToast)
+    }
+  }
+
+  // ✅ COMPLETELY FIXED: Handle accept action with correct API method detection
+  const handleAcceptAction = async () => {
+    try {
+      console.log('🔄 Processing accept action for swap:', {
+        id: swap.id,
+        type: swap.swap_type,
+        status: swap.status
+      })
+
+      // ✅ Detect swap type and status to use correct API method
+      if (swap.swap_type === 'auto' && 
+          ['potential_assignment', 'awaiting_target'].includes(swap.status)) {
+        
+        // ✅ For auto assignments awaiting response, use respondToPotentialAssignment
+        console.log('🔄 Using respondToPotentialAssignment')
+        await apiClient.respondToPotentialAssignment(swap.id, {
+          accepted: true,
+          notes: '',
+          availability_confirmed: true
+        })
+        
+      } else if (swap.swap_type === 'specific' && 
+                 ['pending', 'manager_approved'].includes(swap.status)) {
+        
+        // ✅ For specific swaps, use RespondToSwap (correct capitalization)
+        console.log('🔄 Using RespondToSwap')
+        await apiClient.RespondToSwap(swap.id, {
+          accepted: true,
+          notes: '',
+          confirm_availability: true
+        })
+        
+      } else {
+        throw new Error(`Cannot accept swap in status: ${swap.status} with type: ${swap.swap_type}`)
+      }
+      
+      // ✅ Show success toast
+      toast.success('Assignment accepted successfully!')
+      
+      // ✅ Call success callback if provided
+      if (onSuccess) onSuccess()
+      
+    } catch (error) {
+      console.error('❌ Accept action failed:', error)
+      throw error // Re-throw so main handler can show error toast
+    }
+  }
+
+  // ✅ COMPLETELY FIXED: Handle decline action with correct API method detection
+  const handleDeclineAction = async () => {
+    try {
+      console.log('🔄 Processing decline action for swap:', {
+        id: swap.id,
+        type: swap.swap_type,
+        status: swap.status
+      })
+
+      // ✅ Detect swap type and status to use correct API method
+      if (swap.swap_type === 'auto' && 
+          ['potential_assignment', 'awaiting_target'].includes(swap.status)) {
+        
+        // ✅ For auto assignments awaiting response, use respondToPotentialAssignment
+        console.log('🔄 Using respondToPotentialAssignment')
+        await apiClient.respondToPotentialAssignment(swap.id, {
+          accepted: false,
+          notes: '',
+          availability_confirmed: true
+        })
+        
+      } else if (swap.swap_type === 'specific' && 
+                 ['pending', 'manager_approved'].includes(swap.status)) {
+        
+        // ✅ For specific swaps, use RespondToSwap (correct capitalization)
+        console.log('🔄 Using RespondToSwap')
+        await apiClient.RespondToSwap(swap.id, {
+          accepted: false,
+          notes: '',
+          confirm_availability: true
+        })
+        
+      } else {
+        throw new Error(`Cannot decline swap in status: ${swap.status} with type: ${swap.swap_type}`)
+      }
+      
+      // ✅ Show success toast
+      toast.success('Assignment declined')
+      
+      // ✅ Call success callback if provided
+      if (onSuccess) onSuccess()
+      
+    } catch (error) {
+      console.error('❌ Decline action failed:', error)
+      throw error // Re-throw so main handler can show error toast
+    }
+  }
+
+  // ✅ FIXED: Handle manager approve action with correct API method
+  const handleApproveAction = async () => {
+    try {
+      console.log('🔄 Processing manager approve action')
+      
+      await apiClient.ManagerSwapDecision(swap.id, {
+        approved: true,
+        notes: ''
+      })
+      
+      // ✅ Show success toast
+      toast.success('Swap request approved!')
+      
+      // ✅ Call success callback if provided
+      if (onSuccess) onSuccess()
+      
+    } catch (error) {
+      console.error('❌ Approve action failed:', error)
+      throw error
+    }
+  }
+
+  // ✅ FIXED: Handle final approve action with correct API method
+  const handleFinalApproveAction = async () => {
+    try {
+      console.log('🔄 Processing final approve action')
+      
+      await apiClient.managerFinalApproval(swap.id, {
+        approved: true,
+        notes: ''
+      })
+      
+      // ✅ Show success toast
+      toast.success('Swap executed successfully!')
+      
+      // ✅ Call success callback if provided
+      if (onSuccess) onSuccess()
+      
+    } catch (error) {
+      console.error('❌ Final approve action failed:', error)
+      throw error
+    }
+  }
 
   if (compact) {
     return (
@@ -210,14 +405,14 @@ export function WorkflowStatusIndicator({
               </div>
             </div>
 
-            {workflowStatus.blocking_reasons.length > 0 && (
+            {workflowStatus.blocking_reasons && workflowStatus.blocking_reasons.length > 0 && (
               <div className="text-sm">
                 <div className="font-medium text-red-700">Blocking Issues:</div>
                 <ul className="text-red-600 text-xs space-y-1">
                   {workflowStatus.blocking_reasons.map((reason, index) => (
-                    <li key={index} className="flex items-center gap-1">
+                    <li key={`blocking-${index}`} className="flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />
-                      {reason}
+                      {String(reason)}
                     </li>
                   ))}
                 </ul>
@@ -233,25 +428,46 @@ export function WorkflowStatusIndicator({
           </div>
         )}
 
-        {/* Available Actions */}
-        {availableActions.length > 0 && onActionClick && (
+        {/* ✅ FIXED: Available Actions - Handle both string and object formats */}
+        {availableActions.length > 0 && (
           <div className="space-y-2">
             <div className="text-sm font-medium text-gray-700">Available Actions:</div>
             <div className="flex flex-wrap gap-2">
-              {availableActions.map((action) => {
-                const actionConfig = ACTION_CONFIG[action] || { 
-                  label: action, 
-                  variant: 'outline', 
-                  icon: ArrowRight 
+              {availableActions.map((actionItem, index) => {
+                // ✅ Handle both string and object formats
+                let actionKey: string
+                let actionConfig: any
+
+                if (typeof actionItem === 'string') {
+                  // String format: 'accept', 'decline', etc.
+                  actionKey = actionItem
+                  actionConfig = ACTION_CONFIG[actionItem] || { 
+                    label: actionItem, 
+                    variant: 'outline', 
+                    icon: ArrowRight 
+                  }
+                } else if (actionItem && typeof actionItem === 'object' && actionItem.id) {
+                  // Object format: { id: 'accept', label: 'Accept', variant: 'primary' }
+                  actionKey = actionItem.id
+                  actionConfig = {
+                    label: actionItem.label || actionItem.id,
+                    variant: actionItem.variant || 'outline',
+                    icon: ACTION_CONFIG[actionItem.id]?.icon || ArrowRight
+                  }
+                } else {
+                  // Fallback for invalid items
+                  console.warn('Invalid action item:', actionItem)
+                  return null
                 }
+
                 const ActionIcon = actionConfig.icon
 
                 return (
                   <Button
-                    key={action}
+                    key={`action-${actionKey}-${index}`}
                     size="sm"
                     variant={actionConfig.variant as any}
-                    onClick={() => onActionClick(action, swap.id)}
+                    onClick={() => handleActionClick(actionKey)} // ✅ FIXED: Use new handler with proper error handling
                     className="flex items-center gap-1"
                   >
                     <ActionIcon className="h-3 w-3" />
@@ -277,7 +493,7 @@ export function WorkflowStatusIndicator({
               'bg-gray-100 text-gray-800'
             }
           >
-            {swap.urgency.charAt(0).toUpperCase() + swap.urgency.slice(1)} Priority
+            {swap.urgency?.charAt(0).toUpperCase()}{swap.urgency?.slice(1)} Priority
           </Badge>
 
           {swap.role_match_override && (
@@ -335,42 +551,116 @@ const WORKFLOW_STEPS: Record<'auto' | 'specific', { id: SwapStatus; label: strin
 
 export function WorkflowStepper({ currentStatus, swapType }: WorkflowStepperProps) {
   const steps = WORKFLOW_STEPS[swapType] || WORKFLOW_STEPS.auto
-  const currentIndex = steps.findIndex(step => step.id === currentStatus)
+  
+  // ✅ Enhanced status matching with fallbacks
+  console.log('🔍 WorkflowStepper Debug:', { currentStatus, swapType, steps: steps.map(s => s.id) })
+  
+  const getStepIndex = (status: SwapStatus | string) => {
+    // First try exact match
+    let index = steps.findIndex(step => step.id === status)
+    if (index !== -1) return index
+    
+    // Try status mappings for common variations
+    const statusMappings = {
+      'requested': SwapStatus.Pending,
+      'pending': SwapStatus.Pending,
+      'awaiting_target': SwapStatus.AwaitingTarget,
+      'potential_assignment': SwapStatus.AwaitingTarget,
+      'assigned': SwapStatus.AwaitingTarget,
+      'staff_accepted': SwapStatus.StaffAccepted,
+      'manager_approved': SwapStatus.AwaitingTarget, // For auto swaps, this means awaiting staff
+      'manager_final_approval': SwapStatus.ManagerFinalApproval,
+      'executed': SwapStatus.Executed,
+      'completed': SwapStatus.Executed
+    }
+    
+    const mappedStatus = statusMappings[status as string]
+    if (mappedStatus) {
+      index = steps.findIndex(step => step.id === mappedStatus)
+      if (index !== -1) return index
+    }
+    
+    // Default to first step if no match
+    console.warn('⚠️ No matching step found for status:', status)
+    return 0
+  }
+  
+  const currentIndex = getStepIndex(currentStatus)
+  console.log('📍 Current step index:', currentIndex)
 
   return (
-    <div className="flex items-center space-x-4 py-4">
+    <div className="flex items-center justify-between py-6 px-2">
       {steps.map((step, index) => {
         const StepIcon = step.icon
         const isCompleted = index < currentIndex
         const isCurrent = index === currentIndex
         const isUpcoming = index > currentIndex
+        const isNextStep = index === currentIndex + 1
 
         return (
-          <div key={step.id || index} className="flex items-center">
-            <div className={`
-              flex items-center justify-center w-8 h-8 rounded-full border-2 
-              ${isCompleted ? 'bg-green-500 border-green-500 text-white' :
-                isCurrent ? 'bg-blue-500 border-blue-500 text-white' :
-                'bg-gray-100 border-gray-300 text-gray-400'}
-            `}>
-              <StepIcon className="h-4 w-4" />
-            </div>
-            
-            <div className="ml-2 text-xs">
-              <div className={`font-medium ${
-                isCompleted || isCurrent ? 'text-gray-900' : 'text-gray-400'
-              }`}>
-                {step.label}
+          <React.Fragment key={`step-${step.id}-${index}`}>
+            {/* Step Circle */}
+            <div className="flex flex-col items-center">
+              <div className={`
+                relative flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-500
+                ${isCompleted ? 
+                  'bg-blue-500 border-blue-500 text-white transform scale-100' :
+                  isCurrent ? 
+                    'bg-white border-blue-500 text-blue-500 shadow-lg animate-pulse transform scale-110' :
+                    'bg-gray-100 border-gray-300 text-gray-400 transform scale-90'}
+              `}>
+                <StepIcon className="h-5 w-5" />
+                
+                {/* ✅ Pulsating ring for current step */}
+                {isCurrent && (
+                  <div className="absolute inset-0 rounded-full border-2 border-blue-400 animate-ping opacity-75"></div>
+                )}
+              </div>
+              
+              <div className="mt-2 text-center">
+                <div className={`text-xs font-medium transition-colors duration-300 ${
+                  isCompleted ? 'text-blue-600' :
+                  isCurrent ? 'text-blue-600 font-semibold' : 
+                  'text-gray-400'
+                }`}>
+                  {step.label}
+                </div>
+                
+                {/* Status indicator */}
+                {isCompleted && (
+                  <div className="text-xs text-green-600 mt-1">✓ Done</div>
+                )}
+                {isCurrent && (
+                  <div className="text-xs text-blue-600 mt-1 animate-pulse">● Active</div>
+                )}
               </div>
             </div>
 
+            {/* ✅ Animated Connection Line */}
             {index < steps.length - 1 && (
-              <div className={`
-                w-12 h-0.5 mx-4 
-                ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}
-              `} />
+              <div className="flex-1 relative mx-4 h-0.5">
+                {/* Background line */}
+                <div className="w-full h-full bg-gray-200 rounded-full"></div>
+                
+                {/* Animated progress line */}
+                <div 
+                  className={`
+                    absolute top-0 left-0 h-full rounded-full transition-all duration-1000 ease-out
+                    ${isCompleted ? 
+                      'w-full bg-blue-500' : 
+                      isCurrent ? 
+                        'w-3/4 bg-gradient-to-r from-blue-500 to-blue-300 animate-pulse' :
+                        'w-0 bg-gray-300'}
+                  `}
+                ></div>
+                
+                {/* ✅ Moving dot animation for current step */}
+                {isCurrent && (
+                  <div className="absolute top-1/2 left-3/4 w-2 h-2 bg-blue-500 rounded-full transform -translate-y-1/2 animate-bounce shadow-lg"></div>
+                )}
+              </div>
             )}
-          </div>
+          </React.Fragment>
         )
       })}
     </div>
@@ -401,13 +691,37 @@ export function PotentialAssignmentCard({
   // If it isn't active, we still render but visually mute the card.
   const [notes, setNotes] = React.useState('')
   const [showNotes, setShowNotes] = React.useState(false)
+  const [isResponding, setIsResponding] = React.useState(false)
 
-  const handleAccept = () => {
-    onRespond(swap.id, true, notes || undefined)
+  // ✅ FIXED: Use correct API calls with proper error handling and toast messages
+  const handleAccept = async () => {
+    if (isResponding) return
+    
+    try {
+      setIsResponding(true)
+      await onRespond(swap.id, true, notes || undefined)
+      // onRespond should handle success toast and data refresh
+    } catch (error) {
+      console.error('❌ Failed to accept assignment:', error)
+      toast.error('Failed to accept assignment')
+    } finally {
+      setIsResponding(false)
+    }
   }
 
-  const handleDecline = () => {
-    onRespond(swap.id, false, notes || undefined)
+  const handleDecline = async () => {
+    if (isResponding) return
+    
+    try {
+      setIsResponding(true)
+      await onRespond(swap.id, false, notes || undefined)
+      // onRespond should handle success toast and data refresh
+    } catch (error) {
+      console.error('❌ Failed to decline assignment:', error)
+      toast.error('Failed to decline assignment')
+    } finally {
+      setIsResponding(false)
+    }
   }
 
   return (
@@ -475,29 +789,30 @@ export function PotentialAssignmentCard({
         <div className="flex gap-2">
           <Button
             onClick={handleAccept}
-            disabled={loading}
+            disabled={loading || isResponding}
             className="flex-1"
             size="sm"
           >
             <CheckCircle className="h-3 w-3 mr-1" />
-            Accept Assignment
+            {isResponding ? 'Accepting...' : 'Accept Assignment'}
           </Button>
           
           <Button
             onClick={handleDecline}
-            disabled={loading}
+            disabled={loading || isResponding}
             variant="outline"
             className="flex-1"
             size="sm"
           >
             <XCircle className="h-3 w-3 mr-1" />
-            Decline
+            {isResponding ? 'Declining...' : 'Decline'}
           </Button>
           
           <Button
             onClick={() => setShowNotes(!showNotes)}
             variant="ghost"
             size="sm"
+            disabled={isResponding}
           >
             <Settings className="h-3 w-3" />
           </Button>
