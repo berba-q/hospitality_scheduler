@@ -256,7 +256,7 @@ export function useSwapRequests(facilityId?: string) {
     }
   }, [loadSwapRequests, apiClient])
 
-  // NEW: Manager final approval
+  //  Manager final approval
   const managerFinalApproval = useCallback(async (
     swapId: string,
     approved: boolean,
@@ -265,6 +265,9 @@ export function useSwapRequests(facilityId?: string) {
     roleOverrideReason?: string
   ) => {
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       const response = await apiClient.managerFinalApproval(swapId, {
         approved,
         notes,
@@ -293,6 +296,9 @@ export function useSwapRequests(facilityId?: string) {
     original_shift_number: number
   }) => {
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       return await apiClient.checkRoleCompatibility(data)
     } catch (error: any) {
       console.error('Failed to check role compatibility:', error)
@@ -304,7 +310,10 @@ export function useSwapRequests(facilityId?: string) {
   // NEW: Get role audit for swap
   const getSwapRoleAudit = useCallback(async (swapId: string) => {
     try {
-      return await apiClient.getSwapRoleAudit(swapId)
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
+      return await apiClient.getSwapRoleAudit(swapId);
     } catch (error: any) {
       console.error('Failed to get role audit:', error)
       toast.error('Failed to load role audit information')
@@ -317,6 +326,9 @@ export function useSwapRequests(facilityId?: string) {
   // NEW: Get workflow status for specific swap
   const getWorkflowStatus = useCallback(async (swapId: string) => {
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       const status = await apiClient.getSwapWorkflowStatus(swapId)
       setWorkflowStatuses(prev => ({
         ...prev,
@@ -332,6 +344,9 @@ export function useSwapRequests(facilityId?: string) {
   // NEW: Get available actions for swap
   const getAvailableActions = useCallback(async (swapId: string) => {
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       return await apiClient.getAvailableSwapActions(swapId)
     } catch (error: any) {
       console.error('Failed to get available actions:', error)
@@ -344,6 +359,9 @@ export function useSwapRequests(facilityId?: string) {
   // NEW: Validate swap request before creation
   const validateSwapRequest = useCallback(async (swapData: any) => {
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       return await apiClient.validateSwapRequest(swapData)
     } catch (error: any) {
       console.error('Failed to validate swap request:', error)
@@ -362,6 +380,9 @@ export function useSwapRequests(facilityId?: string) {
     shift: number
   ) => {
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       return await apiClient.getSwapConflicts(scheduleId, day, shift)
     } catch (error: any) {
       console.error('Failed to get swap conflicts:', error)
@@ -382,6 +403,9 @@ export function useSwapRequests(facilityId?: string) {
     }
     
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       return await apiClient.getSwapAnalytics(facilityId, {
         ...options,
         include_role_analysis: true
@@ -400,6 +424,9 @@ export function useSwapRequests(facilityId?: string) {
     }
     
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       return await apiClient.getWorkflowTimingAnalytics(facilityId, days)
     } catch (error: any) {
       console.error('Failed to get timing analytics:', error)
@@ -419,6 +446,9 @@ export function useSwapRequests(facilityId?: string) {
     roleOverrideReason?: string
   ) => {
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       const response = await apiClient.bulkApproveSwaps({
         swap_ids: swapIds,
         approved,
@@ -456,6 +486,9 @@ export function useSwapRequests(facilityId?: string) {
     }
   ) => {
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       const response = await apiClient.bulkRetryAutoAssignments({
         swap_ids: swapIds,
         ...options
@@ -495,6 +528,9 @@ export function useSwapRequests(facilityId?: string) {
     }
     
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       return await apiClient.getSwapRecommendations(facilityId, data)
     } catch (error: any) {
       console.error('Failed to get swap recommendations:', error)
@@ -523,7 +559,9 @@ export function useSwapRequests(facilityId?: string) {
           toast.warning(`Warnings: ${validation.warnings.join(', ')}`)
         }
       }
-      
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       const response = await apiClient.createSwapRequest(swapData, notificationOptions)
       await loadSwapRequests()
       toast.success('Swap request created and notifications sent!')
@@ -747,6 +785,9 @@ export function useGlobalSwapRequests() {
     setError(null)
     
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       const [summary, facilities, allSwaps] = await Promise.all([
         apiClient.getGlobalSwapSummary(),
         apiClient.getFacilitiesSwapSummary(),
@@ -829,6 +870,9 @@ export function useSwapWorkflowStatus(swapId: string) {
     
     setLoading(true)
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       const [status, actions] = await Promise.all([
         apiClient.getSwapWorkflowStatus(swapId),
         apiClient.getAvailableSwapActions(swapId)
@@ -874,6 +918,9 @@ export function useRoleCompatibility() {
     }
     
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       const result = await apiClient.checkRoleCompatibility(data)
       setCompatibilityCache(prev => ({
         ...prev,
