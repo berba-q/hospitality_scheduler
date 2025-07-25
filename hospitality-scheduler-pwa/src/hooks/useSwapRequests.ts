@@ -217,6 +217,9 @@ export function useSwapRequests(facilityId?: string) {
     notes?: string
   ) => {
     try {
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       const response = await apiClient.respondToPotentialAssignment(swapId, {
         accepted,
         notes,

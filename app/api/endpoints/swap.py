@@ -1104,6 +1104,8 @@ async def manager_swap_decision(
     
     return SwapRequestWithDetails(**swap_data)
 
+# Complete fixed staff response endpoint in app/api/endpoints/swap.py
+
 @router.put("/{swap_id}/staff-response", response_model=SwapRequestRead)
 async def respond_to_swap_request(
     swap_id: UUID,
@@ -1146,17 +1148,33 @@ async def respond_to_swap_request(
     # Update the appropriate response field
     if response_type == "target_response":
         swap_request.target_staff_accepted = response.accepted
-        swap_request.status = SwapStatus.STAFF_ACCEPTED if response.accepted else SwapStatus.STAFF_DECLINED
     elif response_type == "assignment_response":
         swap_request.assigned_staff_accepted = response.accepted
-        swap_request.status = SwapStatus.STAFF_ACCEPTED if response.accepted else SwapStatus.ASSIGNMENT_DECLINED
     
+    # ✅ FIXED: Proper status transition logic
+    if response.accepted:
+        # Staff accepted - check if final approval is required
+        if swap_request.requires_manager_final_approval:
+            # Move to final approval status so manager gets notified
+            swap_request.status = SwapStatus.MANAGER_FINAL_APPROVAL
+            print(f"🎯 Staff accepted - moving to MANAGER_FINAL_APPROVAL status for swap {swap_id}")
+        else:
+            # No final approval needed - move directly to staff accepted
+            swap_request.status = SwapStatus.STAFF_ACCEPTED
+    else:
+        # Staff declined
+        if response_type == "target_response":
+            swap_request.status = SwapStatus.STAFF_DECLINED
+        else:
+            swap_request.status = SwapStatus.ASSIGNMENT_DECLINED
+    
+    # Set response timestamp
     swap_request.staff_responded_at = datetime.utcnow()
     
     # Create history entry
     action = "staff_accepted" if response.accepted else "staff_declined"
     history = SwapHistory(
-        swap_request_id=swap_id,
+        swap_request_id=swap_request.id,
         action=action,
         actor_staff_id=current_staff.id,
         actor_user_id=current_user.id,
@@ -1169,16 +1187,27 @@ async def respond_to_swap_request(
     db.commit()
     db.refresh(swap_request)
     
-    # Send notifications about the response
+    # ✅ ENHANCED: Send notifications based on new status
     notification_service = NotificationService(db)
     try:
         if response.accepted:
-            await send_swap_accepted_notifications(
-                swap_request=swap_request,
-                notification_service=notification_service,
-                db=db,
-                background_tasks=background_tasks
-            )
+            if swap_request.status == SwapStatus.MANAGER_FINAL_APPROVAL:
+                # Notify manager that final approval is required
+                print(f"📧 Sending final approval notifications for swap {swap_id}")
+                await send_final_approval_needed_notifications(
+                    swap_request=swap_request,
+                    notification_service=notification_service,
+                    db=db,
+                    background_tasks=background_tasks
+                )
+            else:
+                # Standard acceptance notifications
+                await send_swap_accepted_notifications(
+                    swap_request=swap_request,
+                    notification_service=notification_service,
+                    db=db,
+                    background_tasks=background_tasks
+                )
         else:
             await send_swap_declined_notifications(
                 swap_request=swap_request,
@@ -1188,6 +1217,184 @@ async def respond_to_swap_request(
             )
     except Exception as e:
         print(f"Failed to send response notifications: {e}")
+    
+    return swap_request
+
+
+# ✅ NEW: Add this notification function for final approval needed
+async def send_final_approval_needed_notifications(
+    swap_request: SwapRequest,
+    notification_service: NotificationService,
+    db: Session,
+    background_tasks: BackgroundTasks
+):
+    """Send notifications when a swap needs final manager approval"""
+    
+    try:
+        # Get schedule and facility info
+        schedule = db.get(Schedule, swap_request.schedule_id)
+        facility = db.get(Facility, schedule.facility_id)
+        
+        # Get facility managers
+        managers = db.exec(
+            select(User)
+            .join(Staff, User.email == Staff.email)
+            .where(Staff.facility_id == facility.id)
+            .where(User.is_manager == True)
+        ).all()
+        
+        # Get staff names for notification
+        staff_name = "Unknown"
+        requesting_staff_name = "Unknown"
+        
+        if swap_request.assigned_staff_id:
+            assigned_staff = db.get(Staff, swap_request.assigned_staff_id)
+            staff_name = assigned_staff.full_name if assigned_staff else "Unknown"
+        elif swap_request.target_staff_id:
+            target_staff = db.get(Staff, swap_request.target_staff_id)
+            staff_name = target_staff.full_name if target_staff else "Unknown"
+            
+        if swap_request.requesting_staff_id:
+            requesting_staff = db.get(Staff, swap_request.requesting_staff_id)
+            requesting_staff_name = requesting_staff.full_name if requesting_staff else "Unknown"
+        
+        # Send notifications to managers
+        for manager in managers:
+            try:
+                # Send push notification
+                notification_service.send_notification(
+                    user_id=manager.id,
+                    title="🎯 Final Approval Required",
+                    message=f"{staff_name} accepted the swap assignment for {requesting_staff_name}. Final approval needed to execute.",
+                    notification_type="swap_final_approval",
+                    data={
+                        "swap_id": str(swap_request.id),
+                        "facility_id": str(facility.id),
+                        "action_url": f"/schedule?facility={facility.id}",
+                        "priority": "high"
+                    }
+                )
+                
+                # Send email if configured
+                background_tasks.add_task(
+                    send_email_notification,
+                    manager.email,
+                    "🎯 Final Approval Required - Swap Request",
+                    f"""
+                    A swap request is ready for final approval.
+                    
+                    Details:
+                    - Staff: {staff_name} has accepted the assignment
+                    - Original request from: {requesting_staff_name}
+                    - Reason: {swap_request.reason}
+                    
+                    Please log in to review and execute the final approval.
+                    """
+                )
+                
+                print(f"📧 Sent final approval notification to manager: {manager.email}")
+                
+            except Exception as e:
+                print(f"Failed to send notification to manager {manager.email}: {e}")
+                
+    except Exception as e:
+        print(f"Failed to send final approval notifications: {e}")
+
+
+# ✅ Also add the potential assignment response endpoint fix
+@router.put("/{swap_id}/potential-assignment-response", response_model=SwapRequestRead)
+async def respond_to_potential_assignment(
+    swap_id: UUID,
+    response: PotentialAssignmentResponse,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Staff response to a potential auto-assignment"""
+    
+    swap_request = db.get(SwapRequest, swap_id)
+    if not swap_request:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    # Verify this is a potential assignment for the current user
+    current_staff = db.exec(
+        select(Staff).where(Staff.email == current_user.email)
+    ).first()
+    
+    if not current_staff:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    
+    if (swap_request.status != SwapStatus.POTENTIAL_ASSIGNMENT or 
+        swap_request.assigned_staff_id != current_staff.id):
+        raise HTTPException(
+            status_code=403, 
+            detail="You are not authorized to respond to this potential assignment"
+        )
+    
+    # Update response
+    swap_request.assigned_staff_accepted = response.accepted
+    swap_request.staff_responded_at = datetime.utcnow()
+    
+    # ✅ FIXED: Proper status transition for potential assignments
+    if response.accepted:
+        # Staff accepted - check if final approval is required
+        if swap_request.requires_manager_final_approval:
+            # Move to final approval status so manager gets notified
+            swap_request.status = SwapStatus.MANAGER_FINAL_APPROVAL
+            print(f"🎯 Potential assignment accepted - moving to MANAGER_FINAL_APPROVAL status for swap {swap_id}")
+        else:
+            # No final approval needed - move directly to staff accepted
+            swap_request.status = SwapStatus.STAFF_ACCEPTED
+    else:
+        # Staff declined the assignment
+        swap_request.status = SwapStatus.ASSIGNMENT_DECLINED
+    
+    # Create history entry
+    action = "assignment_accepted" if response.accepted else "assignment_declined"
+    history = SwapHistory(
+        swap_request_id=swap_request.id,
+        action=action,
+        actor_staff_id=current_staff.id,
+        actor_user_id=current_user.id,
+        notes=response.notes or ("Potential assignment accepted" if response.accepted else "Potential assignment declined"),
+        system_action=False
+    )
+    
+    db.add(swap_request)
+    db.add(history)
+    db.commit()
+    db.refresh(swap_request)
+    
+    # ✅ ENHANCED: Send notifications based on new status
+    notification_service = NotificationService(db)
+    try:
+        if response.accepted:
+            if swap_request.status == SwapStatus.MANAGER_FINAL_APPROVAL:
+                # Notify manager that final approval is required
+                print(f"📧 Sending final approval notifications for potential assignment {swap_id}")
+                await send_final_approval_needed_notifications(
+                    swap_request=swap_request,
+                    notification_service=notification_service,
+                    db=db,
+                    background_tasks=background_tasks
+                )
+            else:
+                # Standard acceptance notifications
+                await send_swap_accepted_notifications(
+                    swap_request=swap_request,
+                    notification_service=notification_service,
+                    db=db,
+                    background_tasks=background_tasks
+                )
+        else:
+            await send_swap_declined_notifications(
+                swap_request=swap_request,
+                notification_service=notification_service,
+                db=db,
+                background_tasks=background_tasks
+            )
+    except Exception as e:
+        print(f"Failed to send potential assignment response notifications: {e}")
     
     return swap_request
 

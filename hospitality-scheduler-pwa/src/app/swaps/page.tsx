@@ -39,7 +39,8 @@ import {
   Zap,
   Target,
   Brain,
-  Settings
+  Settings,
+  Shield
 } from 'lucide-react'
 // NEW – enum types and helper components
 import { SwapStatus, SwapUrgency } from '@/types/swaps'
@@ -106,6 +107,12 @@ export default function SwapsPage() {
   const NEEDS_STAFF_ACTION = ['manager_approved', 'potential_assignment'] 
   const COMPLETED_STATUSES = ['executed', 'declined', 'staff_declined', 'cancelled', 'assignment_failed']
   const ACTIONABLE_STATUSES = [...NEEDS_MANAGER_ACTION, ...NEEDS_STAFF_ACTION]
+
+  const pendingInitialApproval = allSwapRequests.filter(swap => swap.status === 'pending')
+  const pendingFinalApproval = allSwapRequests.filter(swap => swap.status === 'manager_final_approval')
+  const urgentFinalApprovals = pendingFinalApproval.filter(swap => 
+    [SwapUrgency.Emergency, SwapUrgency.High].includes(swap.urgency as SwapUrgency)
+  )
 
 
 
@@ -209,6 +216,27 @@ export default function SwapsPage() {
     } catch (error) {
       console.error('Failed to update swap:', error)
       toast.error('Failed to update swap request')
+    }
+  }
+
+  const handleFinalApproval = async (swapId: string, approved: boolean, notes?: string) => {
+    try {
+      console.log('🎯 Processing final approval:', { swapId, approved, notes })
+      
+      await apiClient.managerFinalApproval(swapId, {
+        approved,
+        notes,
+        override_role_verification: false,
+        role_override_reason: undefined
+      })
+      
+      await loadManagerData()
+      toast.success(approved ? 'Swap executed successfully!' : 'Final approval denied')
+      
+    } catch (error) {
+      console.error('❌ Failed to process final approval:', error)
+      const errorMessage = error?.message || 'Failed to process final approval'
+      toast.error(errorMessage)
     }
   }
 
@@ -416,7 +444,7 @@ export default function SwapsPage() {
           </div>
 
           {/* Critical Alerts - Show urgent items that need immediate attention */}
-          {(emergencyCount > 0 || criticalFacilities.length > 0) && (
+          {(emergencyCount > 0 || urgentFinalApprovals.length > 0 || criticalFacilities.length > 0) && (
             <Alert className="mb-6 border-red-200 bg-red-50">
               <AlertTriangle className="h-4 w-4 text-red-600" />
               <AlertDescription>
@@ -426,7 +454,11 @@ export default function SwapsPage() {
                     {emergencyCount > 0 && (
                       <span className="text-red-600">{emergencyCount} emergency swap{emergencyCount > 1 ? 's' : ''}</span>
                     )}
-                    {emergencyCount > 0 && criticalFacilities.length > 0 && <span>, </span>}
+                    {emergencyCount > 0 && urgentFinalApprovals.length > 0 && <span>, </span>}
+                    {urgentFinalApprovals.length > 0 && (
+                      <span className="text-orange-600">{urgentFinalApprovals.length} urgent final approval{urgentFinalApprovals.length > 1 ? 's' : ''}</span>
+                    )}
+                    {(emergencyCount > 0 || urgentFinalApprovals.length > 0) && criticalFacilities.length > 0 && <span>, </span>}
                     {criticalFacilities.length > 0 && (
                       <span className="text-red-600">{criticalFacilities.length} facility{criticalFacilities.length > 1 ? 's' : ''} in critical state</span>
                     )}
@@ -437,6 +469,36 @@ export default function SwapsPage() {
                   >
                     <Zap className="h-4 w-4 mr-1" />
                     Take Action
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+           {/*  Final Approval Alert - Separate prominent alert */}
+          {pendingFinalApproval.length > 0 && (
+            <Alert className="mb-6 border-orange-200 bg-orange-50">
+              <Shield className="h-4 w-4 text-orange-600" />
+              <AlertDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-orange-800">Final Approval Required: </span>
+                    <span className="text-orange-600">
+                      {pendingFinalApproval.length} swap{pendingFinalApproval.length > 1 ? 's' : ''} ready for execution
+                    </span>
+                    <span className="text-orange-600 ml-2 text-sm">
+                      (Staff have accepted and are waiting for you to execute)
+                    </span>
+                  </div>
+                  <Button size="sm" 
+                    className="bg-orange-600 hover:bg-orange-700"
+                    onClick={() => {
+                      setDetailedToolsTab('all')
+                      setShowDetailedTools(true)
+                    }}
+                  >
+                    <Shield className="h-4 w-4 mr-1" />
+                    Review Final Approvals
                   </Button>
                 </div>
               </AlertDescription>
@@ -472,14 +534,36 @@ export default function SwapsPage() {
                       <Clock className="h-6 w-6 text-yellow-600" />
                     </div>
                     <div className="ml-4">
-                      <p className="text-2xl font-bold text-gray-900">{globalSummary.total_pending_swaps}</p>
-                      <p className="text-sm text-gray-600">Pending Swaps</p>
+                      <p className="text-2xl font-bold text-gray-900">{pendingInitialApproval.length}</p>
+                      <p className="text-sm text-gray-600">Pending Initial</p>
                     </div>
                   </div>
-                  {pendingCount > 20 && (
+                  {pendingInitialApproval.length > 20 && (
                     <div className="absolute top-2 right-2">
                       <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700">
                         High Volume
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/*  Final Approval Card */}
+              <Card className="relative overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <Shield className="h-6 w-6 text-orange-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-2xl font-bold text-gray-900">{pendingFinalApproval.length}</p>
+                      <p className="text-sm text-gray-600">Final Approval</p>
+                    </div>
+                  </div>
+                  {pendingFinalApproval.length > 0 && (
+                    <div className="absolute top-2 right-2">
+                      <Badge className="text-xs bg-orange-600 text-white animate-pulse">
+                        Execute Ready
                       </Badge>
                     </div>
                   )}

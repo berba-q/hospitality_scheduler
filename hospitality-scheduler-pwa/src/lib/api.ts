@@ -1003,12 +1003,16 @@ export class ApiClient {
     notes?: string
     availability_confirmed?: boolean
   }) {
-    return this.request<any>(`/v1/swaps/${swapId}/potential-assignment-response`, {
+    // Use the existing staff-response endpoint instead of potential-assignment-response
+    return this.request<any>(`/v1/swaps/${swapId}/staff-response`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        accepted: data.accepted,
+        notes: data.notes,
+        confirm_availability: data.availability_confirmed || true
+      }),
     })
   }
-
   async getSwapWorkflowStatus(swapId: string) {
     return this.request<{
       current_status: SwapStatus
