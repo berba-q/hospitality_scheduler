@@ -59,3 +59,19 @@ uvicorn_handler.setFormatter(
 uvicorn_access.handlers.clear()      # remove the default stdout handler
 uvicorn_access.addHandler(uvicorn_handler)
 uvicorn_access.propagate = False
+
+# --------------------- Firebase service file handler ----------------------
+firebase_handler = RotatingFileHandler(
+    LOG_DIR / "firebase.log",
+    maxBytes=5 * 1024 * 1024,  # 5 MB
+    backupCount=5,
+    encoding="utf-8",
+)
+firebase_handler.setFormatter(
+    logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+)
+
+firebase_logger = logging.getLogger("firebase")
+firebase_logger.setLevel(logging.INFO)
+firebase_logger.addHandler(firebase_handler)
+firebase_logger.propagate = False  # prevent duplication in console
