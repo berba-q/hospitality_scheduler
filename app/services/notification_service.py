@@ -1,19 +1,20 @@
 # app/services/notification_service.py
 
+from asyncio.log import logger
 from typing import List, Dict, Any, Optional
 from sqlmodel import Session, select
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks,
 import httpx
 import uuid
 from datetime import datetime
 import string
-import asyncio
+import asyncio, logging
 
 from app.services.user_staff_mapping import UserStaffMappingService
 
 from ..models import (
     Facility, Notification, NotificationTemplate, NotificationPreference, Schedule, SwapRequest,
-    User, Staff, NotificationType, NotificationPriority
+    User, Staff, NotificationType, NotificationPriority, ShiftAssignment
 )
 from ..core.config import get_settings
 from .firebase_service import FirebaseService
@@ -42,6 +43,113 @@ class NotificationService:
         
         print(f"Validated user {user.email} for staff ID {staff_id}")
         return user
+    
+    async def send_bulk_schedule_notifications(
+        self, 
+        schedule_id: uuid.UUID, 
+        notification_type: NotificationType,
+        custom_message: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Send schedule notifications to all staff using multicast"""
+        
+        # Get all staff for the schedule
+        schedule = self.db.get(Schedule, schedule_id)
+        if not schedule:
+            raise ValueError(f"Schedule {schedule_id} not found")
+        
+        # Get all staff assignments for this schedule
+        assignments = self.db.exec(
+            select(ShiftAssignment)
+            .where(ShiftAssignment.schedule_id == schedule_id)
+        ).all()
+        
+        staff_user_mapping = {}
+        notification_data = []
+        
+        for assignment in assignments:
+            user = self._get_validated_user_from_staff(assignment.staff_id)
+            if user and user.push_token:
+                staff_user_mapping[user.push_token] = user
+                
+                # Create notification record for each user
+                notification = Notification(
+                    notification_type=notification_type,
+                    recipient_user_id=user.id,
+                    tenant_id=user.tenant_id,  # Added tenant_id
+                    title="Schedule Published",
+                    message=custom_message or f"Your schedule for week starting {schedule.week_start} is now available",
+                    priority=NotificationPriority.HIGH,
+                    channels=["PUSH", "IN_APP"],
+                    data={
+                        "schedule_id": str(schedule_id),
+                        "week_start": schedule.week_start.isoformat(),
+                        "facility_id": str(schedule.facility_id)
+                    }
+                )
+                self.db.add(notification)
+                notification_data.append(notification)
+        
+        self.db.commit()
+        
+        # Use multicast for efficient push delivery
+        if staff_user_mapping:
+            tokens = list(staff_user_mapping.keys())
+            
+            success_count, failure_count = await self.firebase_service.send_push_multicast(
+                tokens=tokens,
+                title="Schedule Published",
+                body=custom_message or f"Your schedule for week starting {schedule.week_start} is now available",
+                data={
+                    "notification_type": str(notification_type),
+                    "schedule_id": str(schedule_id),
+                    "action_url": f"/schedule/{schedule_id}"
+                },
+                action_url=f"/schedule/{schedule_id}",
+                analytics_label=f"schedule_published_{schedule.facility_id}"
+            )
+            
+            # Update delivery status for all notifications
+            for notification in notification_data:
+                user = self.db.get(User, notification.recipient_user_id)
+                if user and user.push_token in tokens:
+                    # Determine if this specific token succeeded
+                    # (Firebase multicast gives batch totals, not per-token results)
+                    delivery_status = {
+                        "PUSH": {
+                            "status": "delivered" if success_count > 0 else "failed",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "method": "multicast"
+                        },
+                        "IN_APP": {
+                            "status": "delivered",
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                    }
+                    
+                    notification.delivery_status = delivery_status
+                    notification.is_delivered = True
+                    notification.delivered_at = datetime.utcnow()
+            
+            self.db.commit()
+            
+            logger.info(
+                "bulk_schedule_notification_sent",
+                extra={
+                    "schedule_id": str(schedule_id),
+                    "total_recipients": len(tokens),
+                    "push_success": success_count,
+                    "push_failure": failure_count,
+                    "analytics_label": f"schedule_published_{schedule.facility_id}"
+                }
+            )
+        
+        return {
+            "total_recipients": len(notification_data),
+            "push_success": success_count if staff_user_mapping else 0,
+            "push_failure": failure_count if staff_user_mapping else 0,
+            "notifications_created": len(notification_data)
+        }
+
     
     async def send_notification(
         self,
@@ -244,17 +352,19 @@ class NotificationService:
         print(f"Delivery status updated for notification {notification.id}")
     
     async def _send_push_notification(self, notification: Notification) -> bool:
-        """Send push notification via Firebase"""
+        """Enhanced single notification sending"""
         user = self.db.get(User, notification.recipient_user_id)
         if not user or not user.push_token:
-            print(f" No push token for user {user.email if user else 'unknown'}")
+            logger.warning(
+                "push_notification_no_token",
+                extra={"user_id": str(notification.recipient_user_id)}
+            )
             return False
         
         if not self.firebase_service.is_available():
-            print(" Firebase service not available, skipping push notification")
+            logger.error("firebase_service_unavailable")
             return False
         
-        # ✅ NEW: Include PDF attachment in push notification data
         push_data = {
             "notification_id": str(notification.id),
             "type": str(notification.notification_type),
@@ -266,14 +376,14 @@ class NotificationService:
         if notification.data.get("pdf_attachment_url"):
             push_data["has_pdf_attachment"] = True
             push_data["pdf_url"] = notification.data["pdf_attachment_url"]
-            print(f"📱 Including PDF attachment in push: {notification.data['pdf_attachment_url']}")
         
         return await self.firebase_service.send_push_notification(
             token=user.push_token,
             title=notification.title,
             body=notification.message,
             data=push_data,
-            action_url=notification.action_url # type: ignore
+            action_url=notification.action_url,
+            analytics_label=f"single_{notification.notification_type}"
         )
     
     async def _send_whatsapp_message(
