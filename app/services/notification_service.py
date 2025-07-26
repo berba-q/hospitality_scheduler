@@ -9,6 +9,8 @@ from datetime import datetime
 import string
 import asyncio
 
+from app.services.user_staff_mapping import UserStaffMappingService
+
 from ..models import (
     Facility, Notification, NotificationTemplate, NotificationPreference, Schedule, SwapRequest,
     User, Staff, NotificationType, NotificationPriority
@@ -25,6 +27,22 @@ class NotificationService:
         self.db = db
         self.firebase_service = FirebaseService()
     
+    def _get_validated_user_from_staff(self, staff_id: uuid.UUID) -> Optional[User]:
+        """Get and validate user from staff ID"""
+        mapping_service = UserStaffMappingService(self.db)
+        user = mapping_service.get_user_from_staff_id(staff_id)
+        
+        if not user:
+            print(f"No user found for staff ID {staff_id}")
+            return None
+        
+        if not user.is_active:
+            print(f"User {user.email} is not active")
+            return None
+        
+        print(f"Validated user {user.email} for staff ID {staff_id}")
+        return user
+    
     async def send_notification(
         self,
         notification_type: NotificationType,
@@ -39,12 +57,17 @@ class NotificationService:
     ) -> Notification:
         """Send a notification through multiple channels"""
         
-        print(f"Creating notification: {notification_type} for user {recipient_user_id}")
-        
-        # Get recipient
+        print(f"🔍 Creating notification: {notification_type} for user {recipient_user_id}")
+    
+        # ✅ CRITICAL: Validate recipient exists and is active
         user = self.db.get(User, recipient_user_id)
         if not user:
-            raise ValueError(f"User {recipient_user_id} not found")
+            raise ValueError(f"❌ User {recipient_user_id} not found")
+        
+        if not user.is_active:
+            raise ValueError(f"❌ User {user.email} is not active")
+        
+        print(f"✅ Validated recipient: {user.email} (User ID: {user.id})")
         
         # Get template
         template = self._get_template(notification_type, user.tenant_id)

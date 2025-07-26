@@ -10,6 +10,7 @@ from typing import Dict, Any
 
 from app.services.notification_service import NotificationService
 from app.models import NotificationType, NotificationPriority
+from app.services.user_staff_mapping import UserStaffMappingService
 
 from ...deps import get_db, get_current_user
 from ...models import (
@@ -71,25 +72,36 @@ async def send_swap_creation_notifications(
     
     try:
         if swap_request.swap_type == "specific":
-            # Notify target staff member
+    # ✅ FIX: Get correct user ID for target staff
             if swap_request.target_staff_id:
+                # Example fix: Retrieve the target staff details
                 target_staff = db.get(Staff, swap_request.target_staff_id)
                 if target_staff:
-                    await notification_service.send_notification(
-                        notification_type=NotificationType.SWAP_REQUEST,
-                        recipient_user_id=target_staff.id,
-                        template_data={
-                            **base_template_data,
-                            'target_name': target_staff.full_name,
-                            'target_day': _get_day_name(swap_request.target_day),
-                            'target_shift': _get_shift_name(swap_request.target_shift)
-                        },
-                        channels=channels,
-                        priority=NotificationPriority.HIGH if swap_request.urgency == "emergency" else NotificationPriority.MEDIUM,
-                        action_url=f"/swaps/{swap_request.id}/respond",
-                        action_text="Respond to Swap Request",
-                        background_tasks=background_tasks
-                    )
+                    print(f"Target staff found: {target_staff.full_name}")
+                target_staff = db.get(Staff, swap_request.target_staff_id)
+                if target_staff:
+                    mapping_service = UserStaffMappingService(db)
+                    target_user = mapping_service.get_user_from_staff_id(swap_request.target_staff_id)
+                    
+                    if target_user and target_user.is_active:
+                        await notification_service.send_notification(
+                            notification_type=NotificationType.SWAP_REQUEST,
+                            recipient_user_id=target_user.id,  #  CORRECT: user ID, not staff ID
+                            template_data={
+                                **base_template_data,
+                                'target_name': target_staff.full_name,
+                                'target_day': _get_day_name(swap_request.target_day) if swap_request.target_day is not None else "Unknown",
+                                'target_shift': _get_shift_name(swap_request.target_shift) if swap_request.target_shift is not None else "Unknown"
+                            },
+                            channels=channels,
+                            priority=NotificationPriority.HIGH if swap_request.urgency == "emergency" else NotificationPriority.MEDIUM,
+                            action_url=f"/swaps/{swap_request.id}/respond",
+                            action_text="Respond to Swap Request",
+                            background_tasks=background_tasks
+                        )
+                        print(f" Notification sent to correct user: {target_user.email}")
+                    else:
+                        print(f"Could not find active user for staff {target_staff.email}")
         
         # Notify managers
         await _notify_managers_of_swap_request(swap_request, notification_service, db, background_tasks, base_template_data)

@@ -94,16 +94,32 @@ function StaffScheduleView({
   const myStaffId = useMemo(() => {
     if (!user) return undefined
 
-    // 1) explicit mapping from auth payload
-    if (user.staff_id) return String(user.staff_id)
+    // PRIORITY 1: Use explicit staff_id from auth if available
+    if (user.staff_id) {
+      console.log('Using explicit staff_id from auth:', user.staff_id)
+      return String(user.staff_id)
+    }
 
-    // 2) match by e‑mail in the full staff list
-    const match = staff.find((s) => s.email && s.email === user.email)
-    if (match) return String(match.id)
+    // PRIORITY 2: Match by email (normalized comparison)
+    const match = staff.find((s) => 
+      s.email && user.email && 
+      s.email.toLowerCase().trim() === user.email.toLowerCase().trim()
+    )
+    if (match) {
+      console.log(' Found staff by email match:', match.id, match.email)
+      return String(match.id)
+    }
 
-    // 3) fall‑back: assume auth id === staff id
-    return String(user.id)
+    // log error 
+    console.error('Could not map user to staff ID:', {
+      userEmail: user.email,
+      userId: user.id,
+      availableStaff: staff.map(s => ({ id: s.id, email: s.email }))
+    })
+    
+    return undefined // Return undefined instead of assuming user.id === staff.id
   }, [user, staff])
+
   const apiClient = useApiClient()
 
   useEffect(() => {
@@ -114,6 +130,16 @@ function StaffScheduleView({
     try {
       console.log('=== LOADING STAFF DATA ===')
       setLoading(true)
+
+      if (!myStaffId) {
+        return (
+          <div className="alert alert-error">
+            <h3>Staff Profile Not Found</h3>
+            <p>Could not link your user account to a staff profile. Please contact your manager.</p>
+            <p>User: {user?.email}</p>
+          </div>
+        )
+      }
 
       // Calculate date range based on view period
       const startDate = getPeriodStart(currentDate, viewPeriod)
@@ -228,6 +254,7 @@ function StaffScheduleView({
   ]
   return colors[index % colors.length]
 }
+
 
 
   // Get shift names

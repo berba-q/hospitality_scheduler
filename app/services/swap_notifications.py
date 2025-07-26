@@ -5,6 +5,8 @@ from typing import List
 from fastapi import BackgroundTasks
 from sqlmodel import Session, select
 
+from app.services.user_staff_mapping import UserStaffMappingService
+
 from .notification_service import NotificationService
 from ..models import SwapRequest, Staff, User, NotificationType, NotificationPriority, Facility, Schedule
 
@@ -20,10 +22,10 @@ class SwapNotificationHandler:
         swap_request: SwapRequest, 
         background_tasks: BackgroundTasks
     ):
-        """Notify target staff when someone wants to swap with them"""
+        """Notify target staff when someone wants to swap with them - FIXED VERSION"""
         
         if not swap_request.target_staff_id:
-            print(" No target staff for swap request notification")
+            print("No target staff for swap request notification")
             return
         
         target_staff = self.db.get(Staff, swap_request.target_staff_id)
@@ -33,18 +35,22 @@ class SwapNotificationHandler:
             print(" Could not find staff members for swap notification")
             return
         
-        # Find target staff's user account
-        target_user = self.db.exec(
-            select(User).where(User.email == target_staff.email)
-        ).first()
+        # ✅ FIX: Use mapping service to get correct user ID
+        mapping_service = UserStaffMappingService(self.db)
+        target_user = mapping_service.get_user_from_staff_id(swap_request.target_staff_id)
         
         if not target_user:
             print(f" No user account found for staff {target_staff.email}")
             return
         
+        if not target_user.is_active:
+            print(f" User account {target_user.email} is not active")
+            return
+        
+        #  Now send with CORRECT user ID
         await self.notification_service.send_notification(
             notification_type=NotificationType.SWAP_REQUEST,
-            recipient_user_id=target_user.id,
+            recipient_user_id=target_user.id,  # actual user ID
             template_data={
                 "requester_name": requesting_staff.full_name,
                 "target_name": target_staff.full_name,
@@ -61,7 +67,7 @@ class SwapNotificationHandler:
             background_tasks=background_tasks
         )
         
-        print(f"Swap request notification queued for {target_staff.full_name}")
+        print(f"Swap request notification queued for {target_staff.full_name} -> {target_user.email}")
     
     async def notify_swap_approved(
         self, 
