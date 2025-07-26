@@ -3,7 +3,7 @@
 from asyncio.log import logger
 from typing import List, Dict, Any, Optional
 from sqlmodel import Session, select
-from fastapi import BackgroundTasks,
+from fastapi import BackgroundTasks
 import httpx
 import uuid
 from datetime import datetime
