@@ -223,6 +223,9 @@ export default function SwapsPage() {
     try {
       console.log('🎯 Processing final approval:', { swapId, approved, notes })
       
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
       await apiClient.managerFinalApproval(swapId, {
         approved,
         notes,
@@ -1288,6 +1291,7 @@ export default function SwapsPage() {
                         days={DAYS}
                         shifts={SHIFTS}
                         onApproveSwap={handleApproveSwap}
+                        onFinalApproval={handleFinalApproval}
                         onRetryAutoAssignment={handleRetryAutoAssignment}
                         onViewSwapHistory={handleViewSwapHistory}
                         onRefresh={loadManagerData}
