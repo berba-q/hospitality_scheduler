@@ -149,8 +149,8 @@ class NotificationService:
             "push_failure": failure_count if staff_user_mapping else 0,
             "notifications_created": len(notification_data)
         }
-
     
+    # Send a notification through multiple channels
     async def send_notification(
         self,
         notification_type: NotificationType,
@@ -167,15 +167,15 @@ class NotificationService:
         
         print(f"🔍 Creating notification: {notification_type} for user {recipient_user_id}")
     
-        # ✅ CRITICAL: Validate recipient exists and is active
+        # CRITICAL: Validate recipient exists and is active
         user = self.db.get(User, recipient_user_id)
         if not user:
-            raise ValueError(f"❌ User {recipient_user_id} not found")
+            raise ValueError(f"User {recipient_user_id} not found")
         
         if not user.is_active:
-            raise ValueError(f"❌ User {user.email} is not active")
+            raise ValueError(f" User {user.email} is not active")
         
-        print(f"✅ Validated recipient: {user.email} (User ID: {user.id})")
+        print(f" Validated recipient: {user.email} (User ID: {user.id})")
         
         # Get template
         template = self._get_template(notification_type, user.tenant_id)
@@ -225,11 +225,13 @@ class NotificationService:
         # Send through channels
         if background_tasks:
             background_tasks.add_task(
-                self._deliver_notification, notification, template, notification_data
+                self._deliver_notification,
+                str(notification.id),  # Pass as string ID
+                template_data
             )
         else:
-            # Run delivery in background without blocking
-            asyncio.create_task(self._deliver_notification(notification, template, notification_data))
+            # Deliver immediately
+            await self._deliver_notification(str(notification.id), template_data)
         
         return notification
     
@@ -288,103 +290,111 @@ class NotificationService:
     
     async def _deliver_notification(
         self, 
-        notification: Notification, 
-        template: Optional[NotificationTemplate],
+        notification_id: str,
         template_data: Dict[str, Any]
     ):
-        """Deliver notification through all specified channels"""
-        delivery_status = {}
+        """Deliver notification through all specified channels - SAFE VERSION"""
         
-        print(f" Delivering notification {notification.id} via channels: {notification.channels}")
+        # ✅ Create a new session for the background task
+        from sqlmodel import Session
+        from app.deps import engine
         
-        for channel in notification.channels:
-            try:
-                if channel == "IN_APP":
-                    # In-app notifications are already stored in DB
+        with Session(engine) as session:
+            # ✅ Fetch fresh notification object in this session
+            notification = session.get(Notification, uuid.UUID(notification_id))
+            if not notification:
+                print(f"❌ Notification {notification_id} not found")
+                return
+            
+            # Get template in this session
+            template = session.exec(
+                select(NotificationTemplate).where(
+                    NotificationTemplate.notification_type == notification.notification_type,
+                    NotificationTemplate.tenant_id == notification.tenant_id
+                )
+            ).first()
+            
+            delivery_status = {}
+            
+            print(f"📧 Delivering notification {notification.id} via channels: {notification.channels}")
+            
+            for channel in notification.channels:
+                try:
+                    if channel == "IN_APP":
+                        # In-app notifications are already stored in DB
+                        delivery_status[channel] = {
+                            "status": "delivered", 
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                        print(f"In-app notification delivered")
+                    
+                    elif channel == "PUSH":
+                        success = await self._send_push_notification(notification, session)
+                        delivery_status[channel] = {
+                            "status": "delivered" if success else "failed",
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                        print(f"{'Done' if success else 'Err'} Push notification {'delivered' if success else 'failed'}")
+                    
+                except Exception as e:
                     delivery_status[channel] = {
-                        "status": "delivered", 
+                        "status": "error",
+                        "error": str(e),
                         "timestamp": datetime.utcnow().isoformat()
                     }
-                    print(f"In-app notification delivered")
-                
-                elif channel == "PUSH":
-                    success = await self._send_push_notification(notification)
-                    delivery_status[channel] = {
-                        "status": "delivered" if success else "failed",
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
-                    print(f"{'Done' if success else 'Err'} Push notification {'delivered' if success else 'failed'}")
-                
-                elif channel == "WHATSAPP":
-                    success = await self._send_whatsapp_message(notification, template, template_data)
-                    delivery_status[channel] = {
-                        "status": "delivered" if success else "failed",
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
-                    print(f"WhatsApp message {'delivered' if success else 'failed'}")
-                
-                elif channel == "EMAIL":
-                    success = await self._send_email_notification(notification, template, template_data)
-                    delivery_status[channel] = {
-                        "status": "delivered" if success else "failed",
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
-                    print(f"Email notification {'delivered' if success else 'failed'}")
-                
-            except Exception as e:
-                delivery_status[channel] = {
-                    "status": "error",
-                    "error": str(e),
-                    "timestamp": datetime.utcnow().isoformat()
-                }
-                print(f" Error delivering via {channel}: {e}")
-        
-        # Update delivery status
-        notification.delivery_status = delivery_status
-        notification.is_delivered = any(
-            status.get("status") == "delivered" 
-            for status in delivery_status.values()
-        )
-        if notification.is_delivered:
-            notification.delivered_at = datetime.utcnow()
-        
-        self.db.commit()
-        print(f"Delivery status updated for notification {notification.id}")
-    
-    async def _send_push_notification(self, notification: Notification) -> bool:
-        """Enhanced single notification sending"""
-        user = self.db.get(User, notification.recipient_user_id)
-        if not user or not user.push_token:
-            logger.warning(
-                "push_notification_no_token",
-                extra={"user_id": str(notification.recipient_user_id)}
+                    print(f"Error delivering via {channel}: {e}")
+            
+            #  Update delivery status in the same session
+            notification.delivery_status = delivery_status
+            notification.is_delivered = any(
+                status.get("status") == "delivered" 
+                for status in delivery_status.values()
             )
+            if notification.is_delivered:
+                notification.delivered_at = datetime.utcnow()
+            
+            session.add(notification)
+            session.commit()
+            
+            print(f"Delivery status updated for notification {notification.id}")
+    
+    async def _send_push_notification(self, notification: Notification, session: Session) -> bool:
+        """Send push notification with session safety"""
+        try:
+            user = session.get(User, notification.recipient_user_id)
+            if not user or not user.push_token:
+                logger.warning(
+                    "push_notification_no_token",
+                    extra={
+                        "user_id": str(notification.recipient_user_id),
+                        "user_email": user.email if user else "unknown"
+                    }
+                )
+                return False
+            
+            if not self.firebase_service.is_available():
+                logger.error("firebase_service_unavailable")
+                return False
+            
+            push_data = {
+                "notification_id": str(notification.id),
+                "type": str(notification.notification_type),
+                "action_url": notification.action_url or "",
+                **notification.data
+            }
+            
+            return await self.firebase_service.send_push_notification(
+                token=user.push_token,
+                title=notification.title,
+                body=notification.message,
+                data=push_data,
+                action_url=notification.action_url,
+                analytics_label=f"single_{notification.notification_type}"
+            )
+            
+        except Exception as e:
+            logger.error(f"Push notification failed: {e}")
             return False
-        
-        if not self.firebase_service.is_available():
-            logger.error("firebase_service_unavailable")
-            return False
-        
-        push_data = {
-            "notification_id": str(notification.id),
-            "type": str(notification.notification_type),
-            "action_url": notification.action_url or "",
-            **notification.data
-        }
-        
-        # Add PDF attachment info if available
-        if notification.data.get("pdf_attachment_url"):
-            push_data["has_pdf_attachment"] = True
-            push_data["pdf_url"] = notification.data["pdf_attachment_url"]
-        
-        return await self.firebase_service.send_push_notification(
-            token=user.push_token,
-            title=notification.title,
-            body=notification.message,
-            data=push_data,
-            action_url=notification.action_url,
-            analytics_label=f"single_{notification.notification_type}"
-        )
     
     async def _send_whatsapp_message(
         self, 

@@ -13,7 +13,8 @@ from pathlib import Path
 #     a volume in docker-compose.yml if you want host-side access).
 # -----------------------------------------------------------------------------
 
-LOG_DIR = Path("/var/log/hosp_scheduler")
+BASE_DIR = Path(__file__).resolve().parent.parent   # the “hospitality_scheduler” package
+LOG_DIR  = BASE_DIR / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # --------------------- Root logger (console) ----------------------------------
