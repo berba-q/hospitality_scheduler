@@ -1494,7 +1494,7 @@ export default function SwapsPage() {
         open={showManagerModal}
         onClose={() => setShowManagerModal(false)}
         swaps={allSwapRequests.filter(s => selectedSwaps.includes(s.id))}
-        onDecision={async () => {
+        onApprove={async () => {
           await loadManagerData()
           setSelectedSwaps([])
           setShowManagerModal(false)
