@@ -1,4 +1,5 @@
-// components/notification/NotificationBell.tsx
+// src/app/components/notification/NotificationBell.tsx
+// Notification bell component
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -18,7 +19,12 @@ import {
   CheckCircle,
   RefreshCw,
   Trash2,
-  Filter
+  Filter,
+  Calendar,
+  ArrowRight,
+  Eye,
+  UserPlus,
+  Loader2
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -26,8 +32,18 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { useApiClient } from '@/hooks/useApi'
+import { useApiClient, useAuth } from '@/hooks/useApi'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+interface QuickAction {
+  id: string
+  label: string
+  action: 'approve' | 'decline' | 'view' | 'respond' | 'cover'
+  variant?: 'default' | 'outline' | 'destructive' | 'secondary'
+  api_endpoint?: string
+  method?: string
+  url?: string
+}
 
 interface Notification {
   id: string
@@ -39,6 +55,14 @@ interface Notification {
   created_at: string
   action_url?: string
   action_text?: string
+  // Enhanced action support
+  data?: {
+    quick_actions?: QuickAction[]
+    swap_id?: string
+    schedule_id?: string
+    shift_id?: string
+    [key: string]: any
+  }
 }
 
 interface NotificationPreference {
@@ -50,7 +74,6 @@ interface NotificationPreference {
 }
 
 export function NotificationBell() {
-  // CRITICAL: Initialize as false to ensure popover starts closed
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [preferences, setPreferences] = useState<NotificationPreference[]>([])
@@ -59,26 +82,30 @@ export function NotificationBell() {
   const [filterPriority, setFilterPriority] = useState<string>('all')
   const [pushToken, setPushToken] = useState('')
   const [whatsappNumber, setWhatsappNumber] = useState('')
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  
+  // ✅ Use NextAuth hooks instead of localStorage
   const apiClient = useApiClient()
+  const { isAuthenticated, accessToken, user } = useAuth()
 
   const unreadCount = notifications.filter(n => !n.is_read).length
 
-  // Load notifications after apiClient is available (token injected)
   useEffect(() => {
-    loadNotifications()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiClient])
+    if (isAuthenticated && apiClient) {
+      loadNotifications()
+    }
+  }, [apiClient, isAuthenticated])
 
-  // Load preferences only when popover is opened
   useEffect(() => {
-    if (open) {
+    if (open && isAuthenticated && apiClient) {
       loadPreferences()
     }
-  }, [open])
+  }, [open, isAuthenticated, apiClient])
 
   const loadNotifications = async () => {
+    if (!apiClient) return
+    
     try {
-      // fetch only unread, in‑app, delivered items for the bell
       const response = await apiClient.getMyNotifications({
         unreadOnly: true,
         inAppOnly: true,
@@ -91,6 +118,8 @@ export function NotificationBell() {
   }
 
   const loadPreferences = async () => {
+    if (!apiClient) return
+    
     try {
       const preferences = await apiClient.getNotificationPreferences()
       setPreferences(preferences || [])
@@ -100,6 +129,8 @@ export function NotificationBell() {
   }
 
   const markAsRead = async (notificationId: string) => {
+    if (!apiClient) return
+    
     try {
       await apiClient.markNotificationRead(notificationId)
       setNotifications(prev => 
@@ -112,6 +143,8 @@ export function NotificationBell() {
   }
 
   const markAllAsRead = async () => {
+    if (!apiClient) return
+    
     try {
       await apiClient.markAllNotificationsRead()
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
@@ -131,7 +164,7 @@ export function NotificationBell() {
     }
   }
 
-  // Filter notifications based on selected filters
+  // Filter notifications
   const filteredNotifications = notifications.filter(notification => {
     if (filterType !== 'all' && notification.notification_type !== filterType) {
       return false
@@ -143,57 +176,157 @@ export function NotificationBell() {
   })
 
   const updatePreference = async (type: string, field: string, value: boolean) => {
+    if (!apiClient) return
+    
     try {
       await apiClient.updateNotificationPreferences({
-      notification_type: type,
-      [field]: value
+        notification_type: type,
+        [field]: value
       })
       setPreferences(prev => 
         prev.map(p => p.notification_type === type ? { ...p, [field]: value } : p)
       )
-      toast.success('Preference updated')
+      toast.success('Preferences updated')
     } catch (error) {
-      console.error('Failed to update preference:', error)
-      toast.error('Failed to update preference')
+      console.error('Failed to update preferences:', error)
+      toast.error('Failed to update preferences')
     }
   }
 
-  const updatePushToken = async () => {
+  // Utility function to get backend URL
+  const getBackendUrl = () => {
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      return process.env.NEXT_PUBLIC_API_URL
+    }
+    return 'http://localhost:8000'
+  }
+
+  // Handle quick actions
+  const handleQuickAction = async (notification: Notification, action: QuickAction) => {
+    if (!accessToken) {
+      toast.error('You must be logged in to perform this action')
+      return
+    }
+    
+    setActionLoading(action.id)
+    
     try {
-      await apiClient.updatePushToken(pushToken)
-      toast.success('Push token updated')
+      if (action.api_endpoint) {
+        const backendUrl = getBackendUrl()
+        
+        console.log('Quick action:', action)
+        console.log('Making request to:', `${backendUrl}${action.api_endpoint}`)
+        console.log('Using NextAuth token')
+        
+        // Make API request for quick action
+        const response = await fetch(`${backendUrl}${action.api_endpoint}`, {
+          method: action.method || 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          }
+        })
+        
+        console.log('API response:', response.status, response.statusText)
+        
+        if (response.ok) {
+          const result = await response.json()
+          
+          // Show success message based on action
+          switch (action.action) {
+            case 'approve':
+              toast.success('Request approved!')
+              break
+            case 'decline':
+              toast.success('Request declined')
+              break
+            case 'cover':
+              toast.success('Thanks for volunteering!')
+              break
+            default:
+              toast.success(`${action.label} completed successfully!`)
+          }
+          
+          // Mark notification as read and refresh
+          await markAsRead(notification.id)
+          await loadNotifications()
+          
+        } else {
+          const error = await response.json().catch(() => ({ detail: 'Unknown error' }))
+          
+          // ✅ Better error handling
+          if (response.status === 404) {
+            toast.warning(`${action.label} endpoint not found - feature may not be implemented yet`)
+          } else if (response.status === 401) {
+            toast.error('Authentication expired - please log in again')
+          } else {
+            toast.error(error.detail || `Failed to ${action.label.toLowerCase()}`)
+          }
+        }
+        
+      } else if (action.url) {
+        // Handle URL-based actions
+        await markAsRead(notification.id)
+        
+        const backendUrl = getBackendUrl()
+        let targetUrl = action.url
+        
+        // If URL is relative and seems like an API endpoint, use backend URL
+        if (action.url.startsWith('/api/')) {
+          targetUrl = `${backendUrl}${action.url}`
+        } else if (action.url.startsWith('/')) {
+          // Internal frontend route
+          window.location.href = action.url
+          setOpen(false)
+          return
+        }
+        
+        // External URL or backend API URL
+        window.open(targetUrl, '_blank')
+        setOpen(false) // Close popover
+      }
+      
     } catch (error) {
-      console.error('Failed to update push token:', error)
-      toast.error('Failed to update push token')
+      console.error('Quick action failed:', error)
+      toast.error(`Failed to ${action.label.toLowerCase()}`)
+    } finally {
+      setActionLoading(null)
     }
   }
 
-  const updateWhatsAppNumber = async () => {
-    try {
-      await apiClient.updateWhatsAppNumber(whatsappNumber)
-      toast.success('WhatsApp number updated')
-    } catch (error) {
-      console.error('Failed to update WhatsApp number:', error)
-      toast.error('Failed to update WhatsApp number')
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark as read if not already
+    if (!notification.is_read) {
+      await markAsRead(notification.id)
+    }
+    
+    // Navigate to action URL if available
+    if (notification.action_url) {
+      if (notification.action_url.startsWith('/')) {
+        window.location.href = notification.action_url
+      } else {
+        window.open(notification.action_url, '_blank')
+      }
+      setOpen(false) // Close popover
     }
   }
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'SCHEDULE_PUBLISHED':
-        return '📅'
+        return <Calendar className="w-4 h-4 text-blue-600" />
       case 'SWAP_REQUEST':
-        return '🔄'
+        return <ArrowRight className="w-4 h-4 text-orange-600" />
       case 'SWAP_APPROVED':
-        return '✅'
+        return <CheckCircle className="w-4 h-4 text-green-600" />
       case 'SWAP_DENIED':
-        return '❌'
+        return <X className="w-4 h-4 text-red-600" />
       case 'EMERGENCY_COVERAGE':
-        return '🚨'
+        return <AlertTriangle className="w-4 h-4 text-red-600" />
       case 'SHIFT_REMINDER':
-        return '⏰'
+        return <Clock className="w-4 h-4 text-gray-600" />
       default:
-        return '📢'
+        return <Bell className="w-4 h-4 text-gray-600" />
     }
   }
 
@@ -208,35 +341,63 @@ export function NotificationBell() {
       case 'LOW':
         return 'border-gray-500 text-gray-700 bg-gray-50'
       default:
-        return 'border-gray-500 text-gray-700 bg-gray-50'
+        return 'border-gray-300 text-gray-600'
     }
+  }
+
+  const getBellStyle = () => {
+    const highPriorityCount = notifications.filter(n => 
+      !n.is_read && (n.priority === 'CRITICAL' || n.priority === 'HIGH')
+    ).length
+    
+    if (highPriorityCount > 0) {
+      return 'text-red-600 animate-pulse'
+    }
+    return 'text-blue-600'
   }
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
     
-    if (diffInSeconds < 60) return 'Just now'
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
-    return `${Math.floor(diffInSeconds / 86400)}d ago`
+    if (diffInMinutes < 1) return 'Just now'
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
+    return `${Math.floor(diffInMinutes / 1440)}d ago`
   }
 
-  // Enhanced visual states for different priority levels
-  const getBellStyle = () => {
-    const hasUnread = unreadCount > 0
-    const hasCritical = notifications.some(n => !n.is_read && n.priority === 'CRITICAL')
-    const hasHigh = notifications.some(n => !n.is_read && n.priority === 'HIGH')
-
-    if (hasCritical) {
-      return 'text-red-600 animate-pulse'
-    } else if (hasHigh) {
-      return 'text-orange-600 animate-bounce'
-    } else if (hasUnread) {
-      return 'text-blue-600'
+  const getQuickActionVariant = (variant?: string) => {
+    switch (variant) {
+      case 'destructive':
+        return 'destructive' as const
+      case 'outline':
+        return 'outline' as const
+      case 'secondary':
+        return 'secondary' as const
+      default:
+        return 'default' as const
     }
-    return 'text-gray-500'
+  }
+
+  const getQuickActionIcon = (action: string) => {
+    switch (action) {
+      case 'approve':
+        return <Check className="w-3 h-3" />
+      case 'decline':
+        return <X className="w-3 h-3" />
+      case 'cover':
+        return <UserPlus className="w-3 h-3" />
+      case 'view':
+        return <Eye className="w-3 h-3" />
+      default:
+        return <ExternalLink className="w-3 h-3" />
+    }
+  }
+
+  // Don't render if not authenticated
+  if (!isAuthenticated) {
+    return null
   }
 
   return (
@@ -244,8 +405,7 @@ export function NotificationBell() {
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
-          size="sm"
-          className={`relative p-2 hover:bg-gray-100 transition-colors ${getBellStyle()}`}
+          className="relative p-2"
           aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
         >
           {unreadCount > 0 ? (
@@ -264,9 +424,15 @@ export function NotificationBell() {
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-96 p-0" align="end" side="bottom">
-        <Tabs defaultValue="notifications" className="w-full">
-          <div className="flex items-center justify-between p-4 border-b">
+      <PopoverContent 
+        className="w-96 p-0 max-h-[600px] flex flex-col" 
+        align="end" 
+        side="bottom"
+        sideOffset={5}
+      >
+        <Tabs defaultValue="notifications" className="w-full flex flex-col h-full">
+          {/* Header - Fixed */}
+          <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
             <h3 className="font-semibold">Notifications</h3>
             <div className="flex items-center gap-2">
               <Button
@@ -291,9 +457,9 @@ export function NotificationBell() {
             </div>
           </div>
 
-          <TabsContent value="notifications" className="m-0">
-            {/* Filters */}
-            <div className="p-3 border-b bg-gray-50 space-y-2">
+          <TabsContent value="notifications" className="m-0 flex flex-col flex-1 min-h-0">
+            {/* Filters - Fixed */}
+            <div className="p-3 border-b bg-gray-50 space-y-2 flex-shrink-0">
               <div className="flex gap-2">
                 <Select value={filterType} onValueChange={setFilterType}>
                   <SelectTrigger className="h-8 text-xs">
@@ -335,7 +501,8 @@ export function NotificationBell() {
               )}
             </div>
 
-            <div className="max-h-96 overflow-y-auto">
+            {/* Scrollable notification list */}
+            <div className="flex-1 overflow-y-auto min-h-0">
               {filteredNotifications.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
                   <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -355,16 +522,16 @@ export function NotificationBell() {
                   )}
                 </div>
               ) : (
-                <>
+                <div className="divide-y">
                   {filteredNotifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`p-3 border-b hover:bg-gray-50 transition-colors ${
+                      className={`p-3 hover:bg-gray-50 transition-colors ${
                         !notification.is_read ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="text-lg">
+                        <div className="flex-shrink-0 mt-1">
                           {getNotificationIcon(notification.notification_type)}
                         </div>
                         
@@ -390,30 +557,58 @@ export function NotificationBell() {
                               {formatTimeAgo(notification.created_at)}
                             </span>
                             
-                            <div className="flex gap-1">
-                              {notification.action_url && (
+                            <div className="flex gap-1 flex-wrap">
+                              {/* Quick Action Buttons */}
+                              {notification.data?.quick_actions?.map((action) => (
                                 <Button
-                                  variant="ghost"
+                                  key={action.id}
+                                  variant={getQuickActionVariant(action.variant)}
                                   size="sm"
                                   className="h-6 px-2 text-xs"
-                                  onClick={() => {
-                                    window.open(notification.action_url, '_blank')
-                                    markAsRead(notification.id)
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleQuickAction(notification, action)
+                                  }}
+                                  disabled={actionLoading === action.id}
+                                >
+                                  {actionLoading === action.id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    getQuickActionIcon(action.action)
+                                  )}
+                                  <span className="ml-1">{action.label}</span>
+                                </Button>
+                              ))}
+                              
+                              {/* Default action button if no quick actions */}
+                              {(!notification.data?.quick_actions || notification.data.quick_actions.length === 0) && 
+                               notification.action_url && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="h-6 px-3 text-xs bg-blue-600 hover:bg-blue-700"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleNotificationClick(notification)
                                   }}
                                 >
-                                  <ExternalLink className="w-3 h-3 mr-1" />
                                   {notification.action_text || 'View'}
+                                  <ExternalLink className="w-3 h-3 ml-1" />
                                 </Button>
                               )}
                               
+                              {/* Mark as read button */}
                               {!notification.is_read && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="h-6 px-2 text-xs"
-                                  onClick={() => markAsRead(notification.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    markAsRead(notification.id)
+                                  }}
                                 >
-                                  <Check className="w-3 h-3" />
+                                  <Eye className="w-3 h-3" />
                                 </Button>
                               )}
                             </div>
@@ -422,130 +617,70 @@ export function NotificationBell() {
                       </div>
                     </div>
                   ))}
-                </>
+                </div>
               )}
             </div>
           </TabsContent>
 
-          <TabsContent value="settings" className="m-0">
-            <div className="p-4 space-y-6 max-h-96 overflow-y-auto">
-              {/* Quick Actions */}
+          <TabsContent value="settings" className="m-0 p-4">
+            <div className="space-y-4">
               <div>
-                <h4 className="font-medium mb-3">Quick Actions</h4>
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={markAllAsRead}
-                    className="w-full justify-start"
-                    disabled={unreadCount === 0}
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Mark All as Read ({unreadCount})
-                  </Button>
-                </div>
+                <Label htmlFor="push-token" className="text-sm font-medium">
+                  Push Token
+                </Label>
+                <Input
+                  id="push-token"
+                  value={pushToken}
+                  onChange={(e) => setPushToken(e.target.value)}
+                  placeholder="Firebase push token"
+                  className="mt-1"
+                />
               </div>
-
-              {/* Device Settings */}
+              
               <div>
-                <h4 className="font-medium mb-3">Device Settings</h4>
-                
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="push-token" className="text-sm">Push Notification Token</Label>
-                    <div className="flex gap-2 mt-1">
-                      <Input
-                        id="push-token"
-                        placeholder="Enter push token"
-                        value={pushToken}
-                        onChange={(e) => setPushToken(e.target.value)}
-                        className="text-xs"
-                      />
-                      <Button size="sm" onClick={updatePushToken}>
-                        <Smartphone className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="whatsapp-number" className="text-sm">WhatsApp Number</Label>
-                    <div className="flex gap-2 mt-1">
-                      <Input
-                        id="whatsapp-number"
-                        placeholder="+1234567890"
-                        value={whatsappNumber}
-                        onChange={(e) => setWhatsappNumber(e.target.value)}
-                        className="text-xs"
-                      />
-                      <Button size="sm" onClick={updateWhatsAppNumber}>
-                        <MessageSquare className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                <Label htmlFor="whatsapp-number" className="text-sm font-medium">
+                  WhatsApp Number
+                </Label>
+                <Input
+                  id="whatsapp-number"
+                  value={whatsappNumber}
+                  onChange={(e) => setWhatsappNumber(e.target.value)}
+                  placeholder="+1234567890"
+                  className="mt-1"
+                />
               </div>
-
-              {/* Notification Preferences */}
-              <div>
-                <h4 className="font-medium mb-3">Notification Preferences</h4>
-                
-                <div className="space-y-4">
-                  {preferences.length === 0 ? (
-                    <p className="text-xs text-gray-500 text-center py-4">
-                      No preferences configured
-                    </p>
-                  ) : (
-                    preferences.map((pref) => (
-                      <div key={pref.notification_type} className="space-y-2">
-                        <h5 className="text-sm font-medium">
-                          {pref.notification_type.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
-                        </h5>
-                        
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="flex items-center justify-between">
-                            <Label>In-App</Label>
-                            <Switch
-                              checked={pref.in_app_enabled}
-                              onCheckedChange={(checked) => 
-                                updatePreference(pref.notification_type, 'in_app_enabled', checked)
-                              }
-                            />
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <Label>Push</Label>
-                            <Switch
-                              checked={pref.push_enabled}
-                              onCheckedChange={(checked) => 
-                                updatePreference(pref.notification_type, 'push_enabled', checked)
-                              }
-                            />
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <Label>WhatsApp</Label>
-                            <Switch
-                              checked={pref.whatsapp_enabled}
-                              onCheckedChange={(checked) => 
-                                updatePreference(pref.notification_type, 'whatsapp_enabled', checked)
-                              }
-                            />
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <Label>Email</Label>
-                            <Switch
-                              checked={pref.email_enabled}
-                              onCheckedChange={(checked) => 
-                                updatePreference(pref.notification_type, 'email_enabled', checked)
-                              }
-                            />
-                          </div>
-                        </div>
+              
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Notification Preferences</h4>
+                {preferences.map((pref) => (
+                  <div key={pref.notification_type} className="space-y-2">
+                    <Label className="text-xs font-medium text-gray-700">
+                      {pref.notification_type.replace('_', ' ')}
+                    </Label>
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id={`${pref.notification_type}-app`}
+                          checked={pref.in_app_enabled}
+                          onCheckedChange={(checked) => 
+                            updatePreference(pref.notification_type, 'in_app_enabled', checked)
+                          }
+                        />
+                        <Label htmlFor={`${pref.notification_type}-app`}>In-App</Label>
                       </div>
-                    ))
-                  )}
-                </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id={`${pref.notification_type}-push`}
+                          checked={pref.push_enabled}
+                          onCheckedChange={(checked) => 
+                            updatePreference(pref.notification_type, 'push_enabled', checked)
+                          }
+                        />
+                        <Label htmlFor={`${pref.notification_type}-push`}>Push</Label>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </TabsContent>

@@ -5,13 +5,6 @@ from pathlib import Path
 # -----------------------------------------------------------------------------
 # Centralised logging configuration
 # -----------------------------------------------------------------------------
-#   * Keeps noisy subsystems (notifications, Twilio, Firebase, etc.) out of the
-#     main Docker console.
-#   * Still allows root / FastAPI / Uvicorn logs to stream to stdout so they are
-#     visible in `docker compose logs -f api`.
-#   * Stores rotated logfiles under /var/log/hosp_scheduler (mount that path as
-#     a volume in docker-compose.yml if you want host-side access).
-# -----------------------------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent.parent   # the “hospitality_scheduler” package
 LOG_DIR  = BASE_DIR / "logs"
