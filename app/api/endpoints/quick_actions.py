@@ -4,7 +4,7 @@ Quick action API endpoints for actionable notifications
 """
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlmodel import Session
+from sqlmodel import Session, select
 from datetime import datetime
 from typing import Dict, Any
 
@@ -12,24 +12,40 @@ from typing import Dict, Any
 from app.models import (
     SwapRequest, 
     User, 
+    Staff,
     NotificationType, 
     NotificationPriority,
-    Notification  # Make sure this is imported
+    Notification
 )
 
 # Import dependencies
 from app.deps import get_current_user, get_db
 
-# Import services - adjust this import path to match your project structure
+# Import services
 from app.services.notification_service import NotificationService
 from app.services.enhanced_notification_service import EnhancedNotificationService
+from app.services.user_staff_mapping import UserStaffMappingService
 
-# Import logging utility
-# Import logging utility (adjust path if needed)
 import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/swaps")
+
+def get_user_display_name(current_user: User, db: Session) -> str:
+    """Get user's display name, falling back to email if no staff record"""
+    if current_user.is_manager:
+        # For managers, we might not have a staff record, use email
+        return current_user.email.split('@')[0].replace('.', ' ').title()
+    
+    # For staff users, get full name from Staff table
+    mapping_service = UserStaffMappingService(db)
+    staff = mapping_service.get_staff_from_user_id(current_user.id)
+    
+    if staff and staff.full_name:
+        return staff.full_name
+    
+    # Fallback to email-based name
+    return current_user.email.split('@')[0].replace('.', ' ').title()
 
 @router.post("/{swap_id}/approve")
 async def approve_swap_quick_action(
@@ -58,38 +74,40 @@ async def approve_swap_quick_action(
         swap_request.approved_by_id = current_user.id
         swap_request.approved_at = datetime.utcnow()
         
-        db.add(swap_request)
         db.commit()
         db.refresh(swap_request)
         
-        # Use enhanced notification service
+        # Send notifications to relevant parties
         notification_service = EnhancedNotificationService(db)
+        user_display_name = get_user_display_name(current_user, db)  # ← FIXED: No more .full_name
         
-        # Send notification to requester with quick actions
-        await notification_service.create_swap_approved_notification(
-            db=db,
-            swap_request=swap_request,
-            approver=current_user,
-            template_data={
-                "requester_name": swap_request.requesting_staff.full_name,
-                "approver_name": current_user.full_name,
-                "original_day": swap_request.original_day,
-                "original_shift": swap_request.original_shift
-            },
-            background_tasks=background_tasks
-        )   
+        # Notify the requesting staff
+        requesting_user = db.get(User, swap_request.requesting_staff_id)
+        if requesting_user:
+            await notification_service.create_swap_approved_notification(
+                db=db,
+                swap_request=swap_request,
+                approver=current_user,
+                template_data={
+                    "approver_name": user_display_name,  # ← FIXED: Use helper function
+                    "swap_id": str(swap_request.id),
+                    "original_date": swap_request.original_shift_date.strftime("%B %d, %Y"),
+                    "new_date": swap_request.requested_shift_date.strftime("%B %d, %Y"),
+                },
+                background_tasks=background_tasks
+            )
+        
+        logger.info(f"Swap {swap_id} approved by user {current_user.id}")
+        
         return {
-            "message": "Swap request approved successfully",
+            "message": "Swap request approved successfully!",
             "swap_id": swap_id,
             "status": "APPROVED"
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Failed to approve swap {swap_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to approve swap request")
-
+        logger.error(f"Error approving swap {swap_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to approve swap: {str(e)}")
 
 @router.post("/{swap_id}/decline")
 async def decline_swap_quick_action(
@@ -101,10 +119,12 @@ async def decline_swap_quick_action(
     """Quick action API endpoint for declining swap requests"""
     
     try:
+        # Get the swap request
         swap_request = db.get(SwapRequest, swap_id)
         if not swap_request:
             raise HTTPException(status_code=404, detail="Swap request not found")
         
+        # Verify user has permission to decline this swap
         if swap_request.target_staff_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not authorized to decline this swap")
         
@@ -112,32 +132,34 @@ async def decline_swap_quick_action(
             raise HTTPException(status_code=400, detail="Swap request is not pending")
         
         # Update swap status
-        swap_request.status = "DECLINED" 
+        swap_request.status = "DECLINED"
         swap_request.declined_by_id = current_user.id
         swap_request.declined_at = datetime.utcnow()
         
-        db.add(swap_request)
         db.commit()
         db.refresh(swap_request)
         
-        # Use enhanced notification service
+        # Send notifications to relevant parties
         notification_service = EnhancedNotificationService(db)
+        user_display_name = get_user_display_name(current_user, db)  
         
-        # Send notification to requester with helpful quick actions
-        await notification_service.create_swap_declined_notification(
-            db=db,
-            swap_request=swap_request,
-            decliner=current_user,
-            template_data={
-                "requester_name": swap_request.requesting_staff.full_name,
-                "decliner_name": current_user.full_name,
-                "original_day": swap_request.original_day,
-                "original_shift": swap_request.original_shift
-            },
-            background_tasks=background_tasks
-        )
+        # Notify the requesting staff
+        requesting_user = db.get(User, swap_request.requesting_staff_id)
+        if requesting_user:
+            await notification_service.create_swap_declined_notification(
+                db=db,
+                swap_request=swap_request,
+                decliner=current_user,
+                template_data={
+                    "decliner_name": user_display_name,  
+                    "swap_id": str(swap_request.id),
+                    "original_date": swap_request.original_shift_date.strftime("%B %d, %Y"),
+                    "requested_date": swap_request.requested_shift_date.strftime("%B %d, %Y"),
+                },
+                background_tasks=background_tasks
+            )
         
-        logger.info(f"Swap {swap_id} declined by {current_user.id}")
+        logger.info(f"Swap {swap_id} declined by user {current_user.id}")
         
         return {
             "message": "Swap request declined",
@@ -145,12 +167,9 @@ async def decline_swap_quick_action(
             "status": "DECLINED"
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Failed to decline swap {swap_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to decline swap request")
-
+        logger.error(f"Error declining swap {swap_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to decline swap: {str(e)}")
 
 @router.post("/coverage/{shift_id}/volunteer")
 async def volunteer_for_coverage(
@@ -159,19 +178,11 @@ async def volunteer_for_coverage(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Quick action API endpoint for volunteering for emergency coverage"""
+    """Quick action for volunteering for emergency coverage"""
     
     try:
-        # You might want to validate the shift exists here
-        # shift = db.get(Shift, shift_id)
-        # if not shift:
-        #     raise HTTPException(status_code=404, detail="Shift not found")
-        
-        # For now, we'll just create notifications for managers
-        # In a real implementation, you'd create a CoverageVolunteer record
-        
-        # Use enhanced notification service  
         notification_service = EnhancedNotificationService(db)
+        user_display_name = get_user_display_name(current_user, db)  # ← FIXED: No more .full_name
         
         # Find managers to notify
         managers = db.query(User).filter(
@@ -190,16 +201,15 @@ async def volunteer_for_coverage(
                     shift_details={"shift_id": shift_id},
                     target_staff=manager,
                     template_data={
-                        "volunteer_name": current_user.full_name,
+                        "volunteer_name": user_display_name,  #  Use helper function
                         "shift_id": shift_id,
-                        "facility_name": "Main Facility"  # You'd get this from the shift
+                        "facility_name": "Main Facility"
                     },
                     background_tasks=background_tasks
                 )
                 
             except Exception as e:
                 logger.error(f"Failed to notify manager {manager.id}: {str(e)}")
-                # Continue with other managers
                 continue
         
         logger.info(f"User {current_user.id} volunteered for coverage on shift {shift_id}")
@@ -207,73 +217,9 @@ async def volunteer_for_coverage(
         return {
             "message": "Thank you for volunteering! A manager will confirm shortly.",
             "shift_id": shift_id,
-            "volunteer_id": str(current_user.id)
+            "volunteer_name": user_display_name
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Failed to process volunteer request for shift {shift_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to process volunteer request")
-
-
-@router.post("/{swap_id}/cancel")
-async def cancel_swap_request(
-    swap_id: str,
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Cancel a swap request (for the requester)"""
-    
-    try:
-        swap_request = db.get(SwapRequest, swap_id)
-        if not swap_request:
-            raise HTTPException(status_code=404, detail="Swap request not found")
-        
-        # Only the requester can cancel their own request
-        if swap_request.requesting_staff_id != current_user.id:
-            raise HTTPException(status_code=403, detail="Not authorized to cancel this swap")
-        
-        if swap_request.status != "PENDING":
-            raise HTTPException(status_code=400, detail="Can only cancel pending requests")
-        
-        # Update status
-        swap_request.status = "CANCELLED"
-        swap_request.cancelled_at = datetime.utcnow()
-        
-        db.add(swap_request)
-        db.commit()
-        
-        # Optionally notify the target staff that the request was cancelled
-        if swap_request.target_staff_id:
-            notification_service = EnhancedNotificationService(db)
-            
-            # Send simple notification about cancellation
-            await notification_service.send_notification(
-                notification_type=NotificationType.SWAP_REQUEST,  # You might want to add SWAP_CANCELLED type
-                recipient_user_id=swap_request.target_staff_id,
-                template_data={
-                    "requester_name": current_user.full_name,
-                    "original_day": swap_request.original_day,
-                    "original_shift": swap_request.original_shift,
-                    "message": "Swap request has been cancelled"
-                },
-                channels=['IN_APP'],
-                priority=NotificationPriority.LOW,
-                background_tasks=background_tasks
-            )
-        
-        logger.info(f"Swap {swap_id} cancelled by requester {current_user.id}")
-        
-        return {
-            "message": "Swap request cancelled successfully",
-            "swap_id": swap_id,
-            "status": "CANCELLED"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to cancel swap {swap_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to cancel swap request")
+        logger.error(f"Error volunteering for coverage on shift {shift_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to volunteer for coverage: {str(e)}")

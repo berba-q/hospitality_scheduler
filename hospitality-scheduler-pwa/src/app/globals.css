@@ -57,3 +57,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #d1d5db; /* Replace with the actual hex value for gray.300 */
+  border-radius: 3px;
+}

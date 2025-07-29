@@ -1,5 +1,5 @@
-# Improved notification service for actionable notifications
 # app/services/enhanced_notification_service.py
+# Updated to include better schedule notifications
 
 import uuid
 from typing import Dict, List, Optional, Any
@@ -8,9 +8,23 @@ from fastapi import BackgroundTasks
 
 from app.models import Notification, NotificationType, NotificationPriority, User, SwapRequest
 from app.services.notification_service import NotificationService
+from app.services.user_staff_mapping import UserStaffMappingService
 
 class EnhancedNotificationService(NotificationService):
     """Enhanced notification service with actionable notifications"""
+    
+    def get_user_display_name(self, user: User, db: Session) -> str:
+        """Get user's display name, falling back to email if no staff record"""
+        if user.is_manager:
+            return user.email.split('@')[0].replace('.', ' ').title()
+        
+        mapping_service = UserStaffMappingService(db)
+        staff = mapping_service.get_staff_from_user_id(user.id)
+        
+        if staff and staff.full_name:
+            return staff.full_name
+        
+        return user.email.split('@')[0].replace('.', ' ').title()
     
     async def create_swap_request_notification(
         self,
@@ -22,13 +36,12 @@ class EnhancedNotificationService(NotificationService):
     ) -> Notification:
         """Create swap request notification with quick actions"""
         
-        # Create quick actions for swap requests
         quick_actions = [
             {
                 "id": "approve_swap",
                 "label": "Accept",
                 "action": "approve",
-                "api_endpoint": f"/api/swaps/{swap_request.id}/approve",
+                "api_endpoint": f"/v1/swaps/{swap_request.id}/approve",
                 "method": "POST",
                 "variant": "default"
             },
@@ -36,7 +49,7 @@ class EnhancedNotificationService(NotificationService):
                 "id": "decline_swap", 
                 "label": "Decline",
                 "action": "decline",
-                "api_endpoint": f"/api/swaps/{swap_request.id}/decline",
+                "api_endpoint": f"/v1/swaps/{swap_request.id}/decline",
                 "method": "POST",
                 "variant": "outline"
             },
@@ -49,7 +62,6 @@ class EnhancedNotificationService(NotificationService):
             }
         ]
         
-        # Enhanced template data with quick actions
         enhanced_template_data = {
             **template_data,
             "swap_id": str(swap_request.id),
@@ -57,10 +69,9 @@ class EnhancedNotificationService(NotificationService):
             "urgency": swap_request.urgency
         }
         
-        # Call parent method with correct signature
         return await self.send_notification(
             notification_type=NotificationType.SWAP_REQUEST,
-            recipient_user_id=target_staff.id,  # This should already be UUID from User model
+            recipient_user_id=target_staff.id,
             template_data=enhanced_template_data,
             channels=['IN_APP', 'PUSH', 'WHATSAPP'],
             priority=self._get_priority_for_urgency(swap_request.urgency),
@@ -79,6 +90,7 @@ class EnhancedNotificationService(NotificationService):
     ) -> Notification:
         """Create schedule published notification with quick actions"""
         
+        # ✅ Enhanced quick actions for schedule notifications
         quick_actions = [
             {
                 "id": "view_schedule",
@@ -88,11 +100,18 @@ class EnhancedNotificationService(NotificationService):
                 "variant": "default"
             },
             {
+                "id": "download_schedule",
+                "label": "Download PDF",
+                "action": "view",
+                "url": f"/schedule/{schedule.id}/pdf",
+                "variant": "outline"
+            },
+            {
                 "id": "request_changes",
                 "label": "Request Changes",
                 "action": "view", 
                 "url": f"/schedule/{schedule.id}/feedback",
-                "variant": "outline"
+                "variant": "secondary"
             }
         ]
         
@@ -100,15 +119,17 @@ class EnhancedNotificationService(NotificationService):
             **template_data,
             "schedule_id": str(schedule.id),
             "facility_id": str(schedule.facility_id),
-            "quick_actions": quick_actions
+            "quick_actions": quick_actions,  # ✅ This will create the quick actions
+            "week_start": template_data.get("week_start", ""),
+            "facility_name": template_data.get("facility_name", "")
         }
-        
+     
         return await self.send_notification(
             notification_type=NotificationType.SCHEDULE_PUBLISHED,
             recipient_user_id=staff_member.id,
             template_data=enhanced_template_data,
             channels=['IN_APP', 'PUSH'],
-            priority=NotificationPriority.MEDIUM,
+            priority=NotificationPriority.HIGH,  # High priority for new schedules
             action_url=f"/schedule/{schedule.id}",
             action_text="View Schedule",
             background_tasks=background_tasks
@@ -131,7 +152,7 @@ class EnhancedNotificationService(NotificationService):
                 "id": "volunteer_cover",
                 "label": "I Can Help",
                 "action": "cover",
-                "api_endpoint": f"/api/coverage/{shift_id}/volunteer",
+                "api_endpoint": f"/v1/swaps/coverage/{shift_id}/volunteer",
                 "method": "POST",
                 "variant": "default"
             },
@@ -141,6 +162,13 @@ class EnhancedNotificationService(NotificationService):
                 "action": "view",
                 "url": f"/shifts/{shift_id}",
                 "variant": "outline"
+            },
+            {
+                "id": "contact_manager",
+                "label": "Contact Manager",
+                "action": "view",
+                "url": f"/contact/manager",
+                "variant": "secondary"
             }
         ]
         
@@ -179,6 +207,13 @@ class EnhancedNotificationService(NotificationService):
                 "action": "view",
                 "url": "/schedule/current",
                 "variant": "default"
+            },
+            {
+                "id": "download_confirmation",
+                "label": "Download Confirmation",
+                "action": "view",
+                "url": f"/swaps/{swap_request.id}/confirmation",
+                "variant": "outline"
             }
         ]
         
@@ -211,18 +246,25 @@ class EnhancedNotificationService(NotificationService):
         
         quick_actions = [
             {
-                "id": "create_new_request",
-                "label": "Try Again",
+                "id": "find_alternative",
+                "label": "Find Alternative",
                 "action": "view",
-                "url": "/swaps/create",
+                "url": f"/swaps/create?original_shift={swap_request.original_shift_date}",
                 "variant": "default"
             },
             {
-                "id": "find_alternatives",
-                "label": "Find Alternatives",
+                "id": "view_swap_details",
+                "label": "View Details",
                 "action": "view",
-                "url": "/swaps/available",
+                "url": f"/swaps/{swap_request.id}",
                 "variant": "outline"
+            },
+            {
+                "id": "contact_manager",
+                "label": "Contact Manager",
+                "action": "view",
+                "url": "/contact/manager",
+                "variant": "secondary"
             }
         ]
         
@@ -233,30 +275,22 @@ class EnhancedNotificationService(NotificationService):
         }
         
         return await self.send_notification(
-            notification_type=NotificationType.SWAP_DENIED,  # Note: using SWAP_DENIED not SWAP_DECLINED
+            notification_type=NotificationType.SWAP_DENIED,
             recipient_user_id=swap_request.requesting_staff_id,
             template_data=enhanced_template_data,
-            channels=['IN_APP'],
+            channels=['IN_APP', 'PUSH'],
             priority=NotificationPriority.MEDIUM,
+            action_url=f"/swaps/{swap_request.id}",
+            action_text="View Details",
             background_tasks=background_tasks
         )
     
     def _get_priority_for_urgency(self, urgency: str) -> NotificationPriority:
         """Map swap urgency to notification priority"""
         urgency_map = {
-            "low": NotificationPriority.LOW,
-            "normal": NotificationPriority.MEDIUM,
-            "high": NotificationPriority.HIGH,
-            "emergency": NotificationPriority.URGENT
+            'emergency': NotificationPriority.URGENT,
+            'high': NotificationPriority.HIGH,
+            'normal': NotificationPriority.MEDIUM,
+            'low': NotificationPriority.LOW
         }
         return urgency_map.get(urgency, NotificationPriority.MEDIUM)
-    
-    # Helper method to ensure UUID conversion if needed
-    def _ensure_uuid(self, user_id: Any) -> uuid.UUID:
-        """Ensure user_id is a UUID"""
-        if isinstance(user_id, str):
-            return uuid.UUID(user_id)
-        elif isinstance(user_id, uuid.UUID):
-            return user_id
-        else:
-            raise ValueError(f"Invalid user_id type: {type(user_id)}")
