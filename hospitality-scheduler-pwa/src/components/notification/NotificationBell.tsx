@@ -21,8 +21,11 @@ import {
   Eye,
   UserPlus,
   Loader2,
-  MoreHorizontal
+  MoreHorizontal,
+  Smartphone,
+  AlertCircle
 } from 'lucide-react'
+import { usePushNotificationContext } from '@/components/providers/PushNotificationProvider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
@@ -77,11 +80,53 @@ export function NotificationBell() {
   const [filterType, setFilterType] = useState<string>('all')
   const [filterPriority, setFilterPriority] = useState<string>('all')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [isOpen, setIsOpen] = useState(false);
+
   
   const apiClient = useApiClient()
   const { isAuthenticated, accessToken, user } = useAuth()
 
   const unreadCount = notifications.filter(n => !n.is_read).length
+
+   // ADD: Push notification integration
+  const {
+    hasPermission: hasPushPermission,
+    needsPermission: needsPushPermission,
+    isSupported: isPushSupported,
+    token: pushToken,
+    requestPermission: requestPushPermission
+  } = usePushNotificationContext();
+
+  // ADD: Push notification enable function
+  const enablePushNotifications = async () => {
+    setLoading(true);
+    try {
+      const success = await requestPushPermission();
+      if (success) {
+        toast.success('🔔 Push notifications enabled!');
+      }
+    } catch (error) {
+      console.error('Failed to enable push notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ADD: Push status badge function
+  const getPushStatusBadge = () => {
+    if (!isPushSupported) return null;
+    
+    if (hasPushPermission) {
+      return <Badge variant="default" className="text-xs">🔔 Push On</Badge>;
+    }
+    
+    if (needsPushPermission) {
+      return <Badge variant="secondary" className="text-xs">🔕 Push Off</Badge>;
+    }
+    
+    return null;
+  };
+
 
   useEffect(() => {
     if (isAuthenticated && apiClient) {
@@ -206,13 +251,13 @@ export function NotificationBell() {
               toast.success('✅ Request approved!')
               break
             case 'decline':
-              toast.success('Request declined')
+              toast.success('❌ Request declined')
               break
             case 'cover':
               toast.success('🙋‍♂️ Thanks for volunteering!')
               break
             default:
-              toast.success('Action completed successfully!')
+              toast.success('✅ Action completed successfully!')
           }
           
           await markAsRead(notification.id)
@@ -361,6 +406,8 @@ export function NotificationBell() {
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-gray-600" />
               <h3 className="font-semibold text-gray-900">Notifications</h3>
+              {/* ADD: Push status badge */}
+              {getPushStatusBadge()}
               {unreadCount > 0 && (
                 <Badge variant="secondary" className="text-xs px-2">
                   {unreadCount} new
@@ -400,6 +447,29 @@ export function NotificationBell() {
           </TabsList>
           
           <TabsContent value="notifications" className="m-0">
+            {/* Push Notification Prompt */}
+            {isPushSupported && needsPushPermission && (
+              <div className="p-3 bg-blue-50 border-b">
+                <div className="text-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-blue-900">📱 Enable Push Notifications</p>
+                      <p className="text-blue-700 text-xs mt-1">
+                        Get notified even when the app is closed
+                      </p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      onClick={enablePushNotifications}
+                      disabled={loading}
+                      className="ml-2"
+                    >
+                      {loading ? 'Enabling...' : 'Enable'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Filters */}
             <div className="p-3 border-b bg-gray-50/30 flex gap-2">
               <Select value={filterType} onValueChange={setFilterType}>
@@ -441,7 +511,7 @@ export function NotificationBell() {
                 <div className="flex flex-col items-center justify-center p-8 text-gray-500">
                   <Bell className="w-8 h-8 mb-2 text-gray-300" />
                   <p className="text-sm font-medium">No notifications</p>
-                  <p className="text-xs text-gray-400">You're all caught up!</p>
+                  <p className="text-xs text-gray-400">You&apos;re all caught up!</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
@@ -535,7 +605,46 @@ export function NotificationBell() {
           </TabsContent>
           
           <TabsContent value="settings" className="m-0 p-4 space-y-4">
-            <div>
+            {/* ADD: Push Notification Status Section */}
+            {isPushSupported && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm flex items-center gap-2">
+                  <Smartphone className="w-4 h-4" />
+                  Push Notifications
+                </h4>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                  <div>
+                    <p className="text-sm font-medium">
+                      {hasPushPermission ? 'Enabled' : 'Disabled'}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {hasPushPermission 
+                        ? 'Receive notifications when app is closed' 
+                        : 'Enable to get notifications when app is closed'
+                      }
+                    </p>
+                    {pushToken && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✅ Connected and ready
+                      </p>
+                    )}
+                  </div>
+                  {needsPushPermission ? (
+                    <Button 
+                      size="sm" 
+                      onClick={enablePushNotifications}
+                      disabled={loading}
+                    >
+                      {loading ? 'Enabling...' : 'Enable'}
+                    </Button>
+                  ) : (
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  )}
+                </div>
+              </div>
+            )}
+            {/* Notification Preferences */}
+            <div className="space-y-3">
               <h4 className="font-medium mb-3 text-sm">Notification Preferences</h4>
               <div className="space-y-3 max-h-40 overflow-y-auto scrollbar-thin">
                 {preferences.map((pref) => (
@@ -563,6 +672,7 @@ export function NotificationBell() {
                           onCheckedChange={(checked) => 
                             updatePreference(pref.notification_type, 'push_enabled', checked)
                           }
+                          disabled={!hasPushPermission} // Disable if no permission
                         />
                         <Label htmlFor={`${pref.notification_type}-push`} className="text-xs">
                           Push

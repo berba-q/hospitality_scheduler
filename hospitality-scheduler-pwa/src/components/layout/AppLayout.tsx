@@ -7,6 +7,10 @@ import { useEffect } from 'react'
 import { Navbar } from '@/components/navigation/Navbar'
 import { Toaster } from '@/components/ui/sonner'
 import { NotificationProvider, useRealtimeNotifications } from '@/contexts/NotificationContext'
+import { PushNotificationProvider } from '@/components/providers/PushNotificationProvider';
+import { PushNotificationPrompt } from '@/components/notification/PushNotificationPrompt';
+import { FirebaseInitializer } from '@/components/firebase/FirebaseInitializer';
+
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -40,10 +44,13 @@ function AppLayoutInner({ children }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Initialize Firebase in background */}
+      <FirebaseInitializer />
       <Navbar />
       <main>
         {children}
       </main>
+      <PushNotificationPrompt />
       <Toaster />
     </div>
   )
@@ -53,9 +60,14 @@ function AppLayoutInner({ children }: AppLayoutProps) {
 export function AppLayout({ children }: AppLayoutProps) {
   return (
     <NotificationProvider>
+      <PushNotificationProvider 
+        autoRequestDelay={3000} // Request permission 3 seconds after login
+        maxAutoRequests={1}     // Only auto-request once per session
+      >
       <AppLayoutInner>
         {children}
       </AppLayoutInner>
+      </PushNotificationProvider>
     </NotificationProvider>
   )
 }
