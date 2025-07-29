@@ -1963,10 +1963,19 @@ async getGlobalSwapStatistics() {
     })
   }
 
-  async updatePushToken(pushToken: string) {
+  async updatePushToken(data: { push_token: string }) {
+    console.log('Sending push token to backend:', data);
+    
     return this.request<any>('/v1/notifications/push-token', {
       method: 'POST',
-      body: JSON.stringify({ push_token: pushToken })
+      body: JSON.stringify(data)
+    });
+  }
+
+  // DEBUG remove this in production
+  async sendTestNotification() {
+    return this.request<any>('/v1/notifications/test', {
+      method: 'POST'
     })
   }
 
