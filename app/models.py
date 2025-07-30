@@ -157,6 +157,7 @@ class User(SQLModel, table=True):
     whatsapp_number: Optional[str] = None
     
     # Relationships
+    profile: Optional["UserProfile"] = Relationship(back_populates="user")
     notifications: List["Notification"] = Relationship(back_populates="recipient")
 
 class Staff(SQLModel, table=True):
@@ -617,3 +618,110 @@ class AuditLog(SQLModel, table=True):
     user_agent: Optional[str] = None
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+#==================== USER PROFILE MODEL =============================================
+class UserProfile(SQLModel, table=True):
+    """Individual user profile and preferences"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", unique=True)  # One profile per user
+    
+    # Personal Information
+    display_name: Optional[str] = None  # Custom display name (vs. email)
+    bio: Optional[str] = None
+    title: Optional[str] = None  # Job title
+    department: Optional[str] = None
+    phone_number: Optional[str] = None
+    
+    # Avatar & Profile Picture
+    avatar_url: Optional[str] = None  # URL to profile picture
+    avatar_type: str = Field(default="initials")  # 'initials', 'uploaded', 'gravatar'
+    avatar_color: str = Field(default="#3B82F6")  # Hex color for initials avatar
+    
+    # UI/UX Preferences
+    theme: str = Field(default="system")  # 'light', 'dark', 'system'
+    language: str = Field(default="en")  # ISO language code
+    timezone: str = Field(default="UTC")  # IANA timezone
+    date_format: str = Field(default="MM/dd/yyyy")  # User's preferred date format
+    time_format: str = Field(default="12h")  # '12h' or '24h'
+    currency: str = Field(default="USD")  # ISO currency code
+    
+    # Dashboard & Layout Preferences
+    dashboard_layout: Dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="Dashboard widget layout and preferences"
+    )
+    sidebar_collapsed: bool = Field(default=False)
+    cards_per_row: int = Field(default=3, ge=1, le=6)
+    show_welcome_tour: bool = Field(default=True)
+    
+    # Notification Preferences (Individual Overrides)
+    notification_preferences: Dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="Individual notification preferences overriding global settings"
+    )
+    quiet_hours_enabled: bool = Field(default=False)
+    quiet_hours_start: Optional[str] = None  # "22:00"
+    quiet_hours_end: Optional[str] = None    # "08:00"
+    weekend_notifications: bool = Field(default=True)
+    
+    # Privacy & Security Preferences
+    profile_visibility: str = Field(default="team")  # 'public', 'team', 'private'
+    show_email: bool = Field(default=False)
+    show_phone: bool = Field(default=False)
+    show_online_status: bool = Field(default=True)
+    
+    # Schedule & Work Preferences
+    preferred_shifts: List[str] = Field(
+        default_factory=list,
+        sa_column=Column(JSON),
+        description="User's preferred shift types"
+    )
+    max_consecutive_days: Optional[int] = None  # Personal override
+    preferred_days_off: List[int] = Field(
+        default_factory=list,
+        sa_column=Column(JSON),
+        description="Preferred days off (0=Sunday, 6=Saturday)"
+    )
+    
+    # Advanced Settings
+    enable_desktop_notifications: bool = Field(default=True)
+    enable_sound_notifications: bool = Field(default=True)
+    auto_accept_swaps: bool = Field(default=False)
+    show_analytics: bool = Field(default=True)
+    
+    # Onboarding & Help
+    onboarding_completed: bool = Field(default=False)
+    onboarding_step: int = Field(default=0)
+    last_help_viewed: Optional[datetime] = None
+    feature_hints_enabled: bool = Field(default=True)
+    
+    # Audit fields
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
+    last_active: Optional[datetime] = None
+    
+    # Relationships
+    user: "User" = Relationship(back_populates="profile")
+
+class ProfilePictureUpload(SQLModel, table=True):
+    """Track profile picture uploads for cleanup"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    original_filename: str
+    stored_filename: str
+    file_size: int
+    mime_type: str
+    storage_path: str  # Local path or cloud storage URL
+    is_active: bool = Field(default=True)
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Metadata
+    image_width: Optional[int] = None
+    image_height: Optional[int] = None
+    thumbnails: Dict[str, str] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="Generated thumbnail URLs"
+    )
