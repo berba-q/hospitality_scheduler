@@ -487,3 +487,133 @@ class NotificationPreference(SQLModel, table=True):
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
+
+#==================== SETTINGS MODEL =============================================
+class SystemSettings(SQLModel, table=True):
+    """System-wide settings for tenant""" 
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    tenant_id: uuid.UUID = Field(foreign_key="tenant.id", unique=True)  # One settings per tenant
+    
+    # General Settings
+    company_name: str = Field(default="Hotel Management Co.")
+    timezone: str = Field(default="UTC")
+    date_format: str = Field(default="MM/DD/YYYY")
+    currency: str = Field(default="USD")
+    language: str = Field(default="en")
+    
+    # Scheduling Settings (Global Defaults)
+    smart_scheduling_enabled: bool = Field(default=True)
+    max_optimization_iterations: int = Field(default=100)
+    conflict_check_enabled: bool = Field(default=True)
+    auto_assign_by_zone: bool = Field(default=True)
+    balance_workload: bool = Field(default=True)
+    require_manager_per_shift: bool = Field(default=True)
+    allow_overtime: bool = Field(default=False)
+    
+    # Notification Settings (Global Defaults) 
+    email_notifications_enabled: bool = Field(default=True)
+    whatsapp_notifications_enabled: bool = Field(default=True)
+    push_notifications_enabled: bool = Field(default=True)
+    schedule_published_notify: bool = Field(default=True)
+    swap_request_notify: bool = Field(default=True)
+    urgent_swap_notify: bool = Field(default=True)
+    daily_reminder_notify: bool = Field(default=False)
+    
+    # Security Settings
+    session_timeout_hours: int = Field(default=24)
+    require_two_factor: bool = Field(default=False)
+    enforce_strong_passwords: bool = Field(default=True)
+    allow_google_auth: bool = Field(default=True)
+    allow_apple_auth: bool = Field(default=False)
+    
+    # Integration Settings - Stored as JSON for flexibility
+    integrations: Dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="External integration settings (Twilio, SMTP, etc.)"
+    )
+    
+    # Analytics Settings
+    analytics_cache_ttl: int = Field(default=3600)  # 1 hour
+    enable_usage_tracking: bool = Field(default=True)
+    enable_performance_monitoring: bool = Field(default=True)
+    
+    # Advanced Settings - JSON field for extensibility
+    advanced_settings: Dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="Advanced and custom settings"
+    )
+    
+    # Audit fields
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
+    updated_by: Optional[uuid.UUID] = Field(foreign_key="user.id", default=None)
+
+
+class NotificationGlobalSettings(SQLModel, table=True):
+    """Global notification settings and templates""" 
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    tenant_id: uuid.UUID = Field(foreign_key="tenant.id")
+    
+    # Email Settings
+    smtp_enabled: bool = Field(default=False)
+    smtp_host: Optional[str] = None
+    smtp_port: int = Field(default=587)
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None  # Should be encrypted
+    smtp_use_tls: bool = Field(default=True)
+    smtp_from_email: Optional[str] = None
+    smtp_from_name: Optional[str] = None
+    
+    # WhatsApp/Twilio Settings
+    twilio_enabled: bool = Field(default=False)
+    twilio_account_sid: Optional[str] = None  # Should be encrypted
+    twilio_auth_token: Optional[str] = None   # Should be encrypted
+    twilio_whatsapp_number: Optional[str] = None
+    
+    # Push Notification Settings
+    push_enabled: bool = Field(default=False)
+    firebase_server_key: Optional[str] = None  # Should be encrypted
+    
+    # Global notification templates - JSON field
+    email_templates: Dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON)
+    )
+    whatsapp_templates: Dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON)
+    )
+    
+    # Rate limiting and delivery settings
+    email_rate_limit: int = Field(default=100)  # per hour
+    whatsapp_rate_limit: int = Field(default=50)  # per hour
+    retry_failed_notifications: bool = Field(default=True)
+    max_retry_attempts: int = Field(default=3)
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
+
+
+class AuditLog(SQLModel, table=True):
+    """Audit log for system settings changes"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    tenant_id: uuid.UUID = Field(foreign_key="tenant.id")
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    
+    action: str  # 'UPDATE_SETTINGS', 'CREATE_SETTINGS', 'DELETE_SETTINGS'
+    resource_type: str  # 'SystemSettings', 'NotificationSettings', etc.
+    resource_id: Optional[uuid.UUID] = None
+    
+    # Changes stored as JSON
+    changes: Dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON),
+        description="What changed: {'field': {'old': value, 'new': value}}"
+    )
+    
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
