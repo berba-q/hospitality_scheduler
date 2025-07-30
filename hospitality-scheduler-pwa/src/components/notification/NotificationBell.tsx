@@ -23,9 +23,13 @@ import {
   Loader2,
   MoreHorizontal,
   Smartphone,
-  AlertCircle
+  AlertCircle,
+  MessageSquare,
+  Globe,
+  ChevronRight
 } from 'lucide-react'
 import { usePushNotificationContext } from '@/components/providers/PushNotificationProvider';
+import { NotificationSettings } from './NotificationSettings'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
@@ -50,7 +54,7 @@ interface Notification {
   title: string
   message: string
   notification_type: string
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | 'CRITICAL'
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
   is_read: boolean
   created_at: string
   action_url?: string
@@ -80,7 +84,8 @@ export function NotificationBell() {
   const [filterType, setFilterType] = useState<string>('all')
   const [filterPriority, setFilterPriority] = useState<string>('all')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false)
+  const [showDetailedSettings, setShowDetailedSettings] = useState(false);
 
   
   const apiClient = useApiClient()
@@ -374,6 +379,23 @@ export function NotificationBell() {
     return null
   }
 
+  if (showDetailedSettings) {
+    return (
+      <div className="fixed inset-0 bg-white z-50 overflow-auto">
+        <div className="sticky top-0 bg-white border-b p-4 flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDetailedSettings(false)}
+          >
+            ← Back to Notifications
+          </Button>
+        </div>
+        <NotificationSettings />
+      </div>
+    )
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -604,83 +626,93 @@ export function NotificationBell() {
             </div>
           </TabsContent>
           
+          {/* Settings and preferences */}
           <TabsContent value="settings" className="m-0 p-4 space-y-4">
-            {/* ADD: Push Notification Status Section */}
+            {/* Push Notification Quick Status */}
             {isPushSupported && (
               <div className="space-y-3">
-                <h4 className="font-medium text-sm flex items-center gap-2">
-                  <Smartphone className="w-4 h-4" />
-                  Push Notifications
-                </h4>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {hasPushPermission ? 'Enabled' : 'Disabled'}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {hasPushPermission 
-                        ? 'Receive notifications when app is closed' 
-                        : 'Enable to get notifications when app is closed'
-                      }
-                    </p>
-                    {pushToken && (
-                      <p className="text-xs text-green-600 mt-1">
-                        ✅ Connected and ready
-                      </p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4" />
+                    <span className="text-sm font-medium">Push Notifications</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {hasPushPermission ? (
+                      <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                        Enabled
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700">
+                        Disabled
+                      </Badge>
                     )}
                   </div>
-                  {needsPushPermission ? (
-                    <Button 
-                      size="sm" 
-                      onClick={enablePushNotifications}
-                      disabled={loading}
-                    >
-                      {loading ? 'Enabling...' : 'Enable'}
-                    </Button>
+                </div>
+                
+                <div className="text-xs text-muted-foreground">
+                  {hasPushPermission 
+                    ? 'Receiving notifications when app is closed'
+                    : 'Enable to get notifications when app is closed'
+                  }
+                </div>
+                
+                {needsPushPermission && (
+                  <Button 
+                    onClick={requestPushPermission}
+                    size="sm" 
+                    className="w-full"
+                  >
+                    Enable Push Notifications
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* WhatsApp Status */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium">WhatsApp</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {user?.whatsapp_number ? (
+                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                      Connected
+                    </Badge>
                   ) : (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                      Not Set
+                    </Badge>
                   )}
                 </div>
               </div>
-            )}
-            {/* Notification Preferences */}
-            <div className="space-y-3">
-              <h4 className="font-medium mb-3 text-sm">Notification Preferences</h4>
-              <div className="space-y-3 max-h-40 overflow-y-auto scrollbar-thin">
-                {preferences.map((pref) => (
-                  <div key={pref.notification_type} className="space-y-2 pb-2 border-b border-gray-100 last:border-0">
-                    <Label className="text-xs font-medium text-gray-700">
-                      {pref.notification_type.replace('_', ' ')}
-                    </Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id={`${pref.notification_type}-app`}
-                          checked={pref.in_app_enabled}
-                          onCheckedChange={(checked) => 
-                            updatePreference(pref.notification_type, 'in_app_enabled', checked)
-                          }
-                        />
-                        <Label htmlFor={`${pref.notification_type}-app`} className="text-xs">
-                          In-App
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id={`${pref.notification_type}-push`}
-                          checked={pref.push_enabled}
-                          onCheckedChange={(checked) => 
-                            updatePreference(pref.notification_type, 'push_enabled', checked)
-                          }
-                          disabled={!hasPushPermission} // Disable if no permission
-                        />
-                        <Label htmlFor={`${pref.notification_type}-push`} className="text-xs">
-                          Push
-                        </Label>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              
+              <div className="text-xs text-muted-foreground">
+                {user?.whatsapp_number 
+                  ? `Connected: ${user.whatsapp_number}`
+                  : 'Set your WhatsApp number to receive messages'
+                }
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div className="space-y-2 pt-2 border-t">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-between h-8"
+                onClick={() => setShowDetailedSettings(true)}
+              >
+                <div className="flex items-center gap-2">
+                  <SettingsIcon className="w-4 h-4" />
+                  <span className="text-sm">Advanced Settings</span>
+                </div>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+              
+              <div className="text-xs text-muted-foreground">
+                Manage notification types, WhatsApp number, and preferences
               </div>
             </div>
           </TabsContent>
