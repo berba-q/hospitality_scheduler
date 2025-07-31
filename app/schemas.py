@@ -5,7 +5,8 @@ import uuid
 
 from .models import NotificationType, NotificationChannel, NotificationPriority
 from .models import SwapStatus
-from pydantic import BaseModel, EmailStr, ConfigDict, Field, validator
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from pydantic import field_validator
 
 
 class Token(BaseModel):
@@ -247,7 +248,7 @@ class StaffCreate(BaseModel):
     weekly_hours_max: int = 40
     is_active: bool = True
     
-    @validator('email')
+    @field_validator('email')
     def validate_email(cls, v):
             if v and '@' not in v:
                 raise ValueError('Invalid email format')
@@ -352,13 +353,13 @@ class StaffUnavailabilityCreate(BaseModel):
     reason: Optional[str] = None
     is_recurring: bool = False
     
-    @validator('end')
+    @field_validator('end')
     def end_after_start(cls, v, values):
         if 'start' in values and v <= values['start']:
             raise ValueError('End time must be after start time')
         return v
-    
-    @validator('start')
+
+    @field_validator('start')
     def start_not_in_past(cls, v):
         if v < datetime.utcnow():
             raise ValueError('Cannot set availability for past dates')
@@ -369,8 +370,8 @@ class StaffUnavailabilityUpdate(BaseModel):
     end: Optional[datetime] = None
     reason: Optional[str] = None
     is_recurring: Optional[bool] = None
-    
-    @validator('end')
+
+    @field_validator('end')
     def end_after_start(cls, v, values):
         if v and 'start' in values and values['start'] and v <= values['start']:
             raise ValueError('End time must be after start time')
@@ -403,7 +404,7 @@ class QuickUnavailabilityCreate(BaseModel):
     custom_start_hour: Optional[int] = Field(None, ge=0, le=23)
     custom_end_hour: Optional[int] = Field(None, ge=1, le=24)
     
-    @validator('custom_end_hour')
+    @field_validator('custom_end_hour')
     def custom_end_after_start(cls, v, values):
         if values.get('pattern') == 'custom':
             if not values.get('custom_start_hour') or not v:
@@ -687,7 +688,7 @@ class SwapValidationResult(BaseModel):
 
 class BulkSwapApproval(BaseModel):
     """Bulk approval of multiple swap requests"""
-    swap_ids: list[uuid.UUID] = Field(min_items=1, max_items=50)
+    swap_ids: list[uuid.UUID] = Field(min_length=1, max_length=50)
     approved: bool
     notes: Optional[str] = None
     apply_to_similar: bool = False  # Apply same decision to similar requests
@@ -1129,12 +1130,12 @@ class ScheduleTemplateDeleteValidation(BaseDeleteValidation):
 class BulkDeleteRequest(BaseModel):
     """For bulk delete operations across any entity type"""
     entity_type: str  # "staff", "schedules", "shifts", etc.
-    ids: List[uuid.UUID] = Field(min_items=1, max_items=100)
+    ids: List[uuid.UUID] = Field(min_length=1, max_length=100)
     force_delete: bool = False  # Override some validations
     reason: Optional[str] = None
     confirm: bool = Field(description="Must be true to confirm bulk deletion")
     
-    @validator('confirm')
+    @field_validator('confirm')
     def must_confirm_bulk_delete(cls, v):
         if not v:
             raise ValueError('Must confirm bulk deletion by setting confirm=true')
@@ -1315,3 +1316,653 @@ class NotificationTemplateCreate(BaseModel):
     whatsapp_template: Optional[str] = None
     default_channels: List[str]
     priority: NotificationPriority = NotificationPriority.MEDIUM
+
+#==================== USER PROFILE SCHEMAS ====================
+class UserProfileBase(BaseModel):
+    display_name: Optional[str] = Field(None, max_length=100)
+    bio: Optional[str] = Field(None, max_length=500)
+    title: Optional[str] = Field(None, max_length=100)
+    department: Optional[str] = Field(None, max_length=100)
+    phone_number: Optional[str] = Field(None, max_length=20)
+
+class UserProfileCreate(UserProfileBase):
+    # UI/UX Preferences
+    theme: str = Field(default="system", pattern=r"^(light|dark|system)$")
+    language: str = Field(default="en", max_length=5)
+    timezone: str = Field(default="UTC", max_length=50)
+    date_format: str = Field(default="MM/dd/yyyy", max_length=20)
+    time_format: str = Field(default="12h", pattern=r"^(12h|24h)$")
+    currency: str = Field(default="USD", max_length=3)
+    
+    # Dashboard Preferences
+    sidebar_collapsed: bool = Field(default=False)
+    cards_per_row: int = Field(default=3, ge=1, le=6)
+    show_welcome_tour: bool = Field(default=True)
+    
+    # Notification Preferences
+    quiet_hours_enabled: bool = Field(default=False)
+    quiet_hours_start: Optional[str] = Field(None, pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+    quiet_hours_end: Optional[str] = Field(None, pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+    weekend_notifications: bool = Field(default=True)
+    
+    # Privacy Settings
+    profile_visibility: str = Field(default="team", pattern=r"^(public|team|private)$")
+    show_email: bool = Field(default=False)
+    show_phone: bool = Field(default=False)
+    show_online_status: bool = Field(default=True)
+    
+    # Work Preferences
+    preferred_shifts: List[str] = Field(default_factory=list)
+    max_consecutive_days: Optional[int] = Field(None, ge=1, le=14)
+    preferred_days_off: List[int] = Field(default_factory=list)
+    
+    # App Settings
+    enable_desktop_notifications: bool = Field(default=True)
+    enable_sound_notifications: bool = Field(default=True)
+    auto_accept_swaps: bool = Field(default=False)
+    show_analytics: bool = Field(default=True)
+    feature_hints_enabled: bool = Field(default=True)
+    
+    @field_validator('preferred_days_off')
+    @classmethod
+    def validate_days_off(cls, v):
+        if v and any(day < 0 or day > 6 for day in v):
+            raise ValueError('Days off must be between 0 (Sunday) and 6 (Saturday)')
+        return v
+    
+    @field_validator('quiet_hours_end')
+    @classmethod
+    def validate_quiet_hours(cls, v, info):
+        values = info.data
+        if v and values.get('quiet_hours_enabled') and not values.get('quiet_hours_start'):
+            raise ValueError('quiet_hours_start is required when quiet_hours_end is provided')
+        return v
+
+class UserProfileUpdate(BaseModel):
+    # Allow partial updates of any field
+    display_name: Optional[str] = Field(None, max_length=100)
+    bio: Optional[str] = Field(None, max_length=500)
+    title: Optional[str] = Field(None, max_length=100)
+    department: Optional[str] = Field(None, max_length=100)
+    phone_number: Optional[str] = Field(None, max_length=20)
+    
+    # Avatar settings
+    avatar_type: Optional[str] = Field(None, pattern=r"^(initials|uploaded|gravatar)$")
+    avatar_color: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
+    
+    # UI/UX Preferences
+    theme: Optional[str] = Field(None, pattern=r"^(light|dark|system)$")
+    language: Optional[str] = Field(None, max_length=5)
+    timezone: Optional[str] = Field(None, max_length=50)
+    date_format: Optional[str] = Field(None, max_length=20)
+    time_format: Optional[str] = Field(None, pattern=r"^(12h|24h)$")
+    currency: Optional[str] = Field(None, max_length=3)
+    
+    # Dashboard & Layout
+    dashboard_layout: Optional[Dict[str, Any]] = None
+    sidebar_collapsed: Optional[bool] = None
+    cards_per_row: Optional[int] = Field(None, ge=1, le=6)
+    show_welcome_tour: Optional[bool] = None
+    
+    # Notifications
+    notification_preferences: Optional[Dict[str, Any]] = None
+    quiet_hours_enabled: Optional[bool] = None
+    quiet_hours_start: Optional[str] = Field(None, pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+    quiet_hours_end: Optional[str] = Field(None, pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+    weekend_notifications: Optional[bool] = None
+    
+    # Privacy
+    profile_visibility: Optional[str] = Field(None, pattern=r"^(public|team|private)$")
+    show_email: Optional[bool] = None
+    show_phone: Optional[bool] = None
+    show_online_status: Optional[bool] = None
+    
+    # Work Preferences
+    preferred_shifts: Optional[List[str]] = None
+    max_consecutive_days: Optional[int] = Field(None, ge=1, le=14)
+    preferred_days_off: Optional[List[int]] = None
+    
+    # App Settings
+    enable_desktop_notifications: Optional[bool] = None
+    enable_sound_notifications: Optional[bool] = None
+    auto_accept_swaps: Optional[bool] = None
+    show_analytics: Optional[bool] = None
+    
+    # Onboarding
+    onboarding_completed: Optional[bool] = None
+    onboarding_step: Optional[int] = Field(None, ge=0, le=10)
+    feature_hints_enabled: Optional[bool] = None
+
+class UserProfileRead(UserProfileBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    
+    # Avatar
+    avatar_url: Optional[str] = None
+    avatar_type: str
+    avatar_color: str
+    
+    # UI/UX Preferences
+    theme: str
+    language: str
+    timezone: str
+    date_format: str
+    time_format: str
+    currency: str
+    
+    # Dashboard & Layout
+    dashboard_layout: Dict[str, Any]
+    sidebar_collapsed: bool
+    cards_per_row: int
+    show_welcome_tour: bool
+    
+    # Notifications
+    notification_preferences: Dict[str, Any]
+    quiet_hours_enabled: bool
+    quiet_hours_start: Optional[str]
+    quiet_hours_end: Optional[str]
+    weekend_notifications: bool
+    
+    # Privacy
+    profile_visibility: str
+    show_email: bool
+    show_phone: bool
+    show_online_status: bool
+    
+    # Work Preferences
+    preferred_shifts: List[str]
+    max_consecutive_days: Optional[int]
+    preferred_days_off: List[int]
+    
+    # App Settings
+    enable_desktop_notifications: bool
+    enable_sound_notifications: bool
+    auto_accept_swaps: bool
+    show_analytics: bool
+    
+    # Onboarding
+    onboarding_completed: bool
+    onboarding_step: int
+    last_help_viewed: Optional[datetime]
+    feature_hints_enabled: bool
+    
+    # Audit
+    created_at: datetime
+    updated_at: Optional[datetime]
+    last_active: Optional[datetime]
+    
+    model_config = ConfigDict(from_attributes=True)
+
+# ==================== SYSTEM SETTINGS SCHEMAS ====================
+
+class SystemSettingsBase(BaseModel):
+    company_name: str = Field(max_length=200)
+    timezone: str = Field(default="UTC", max_length=50)
+    date_format: str = Field(default="MM/dd/yyyy", max_length=20)
+    currency: str = Field(default="USD", max_length=3)
+    language: str = Field(default="en", max_length=5)
+
+class SystemSettingsCreate(SystemSettingsBase):
+    # Scheduling Settings
+    smart_scheduling_enabled: bool = Field(default=True)
+    max_optimization_iterations: int = Field(default=100, ge=10, le=1000)
+    conflict_check_enabled: bool = Field(default=True)
+    auto_assign_by_zone: bool = Field(default=False)
+    balance_workload: bool = Field(default=True)
+    require_manager_per_shift: bool = Field(default=False)
+    allow_overtime: bool = Field(default=False)
+    
+    # Default Notification Settings
+    email_notifications_enabled: bool = Field(default=True)
+    whatsapp_notifications_enabled: bool = Field(default=False)
+    push_notifications_enabled: bool = Field(default=True)
+    schedule_published_notify: bool = Field(default=True)
+    swap_request_notify: bool = Field(default=True)
+    urgent_swap_notify: bool = Field(default=True)
+    daily_reminder_notify: bool = Field(default=False)
+    
+    # Security Settings
+    session_timeout_hours: int = Field(default=24, ge=1, le=168)  # 1 hour to 1 week
+    require_two_factor: bool = Field(default=False)
+    enforce_strong_passwords: bool = Field(default=True)
+    allow_google_auth: bool = Field(default=True)
+    allow_apple_auth: bool = Field(default=True)
+    
+    # Analytics Settings
+    analytics_cache_ttl: int = Field(default=3600, ge=300, le=86400)  # 5 min to 24 hours
+    enable_usage_tracking: bool = Field(default=True)
+    enable_performance_monitoring: bool = Field(default=True)
+    
+    # Advanced Settings
+    integrations: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    advanced_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+class SystemSettingsUpdate(BaseModel):
+    # Allow partial updates
+    company_name: Optional[str] = Field(None, max_length=200)
+    timezone: Optional[str] = Field(None, max_length=50)
+    date_format: Optional[str] = Field(None, max_length=20)
+    currency: Optional[str] = Field(None, max_length=3)
+    language: Optional[str] = Field(None, max_length=5)
+    
+    # Scheduling
+    smart_scheduling_enabled: Optional[bool] = None
+    max_optimization_iterations: Optional[int] = Field(None, ge=10, le=1000)
+    conflict_check_enabled: Optional[bool] = None
+    auto_assign_by_zone: Optional[bool] = None
+    balance_workload: Optional[bool] = None
+    require_manager_per_shift: Optional[bool] = None
+    allow_overtime: Optional[bool] = None
+    
+    # Notifications
+    email_notifications_enabled: Optional[bool] = None
+    whatsapp_notifications_enabled: Optional[bool] = None
+    push_notifications_enabled: Optional[bool] = None
+    schedule_published_notify: Optional[bool] = None
+    swap_request_notify: Optional[bool] = None
+    urgent_swap_notify: Optional[bool] = None
+    daily_reminder_notify: Optional[bool] = None
+    
+    # Security
+    session_timeout_hours: Optional[int] = Field(None, ge=1, le=168)
+    require_two_factor: Optional[bool] = None
+    enforce_strong_passwords: Optional[bool] = None
+    allow_google_auth: Optional[bool] = None
+    allow_apple_auth: Optional[bool] = None
+    
+    # Analytics
+    analytics_cache_ttl: Optional[int] = Field(None, ge=300, le=86400)
+    enable_usage_tracking: Optional[bool] = None
+    enable_performance_monitoring: Optional[bool] = None
+    
+    # Advanced
+    integrations: Optional[Dict[str, Any]] = None
+    advanced_settings: Optional[Dict[str, Any]] = None
+
+class SystemSettingsRead(SystemSettingsBase):
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    
+    # All settings fields
+    smart_scheduling_enabled: bool
+    max_optimization_iterations: int
+    conflict_check_enabled: bool
+    auto_assign_by_zone: bool
+    balance_workload: bool
+    require_manager_per_shift: bool
+    allow_overtime: bool
+    
+    email_notifications_enabled: bool
+    whatsapp_notifications_enabled: bool
+    push_notifications_enabled: bool
+    schedule_published_notify: bool
+    swap_request_notify: bool
+    urgent_swap_notify: bool
+    daily_reminder_notify: bool
+    
+    session_timeout_hours: int
+    require_two_factor: bool
+    enforce_strong_passwords: bool
+    allow_google_auth: bool
+    allow_apple_auth: bool
+    
+    integrations: Dict[str, Any]
+    analytics_cache_ttl: int
+    enable_usage_tracking: bool
+    enable_performance_monitoring: bool
+    advanced_settings: Dict[str, Any]
+    
+    created_at: datetime
+    updated_at: Optional[datetime]
+    updated_by: Optional[uuid.UUID]
+    
+    model_config = ConfigDict(from_attributes=True)
+
+# ==================== NOTIFICATION GLOBAL SETTINGS SCHEMAS ====================
+
+class NotificationGlobalSettingsBase(BaseModel):
+    # Email Settings
+    smtp_enabled: bool = Field(default=False)
+    smtp_host: Optional[str] = Field(None, max_length=255)
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: Optional[str] = Field(None, max_length=255)
+    smtp_use_tls: bool = Field(default=True)
+    smtp_from_email: Optional[str] = Field(None, max_length=255)
+    smtp_from_name: Optional[str] = Field(None, max_length=100)
+
+class NotificationGlobalSettingsCreate(NotificationGlobalSettingsBase):
+    # Email Settings (password will be encrypted)
+    smtp_password: Optional[str] = Field(None, max_length=255)
+    
+    # WhatsApp/Twilio Settings (will be encrypted)
+    twilio_enabled: bool = Field(default=False)
+    twilio_account_sid: Optional[str] = Field(None, max_length=255)
+    twilio_auth_token: Optional[str] = Field(None, max_length=255)
+    twilio_whatsapp_number: Optional[str] = Field(None, max_length=20)
+    
+    # Push Notifications (will be encrypted)
+    push_enabled: bool = Field(default=False)
+    firebase_server_key: Optional[str] = Field(None, max_length=500)
+    
+    # Templates
+    email_templates: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    whatsapp_templates: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    
+    # Rate Limiting
+    email_rate_limit: int = Field(default=100, ge=1, le=10000)
+    whatsapp_rate_limit: int = Field(default=50, ge=1, le=1000)
+    retry_failed_notifications: bool = Field(default=True)
+    max_retry_attempts: int = Field(default=3, ge=1, le=10)
+
+class NotificationGlobalSettingsUpdate(BaseModel):
+    # Email Settings
+    smtp_enabled: Optional[bool] = None
+    smtp_host: Optional[str] = Field(None, max_length=255)
+    smtp_port: Optional[int] = Field(None, ge=1, le=65535)
+    smtp_username: Optional[str] = Field(None, max_length=255)
+    smtp_password: Optional[str] = Field(None, max_length=255)
+    smtp_use_tls: Optional[bool] = None
+    smtp_from_email: Optional[str] = Field(None, max_length=255)
+    smtp_from_name: Optional[str] = Field(None, max_length=100)
+    
+    # WhatsApp/Twilio Settings
+    twilio_enabled: Optional[bool] = None
+    twilio_account_sid: Optional[str] = Field(None, max_length=255)
+    twilio_auth_token: Optional[str] = Field(None, max_length=255)
+    twilio_whatsapp_number: Optional[str] = Field(None, max_length=20)
+    
+    # Push Notifications
+    push_enabled: Optional[bool] = None
+    firebase_server_key: Optional[str] = Field(None, max_length=500)
+    
+    # Templates
+    email_templates: Optional[Dict[str, Any]] = None
+    whatsapp_templates: Optional[Dict[str, Any]] = None
+    
+    # Rate Limiting
+    email_rate_limit: Optional[int] = Field(None, ge=1, le=10000)
+    whatsapp_rate_limit: Optional[int] = Field(None, ge=1, le=1000)
+    retry_failed_notifications: Optional[bool] = None
+    max_retry_attempts: Optional[int] = Field(None, ge=1, le=10)
+
+class NotificationGlobalSettingsRead(NotificationGlobalSettingsBase):
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    
+    # Note: Sensitive fields like passwords and tokens are excluded from read
+    twilio_enabled: bool
+    twilio_whatsapp_number: Optional[str]
+    push_enabled: bool
+    
+    # Include masked versions for UI
+    smtp_password_set: bool = Field(description="Whether SMTP password is configured")
+    twilio_account_sid_set: bool = Field(description="Whether Twilio SID is configured")
+    twilio_auth_token_set: bool = Field(description="Whether Twilio token is configured")
+    firebase_server_key_set: bool = Field(description="Whether Firebase key is configured")
+    
+    email_templates: Dict[str, Any]
+    whatsapp_templates: Dict[str, Any]
+    email_rate_limit: int
+    whatsapp_rate_limit: int
+    retry_failed_notifications: bool
+    max_retry_attempts: int
+    
+    created_at: datetime
+    updated_at: Optional[datetime]
+    
+    model_config = ConfigDict(from_attributes=True)
+
+# ==================== PROFILE PICTURE SCHEMAS ====================
+
+class ProfilePictureUploadCreate(BaseModel):
+    original_filename: str = Field(max_length=255)
+    file_size: int = Field(ge=1, le=10485760)  # Max 10MB
+    mime_type: str = Field(pattern="^image/(jpeg|jpg|png|webp|gif)$")
+
+class ProfilePictureUploadRead(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    original_filename: str
+    stored_filename: str
+    file_size: int
+    mime_type: str
+    storage_path: str
+    is_active: bool
+    uploaded_at: datetime
+    image_width: Optional[int]
+    image_height: Optional[int]
+    thumbnails: Dict[str, str]
+    
+    model_config = ConfigDict(from_attributes=True)
+
+# ==================== AUDIT LOG SCHEMAS ====================
+
+class AuditLogRead(BaseModel):
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    user_id: uuid.UUID
+    action: str
+    resource_type: str
+    resource_id: Optional[uuid.UUID]
+    changes: Dict[str, Any]
+    ip_address: Optional[str]
+    user_agent: Optional[str]
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class AuditLogWithUser(AuditLogRead):
+    user_email: str = Field(description="Email of user who made the change")
+    user_name: str = Field(description="Display name of user who made the change")
+
+# ==================== SETTINGS SUMMARY SCHEMAS ====================
+
+class SettingsSummary(BaseModel):
+    """High-level overview of all settings for dashboard"""
+    system_settings_configured: bool
+    notification_settings_configured: bool
+    smtp_configured: bool
+    whatsapp_configured: bool
+    push_configured: bool
+    total_users: int
+    users_with_profiles: int
+    recent_changes_count: int
+    last_updated: Optional[datetime]
+
+# ==================== BULK SETTINGS OPERATIONS ====================
+
+class BulkSettingsUpdate(BaseModel):
+    """Update multiple settings categories at once"""
+    system_settings: Optional[SystemSettingsUpdate] = None
+    notification_settings: Optional[NotificationGlobalSettingsUpdate] = None
+    apply_defaults_to_users: bool = Field(default=False, description="Apply changes to existing user profiles")
+
+class SettingsImportExport(BaseModel):
+    """For importing/exporting settings configurations"""
+    system_settings: Optional[Dict[str, Any]] = None
+    notification_settings: Optional[Dict[str, Any]] = None
+    user_defaults: Optional[Dict[str, Any]] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+# ==================== AVATAR & FILE UPLOAD SCHEMAS ====================
+
+class AvatarUploadRequest(BaseModel):
+    """Request for avatar upload"""
+    avatar_type: str = Field(default="uploaded", pattern="^(uploaded|initials|gravatar)$")
+    
+class AvatarUpdateRequest(BaseModel):
+    """Update avatar settings without upload"""
+    avatar_type: str = Field(pattern="^(initials|uploaded|gravatar)$")
+    avatar_color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$")
+
+class AvatarResponse(BaseModel):
+    """Response after avatar operations"""
+    success: bool
+    avatar_url: Optional[str] = None
+    avatar_type: str
+    avatar_color: str
+    thumbnails: Dict[str, str] = Field(default_factory=dict)
+    message: str
+
+# ==================== SETTINGS RESPONSE SCHEMAS ====================
+
+class SettingsResponse(BaseModel):
+    """Generic settings operation response"""
+    success: bool
+    message: str
+    updated_fields: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+
+class SettingsValidationError(BaseModel):
+    """Validation error for settings"""
+    field: str
+    error_code: str
+    message: str
+    suggested_value: Optional[Any] = None
+
+class SettingsTestResult(BaseModel):
+    """Test result for settings like SMTP, Twilio, etc."""
+    service: str  # "smtp", "twilio", "firebase"
+    success: bool
+    message: str
+    details: Dict[str, Any] = Field(default_factory=dict)
+    tested_at: datetime
+
+# ==================== DASHBOARD WIDGETS SCHEMAS ====================
+
+class DashboardWidget(BaseModel):
+    """Individual dashboard widget configuration"""
+    widget_id: str
+    widget_type: str  # "chart", "metric", "list", "calendar"
+    title: str
+    position: Dict[str, int]  # {"x": 0, "y": 0, "w": 4, "h": 3}
+    settings: Dict[str, Any] = Field(default_factory=dict)
+    visible: bool = True
+
+class DashboardLayoutUpdate(BaseModel):
+    """Update dashboard layout"""
+    widgets: List[DashboardWidget]
+    layout_name: Optional[str] = Field(None, max_length=100)
+    is_default: bool = False
+
+# ==================== QUICK ACTIONS SCHEMAS ====================
+
+class QuickProfileUpdate(BaseModel):
+    """Quick profile updates for common actions"""
+    action: str = Field(pattern="^(toggle_theme|update_timezone|toggle_notifications|set_avatar_color)$")
+    value: Optional[Any] = None
+
+class ThemeToggleResponse(BaseModel):
+    """Response for theme toggle"""
+    new_theme: str
+    system_theme_detected: Optional[str] = None
+
+# ==================== EXPORT/IMPORT SCHEMAS ====================
+
+class SettingsExportRequest(BaseModel):
+    """Export settings configuration"""
+    include_system_settings: bool = True
+    include_notification_settings: bool = True
+    include_user_defaults: bool = True
+    include_sensitive_data: bool = False
+    export_format: str = Field(default="json", pattern="^(json|yaml)$")
+
+class SettingsImportRequest(BaseModel):
+    """Import settings configuration"""
+    data: Dict[str, Any]
+    overwrite_existing: bool = False
+    validate_only: bool = False
+    apply_to_existing_users: bool = False
+
+class SettingsBackup(BaseModel):
+    """Settings backup structure"""
+    backup_id: uuid.UUID
+    tenant_id: uuid.UUID
+    backup_name: str
+    created_at: datetime
+    size_bytes: int
+    includes: List[str]  # ["system", "notifications", "profiles"]
+    
+class SettingsRestore(BaseModel):
+    """Settings restore request"""
+    backup_id: uuid.UUID
+    restore_system_settings: bool = True
+    restore_notification_settings: bool = True
+    restore_user_profiles: bool = False
+    confirm_overwrite: bool = False
+
+# ==================== ONBOARDING SCHEMAS ====================
+
+class OnboardingProgress(BaseModel):
+    """Track user onboarding progress"""
+    user_id: uuid.UUID
+    current_step: int
+    completed_steps: List[int]
+    total_steps: int
+    completion_percentage: float
+    estimated_time_remaining: Optional[int] = Field(None, description="Minutes remaining")
+
+class OnboardingStepUpdate(BaseModel):
+    """Update specific onboarding step"""
+    step_number: int = Field(ge=0, le=10)
+    completed: bool = True
+    skip_welcome_tour: bool = False
+
+class OnboardingComplete(BaseModel):
+    """Mark onboarding as complete"""
+    feedback: Optional[str] = Field(None, max_length=500)
+    skip_tour: bool = False
+    preferred_features: List[str] = Field(default_factory=list)
+
+# ==================== SECURITY & ENCRYPTION SCHEMAS ====================
+
+class EncryptionStatus(BaseModel):
+    """Status of encrypted fields"""
+    field_name: str
+    is_encrypted: bool
+    last_updated: Optional[datetime]
+    encryption_version: int
+
+class SecurityAuditLog(BaseModel):
+    """Security-focused audit log entry"""
+    action: str
+    risk_level: str = Field(pattern="^(low|medium|high|critical)$")
+    ip_address: Optional[str]
+    user_agent: Optional[str]
+    details: Dict[str, Any]
+    created_at: datetime
+
+# ==================== NOTIFICATION TEMPLATE SCHEMAS ====================
+
+class NotificationTemplateTest(BaseModel):
+    """Test notification template"""
+    template_type: str
+    recipient_type: str = Field(pattern="^(manager|staff|all)$")
+    test_data: Dict[str, Any] = Field(default_factory=dict)
+
+class NotificationTemplatePreview(BaseModel):
+    """Preview rendered notification template"""
+    title: str
+    message: str
+    whatsapp_message: Optional[str] = None
+    variables_used: List[str]
+    estimated_length: Dict[str, int]  # character counts
+
+# ==================== ANALYTICS SCHEMAS ====================
+
+class SettingsUsageAnalytics(BaseModel):
+    """Analytics for settings usage"""
+    most_changed_settings: List[Dict[str, Any]]
+    user_adoption_rates: Dict[str, float]
+    feature_usage: Dict[str, int]
+    popular_themes: Dict[str, int]
+    average_profile_completion: float
+    
+class UserEngagementMetrics(BaseModel):
+    """User engagement with settings"""
+    total_profile_updates: int
+    active_customizers: int  # users who changed > 3 settings
+    theme_distribution: Dict[str, int]
+    notification_opt_out_rate: float
+    avatar_upload_rate: float
+
