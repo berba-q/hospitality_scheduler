@@ -1972,6 +1972,407 @@ async getGlobalSwapStatistics() {
     });
   }
 
+  // ================ SETTINGS ====================
+  // System Settings
+async getSystemSettings() {
+  return this.request<{
+    id: string
+    tenant_id: string
+    company_name: string
+    timezone: string
+    date_format: string
+    currency: string
+    language: string
+    smart_scheduling_enabled: boolean
+    max_optimization_iterations: number
+    conflict_check_enabled: boolean
+    auto_assign_by_zone: boolean
+    balance_workload: boolean
+    require_manager_per_shift: boolean
+    allow_overtime: boolean
+    email_notifications_enabled: boolean
+    whatsapp_notifications_enabled: boolean
+    push_notifications_enabled: boolean
+    schedule_published_notify: boolean
+    swap_request_notify: boolean
+    urgent_swap_notify: boolean
+    daily_reminder_notify: boolean
+    session_timeout_hours: number
+    require_two_factor: boolean
+    enforce_strong_passwords: boolean
+    allow_google_auth: boolean
+    allow_apple_auth: boolean
+    analytics_cache_ttl: number
+    enable_usage_tracking: boolean
+    enable_performance_monitoring: boolean
+    created_at: string
+    updated_at: string
+  }>('/v1/settings/system')
+}
+
+async createSystemSettings(settings: {
+  company_name: string
+  timezone?: string
+  date_format?: string
+  currency?: string
+  language?: string
+  smart_scheduling_enabled?: boolean
+  max_optimization_iterations?: number
+  conflict_check_enabled?: boolean
+  auto_assign_by_zone?: boolean
+  balance_workload?: boolean
+  require_manager_per_shift?: boolean
+  allow_overtime?: boolean
+  email_notifications_enabled?: boolean
+  whatsapp_notifications_enabled?: boolean
+  push_notifications_enabled?: boolean
+  schedule_published_notify?: boolean
+  swap_request_notify?: boolean
+  urgent_swap_notify?: boolean
+  daily_reminder_notify?: boolean
+  session_timeout_hours?: number
+  require_two_factor?: boolean
+  enforce_strong_passwords?: boolean
+  allow_google_auth?: boolean
+  allow_apple_auth?: boolean
+  analytics_cache_ttl?: number
+  enable_usage_tracking?: boolean
+  enable_performance_monitoring?: boolean
+}) {
+  return this.request<any>('/v1/settings/system', {
+    method: 'POST',
+    body: JSON.stringify(settings),
+  })
+}
+
+async updateSystemSettings(settings: {
+  company_name?: string
+  timezone?: string
+  date_format?: string
+  currency?: string
+  language?: string
+  smart_scheduling_enabled?: boolean
+  max_optimization_iterations?: number
+  conflict_check_enabled?: boolean
+  auto_assign_by_zone?: boolean
+  balance_workload?: boolean
+  require_manager_per_shift?: boolean
+  allow_overtime?: boolean
+  email_notifications_enabled?: boolean
+  whatsapp_notifications_enabled?: boolean
+  push_notifications_enabled?: boolean
+  schedule_published_notify?: boolean
+  swap_request_notify?: boolean
+  urgent_swap_notify?: boolean
+  daily_reminder_notify?: boolean
+  session_timeout_hours?: number
+  require_two_factor?: boolean
+  enforce_strong_passwords?: boolean
+  allow_google_auth?: boolean
+  allow_apple_auth?: boolean
+  analytics_cache_ttl?: number
+  enable_usage_tracking?: boolean
+  enable_performance_monitoring?: boolean
+}) {
+  return this.request<any>('/v1/settings/system', {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  })
+}
+
+async resetSystemSettings() {
+  return this.request<{
+    success: boolean
+    message: string
+  }>('/v1/settings/system', {
+    method: 'DELETE',
+  })
+}
+
+// Notification Settings
+async getNotificationSettings() {
+  return this.request<{
+    id: string
+    tenant_id: string
+    smtp_enabled: boolean
+    smtp_server?: string
+    smtp_port?: number
+    smtp_username?: string
+    smtp_password?: string
+    smtp_use_tls: boolean
+    smtp_use_ssl: boolean
+    whatsapp_enabled: boolean
+    twilio_account_sid?: string
+    twilio_auth_token?: string
+    twilio_whatsapp_number?: string
+    push_enabled: boolean
+    firebase_config?: any
+    created_at: string
+    updated_at: string
+  }>('/v1/settings/notifications')
+}
+
+async createNotificationSettings(settings: {
+  smtp_enabled?: boolean
+  smtp_server?: string
+  smtp_port?: number
+  smtp_username?: string
+  smtp_password?: string
+  smtp_use_tls?: boolean
+  smtp_use_ssl?: boolean
+  whatsapp_enabled?: boolean
+  twilio_account_sid?: string
+  twilio_auth_token?: string
+  twilio_whatsapp_number?: string
+  push_enabled?: boolean
+  firebase_config?: any
+}) {
+  return this.request<any>('/v1/settings/notifications', {
+    method: 'POST',
+    body: JSON.stringify(settings),
+  })
+}
+
+async updateNotificationSettings(settings: {
+  smtp_enabled?: boolean
+  smtp_server?: string
+  smtp_port?: number
+  smtp_username?: string
+  smtp_password?: string
+  smtp_use_tls?: boolean
+  smtp_use_ssl?: boolean
+  whatsapp_enabled?: boolean
+  twilio_account_sid?: string
+  twilio_auth_token?: string
+  twilio_whatsapp_number?: string
+  push_enabled?: boolean
+  firebase_config?: any
+}) {
+  return this.request<any>('/v1/settings/notifications', {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  })
+}
+
+// Profile Settings
+async getMyProfile() {
+  return this.request<{
+    id: string
+    user_id: string
+    full_name?: string
+    avatar_url?: string
+    avatar_type: string
+    avatar_color: string
+    phone?: string
+    whatsapp_number?: string
+    emergency_contact_name?: string
+    emergency_contact_phone?: string
+    preferred_name?: string
+    date_of_birth?: string
+    address?: string
+    city?: string
+    state?: string
+    zip_code?: string
+    country?: string
+    timezone?: string
+    language?: string
+    theme?: string
+    notifications_enabled: boolean
+    email_notifications: boolean
+    push_notifications: boolean
+    whatsapp_notifications: boolean
+    notification_sound: boolean
+    notification_vibration: boolean
+    privacy_level: string
+    two_factor_enabled: boolean
+    login_alerts: boolean
+    data_sharing_consent: boolean
+    marketing_emails: boolean
+    created_at: string
+    updated_at: string
+    last_active?: string
+  }>('/v1/settings/profile')
+}
+
+async updateMyProfile(profile: {
+  full_name?: string
+  avatar_type?: string
+  avatar_color?: string
+  phone?: string
+  whatsapp_number?: string
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
+  preferred_name?: string
+  date_of_birth?: string
+  address?: string
+  city?: string
+  state?: string
+  zip_code?: string
+  country?: string
+  timezone?: string
+  language?: string
+  theme?: string
+  notifications_enabled?: boolean
+  email_notifications?: boolean
+  push_notifications?: boolean
+  whatsapp_notifications?: boolean
+  notification_sound?: boolean
+  notification_vibration?: boolean
+  privacy_level?: string
+  two_factor_enabled?: boolean
+  login_alerts?: boolean
+  data_sharing_consent?: boolean
+  marketing_emails?: boolean
+}) {
+  return this.request<{
+    success: boolean
+    message: string
+    updated_fields: string[]
+  }>('/v1/settings/profile', {
+    method: 'PUT',
+    body: JSON.stringify(profile),
+  })
+}
+
+// Settings Testing
+async testSmtpConnection() {
+  return this.request<{
+    service: string
+    success: boolean
+    message: string
+    details: Record<string, any>
+    tested_at: string
+  }>('/v1/settings/test/smtp', {
+    method: 'POST',
+  })
+}
+
+async testTwilioConnection() {
+  return this.request<{
+    service: string
+    success: boolean
+    message: string
+    details: Record<string, any>
+    tested_at: string
+  }>('/v1/settings/test/twilio', {
+    method: 'POST',
+  })
+}
+
+async testFirebaseConnection() {
+  return this.request<{
+    service: string
+    success: boolean
+    message: string
+    details: Record<string, any>
+    tested_at: string
+  }>('/v1/settings/test/firebase', {
+    method: 'POST',
+  })
+}
+
+// Avatar Upload
+async uploadAvatar(file: File) {
+  const formData = new FormData()
+  formData.append('avatar', file)
+
+  const response = await fetch(`${this.config.baseUrl}/v1/settings/profile/avatar`, {
+    method: 'POST',
+    headers: {
+      ...this.config.headers,
+      // Don't set Content-Type for FormData, let browser set it with boundary
+    },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    throw new Error(`API Error ${response.status}: ${error}`)
+  }
+
+  return response.json() as Promise<{
+    success: boolean
+    avatar_url: string
+    avatar_type: string
+    avatar_color: string
+    thumbnails: Record<string, string>
+    message: string
+  }>
+}
+
+async updateAvatarSettings(settings: {
+  avatar_type: 'initials' | 'uploaded' | 'gravatar'
+  avatar_color?: string
+}) {
+  return this.request<{
+    success: boolean
+    avatar_url: string
+    avatar_type: string
+    avatar_color: string
+    thumbnails: Record<string, string>
+    message: string
+  }>('/v1/settings/profile/avatar', {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  })
+}
+
+// Settings Summary and Bulk Operations
+async getSettingsSummary() {
+  return this.request<{
+    system_settings_configured: boolean
+    notification_settings_configured: boolean
+    smtp_configured: boolean
+    whatsapp_configured: boolean
+    push_configured: boolean
+    total_users: number
+    users_with_profiles: number
+    recent_changes_count: number
+    last_updated?: string
+  }>('/v1/settings/summary')
+}
+
+async exportSettings(options: {
+  include_system_settings?: boolean
+  include_notification_settings?: boolean
+  include_user_defaults?: boolean
+  include_sensitive_data?: boolean
+  export_format?: 'json' | 'yaml'
+} = {}) {
+  const response = await fetch(`${this.config.baseUrl}/v1/settings/export`, {
+    method: 'POST',
+    headers: this.getHeaders(),
+    body: JSON.stringify(options),
+  })
+  
+  if (!response.ok) {
+    const error = await response.text()
+    throw new Error(`API Error ${response.status}: ${error}`)
+  }
+  
+  return response.blob()
+}
+
+async importSettings(data: any, options: {
+  overwrite_existing?: boolean
+  validate_only?: boolean
+  apply_to_existing_users?: boolean
+} = {}) {
+  return this.request<{
+    success: boolean
+    message: string
+    imported_items: string[]
+    warnings: string[]
+    errors: string[]
+  }>('/v1/settings/import', {
+    method: 'POST',
+    body: JSON.stringify({
+      data,
+      ...options
+    }),
+  })
+}
+
   // DEBUG remove this in production
   async sendTestNotification() {
     return this.request<any>('/v1/notifications/test', {
@@ -2006,6 +2407,7 @@ async getGlobalSwapStatistics() {
     return response.blob()
   }
 }
+
 
 // Create API client instance
 export const apiClient = new ApiClient({
