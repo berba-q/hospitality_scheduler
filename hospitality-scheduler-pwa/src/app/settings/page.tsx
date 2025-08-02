@@ -191,7 +191,7 @@ export default function SettingsPage() {
                       <Label htmlFor="date_format">Date Format</Label>
                       <Select
                         value={systemSettings?.date_format || 'MM/dd/yyyy'}
-                        onValueChange={(value) => handleSystemSettingChange('date_format', value)}
+                        onValueChange={(value) => updateSystemSettings({ date_format: value })}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -208,7 +208,7 @@ export default function SettingsPage() {
                       <Label htmlFor="currency">Currency</Label>
                       <Select
                         value={systemSettings?.currency || 'USD'}
-                        onValueChange={(value) => handleSystemSettingChange('currency', value)}
+                        onValueChange={(value) => updateSystemSettings({ currency: value })}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -254,7 +254,7 @@ export default function SettingsPage() {
                     <Switch
                       id="conflict_check_enabled"
                       checked={systemSettings?.conflict_check_enabled || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('conflict_check_enabled', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ conflict_check_enabled: checked })}
                     />
                   </div>
 
@@ -266,7 +266,7 @@ export default function SettingsPage() {
                     <Switch
                       id="balance_workload"
                       checked={systemSettings?.balance_workload || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('balance_workload', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ balance_workload: checked })}
                     />
                   </div>
 
@@ -278,7 +278,7 @@ export default function SettingsPage() {
                     <Switch
                       id="allow_overtime"
                       checked={systemSettings?.allow_overtime || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('allow_overtime', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ allow_overtime: checked })}
                     />
                   </div>
                 </CardContent>
@@ -332,7 +332,7 @@ export default function SettingsPage() {
                         <Input
                           id="smtp_server"
                           value={notificationSettings?.smtp_server || ''}
-                          onChange={(e) => handleNotificationSettingChange('smtp_server', e.target.value)}
+                          onChange={(e) => updateNotificationSettings({ smtp_server: e.target.value })}
                           placeholder="smtp.gmail.com"
                         />
                       </div>
@@ -344,7 +344,7 @@ export default function SettingsPage() {
                             id="smtp_port"
                             type="number"
                             value={notificationSettings?.smtp_port || 587}
-                            onChange={(e) => handleNotificationSettingChange('smtp_port', parseInt(e.target.value))}
+                            onChange={(e) => updateNotificationSettings({ smtp_port: parseInt(e.target.value) })}
                           />
                         </div>
                         <div>
@@ -352,7 +352,7 @@ export default function SettingsPage() {
                           <Input
                             id="smtp_username"
                             value={notificationSettings?.smtp_username || ''}
-                            onChange={(e) => handleNotificationSettingChange('smtp_username', e.target.value)}
+                            onChange={(e) => updateNotificationSettings({ smtp_username: e.target.value })}
                             placeholder="your-email@domain.com"
                           />
                         </div>
@@ -364,7 +364,7 @@ export default function SettingsPage() {
                           id="smtp_password"
                           type="password"
                           value={notificationSettings?.smtp_password || ''}
-                          onChange={(e) => handleNotificationSettingChange('smtp_password', e.target.value)}
+                          onChange={(e) => updateNotificationSettings({ smtp_password: e.target.value })}
                           placeholder="App password or SMTP password"
                         />
                       </div>
@@ -374,7 +374,7 @@ export default function SettingsPage() {
                           <Switch
                             id="smtp_use_tls"
                             checked={notificationSettings?.smtp_use_tls || false}
-                            onCheckedChange={(checked) => handleNotificationSettingChange('smtp_use_tls', checked)}
+                            onCheckedChange={(checked) => updateNotificationSettings({ smtp_use_tls: checked })}
                           />
                           <Label htmlFor="smtp_use_tls">Use TLS</Label>
                         </div>
@@ -382,7 +382,7 @@ export default function SettingsPage() {
                           <Switch
                             id="smtp_use_ssl"
                             checked={notificationSettings?.smtp_use_ssl || false}
-                            onCheckedChange={(checked) => handleNotificationSettingChange('smtp_use_ssl', checked)}
+                            onCheckedChange={(checked) => updateNotificationSettings({ smtp_use_ssl: checked })}
                           />
                           <Label htmlFor="smtp_use_ssl">Use SSL</Label>
                         </div>
@@ -427,7 +427,7 @@ export default function SettingsPage() {
                     <Switch
                       id="whatsapp_enabled"
                       checked={notificationSettings?.whatsapp_enabled || false}
-                      onCheckedChange={(checked) => handleNotificationSettingChange('whatsapp_enabled', checked)}
+                      onCheckedChange={(checked) => updateNotificationSettings({ whatsapp_enabled: checked })}
                     />
                   </div>
 
@@ -438,7 +438,7 @@ export default function SettingsPage() {
                         <Input
                           id="twilio_account_sid"
                           value={notificationSettings?.twilio_account_sid || ''}
-                          onChange={(e) => handleNotificationSettingChange('twilio_account_sid', e.target.value)}
+                          onChange={(e) => updateNotificationSettings({ twilio_account_sid: e.target.value })}
                           placeholder="AC..."
                         />
                       </div>
@@ -449,7 +449,7 @@ export default function SettingsPage() {
                           id="twilio_auth_token"
                           type="password"
                           value={notificationSettings?.twilio_auth_token || ''}
-                          onChange={(e) => handleNotificationSettingChange('twilio_auth_token', e.target.value)}
+                          onChange={(e) => updateNotificationSettings({ twilio_auth_token: e.target.value })}
                           placeholder="Your Twilio auth token"
                         />
                       </div>
@@ -459,7 +459,7 @@ export default function SettingsPage() {
                         <Input
                           id="twilio_whatsapp_number"
                           value={notificationSettings?.twilio_whatsapp_number || ''}
-                          onChange={(e) => handleNotificationSettingChange('twilio_whatsapp_number', e.target.value)}
+                          onChange={(e) => updateNotificationSettings({ twilio_whatsapp_number: e.target.value })}
                           placeholder="whatsapp:+1234567890"
                         />
                       </div>
@@ -503,7 +503,7 @@ export default function SettingsPage() {
                     <Switch
                       id="push_enabled"
                       checked={notificationSettings?.push_enabled || false}
-                      onCheckedChange={(checked) => handleNotificationSettingChange('push_enabled', checked)}
+                      onCheckedChange={(checked) => updateNotificationSettings({ push_enabled: checked })}
                     />
                   </div>
 
@@ -535,7 +535,7 @@ export default function SettingsPage() {
                     <Switch
                       id="schedule_published_notify"
                       checked={systemSettings?.schedule_published_notify || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('schedule_published_notify', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ schedule_published_notify: checked })}
                     />
                   </div>
 
@@ -547,7 +547,7 @@ export default function SettingsPage() {
                     <Switch
                       id="swap_request_notify"
                       checked={systemSettings?.swap_request_notify || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('swap_request_notify', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ swap_request_notify: checked })}
                     />
                   </div>
 
@@ -559,7 +559,7 @@ export default function SettingsPage() {
                     <Switch
                       id="urgent_swap_notify"
                       checked={systemSettings?.urgent_swap_notify || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('urgent_swap_notify', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ urgent_swap_notify: checked })}
                     />
                   </div>
 
@@ -571,7 +571,7 @@ export default function SettingsPage() {
                     <Switch
                       id="daily_reminder_notify"
                       checked={systemSettings?.daily_reminder_notify || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('daily_reminder_notify', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ daily_reminder_notify: checked })}
                     />
                   </div>
                 </CardContent>
@@ -614,7 +614,7 @@ export default function SettingsPage() {
                       min="1"
                       max="168"
                       value={systemSettings?.session_timeout_hours || 24}
-                      onChange={(e) => handleSystemSettingChange('session_timeout_hours', parseInt(e.target.value))}
+                      onChange={(e) => updateSystemSettings({ session_timeout_hours: parseInt(e.target.value) })}
                     />
                     <p className="text-sm text-gray-500 mt-1">How long users stay logged in (1-168 hours)</p>
                   </div>
@@ -627,7 +627,7 @@ export default function SettingsPage() {
                     <Switch
                       id="require_two_factor"
                       checked={systemSettings?.require_two_factor || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('require_two_factor', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ require_two_factor: checked })}
                     />
                   </div>
 
@@ -639,7 +639,7 @@ export default function SettingsPage() {
                     <Switch
                       id="enforce_strong_passwords"
                       checked={systemSettings?.enforce_strong_passwords || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('enforce_strong_passwords', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ enforce_strong_passwords: checked })}
                     />
                   </div>
                 </CardContent>
@@ -662,7 +662,7 @@ export default function SettingsPage() {
                     <Switch
                       id="allow_google_auth"
                       checked={systemSettings?.allow_google_auth || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('allow_google_auth', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ allow_google_auth: checked })}
                     />
                   </div>
 
@@ -674,7 +674,7 @@ export default function SettingsPage() {
                     <Switch
                       id="allow_apple_auth"
                       checked={systemSettings?.allow_apple_auth || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('allow_apple_auth', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ allow_apple_auth: checked })}
                     />
                   </div>
                 </CardContent>
@@ -697,7 +697,7 @@ export default function SettingsPage() {
                     <Switch
                       id="enable_usage_tracking"
                       checked={systemSettings?.enable_usage_tracking || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('enable_usage_tracking', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ enable_usage_tracking: checked })}
                     />
                   </div>
 
@@ -709,7 +709,7 @@ export default function SettingsPage() {
                     <Switch
                       id="enable_performance_monitoring"
                       checked={systemSettings?.enable_performance_monitoring || false}
-                      onCheckedChange={(checked) => handleSystemSettingChange('enable_performance_monitoring', checked)}
+                      onCheckedChange={(checked) => updateSystemSettings({ enable_performance_monitoring: checked })}
                     />
                   </div>
 
@@ -721,7 +721,7 @@ export default function SettingsPage() {
                       min="300"
                       max="86400"
                       value={systemSettings?.analytics_cache_ttl || 3600}
-                      onChange={(e) => handleSystemSettingChange('analytics_cache_ttl', parseInt(e.target.value))}
+                      onChange={(e) => updateSystemSettings({ analytics_cache_ttl: parseInt(e.target.value) })}
                     />
                     <p className="text-sm text-gray-500 mt-1">How long to cache analytics data (5 min - 24 hours)</p>
                   </div>
