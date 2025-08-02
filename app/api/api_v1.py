@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import auth, facility, staff, import_staff,schedule,schedule_config, availability, swap, notifications
+from .endpoints import auth, facility, staff, import_staff,schedule,schedule_config, availability, swap, notifications,settings
 from app.api.endpoints.quick_actions import router as quick_actions_router
 
 api_router = APIRouter()
@@ -14,3 +14,4 @@ api_router.include_router(schedule.router, prefix="/schedule", tags=["Schedule"]
 api_router.include_router(schedule_config.router, prefix="/schedule-config", tags=["Schedule Config"])
 api_router.include_router(notifications.router)
 api_router.include_router(quick_actions_router, tags=["quick-actions"])
+api_router.include_router(settings.router)
