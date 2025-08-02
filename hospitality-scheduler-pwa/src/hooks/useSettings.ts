@@ -208,83 +208,87 @@ export function useSettings() {
 
   // Save system settings
   const saveSystemSettings = useCallback(async () => {
-    if (!apiClient || !state.systemSettings) return
+  if (!apiClient || !state.systemSettings) return
 
-    setState(prev => ({ ...prev, saving: true }))
+  setState(prev => ({ ...prev, saving: true }))
+  
+  try {
+    const method = state.systemSettings.id ? 'updateSystemSettings' : 'createSystemSettings'
+    const response = await apiClient[method](state.systemSettings)
     
-    try {
-      const method = state.systemSettings.id ? 'updateSystemSettings' : 'createSystemSettings'
-      const response = await apiClient[method](state.systemSettings)
-      
-      setState(prev => ({
-        ...prev,
-        systemSettings: response,
-        saving: false,
-        hasUnsavedChanges: false
-      }))
-      
-      toast.success('System settings saved successfully!')
-      return response
-    } catch (error: any) {
-      setState(prev => ({ ...prev, saving: false }))
-      toast.error(error.response?.data?.detail || 'Failed to save system settings')
-      throw error
-    }
-  }, [apiClient, state.systemSettings])
+    setState(prev => ({
+      ...prev,
+      systemSettings: method === 'createSystemSettings' ? response : prev.systemSettings,
+      saving: false,
+      hasUnsavedChanges: false
+    }))
+    
+    toast.success('System settings saved successfully!')
+    return response
+  } catch (error: any) {
+    setState(prev => ({ ...prev, saving: false }))
+    toast.error(error.response?.data?.detail || 'Failed to save system settings')
+    throw error
+  }
+}, [apiClient, state.systemSettings])
 
   // Save notification settings
   const saveNotificationSettings = useCallback(async () => {
-    if (!apiClient || !state.notificationSettings) return
+  if (!apiClient || !state.notificationSettings) return
 
-    setState(prev => ({ ...prev, saving: true }))
+  setState(prev => ({ ...prev, saving: true }))
+  
+  try {
+    const method = state.notificationSettings.id ? 'updateNotificationSettings' : 'createNotificationSettings'
+    const response = await apiClient[method](state.notificationSettings)
     
-    try {
-      const method = state.notificationSettings.id ? 'updateNotificationSettings' : 'createNotificationSettings'
-      const response = await apiClient[method](state.notificationSettings)
-      
-      setState(prev => ({
-        ...prev,
-        notificationSettings: response,
-        saving: false,
-        hasUnsavedChanges: false
-      }))
-      
-      toast.success('Notification settings saved successfully!')
-      return response
-    } catch (error: any) {
-      setState(prev => ({ ...prev, saving: false }))
-      toast.error(error.response?.data?.detail || 'Failed to save notification settings')
-      throw error
-    }
-  }, [apiClient, state.notificationSettings])
+    setState(prev => ({
+      ...prev,
+      // ✅ Only update notificationSettings if we got a full settings object (CREATE)
+      // ✅ For UPDATE, keep the current local state (it's already correct)
+      notificationSettings: method === 'createNotificationSettings' ? response : prev.notificationSettings,
+      saving: false,
+      hasUnsavedChanges: false
+    }))
+    
+    toast.success('Notification settings saved successfully!')
+    return response
+  } catch (error: any) {
+    setState(prev => ({ ...prev, saving: false }))
+    toast.error(error.response?.data?.detail || 'Failed to save notification settings')
+    throw error
+  }
+}, [apiClient, state.notificationSettings])
 
   // Save user profile
   const saveUserProfile = useCallback(async () => {
-    if (!apiClient) {
-      toast.error('API client not ready')
-      return
-    }
-    if (!state.userProfile) return
+  if (!apiClient) {
+    toast.error('API client not ready')
+    return
+  }
+  if (!state.userProfile) return
 
-    setState(prev => ({ ...prev, saving: true }))
+  setState(prev => ({ ...prev, saving: true }))
+  
+  try {
+    const response = await apiClient.updateMyProfile(state.userProfile)
     
-    try {
-      const response = await apiClient.updateMyProfile(state.userProfile)
-      
-      setState(prev => ({
-        ...prev,
-        saving: false,
-        hasUnsavedChanges: false
-      }))
-      
-      toast.success('Profile updated successfully!')
-      return response
-    } catch (error: any) {
-      setState(prev => ({ ...prev, saving: false }))
-      toast.error(error.response?.data?.detail || 'Failed to update profile')
-      throw error
-    }
-  }, [apiClient, state.userProfile])
+    setState(prev => ({
+      ...prev,
+      // ✅ updateMyProfile always returns success response, keep local state
+      // ✅ Local state already has the correct values from updateUserProfile calls
+      saving: false,
+      hasUnsavedChanges: false
+    }))
+    
+    toast.success('Profile updated successfully!')
+    return response
+  } catch (error: any) {
+    setState(prev => ({ ...prev, saving: false }))
+    toast.error(error.response?.data?.detail || 'Failed to update profile')
+    throw error
+  }
+}, [apiClient, state.userProfile])
 
   // Test connection services
   const testConnection = useCallback(async (service: 'smtp' | 'twilio' | 'firebase') => {
