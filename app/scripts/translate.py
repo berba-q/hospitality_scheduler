@@ -52,7 +52,7 @@ class StringExtractor:
         
         # Skip technical patterns
         technical_patterns = [
-            r'^[a-z]+[A-Z]',  # camelCase variables
+            r'^[a-z]+(?:[A-Z][a-z0-9]+)+$',  # camelCase variables
             r'^[A-Z_]+$',     # CONSTANTS
             r'^[a-z-]+$',     # kebab-case
             r'^\.',           # File extensions
@@ -62,6 +62,7 @@ class StringExtractor:
             r'^https?://',    # URLs
             r'^#[0-9a-fA-F]', # Colors
             r'px|rem|vh|vw|%|rgb|var\(', # CSS
+            r'^[a-z]+(_[a-z0-9]+)+$',   # snake_case variables
         ]
         
         for pattern in technical_patterns:
@@ -105,6 +106,42 @@ class StringExtractor:
             }
             if clean_string.lower() in technical_words:
                 return False
+
+        # Extra guard for complex Tailwind / aria utility strings
+        css_keywords = [
+            'bg-', 'text-', 'border-', 'ring-', 'shadow-', 'opacity-',
+            'hover:', 'focus:', 'active:', 'disabled:', 'dark:',
+            'aria-invalid:', 'destructive/', 'ring-destructive'
+        ]
+        if any(kw in clean_string for kw in css_keywords):
+            # If the string also contains typical CSS separators, treat it as non‑UI
+            if any(ch in clean_string for ch in [':', '/', '[', ']']):
+                return False
+
+        # Skip likely CSS utility class lists (e.g., Tailwind)
+        if re.match(r'^[a-z0-9\s\-:\/\[\]&]+$', clean_string):
+            css_triggers = ['bg-', 'text-', 'border-', 'flex', 'grid', 'gap-', 'p-', 'm-', 'w-', 'h-']
+            if any(trigger in clean_string for trigger in css_triggers):
+                return False
+
+        # Skip long sequences of utility‑class tokens (Tailwind or similar)
+        tokens = clean_string.split()
+        if len(tokens) >= 3:
+            css_like = 0
+            for tok in tokens:
+                if re.match(r'^(?:sm:|md:|lg:|xl:|hover:|focus:|active:|disabled:|dark:)?[a-z0-9\-_/[\]&]+$', tok):
+                    if '-' in tok or ':' in tok or '[' in tok or '/' in tok:
+                        css_like += 1
+            if css_like / len(tokens) > 0.5:
+                return False
+
+        # Skip aria-* utility strings
+        if all(tok.startswith('aria-') or tok.startswith('dark:aria-') for tok in tokens):
+            return False
+
+        # Skip strings that appear to be code fragments
+        if re.search(r'[{};:<>()]', clean_string):
+            return False
         
         # Good indicators of user-facing strings
         user_facing_indicators = [
@@ -201,33 +238,48 @@ class StringExtractor:
             # Remove comments first
             content_no_comments = re.sub(r'//.*$', '', content, flags=re.MULTILINE)
             content_no_comments = re.sub(r'/\*.*?\*/', '', content_no_comments, flags=re.DOTALL)
+
+            # Strip static className attributes to avoid capturing CSS classes
+            content_no_classes = re.sub(r'className\s*=\s*"[^"]*"', '', content_no_comments)
+            content_no_classes = re.sub(r"className\s*=\s*'[^']*'", '', content_no_classes)
+            content_to_scan = content_no_classes
             
             # Extract strings with their context
             patterns = [
-                # JSX text content
-                (r'>([^<>]*[A-Za-z][^<>]*)<', 1),
-                # String literals
+                # JSX text content within tags – bounded, non‑greedy, no cross‑line, stops at `{`
+                (r'>\s*([^<\{\}\n]+[A-Za-z][^<\{\}\n]*)\s*<', 1),
+
+                # Whitelisted attributes that commonly hold user‑visible text
+                (r'\b(?:placeholder|alt|title|aria-label|label)\s*=\s*"([^"]*[A-Za-z][^"]*)"', 1),
+                (r"\b(?:placeholder|alt|title|aria-label|label)\s*=\s*'([^']*[A-Za-z][^']*)'", 1),
+
+                # Generic string literals
                 (r'"([^"]*[A-Za-z][^"]*)"', 1),
                 (r"'([^']*[A-Za-z][^']*)'", 1),
-                # Template literals (basic)
+
+                # Template literals
                 (r'`([^`]*[A-Za-z][^`]*)`', 1),
             ]
             
             for pattern, group in patterns:
-                matches = re.finditer(pattern, content_no_comments)
+                matches = re.finditer(pattern, content_to_scan)
                 for match in matches:
-                    text = match.group(group).strip()
-                    if not text:
+                    raw_text = match.group(group)
+                    if not raw_text:
                         continue
-                    
-                    # Get surrounding context
-                    start = max(0, match.start() - 50)
-                    end = min(len(content), match.end() + 50)
-                    context = content[start:end].replace('\n', ' ')
-                    
-                    if self.is_user_facing_string(text, context):
-                        category = self.categorize_string(text, str(file_path))
-                        self.strings[category].add((text, str(file_path.relative_to(self.src_dir))))
+
+                    # Split template literals on ${...} to extract static pieces
+                    segments = [seg.strip() for seg in re.split(r'\$\{[^}]+\}', raw_text) if seg.strip()]
+
+                    for text in segments:
+                        # Get surrounding context
+                        start = max(0, match.start() - 50)
+                        end = min(len(content_to_scan), match.end() + 50)
+                        context = content_to_scan[start:end].replace('\n', ' ')
+
+                        if self.is_user_facing_string(text, context):
+                            category = self.categorize_string(text, str(file_path))
+                            self.strings[category].add((text, str(file_path.relative_to(self.src_dir))))
                         
         except Exception as e:
             print(f"Error processing {file_path}: {e}")
@@ -258,30 +310,30 @@ class StringExtractor:
         output.append("# Review these strings and copy relevant ones to your translation dictionaries")
         output.append("# Format: Category -> String (found in file)")
         output.append("")
-        
+
         total_strings = sum(len(strings) for strings in self.strings.values())
         output.append(f"# Total strings found: {total_strings}")
         output.append("")
-        
+
         for category, strings in sorted(self.strings.items()):
             if not strings:
                 continue
-                
+
             output.append(f"## {category.upper()} ({len(strings)} strings)")
             output.append("")
-            
+
             for text, file_path in sorted(strings):
                 # Clean up the text for display
                 clean_text = text.replace('\n', ' ').replace('\r', '').strip()
                 if len(clean_text) > 80:
                     clean_text = clean_text[:77] + "..."
-                
                 output.append(f"'{clean_text}' -> {file_path}")
-            
+
             output.append("")
             output.append("### Suggested TypeScript format:")
             output.append(f"{category}: {{")
-            
+
+            # Only one loop over strings for output_lines
             for text, _ in sorted(strings):
                 # Generate a simple key
                 words = re.findall(r'\b\w+\b', text.lower())
@@ -293,16 +345,17 @@ class StringExtractor:
                         key = key[:25]
                 else:
                     key = "unknown"
-                
+
                 # Clean text for output
-                clean_text = text.replace("'", "\\'").replace('\n', ' ').strip()
-                output.append(f"  {key}: '{clean_text}',")
-            
+                clean_text = text.replace('\n', ' ').strip()
+                ts_text = clean_text.replace("'", "\\'")
+                output.append(f"  {key}: '{ts_text}',")
+
             output.append("},")
             output.append("")
             output.append("-" * 50)
             output.append("")
-        
+
         return "\n".join(output)
     
     def save_results(self) -> None:
