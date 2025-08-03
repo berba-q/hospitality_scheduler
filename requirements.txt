@@ -22,3 +22,4 @@ twilio>=9.6.5
 reportlab>=4.4.2
 pytest>=8.4.1
 cryptography>=45.0.5
+Pillow>=11.3.0

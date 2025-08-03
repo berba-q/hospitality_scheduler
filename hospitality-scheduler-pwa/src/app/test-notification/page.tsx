@@ -3,6 +3,7 @@
 'use client'
 
 import { QuickTestNotifications } from '@/components/debug/QuickTestNotifications'
+import { I18nTest } from '@/components/debug/I18nTest';
 
 export default function TestNotificationPage() {
   return (
@@ -51,6 +52,7 @@ export default function TestNotificationPage() {
           </div>
         </div>
       </div>
+      <I18nTest />
     </div>
   )
 }
