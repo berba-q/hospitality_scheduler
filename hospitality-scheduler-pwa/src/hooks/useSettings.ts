@@ -1,4 +1,4 @@
-// src/hooks/useSettings.ts
+// src/hooks/useSettings.ts - COMPLETE UPDATED VERSION
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -60,14 +60,24 @@ interface NotificationSettings {
   updated_at?: string
 }
 
+// ✅ FIXED UserProfile interface with all missing fields
 interface UserProfile {
   id?: string
   user_id?: string
-  full_name?: string
+  
+  // Personal Information
+  display_name?: string  
+  bio?: string           
+  title?: string        
+  department?: string    
+  phone_number?: string  
+  
+  // Avatar & Profile Picture
   avatar_url?: string
   avatar_type: string
   avatar_color: string
-  phone?: string
+  
+  // Contact Information
   whatsapp_number?: string
   emergency_contact_name?: string
   emergency_contact_phone?: string
@@ -78,20 +88,64 @@ interface UserProfile {
   state?: string
   zip_code?: string
   country?: string
+  
+  // UI/UX Preferences
   timezone?: string
   language?: string
   theme?: string
+  date_format?: string    
+  time_format?: string    
+  currency?: string      
+  
+  // Dashboard & Layout 
+  dashboard_layout?: Record<string, any>  
+  sidebar_collapsed?: boolean             
+  cards_per_row?: number                  
+  show_welcome_tour?: boolean             
+  
+  // Notification Preferences 
   notifications_enabled: boolean
   email_notifications: boolean
   push_notifications: boolean
   whatsapp_notifications: boolean
   notification_sound: boolean
   notification_vibration: boolean
+
+  // Advanced Notification Settings
+  enable_desktop_notifications?: boolean
+  enable_sound_notifications?: boolean
+  quiet_hours_enabled?: boolean
+  quiet_hours_start?: string
+  quiet_hours_end?: string
+  weekend_notifications?: boolean
+  
+  // Privacy & Security  
   privacy_level: string
+  profile_visibility?: string             
+  show_email?: boolean                    
+  show_phone?: boolean                     
+  show_online_status?: boolean          
   two_factor_enabled: boolean
   login_alerts: boolean
   data_sharing_consent: boolean
   marketing_emails: boolean
+  
+  // Work Preferences (NEW - from backend model)
+  preferred_shifts?: string[]             
+  max_consecutive_days?: number           
+  preferred_days_off?: number[]           
+  
+  // App Settings (NEW - from backend model)
+  auto_accept_swaps?: boolean            
+  show_analytics?: boolean               
+  
+  // Onboarding (NEW - from backend model)
+  onboarding_completed?: boolean          
+  onboarding_step?: number                
+  last_help_viewed?: string              
+  feature_hints_enabled?: boolean         
+  
+  // Audit fields
   created_at?: string
   updated_at?: string
   last_active?: string
@@ -206,89 +260,85 @@ export function useSettings() {
     }))
   }, [])
 
-  // Save system settings
+  // Save system settings with correct response handling
   const saveSystemSettings = useCallback(async () => {
-  if (!apiClient || !state.systemSettings) return
+    if (!apiClient || !state.systemSettings) return
 
-  setState(prev => ({ ...prev, saving: true }))
-  
-  try {
-    const method = state.systemSettings.id ? 'updateSystemSettings' : 'createSystemSettings'
-    const response = await apiClient[method](state.systemSettings)
+    setState(prev => ({ ...prev, saving: true }))
     
-    setState(prev => ({
-      ...prev,
-      systemSettings: method === 'createSystemSettings' ? response : prev.systemSettings,
-      saving: false,
-      hasUnsavedChanges: false
-    }))
-    
-    toast.success('System settings saved successfully!')
-    return response
-  } catch (error: any) {
-    setState(prev => ({ ...prev, saving: false }))
-    toast.error(error.response?.data?.detail || 'Failed to save system settings')
-    throw error
-  }
-}, [apiClient, state.systemSettings])
+    try {
+      const method = state.systemSettings.id ? 'updateSystemSettings' : 'createSystemSettings'
+      const response = await apiClient[method](state.systemSettings)
+      
+      setState(prev => ({
+        ...prev,
+        systemSettings: method === 'createSystemSettings' ? response : prev.systemSettings,
+        saving: false,
+        hasUnsavedChanges: false
+      }))
+      
+      toast.success('System settings saved successfully!')
+      return response
+    } catch (error: any) {
+      setState(prev => ({ ...prev, saving: false }))
+      toast.error(error.response?.data?.detail || 'Failed to save system settings')
+      throw error
+    }
+  }, [apiClient, state.systemSettings])
 
-  // Save notification settings
+  // Save notification settings with correct response handling
   const saveNotificationSettings = useCallback(async () => {
-  if (!apiClient || !state.notificationSettings) return
+    if (!apiClient || !state.notificationSettings) return
 
-  setState(prev => ({ ...prev, saving: true }))
-  
-  try {
-    const method = state.notificationSettings.id ? 'updateNotificationSettings' : 'createNotificationSettings'
-    const response = await apiClient[method](state.notificationSettings)
+    setState(prev => ({ ...prev, saving: true }))
     
-    setState(prev => ({
-      ...prev,
-      // ✅ Only update notificationSettings if we got a full settings object (CREATE)
-      // ✅ For UPDATE, keep the current local state (it's already correct)
-      notificationSettings: method === 'createNotificationSettings' ? response : prev.notificationSettings,
-      saving: false,
-      hasUnsavedChanges: false
-    }))
-    
-    toast.success('Notification settings saved successfully!')
-    return response
-  } catch (error: any) {
-    setState(prev => ({ ...prev, saving: false }))
-    toast.error(error.response?.data?.detail || 'Failed to save notification settings')
-    throw error
-  }
-}, [apiClient, state.notificationSettings])
+    try {
+      const method = state.notificationSettings.id ? 'updateNotificationSettings' : 'createNotificationSettings'
+      const response = await apiClient[method](state.notificationSettings)
+      
+      setState(prev => ({
+        ...prev,
+        notificationSettings: method === 'createNotificationSettings' ? response : prev.notificationSettings,
+        saving: false,
+        hasUnsavedChanges: false
+      }))
+      
+      toast.success('Notification settings saved successfully!')
+      return response
+    } catch (error: any) {
+      setState(prev => ({ ...prev, saving: false }))
+      toast.error(error.response?.data?.detail || 'Failed to save notification settings')
+      throw error
+    }
+  }, [apiClient, state.notificationSettings])
 
-  // Save user profile
+  //Save user profile with correct response handling
   const saveUserProfile = useCallback(async () => {
-  if (!apiClient) {
-    toast.error('API client not ready')
-    return
-  }
-  if (!state.userProfile) return
+    if (!apiClient) {
+      toast.error('API client not ready')
+      return
+    }
+    if (!state.userProfile) return
 
-  setState(prev => ({ ...prev, saving: true }))
-  
-  try {
-    const response = await apiClient.updateMyProfile(state.userProfile)
+    setState(prev => ({ ...prev, saving: true }))
     
-    setState(prev => ({
-      ...prev,
-      // ✅ updateMyProfile always returns success response, keep local state
-      // ✅ Local state already has the correct values from updateUserProfile calls
-      saving: false,
-      hasUnsavedChanges: false
-    }))
-    
-    toast.success('Profile updated successfully!')
-    return response
-  } catch (error: any) {
-    setState(prev => ({ ...prev, saving: false }))
-    toast.error(error.response?.data?.detail || 'Failed to update profile')
-    throw error
-  }
-}, [apiClient, state.userProfile])
+    try {
+      const response = await apiClient.updateMyProfile(state.userProfile)
+      
+      setState(prev => ({
+        ...prev,
+        saving: false,
+        hasUnsavedChanges: false
+      }))
+      
+      toast.success('Profile updated successfully!')
+      return response
+    } catch (error: any) {
+      setState(prev => ({ ...prev, saving: false }))
+      toast.error(error.response?.data?.detail || 'Failed to update profile')
+      throw error
+    }
+  }, [apiClient, state.userProfile])
 
   // Test connection services
   const testConnection = useCallback(async (service: 'smtp' | 'twilio' | 'firebase') => {
@@ -385,7 +435,7 @@ export function useSettings() {
     toast.info('Settings reset to defaults. Remember to save your changes.')
   }, [])
 
-  // Upload avatar
+  // Upload avatar with proper error handling
   const uploadAvatar = useCallback(async (file: File) => {
     if (!apiClient) {
       toast.error('API client not ready')
@@ -416,39 +466,57 @@ export function useSettings() {
     }
   }, [apiClient])
 
-  // Update avatar settings
-  const updateAvatarSettings = useCallback(async (settings: {
-    avatar_type: 'initials' | 'uploaded' | 'gravatar'
-    avatar_color?: string
-  }) => {
-    if (!apiClient) {
-      toast.error('API client not ready')
-      return
-    }
-    setState(prev => ({ ...prev, saving: true }))
+  // Avatar type validation
+type AvatarType = 'initials' | 'uploaded' | 'gravatar'
+
+const isValidAvatarType = (type: string): type is AvatarType => {
+  return ['initials', 'uploaded', 'gravatar'].includes(type)
+}
+
+// Update avatar settings with proper type validation
+const updateAvatarSettings = useCallback(async (settings: {
+  avatar_type: string
+  avatar_color?: string
+}) => {
+  if (!apiClient) {
+    toast.error('API client not ready')
+    return
+  }
+
+  // Validate avatar type before calling API
+  if (!isValidAvatarType(settings.avatar_type)) {
+    toast.error('Invalid avatar type')
+    return
+  }
+
+  setState(prev => ({ ...prev, saving: true }))
+  
+  try {
+    // Cast to the expected type after validation
+    const response = await apiClient.updateAvatarSettings({
+      avatar_type: settings.avatar_type as AvatarType,
+      avatar_color: settings.avatar_color
+    })
     
-    try {
-      const response = await apiClient.updateAvatarSettings(settings)
-      
-      setState(prev => ({
-        ...prev,
-        userProfile: prev.userProfile ? {
-          ...prev.userProfile,
-          avatar_url: response.avatar_url,
-          avatar_type: response.avatar_type,
-          avatar_color: response.avatar_color
-        } : null,
-        saving: false
-      }))
-      
-      toast.success('Avatar settings updated!')
-      return response
-    } catch (error: any) {
-      setState(prev => ({ ...prev, saving: false }))
-      toast.error(error.response?.data?.detail || 'Failed to update avatar')
-      throw error
-    }
-  }, [apiClient])
+    setState(prev => ({
+      ...prev,
+      userProfile: prev.userProfile ? {
+        ...prev.userProfile,
+        avatar_url: response.avatar_url,
+        avatar_type: response.avatar_type,
+        avatar_color: response.avatar_color
+      } : null,
+      saving: false
+    }))
+    
+    toast.success('Avatar settings updated!')
+    return response
+  } catch (error: any) {
+    setState(prev => ({ ...prev, saving: false }))
+    toast.error(error.response?.data?.detail || 'Failed to update avatar')
+    throw error
+  }
+}, [apiClient, isValidAvatarType])
 
   // Export settings
   const exportSettings = useCallback(async (options?: {
@@ -476,6 +544,7 @@ export function useSettings() {
       window.URL.revokeObjectURL(url)
       
       toast.success('Settings exported successfully!')
+      return blob
     } catch (error: any) {
       console.error('Error exporting settings:', error)
       toast.error('Failed to export settings')

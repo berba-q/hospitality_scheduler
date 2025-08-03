@@ -3,17 +3,20 @@
 Settings API endpoints for system, notifications, and profile management
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks, File, UploadFile
 from sqlmodel import Session, select
 from typing import Dict, Any, Optional
 from datetime import datetime
 import uuid
 import logging
+from pathlib import Path
+from PIL import Image
+import hashlib
 
 from ...deps import get_db, get_current_user
 from ...models import SystemSettings, NotificationGlobalSettings, UserProfile, User, AuditLog
 from ...schemas import (
-    SystemSettingsCreate, SystemSettingsRead, SystemSettingsUpdate,
+    AvatarResponse, AvatarUpdateRequest, SystemSettingsCreate, SystemSettingsRead, SystemSettingsUpdate,
     NotificationGlobalSettingsCreate, NotificationGlobalSettingsRead, NotificationGlobalSettingsUpdate,
     UserProfileRead, UserProfileUpdate, SettingsTestResult,
     SettingsResponse
@@ -615,6 +618,266 @@ def update_my_profile(
         message=f"Successfully updated {len(updated_fields)} profile setting(s)",
         updated_fields=updated_fields
     )
+    
+@router.post("/profile/avatar", response_model=AvatarResponse)
+async def upload_avatar(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    avatar: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload avatar image for current user"""
+    
+    # Validate file type
+    if not avatar.content_type or not avatar.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an image"
+        )
+    
+    # Validate file size (5MB limit)
+    max_size = 5 * 1024 * 1024  # 5MB
+    avatar.file.seek(0, 2)  # Seek to end
+    file_size = avatar.file.tell()
+    avatar.file.seek(0)  # Reset to beginning
+    
+    if file_size > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File size must be less than 5MB"
+        )
+    
+    try:
+        # Get or create user profile
+        statement = select(UserProfile).where(UserProfile.user_id == current_user.id)
+        profile = db.exec(statement).first()
+        
+        if not profile:
+            # Create profile if it doesn't exist
+            profile = UserProfile(user_id=current_user.id)
+            db.add(profile)
+            db.flush()
+        
+        # Create uploads directory if it doesn't exist
+        upload_dir = Path("uploads/avatars")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate unique filename
+        file_extension = Path(avatar.filename or "image.jpg").suffix
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        file_path = upload_dir / unique_filename
+        
+        # Save the uploaded file
+        contents = await avatar.read()
+        with open(file_path, "wb") as f:
+            f.write(contents)
+        
+        # Optional: Create thumbnail using PIL
+        try:
+            with Image.open(file_path) as img:
+                # Create thumbnail
+                img.thumbnail((200, 200), Image.Resampling.LANCZOS)
+                thumbnail_path = upload_dir / f"thumb_{unique_filename}"
+                img.save(thumbnail_path, optimize=True, quality=85)
+                
+                # Update profile with new avatar
+                profile.avatar_url = f"/uploads/avatars/{unique_filename}"
+                profile.avatar_type = "uploaded"
+                profile.updated_at = datetime.utcnow()
+                profile.last_active = datetime.utcnow()
+                
+                db.commit()
+                db.refresh(profile)
+                
+                # Create audit log
+                background_tasks.add_task(
+                    create_audit_log_entry,
+                    db=db,
+                    user_id=current_user.id,
+                    tenant_id=current_user.tenant_id,
+                    action="UPLOAD_AVATAR",
+                    resource_type="UserProfile",
+                    resource_id=profile.id,
+                    changes={"avatar_url": {"old": None, "new": profile.avatar_url}},
+                    ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent")
+                )
+                
+                return AvatarResponse(
+                    success=True,
+                    avatar_url=profile.avatar_url,
+                    avatar_type=profile.avatar_type,
+                    avatar_color=profile.avatar_color,
+                    thumbnails={"200x200": f"/uploads/avatars/thumb_{unique_filename}"},
+                    message="Avatar uploaded successfully"
+                )
+                
+        except Exception as img_error:
+            # If image processing fails, still save the file but without thumbnail
+            logger.warning(f"Image processing failed: {img_error}")
+            
+            profile.avatar_url = f"/uploads/avatars/{unique_filename}"
+            profile.avatar_type = "uploaded"
+            profile.updated_at = datetime.utcnow()
+            profile.last_active = datetime.utcnow()
+            
+            db.commit()
+            db.refresh(profile)
+            
+            return AvatarResponse(
+                success=True,
+                avatar_url=profile.avatar_url,
+                avatar_type=profile.avatar_type,
+                avatar_color=profile.avatar_color,
+                thumbnails={},
+                message="Avatar uploaded successfully"
+            )
+            
+    except Exception as e:
+        logger.error(f"Avatar upload failed for user {current_user.id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to upload avatar"
+        )
+
+
+@router.put("/profile/avatar", response_model=AvatarResponse)
+def update_avatar_settings(
+    avatar_update: AvatarUpdateRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update avatar settings (type and color) for current user"""
+    
+    # Get user's profile
+    statement = select(UserProfile).where(UserProfile.user_id == current_user.id)
+    profile = db.exec(statement).first()
+    
+    if not profile:
+        # Create profile if it doesn't exist
+        profile = UserProfile(user_id=current_user.id)
+        db.add(profile)
+        db.flush()
+    
+    # Track changes
+    changes = {}
+    
+    # Update avatar type
+    if profile.avatar_type != avatar_update.avatar_type:
+        changes["avatar_type"] = {"old": profile.avatar_type, "new": avatar_update.avatar_type}
+        profile.avatar_type = avatar_update.avatar_type
+    
+    # Update avatar color if provided
+    if avatar_update.avatar_color and profile.avatar_color != avatar_update.avatar_color:
+        changes["avatar_color"] = {"old": profile.avatar_color, "new": avatar_update.avatar_color}
+        profile.avatar_color = avatar_update.avatar_color
+    
+    # Generate avatar URL based on type
+    if avatar_update.avatar_type == "initials":
+        profile.avatar_url = None  # Will be generated client-side
+    elif avatar_update.avatar_type == "gravatar":
+        # Generate Gravatar URL
+        email = current_user.email.lower().strip().encode('utf-8')
+        email_hash = hashlib.md5(email).hexdigest()
+        profile.avatar_url = f"https://www.gravatar.com/avatar/{email_hash}?s=200&d=mp"
+    # For "uploaded" type, keep existing avatar_url
+    
+    # Update timestamps
+    profile.updated_at = datetime.utcnow()
+    profile.last_active = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(profile)
+    
+    # Create audit log if there were changes
+    if changes:
+        background_tasks.add_task(
+            create_audit_log_entry,
+            db=db,
+            user_id=current_user.id,
+            tenant_id=current_user.tenant_id,
+            action="UPDATE_AVATAR_SETTINGS",
+            resource_type="UserProfile",
+            resource_id=profile.id,
+            changes=changes,
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent")
+        )
+    
+    return AvatarResponse(
+        success=True,
+        avatar_url=profile.avatar_url,
+        avatar_type=profile.avatar_type,
+        avatar_color=profile.avatar_color,
+        thumbnails={},
+        message="Avatar settings updated successfully"
+    )
+
+
+@router.delete("/profile/avatar")
+def delete_avatar(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete user's uploaded avatar"""
+    
+    # Get user's profile
+    statement = select(UserProfile).where(UserProfile.user_id == current_user.id)
+    profile = db.exec(statement).first()
+    
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile not found"
+        )
+    
+    # Delete uploaded file if it exists
+    if profile.avatar_type == "uploaded" and profile.avatar_url:
+        try:
+            # Extract filename from URL
+            filename = Path(profile.avatar_url).name
+            file_path = Path("uploads/avatars") / filename
+            thumbnail_path = Path("uploads/avatars") / f"thumb_{filename}"
+            
+            # Delete files
+            if file_path.exists():
+                file_path.unlink()
+            if thumbnail_path.exists():
+                thumbnail_path.unlink()
+                
+        except Exception as e:
+            logger.warning(f"Failed to delete avatar files: {e}")
+    
+    # Reset to initials
+    old_avatar_url = profile.avatar_url
+    profile.avatar_url = None
+    profile.avatar_type = "initials"
+    profile.updated_at = datetime.utcnow()
+    profile.last_active = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(profile)
+    
+    # Create audit log
+    background_tasks.add_task(
+        create_audit_log_entry,
+        db=db,
+        user_id=current_user.id,
+        tenant_id=current_user.tenant_id,
+        action="DELETE_AVATAR",
+        resource_type="UserProfile",
+        resource_id=profile.id,
+        changes={"avatar_url": {"old": old_avatar_url, "new": None}, "avatar_type": {"old": "uploaded", "new": "initials"}},
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    )
+    
+    return {"success": True, "message": "Avatar deleted successfully"}
 
 
 @router.delete("/system")
