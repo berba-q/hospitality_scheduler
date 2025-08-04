@@ -28,6 +28,9 @@ export const it = {
     status: 'Stato',
     selectLanguage: 'Seleziona Lingua',
     choosePreferredLanguage: 'Scegli la tua lingua preferita',
+    viewMore: 'Visualizza di più',
+    hours: 'ore',
+    times: 'volte',
     manager: 'Manager',
     deletedSuccessfully: 'cancellato con successo',
     errorOccurredWhile: 'Si è verificato un errore durante il caricamento dell\'applicazione.',
@@ -743,6 +746,14 @@ export const it = {
     myProfile: 'Il mio profilo',
   },
 
+  status: {
+    pending: 'In Attesa',
+    approved: 'Approvato',
+    rejected: 'Rifiutato',
+    completed: 'Completato',
+    cancelled: 'Annullato',
+  },
+
   notifications: {
     failed: 'Impossibile',
     loadingSettings: 'Impostazioni di caricamento ...',
@@ -870,6 +881,105 @@ export const it = {
     whenYourSwap: 'Quando viene approvata la richiesta di scambio',
     youHaveNew: 'Hai una nuova notifica',
     youWillReceive: 'Riceverai notifiche push su questo dispositivo',
+  },
+
+  dashboard: {
+    // Manager Dashboard
+    managerDashboard: 'Dashboard Manager',
+    manageTeamAndFacilities: 'Gestisci il tuo team e le strutture',
+    loadingData: 'Caricamento dati dashboard...',
+    facilities: 'Strutture',
+    staffMembers: 'Membri del Personale',
+    pendingSwaps: 'Scambi in Attesa',
+    urgentRequests: 'Richieste Urgenti',
+    
+    // Quick Actions
+    manageSchedules: 'Gestisci Pianificazioni',
+    createAndEditSchedules: 'Crea e modifica pianificazioni del personale',
+    manageStaff: 'Gestisci Personale',
+    addEditOrganizeTeam: 'Aggiungi, modifica e organizza i membri del team',
+    reviewSwaps: 'Rivedi Scambi',
+    approveAndManageChanges: 'Approva e gestisci i cambiamenti di turno',
+
+    // recent activity
+    recentActivity: 'Attività Recente',
+    noRecentSwapRequests: 'Nessuna richiesta di scambio recente',
+    newRequestsWillAppear: 'Le nuove richieste appariranno qui',
+    staffMember: 'Membro del Personale',
+    requestsSwap: 'richiede uno scambio',
+    noReasonProvided: 'Nessun motivo fornito',
+    review: 'Rivedi',
+    viewAllRequests: 'Visualizza Tutte le Richieste',
+    
+    // Staff Dashboard
+    staffDashboard: 'Dashboard Personale',
+    welcomeBack: 'Bentornato',
+    weekOverview: 'Panoramica Settimanale',
+    thisWeek: 'Questa Settimana',
+    nextWeek: 'Prossima Settimana',
+    scheduleAndTeamOverview: 'Ecco la panoramica della tua pianificazione e attività del team',
+    pendingSwapsCount: 'Scambi in Attesa',
+    teamHelped: 'Team Aiutato',
+    hours: 'ore',
+    times: 'volte',
+    
+    // Quick Actions (Staff)
+    quickActions: 'Azioni Rapide',
+    viewMySchedule: 'Visualizza la Mia Pianificazione',
+    checkUpcomingShifts: 'Controlla i tuoi prossimi turni',
+    requestTimeOff: 'Richiedi Permesso',
+    submitTimeOffRequest: 'Invia richiesta di permesso',
+    findSwaps: 'Trova Scambi',
+    helpTeammates: 'Aiuta i tuoi colleghi',
+    seeAllShifts: 'Vedi tutti i tuoi turni',
+    swapRequests: 'Richieste di Scambio',
+    manageShiftTrades: 'Gestisci scambi di turno',
+    setUnavailability: 'Imposta indisponibilità',
+
+    // Upcoming Shifts
+    upcomingShifts: 'Prossimi Turni',
+    noUpcomingShifts: 'Nessun turno programmato',
+    checkBackSoon: 'Ricontrolla presto per nuove assegnazioni',
+    today: 'Oggi',
+    tomorrow: 'Domani',
+    requestSwap: 'Richiedi Scambio',
+
+    // Messages
+    failedToLoadData: 'Impossibile caricare i dati del dashboard',
+    swapRequestCreated: 'Richiesta di scambio creata con successo!',
+    failedToCreateSwap: 'Impossibile creare la richiesta di scambio',
+    timeOffRequestSubmitted: 'Richiesta di permesso inviata!',
+    dashboardError: 'Errore Dashboard',
+    viewSwaps: 'Visualizza Scambi',
+    
+    // Stats Cards
+    teamPerformance: 'Prestazioni del Team',
+    yourContribution: 'Il Tuo Contributo',
+    acceptanceRate: 'Tasso di Accettazione',
+    helpfulnessScore: 'Punteggio di Utilità',
+    currentStreak: 'Serie Attuale',
+    avgResponseTime: 'Tempo di Risposta Medio',
+    teamCoverage: 'Copertura del Team',
+    
+    // Team Insights
+    teamInsights: 'Insights del Team',
+    busyDays: 'Giorni Intensi',
+    needyShifts: 'Turni ad Alta Richiesta',
+    recentTrends: 'Tendenze Recenti',
+    teamNeedsHelp: 'Il team ha bisogno di aiuto',
+    coverageImproved: 'La copertura del team è migliorata',
+    thisMonth: 'questo mese',
+    
+    // Reliability & Gamification
+    reliabilityBadges: 'Badge di Affidabilità',
+    teamReliability: 'Affidabilità del Team',
+    currentLevel: 'Livello Attuale',
+    nextLevel: 'Prossimo Livello',
+    pointsToGo: 'punti da raggiungere',
+    
+    // Error States
+    errorLoading: 'Errore caricamento dashboard',
+    tryRefresh: 'Prova ad aggiornare la pagina',
   },
 
   schedule: {

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useTranslations } from '@/hooks/useTranslations' // ADD: Translation hook import
 import { 
   Calendar, 
   Clock, 
@@ -35,6 +36,7 @@ interface StaffDashboardProps {
 
 export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
   const router = useRouter()
+  const { t } = useTranslations() // ADD: Translation hook
   
   // State for dashboard data
   const [dashboardStats, setDashboardStats] = useState({
@@ -168,7 +170,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
       
       // Don't show toast for expected errors
       if (!error.message.includes('404') && !error.message.includes('403')) {
-        toast.error('Failed to load dashboard data')
+        toast.error(t('dashboard.failedToLoadData')) // TRANSLATE: Error message
       }
     } finally {
       setLoading(false)
@@ -413,8 +415,6 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
     loadSwapModalData()
   }, [user, apiClient, dashboardStats])
 
-
-
   // Handle quick swap requests
   const handleQuickSwapRequest = (shift: any) => {
   console.log('🔄 Quick swap request for shift:', shift)
@@ -444,7 +444,6 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
   // Open the swap modal
   setShowSwapModal(true)
 }
-
 
   // Create the swap request
   const createSwapRequest = async (swapData: any) => {
@@ -480,7 +479,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
       // Call the API to create swap request
       await apiClient.createSwapRequest(enhancedSwapData)
       
-      toast.success('Swap request created successfully!')
+      toast.success(t('dashboard.swapRequestCreated')) // TRANSLATE: Success message
       
       // Refresh dashboard data to update pending swaps count
       loadDashboardData()
@@ -492,7 +491,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
         response: error.response?.data,
         status: error.response?.status
       })
-      toast.error(error.message || 'Failed to create swap request')
+      toast.error(error.message || t('dashboard.failedToCreateSwap')) // TRANSLATE: Error message
       throw error
     }
   }
@@ -505,7 +504,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
       }
       
       await apiClient.createTimeOffRequest(staffId, requestData)
-      toast.success('Time off request submitted!')
+      toast.success(t('dashboard.timeOffRequestSubmitted')) // TRANSLATE: Success message
       
       loadDashboardData()
     } catch (error: any) {
@@ -558,6 +557,15 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
   }))
 }
 
+  // Add fallback shifts function (needed by the useEffect)
+  const getFallbackShifts = () => {
+    return [
+      { id: 'fallback-0', shift_name: 'Morning', start_time: '08:00', end_time: '16:00' },
+      { id: 'fallback-1', shift_name: 'Afternoon', start_time: '12:00', end_time: '20:00' },
+      { id: 'fallback-2', shift_name: 'Evening', start_time: '16:00', end_time: '00:00' }
+    ]
+  }
+
   // Error state
   if (error) {
     return (
@@ -565,14 +573,14 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
         <Card>
           <CardContent className="p-6 text-center">
             <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Dashboard Error</h2>
+            <h2 className="text-xl font-semibold mb-2">{t('dashboard.dashboardError')}</h2>
             <p className="text-gray-600 mb-4">{error}</p>
             <div className="space-x-2">
               <Button onClick={loadDashboardData} variant="outline">
-                Retry
+                {t('common.retry')} {/* TRANSLATE: Retry button */}
               </Button>
               <Button onClick={() => router.push('/swaps')}>
-                View Swaps
+                {t('dashboard.viewSwaps')} {/* TRANSLATE: View Swaps button */}
               </Button>
             </div>
           </CardContent>
@@ -601,11 +609,11 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Welcome back, {user?.name || user?.email || 'Staff Member'}!</h1>
-              <p className="text-gray-600">Here&apos;s your schedule and team activity overview</p>
+              <h1 className="text-2xl font-bold">{t('dashboard.welcomeBack')}, {user?.name || user?.email || t('dashboard.staffMember')}!</h1>
+              <p className="text-gray-600">{t('dashboard.scheduleAndTeamOverview')}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-600">This Week</p>
+              <p className="text-sm text-gray-600">{t('dashboard.thisWeek')}</p>
               <p className="text-2xl font-bold">{dashboardStats.thisWeekHours}h</p>
             </div>
           </div>
@@ -621,8 +629,8 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
                 <Calendar className="w-4 h-4 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">This Week</p>
-                <p className="font-semibold">{dashboardStats.thisWeekHours} hours</p>
+                <p className="text-sm text-gray-600">{t('dashboard.thisWeek')}</p>
+                <p className="font-semibold">{dashboardStats.thisWeekHours} {t('common.hours')}</p>
               </div>
             </div>
           </CardContent>
@@ -635,8 +643,8 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
                 <TrendingUp className="w-4 h-4 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Next Week</p>
-                <p className="font-semibold">{dashboardStats.nextWeekHours} hours</p>
+                <p className="text-sm text-gray-600">{t('dashboard.nextWeek')}</p>
+                <p className="font-semibold">{dashboardStats.nextWeekHours} {t('common.hours')}</p>
               </div>
             </div>
           </CardContent>
@@ -649,7 +657,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
                 <ArrowLeftRight className="w-4 h-4 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Pending Swaps</p>
+                <p className="text-sm text-gray-600">{t('dashboard.pendingSwapsCount')}</p>
                 <p className="font-semibold">{dashboardStats.pendingSwaps}</p>
               </div>
             </div>
@@ -663,8 +671,8 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
                 <Users className="w-4 h-4 text-yellow-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Team Helped</p>
-                <p className="font-semibold">{dashboardStats.totalHelped} times</p>
+                <p className="text-sm text-gray-600">{t('dashboard.teamHelped')}</p>
+                <p className="font-semibold">{dashboardStats.totalHelped} {t('common.times')}</p>
               </div>
             </div>
           </CardContent>
@@ -678,7 +686,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
           {/* Quick Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+              <CardTitle>{t('dashboard.quickActions')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -689,8 +697,8 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
                 >
                   <Calendar className="w-5 h-5" />
                   <div className="text-left">
-                    <p className="font-medium">View Schedule</p>
-                    <p className="text-xs text-gray-500">See all your shifts</p>
+                    <p className="font-medium">{t('dashboard.viewMySchedule')}</p>
+                    <p className="text-xs text-gray-500">{t('dashboard.seeAllShifts')}</p>
                   </div>
                 </Button>
                 
@@ -701,8 +709,8 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
                 >
                   <ArrowLeftRight className="w-5 h-5" />
                   <div className="text-left">
-                    <p className="font-medium">Swap Requests</p>
-                    <p className="text-xs text-gray-500">Manage shift trades</p>
+                    <p className="font-medium">{t('dashboard.swapRequests')}</p>
+                    <p className="text-xs text-gray-500">{t('dashboard.manageShiftTrades')}</p>
                   </div>
                 </Button>
                 
@@ -713,8 +721,8 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
                 >
                   <CalendarOff className="w-5 h-5" />
                   <div className="text-left">
-                    <p className="font-medium">Request Time Off</p>
-                    <p className="text-xs text-gray-500">Set unavailability</p>
+                    <p className="font-medium">{t('dashboard.requestTimeOff')}</p>
+                    <p className="text-xs text-gray-500">{t('dashboard.setUnavailability')}</p>
                   </div>
                 </Button>
               </div>
@@ -726,15 +734,15 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="w-5 h-5" />
-                Upcoming Shifts
+                {t('dashboard.upcomingShifts')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {dashboardStats.upcomingShifts.length === 0 ? (
                 <div className="text-center py-6">
                   <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-600">No upcoming shifts scheduled</p>
-                  <p className="text-sm text-gray-500">Check back soon for new assignments</p>
+                  <p className="text-gray-600">{t('dashboard.noUpcomingShifts')}</p>
+                  <p className="text-sm text-gray-500">{t('dashboard.checkBackSoon')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -746,10 +754,10 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
                           {shift.shift_name} • {shift.date}
                         </p>
                         {shift.is_today && (
-                          <Badge className="mt-1 bg-blue-100 text-blue-800">Today</Badge>
+                          <Badge className="mt-1 bg-blue-100 text-blue-800">{t('dashboard.today')}</Badge>
                         )}
                         {shift.is_tomorrow && (
-                          <Badge className="mt-1 bg-green-100 text-green-800">Tomorrow</Badge>
+                          <Badge className="mt-1 bg-green-100 text-green-800">{t('dashboard.tomorrow')}</Badge>
                         )}
                       </div>
                       <Button
@@ -757,7 +765,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
                         variant="outline"
                         onClick={() => handleQuickSwapRequest(shift)}
                       >
-                        Request Swap
+                        {t('dashboard.requestSwap')}
                       </Button>
                     </div>
                   ))}

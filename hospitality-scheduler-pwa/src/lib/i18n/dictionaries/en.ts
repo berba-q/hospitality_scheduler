@@ -28,6 +28,9 @@ export const en = {
     status: 'Status',
     selectLanguage: 'Select Language',
     choosePreferredLanguage: 'Choose your preferred language',
+    viewMore: 'View More',
+    hours: 'hours',
+    times: 'times',
     manager: 'Manager',
     deletedSuccessfully: 'deleted successfully',
     errorOccurredWhile: 'An error occurred while loading the application.',
@@ -733,6 +736,113 @@ export const en = {
     notificationSettings: 'Notification Settings',
     optimizationSettings: 'AI Optimization Settings',
     pleaseEnableNotifications: 'Please enable notifications in your browser settings',
+  },
+
+  status: {
+    pending: 'Pending',
+    approved: 'Approved',
+    rejected: 'Rejected',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+  },
+
+  dashboard: {
+    // Manager Dashboard
+    managerDashboard: 'Manager Dashboard',
+    manageTeamAndFacilities: 'Manage your team and facilities',
+    loadingData: 'Loading dashboard data...',
+    facilities: 'Facilities',
+    staffMembers: 'Staff Members',
+    pendingSwaps: 'Pending Swaps',
+    urgentRequests: 'Urgent Requests',
+    
+    // Quick Actions
+    manageSchedules: 'Manage Schedules',
+    createAndEditSchedules: 'Create and edit staff schedules',
+    manageStaff: 'Manage Staff',
+    addEditOrganizeTeam: 'Add, edit, and organize team members',
+    reviewSwaps: 'Review Swaps',
+    approveAndManageChanges: 'Approve and manage shift changes',
+
+    // Recent actions
+    recentActivity: 'Recent Activity',
+    noRecentSwapRequests: 'No recent swap requests',
+    newRequestsWillAppear: 'New requests will appear here',
+    staffMember: 'Staff Member',
+    requestsSwap: 'requests swap',
+    noReasonProvided: 'No reason provided',
+    review: 'Review',
+    viewAllRequests: 'View All Requests',
+    
+    // Staff Dashboard
+    staffDashboard: 'Staff Dashboard',
+    welcomeBack: 'Welcome Back',
+    weekOverview: 'Week Overview',
+    thisWeek: 'This Week',
+    nextWeek: 'Next Week',
+    pendingSwapsCount: 'Pending Swaps',
+    teamHelped: 'Team Helped',
+    hours: 'hours',
+    times: 'times',
+    scheduleAndTeamOverview: "Here's your schedule and team activity overview",
+    
+    // Quick Actions (Staff)
+    quickActions: 'Quick Actions',
+    viewMySchedule: 'View My Schedule',
+    checkUpcomingShifts: 'Check your upcoming shifts',
+    requestTimeOff: 'Request Time Off',
+    submitTimeOffRequest: 'Submit time off request',
+    findSwaps: 'Find Swaps',
+    helpTeammates: 'Help your teammates',
+    seeAllShifts: 'See all your shifts',
+    swapRequests: 'Swap Requests',
+    manageShiftTrades: 'Manage shift trades',
+    setUnavailability: 'Set unavailability',
+
+    // Upcoming Shifts
+    upcomingShifts: 'Upcoming Shifts',
+    noUpcomingShifts: 'No upcoming shifts scheduled',
+    checkBackSoon: 'Check back soon for new assignments',
+    today: 'Today',
+    tomorrow: 'Tomorrow',
+    requestSwap: 'Request Swap',
+
+    // Messages
+    failedToLoadData: 'Failed to load dashboard data',
+    swapRequestCreated: 'Swap request created successfully!',
+    failedToCreateSwap: 'Failed to create swap request',
+    timeOffRequestSubmitted: 'Time off request submitted!',
+    dashboardError: 'Dashboard Error',
+    viewSwaps: 'View Swaps',
+    
+    // Stats Cards
+    teamPerformance: 'Team Performance',
+    yourContribution: 'Your Contribution',
+    acceptanceRate: 'Acceptance Rate',
+    helpfulnessScore: 'Helpfulness Score',
+    currentStreak: 'Current Streak',
+    avgResponseTime: 'Avg Response Time',
+    teamCoverage: 'Team Coverage',
+    
+    // Team Insights
+    teamInsights: 'Team Insights',
+    busyDays: 'Busy Days',
+    needyShifts: 'High-Demand Shifts',
+    recentTrends: 'Recent Trends',
+    teamNeedsHelp: 'Team needs help on',
+    coverageImproved: 'Team coverage has improved',
+    thisMonth: 'this month',
+    
+    // Reliability & Gamification
+    reliabilityBadges: 'Reliability Badges',
+    teamReliability: 'Team Reliability',
+    currentLevel: 'Current Level',
+    nextLevel: 'Next Level',
+    pointsToGo: 'points to go',
+    
+    // Error States
+    errorLoading: 'Error loading dashboard',
+    tryRefresh: 'Please try refreshing the page',
   },
 
   notifications: {
