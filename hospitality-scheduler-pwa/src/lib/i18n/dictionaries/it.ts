@@ -21,6 +21,13 @@ export const it = {
   },
 
   common: {
+    refresh: 'Aggiorna',
+    active: 'Attivo',
+    delete: 'Elimina', 
+    actions: 'Azioni',
+    status: 'Stato',
+    selectLanguage: 'Seleziona Lingua',
+    choosePreferredLanguage: 'Scegli la tua lingua preferita',
     deletedSuccessfully: 'cancellato con successo',
     errorOccurredWhile: 'Si è verificato un errore durante il caricamento dell\'applicazione.',
     failedCancelSwap: 'Impossibile annullare lo scambio',
@@ -63,7 +70,6 @@ export const it = {
     review: 'Revisione',
     topFull: 'MT-1 più pieno',
     accessDenied: 'Accesso negato',
-    active: '● Attivo',
     activeFacilities: 'Strutture attive',
     activeZones: 'Zone attive',
     addFacility: 'Aggiungi struttura',

@@ -21,6 +21,13 @@ export const en = {
   },
 
   common: {
+    refresh: 'Refresh',
+    active: 'Active',
+    delete: 'Delete',
+    actions: 'Actions',
+    status: 'Status',
+    selectLanguage: 'Select Language',
+    choosePreferredLanguage: 'Choose your preferred language',
     deletedSuccessfully: 'deleted successfully',
     errorOccurredWhile: 'An error occurred while loading the application.',
     failedCancelSwap: 'Failed to cancel swap',
@@ -62,7 +69,6 @@ export const en = {
     recentActivity: 'Recent Activity',
     review: 'Review',
     accessDenied: 'Access Denied',
-    active: '● Active',
     activeFacilities: 'Active Facilities',
     activeZones: 'Active Zones',
     addFacility: 'Add Facility',
