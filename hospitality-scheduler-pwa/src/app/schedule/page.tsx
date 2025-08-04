@@ -1,19 +1,17 @@
-// schedule/page.tsx - FIXED VERSION with proper data loading and modal state management
+// schedule/page.tsx 
+// Main schedule page for both staff and manager views
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from '@/hooks/useTranslations'
 import { 
   Calendar, 
-  Clock, 
-  Users, 
+  Clock,  
   Settings, 
   Plus, 
-  Download, 
-  Filter, 
   ChevronLeft, 
   ChevronRight, 
-  RotateCcw, 
   Save, 
   Zap, 
   Eye,
@@ -22,8 +20,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Building,
-  MapPin,
-  Layers,
   List,
   RefreshCw,
   User,
@@ -33,8 +29,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs,TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth, useApiClient } from '@/hooks/useApi'
 import { DailyCalendar } from '@/components/schedule/DailyCalendar'
@@ -89,6 +84,9 @@ function StaffScheduleView({
   const [showSwapDetailModal, setShowSwapDetailModal] = useState(false)
   const [showMySwapsModal, setShowMySwapsModal] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  //translation hook
+  const { t } = useTranslations()
 
   // Derive the current user's staff‑ID once
   const myStaffId = useMemo(() => {
@@ -375,7 +373,7 @@ function StaffScheduleView({
                 onClick={() => setShowMySwapsModal(true)}
               >
                 <ArrowLeftRight className="w-4 h-4 mr-2" />
-                My Swaps
+                {t('swaps.mySwaps')}
                 {mySwapRequests.length > 0 && (
                   <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5">
                     {mySwapRequests.length}
@@ -393,15 +391,15 @@ function StaffScheduleView({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
-                View Period
+                {t('schedule.viewPeriod')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <Tabs value={viewPeriod} onValueChange={(value) => setViewPeriod(value as ViewPeriod)}>
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="daily">Daily</TabsTrigger>
-                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
-                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                  <TabsTrigger value="daily">{t('schedule.daily')}</TabsTrigger>
+                  <TabsTrigger value="weekly">{t('schedule.weekly')}</TabsTrigger>
+                  <TabsTrigger value="monthly">{t('schedule.monthly')}</TabsTrigger>
                 </TabsList>
               </Tabs>
               
@@ -422,7 +420,7 @@ function StaffScheduleView({
                     onClick={() => setCurrentDate(new Date())}
                     className="text-xs"
                   >
-                    Today
+                    {t('dashboard.today')}
                   </Button>
                 </div>
                 
@@ -448,21 +446,21 @@ function StaffScheduleView({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <User className="w-5 h-5" />
-                My Schedule
+                {t('navigation.mySchedule')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">This Period</span>
+                  <span className="text-sm text-gray-600">{t('schedule.thisPeriod')}</span>
                   <Badge variant="outline">
-                    {getAssignmentCount()} shift{getAssignmentCount() !== 1 ? 's' : ''}
+                    {getAssignmentCount()} {t('schedule.shift')} {getAssignmentCount() !== 1 ? 's' : ''}
                   </Badge>
                 </div>
                 
                 {todayAssignments.length > 0 && (
                   <div>
-                    <p className="text-sm font-medium text-green-800 mb-1">Today's Shifts</p>
+                    <p className="text-sm font-medium text-green-800 mb-1">{t('schedule.todayShifts')}</p>
                     {todayAssignments.map((assignment) => {
                       const shift = shifts.find(
                         (s) =>
@@ -1329,7 +1327,7 @@ const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
 }
 
 // ============================================================================
-// MAIN SCHEDULE PAGE COMPONENT - FIXED VERSION
+// MAIN SCHEDULE PAGE COMPONENT
 // ============================================================================
 export default function SchedulePage() {
   const router = useRouter()
@@ -1357,7 +1355,7 @@ export default function SchedulePage() {
   const [filterRole, setFilterRole] = useState('all')
   const [filterZone, setFilterZone] = useState('all')
   
-  // Modal state - FIX: Initialize to false to prevent auto-opening
+  // Modal state
   const [showSmartGenerateModal, setShowSmartGenerateModal] = useState(false)
   const [showConfigModal, setShowConfigModal] = useState(false)
   
@@ -1371,7 +1369,7 @@ export default function SchedulePage() {
   const [showSwapDashboard, setShowSwapDashboard] = useState(false)
   const [facilitiesReady, setFacilitiesReady] = useState(false)
 
-  // Notification states - FIX: Initialize to false
+  // Notification states
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [showSwapNotificationDialog, setShowSwapNotificationDialog] = useState(false)
   const [pendingSwapData, setPendingSwapData] = useState(null)

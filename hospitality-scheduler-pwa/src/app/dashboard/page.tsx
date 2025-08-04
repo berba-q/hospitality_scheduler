@@ -130,7 +130,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-900">{facilities.length}</p>
-                    <p className="text-sm text-gray-600">{t('dashboard.facilities')}</p>
+                    <p className="text-sm text-gray-600">{t('common.facilities')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -145,7 +145,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-900">{staff.length}</p>
-                    <p className="text-sm text-gray-600">{t('dashboard.staffMembers')}</p>
+                    <p className="text-sm text-gray-600">{t('staff.staffMembers')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -160,7 +160,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-900">{pendingSwaps.length}</p>
-                    <p className="text-sm text-gray-600">{t('dashboard.pendingSwaps')}</p>
+                    <p className="text-sm text-gray-600">{t('swaps.pendingSwaps')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -175,7 +175,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-900">{urgentSwaps.length}</p>
-                    <p className="text-sm text-gray-600">{t('dashboard.urgentRequests')}</p>
+                    <p className="text-sm text-gray-600">{t('swaps.urgentSwaps')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -191,7 +191,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      {t('dashboard.manageSchedules')}
+                      {t('schedule.manageSchedules')}
                     </h3>
                     <p className="text-sm text-gray-600 mb-4">
                       {t('dashboard.createAndEditSchedules')}
@@ -212,7 +212,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      {t('dashboard.manageStaff')}
+                      {t('staff.manageStaff')}
                     </h3>
                     <p className="text-sm text-gray-600 mb-4">
                       {t('dashboard.addEditOrganizeTeam')}
@@ -233,7 +233,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      {t('dashboard.reviewSwaps')}
+                      {t('swaps.reviewSwaps')}
                     </h3>
                     <p className="text-sm text-gray-600 mb-4">
                       {t('dashboard.approveAndManageChanges')}
@@ -282,7 +282,7 @@ export default function DashboardPage() {
                         </div>
                         <div>
                           <p className="font-medium">
-                            {swap.requesting_staff?.full_name || t('dashboard.staffMember')} {t('dashboard.requestsSwap')}
+                            {swap.requesting_staff?.full_name || t('staff.staffMember')} {t('swaps.requestSwap')}
                           </p>
                           <p className="text-sm text-gray-600">
                             {swap.reason || t('dashboard.noReasonProvided')} • {new Date(swap.created_at).toLocaleDateString()}
@@ -294,10 +294,10 @@ export default function DashboardPage() {
                           swap.status === 'pending' ? 'destructive' : 
                           swap.status === 'approved' ? 'default' : 'secondary'
                         }>
-                          {t(`dashboard.status.${swap.status}`)}
+                          {t(`status.${swap.status}`)}
                         </Badge>
                         <Button variant="ghost" size="sm" onClick={() => router.push('/swaps')}>
-                          {t('dashboard.review')}
+                          {t('common.review')}
                         </Button>
                       </div>
                     </div>
@@ -306,7 +306,7 @@ export default function DashboardPage() {
                   {swapRequests.length > 5 && (
                     <div className="text-center pt-3 border-t">
                       <Button variant="outline" onClick={() => router.push('/swaps')}>
-                        {t('dashboard.viewAllRequests')} ({swapRequests.length})
+                        {t('swaps.viewAllRequests')} ({swapRequests.length})
                       </Button>
                     </div>
                   )}
