@@ -1,3 +1,5 @@
+//components/navigation/Navbar.tsx
+// Navigation bar component for the Hospitality Scheduler PWA
 'use client'
 
 import { useState } from 'react'
@@ -17,52 +19,57 @@ import {
   User
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notification/NotificationBell'
+import { LanguageSelector } from '@/components/ui/LanguageSelector'
+import { useTranslations } from '@/hooks/useTranslations'
 
 export function Navbar() {
   const { data: session } = useSession()
   const router = useRouter()
   const pathname = usePathname()
   const [showUserMenu, setShowUserMenu] = useState(false)
+  
+  // Add translation hook
+  const { t } = useTranslations()
 
   const isManager = session?.user?.isManager
   
   const navigationItems = [
     {
-      label: 'Dashboard',
+      label: t('navigation.dashboard'), // Now using translations!
       href: '/dashboard',
       icon: LayoutDashboard,
       active: pathname === '/dashboard'
     },
     {
-      label: 'Staff',
+      label: t('navigation.staff'),
       href: '/staff',
       icon: Users,
       active: pathname === '/staff',
-      managerOnly: true // Only managers see staff
+      managerOnly: true
     },
     {
-      label: 'Schedule',
+      label: t('navigation.schedule'),
       href: '/schedule',
       icon: Calendar,
       active: pathname.startsWith('/schedule'),
       managerOnly: false
     },
     {
-      label: 'Facilities',
+      label: t('navigation.facilities'),
       href: '/facilities',
       icon: Building,
       active: pathname === '/facilities',
-      managerOnly: true // Only managers see facilities
+      managerOnly: true
     },
     {
-      label: 'Swaps',
+      label: t('navigation.swaps'),
       href: '/swaps',
       icon: RefreshCw,
       active: pathname === '/swaps',
       managerOnly: false
     },
     {
-      label: 'Settings',
+      label: t('navigation.settings'),
       href: '/settings',
       icon: Settings,
       active: pathname === '/settings',
@@ -117,40 +124,43 @@ export function Navbar() {
             </div>
           </div>
 
-          {/* 🔥 RIGHT SIDE - NOTIFICATION BELL + USER MENU */}
+          {/* Right side with Language Selector + User Menu */}
           <div className="flex items-center gap-3">
-            {/* 🔔 NOTIFICATION BELL - ALWAYS VISIBLE AND PROMINENT */}
-            <div className="relative">
+            {/* 🔔 NOTIFICATION BELL (Desktop) */}
+            <div className="hidden md:block">
               <NotificationBell />
             </div>
+            
+            {/* 🌍 LANGUAGE SELECTOR - New! */}
+            <LanguageSelector />
 
-            {/* User Menu */}
+            {/* User Profile Menu */}
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 transition-colors"
               >
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-semibold">
-                    {session?.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">
+                    {session?.user?.name?.[0]?.toUpperCase() || 'U'}
                   </span>
                 </div>
-                <div className="hidden md:block text-left">
-                  <div className="font-medium">{session?.user?.name}</div>
-                  <div className="text-xs text-gray-500">{session?.user?.email}</div>
-                </div>
-                <ChevronDown className="w-4 h-4 ml-1" />
+                <ChevronDown className="w-4 h-4 text-gray-500" />
               </button>
 
               {/* User Dropdown Menu */}
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                <div className="absolute right-0 top-12 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                   <div className="px-4 py-3 border-b border-gray-100">
-                    <div className="font-medium text-gray-900">{session?.user?.name}</div>
-                    <div className="text-sm text-gray-500">{session?.user?.email}</div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {session?.user?.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {session?.user?.email}
+                    </p>
                     <div className="flex gap-2 mt-2">
                       <Badge variant={isManager ? 'default' : 'secondary'} className="text-xs">
-                        {isManager ? 'Manager' : 'Staff'}
+                        {isManager ? t('common.manager') : t('common.staff')}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
                         {session?.provider === 'google' ? 'Google' : 'FastAPI'}
@@ -167,7 +177,7 @@ export function Navbar() {
                       className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       <User className="w-4 h-4" />
-                      Profile Settings
+                      {t('navigation.profileSettings')}
                     </button>
                     
                     <button
@@ -175,7 +185,7 @@ export function Navbar() {
                       className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <LogOut className="w-4 h-4" />
-                      Sign Out
+                      {t('auth.signOut')}
                     </button>
                   </div>
                 </div>
