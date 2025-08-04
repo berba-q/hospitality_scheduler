@@ -177,7 +177,7 @@ export function Navbar() {
                       className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       <User className="w-4 h-4" />
-                      {t('navigation.profileSettings')}
+                      {t('common.profileSettings')}
                     </button>
                     
                     <button

@@ -250,6 +250,8 @@ export const it = {
     // ============================================================================
     welcomeBack: 'Bentornato',
     you: 'Tu',
+    manager: 'Manager',
+    profileSettings: 'Impostazioni di profilo'
   },
 
   errors: {

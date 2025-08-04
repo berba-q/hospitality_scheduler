@@ -251,6 +251,8 @@ export const en = {
     // ============================================================================
     welcomeBack: 'Welcome Back',
     you: 'You',
+    manager: 'Manager',
+    profileSettings: 'Profile settings'
     // ... other legacy terms that need categorization
   },
 

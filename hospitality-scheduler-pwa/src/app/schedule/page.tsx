@@ -132,9 +132,9 @@ function StaffScheduleView({
       if (!myStaffId) {
         return (
           <div className="alert alert-error">
-            <h3>Staff Profile Not Found</h3>
-            <p>Could not link your user account to a staff profile. Please contact your manager.</p>
-            <p>User: {user?.email}</p>
+            <h3>{t('staff.staffProfileNotFound')}</h3>
+            <p>{t('staff.couldNotLink')}</p>
+            <p>{t('common.user')}: {user?.email}</p>
           </div>
         )
       }
@@ -267,7 +267,7 @@ function StaffScheduleView({
       s.id === parseInt(shiftIndex)
     )
     
-    const shiftName = shift?.name || `Shift ${shiftIndex}`
+    const shiftName = shift?.name || `${t('common.shift')} ${shiftIndex}`
     console.log(' Found shift name:', shiftName, 'for index:', shiftIndex)
     
     return shiftName
@@ -337,13 +337,13 @@ function StaffScheduleView({
               className="gap-2 hover:bg-gray-100"
             >
               <Home className="w-4 h-4" />
-              Dashboard
+              {t('navigation.dashboard')}
             </Button>
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                My Schedule
+                {t('schedule.mySchedule')}
               </h1>
-              <p className="text-gray-600 mt-1">View your work schedule and request shift swaps</p>
+              <p className="text-gray-600 mt-1">{t('schedule.viewYourWorkSchedule')}</p>
               {facility && (
                 <p className="text-sm text-gray-500">📍 {facility.name}</p>
               )}
@@ -358,7 +358,7 @@ function StaffScheduleView({
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-blue-600" />
                     <span className="text-sm font-medium text-blue-800">
-                      {todayAssignments.length} shift{todayAssignments.length > 1 ? 's' : ''} today
+                      {todayAssignments.length} {t('common.shift')}{todayAssignments.length > 1 ? 's' : ''} {t('common.today')}
                     </span>
                   </div>
                 </CardContent>
@@ -420,7 +420,7 @@ function StaffScheduleView({
                     onClick={() => setCurrentDate(new Date())}
                     className="text-xs"
                   >
-                    {t('dashboard.today')}
+                    {t('common.today')}
                   </Button>
                 </div>
                 
@@ -446,15 +446,15 @@ function StaffScheduleView({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <User className="w-5 h-5" />
-                {t('navigation.mySchedule')}
+                {t('schedule.mySchedule')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">{t('schedule.thisPeriod')}</span>
+                  <span className="text-sm text-gray-600">{t('common.thisPeriod')}</span>
                   <Badge variant="outline">
-                    {getAssignmentCount()} {t('schedule.shift')} {getAssignmentCount() !== 1 ? 's' : ''}
+                    {getAssignmentCount()} {t('common.shift')} {getAssignmentCount() !== 1 ? 's' : ''}
                   </Badge>
                 </div>
                 
@@ -488,7 +488,7 @@ function StaffScheduleView({
                   onClick={() => onSwapRequest && onSwapRequest(0, 0, user.id)}
                 >
                   <ArrowLeftRight className="w-4 h-4 mr-2" />
-                  Request Swap
+                  {t('schedule.requestSwap')}
                 </Button>
               </div>
             </CardContent>
@@ -499,7 +499,7 @@ function StaffScheduleView({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Clock className="w-5 h-5" />
-                Quick Actions
+                {t('common.quickActions')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -509,7 +509,7 @@ function StaffScheduleView({
                 onClick={() => setShowMySwapsModal(true)}
               >
                 <ArrowLeftRight className="w-4 h-4 mr-2" />
-                View All My Swaps
+                {t('schedule.viewAllMySwaps')}
               </Button>
               
               <Button 
@@ -518,7 +518,7 @@ function StaffScheduleView({
                 onClick={() => window.location.href = '/dashboard'}
               >
                 <Home className="w-4 h-4 mr-2" />
-                Back to Dashboard
+                {t('common.backToDashboard')}
               </Button>
             </CardContent>
           </Card>
@@ -590,9 +590,9 @@ function StaffScheduleView({
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Calendar className="w-12 h-12 text-gray-400" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">No Schedule Available</h3>
+            <h3 className="text-xl font-semibold mb-2">{t('schedule.noScheduleAvailable')}</h3>
             <p className="text-gray-600">
-              Your manager hasn&apos;t created a schedule for this period yet.
+              {t('schedule.yourManagerHasntCreated')}
             </p>
           </div>
         )}
@@ -605,7 +605,7 @@ function StaffScheduleView({
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <ArrowLeftRight className="w-5 h-5" />
-                My Swap Requests ({mySwapRequests.length})
+                {t('schedule.mySwapRequests')} ({mySwapRequests.length})
               </DialogTitle>
             </DialogHeader>
 
@@ -613,8 +613,8 @@ function StaffScheduleView({
               {mySwapRequests.length === 0 ? (
                 <div className="text-center py-12">
                   <ArrowLeftRight className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Swap Requests</h3>
-                  <p className="text-gray-600 mb-4">You haven't submitted any swap requests yet.</p>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">{t('schedule.noSwapRequests')}</h3>
+                  <p className="text-gray-600 mb-4">{t('schedule.noSwapRequestsYet')}</p>
                   <Button 
                     onClick={() => {
                       setShowMySwapsModal(false)
@@ -623,7 +623,7 @@ function StaffScheduleView({
                     className="gap-2"
                   >
                     <Plus className="w-4 h-4" />
-                    Create Your First Swap Request
+                    {t('schedule.createFirstSwapRequest')}
                   </Button>
                 </div>
               ) : (
@@ -654,17 +654,17 @@ function StaffScheduleView({
                             </div>
 
                             <h4 className="font-medium text-gray-900 mb-1">
-                              {swap.swap_type === 'specific' ? 'Specific Swap Request' : 'Auto Assignment Request'}
+                              {swap.swap_type === 'specific' ? t('schedule.specificSwapRequest') : t('schedule.autoAssignmentRequest')}
                             </h4>
 
                             <p className="text-sm text-gray-600 mb-2">
-                              {swap.reason || 'No reason provided'}
+                              {swap.reason || t('common.noReasonProvided')}
                             </p>
 
                             <div className="flex items-center gap-4 text-xs text-gray-500">
                               <span className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                {DAYS[swap.original_day]} - {shifts?.find(s => s.id === swap.original_shift)?.name || 'Unknown Shift'}
+                                {DAYS[swap.original_day]} - {shifts?.find(s => s.id === swap.original_shift)?.name || t('common.unknown') + ' ' + t('common.shift')}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
@@ -689,7 +689,7 @@ function StaffScheduleView({
                                 setShowSwapDetailModal(true)
                               }}
                             >
-                              View Details
+                              {t('common.viewDetails')}
                             </Button>
 
                             {swap.status === 'pending' && (
@@ -698,13 +698,13 @@ function StaffScheduleView({
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  if (confirm('Are you sure you want to cancel this swap request?')) {
-                                    toast.info('Cancel functionality coming soon')
+                                  if (confirm(t('common.areYouSureCancel') + ' this swap request?')) {
+                                    toast.info(t('common.cancel') + ' functionality coming soon')
                                   }
                                 }}
                                 className="text-red-600 hover:text-red-700"
                               >
-                                Cancel
+                                {t('common.cancel')}
                               </Button>
                             )}
                           </div>
@@ -726,7 +726,7 @@ function StaffScheduleView({
                     }}
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Create New Swap Request
+                    {t('schedule.createNewSwapRequest')}
                   </Button>
                 </div>
               )}
@@ -750,10 +750,10 @@ function StaffScheduleView({
               setShowSwapDetailModal(false)
               setSelectedSwapForDetail(null)
               loadMyData() // Refresh the data
-              toast.success(accepted ? 'Swap accepted!' : 'Swap declined')
+              toast.success(accepted ? t('swaps.swapAccepted') : t('swaps.swapDenied'))
             } catch (error) {
               console.error('❌ SwapResponse error:', error)
-              toast.error('Failed to respond to swap')
+              toast.error(t('common.failed') + ' to respond to swap')
             }
           }}
           onCancelSwap={async (swapId, reason) => {
@@ -762,10 +762,10 @@ function StaffScheduleView({
               setShowSwapDetailModal(false)
               setSelectedSwapForDetail(null)
               loadMyData() // Refresh the data
-              toast.success('Swap request cancelled')
+              toast.success(t('swaps.swapRequest') + ' ' + t('common.cancelled'))
             } catch (error) {
               console.error('❌ CancelSwap error:', error)
-              toast.error('Failed to cancel swap')
+              toast.error(t('common.failed') + ' to cancel swap')
             }
           }}
           user={user}
@@ -840,6 +840,9 @@ function ManagerScheduleView({
   processSwapWithNotifications,
   pendingSwapData
 }) {
+  // Add translation hook for manager view
+  const { t } = useTranslations()
+
   // Filter staff based on facility, zones, and roles
   const facilityStaff = staff.filter(member => 
     member.facility_id === selectedFacility?.id && member.is_active
@@ -879,14 +882,14 @@ function ManagerScheduleView({
               className="gap-2 hover:bg-gray-100"
             >
               <ArrowLeft className="w-4 h-4" />
-              Dashboard
+              {t('navigation.dashboard')}
             </Button>
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                Smart Schedule Management
+                {t('schedule.smartScheduleManagement')}
               </h1>
               <p className="text-gray-600 mt-1">
-                AI-powered scheduling with zone-based optimization
+                {t('schedule.aiPoweredScheduling')}
               </p>
               {selectedFacility && (
                 <p className="text-sm text-gray-500">📍 {selectedFacility.name}</p>
@@ -903,7 +906,7 @@ function ManagerScheduleView({
               className="gap-2"
             >
               {showStaffPanel ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              {showStaffPanel ? 'Hide' : 'Show'} Staff
+              {showStaffPanel ? t('common.hide') : t('common.show')} {t('common.staff')}
             </Button>
             
             <Button
@@ -913,7 +916,7 @@ function ManagerScheduleView({
               className="gap-2"
             >
               <Settings className="w-4 h-4" />
-              Config
+              {t('common.config')}
             </Button>
             
             <Button
@@ -921,7 +924,7 @@ function ManagerScheduleView({
               className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
             >
               <Zap className="w-4 h-4" />
-              Smart Generate
+              {t('schedule.smartGenerate')}
             </Button>
 
             <Button
@@ -930,7 +933,7 @@ function ManagerScheduleView({
               className="flex items-center gap-2"
             >
               <List className="w-4 h-4" />
-              Manage Schedules
+              {t('schedule.manageSchedules')}
               <Badge variant="secondary" className="ml-1">
                 {schedules.length}
               </Badge>
@@ -942,7 +945,7 @@ function ManagerScheduleView({
               className="relative"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
-              Swaps
+              {t('navigation.swaps')}
               {swapSummary?.pending_swaps > 0 && (
                 <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5">
                   {swapSummary.pending_swaps}
@@ -960,13 +963,13 @@ function ManagerScheduleView({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Building className="w-5 h-5" />
-                Facility & Zones
+                {t('schedule.facilityAndZones')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Facility Selector */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">Facility</label>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">{t('common.facility')}</label>
                 <Select 
                   value={selectedFacility?.id || ''} 
                   onValueChange={(value) => {
@@ -978,7 +981,7 @@ function ManagerScheduleView({
                   }}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a facility" />
+                    <SelectValue placeholder={t('common.selectAFacility')} />
                   </SelectTrigger>
                   <SelectContent>
                     {facilities.map((facility) => (
@@ -1007,9 +1010,9 @@ function ManagerScheduleView({
                     <Building className="w-4 h-4" />
                     <span className="font-medium">{selectedFacility.facility_type}</span>
                     <span>•</span>
-                    <span>{zones?.length || 0} zones</span>
+                    <span>{zones?.length || 0} {t('common.zones')}</span>
                     <span>•</span>
-                    <span>{shifts?.length || 0} shifts</span>
+                    <span>{shifts?.length || 0} {t('common.shifts')}</span>
                   </div>
                 </div>
               )}
@@ -1021,15 +1024,15 @@ function ManagerScheduleView({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
-                View Period
+                {t('schedule.viewPeriod')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <Tabs value={viewPeriod} onValueChange={(value) => setViewPeriod(value as ViewPeriod)}>
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="daily">Daily</TabsTrigger>
-                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
-                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                  <TabsTrigger value="daily">{t('schedule.daily')}</TabsTrigger>
+                  <TabsTrigger value="weekly">{t('schedule.weekly')}</TabsTrigger>
+                  <TabsTrigger value="monthly">{t('schedule.monthly')}</TabsTrigger>
                 </TabsList>
               </Tabs>
               
@@ -1050,7 +1053,7 @@ function ManagerScheduleView({
                     onClick={() => setCurrentDate(new Date())}
                     className="text-xs"
                   >
-                    Today
+                    {t('common.today')}
                   </Button>
                 </div>
                 
@@ -1075,7 +1078,7 @@ function ManagerScheduleView({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Clock className="w-5 h-5" />
-                Status
+                {t('common.status')}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -1084,9 +1087,9 @@ function ManagerScheduleView({
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-5 h-5 text-green-600" />
                     <div>
-                      <p className="font-medium text-green-800">Schedule Active</p>
+                      <p className="font-medium text-green-800">{t('schedule.scheduleActive')}</p>
                       <p className="text-xs text-gray-500">
-                        {currentSchedule.assignments?.length || 0} assignments
+                        {currentSchedule.assignments?.length || 0} {t('common.assignments')}
                       </p>
                     </div>
                   </div>
@@ -1094,15 +1097,15 @@ function ManagerScheduleView({
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5 text-orange-600" />
                     <div>
-                      <p className="font-medium text-orange-800">No Schedule</p>
-                      <p className="text-xs text-gray-500">Generate or create schedule</p>
+                      <p className="font-medium text-orange-800">{t('schedule.noSchedule')}</p>
+                      <p className="text-xs text-gray-500">{t('schedule.generateSchedule')} or {t('schedule.createSchedule')}</p>
                     </div>
                   </div>
                 )}
                 
                 {selectedZones.length > 0 && (
                   <div>
-                    <p className="text-xs text-gray-600 mb-1">Active Zones:</p>
+                    <p className="text-xs text-gray-600 mb-1">{t('schedule.activeZones')}:</p>
                     <div className="flex flex-wrap gap-1">
                       {selectedZones.map(zoneId => {
                         const zone = availableZones.find(z => (z.zone_id || z.id) === zoneId)
@@ -1124,7 +1127,7 @@ function ManagerScheduleView({
                     className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
                   >
                     <Save className="w-4 h-4" />
-                    {unsavedChanges ? 'Publish Changes' : 'Saved'}
+                    {unsavedChanges ? t('schedule.publishChanges') : t('common.saved')}
                   </Button>
                 )}
 
@@ -1214,15 +1217,15 @@ function ManagerScheduleView({
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Building className="w-12 h-12 text-gray-400" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">Select a Facility</h3>
+            <h3 className="text-xl font-semibold mb-2">{t('common.selectFacility')}</h3>
             <p className="text-gray-600">
-              Choose a facility from the dropdown above to view and manage schedules
+              {t('schedule.chooseFacilityFromDropdown')}
             </p>
           </div>
         )}
       </div>
 
-      {/* Manager Modals - FIX: Only render when needed */}
+      {/* Manager Modals */}
       {showSmartGenerateModal && (
         <SmartGenerateModal
           open={showSmartGenerateModal}
@@ -1286,7 +1289,7 @@ function ManagerScheduleView({
         />
       )}
 
-      {/* Swap Notification Dialog - FIX: Only render when needed */}
+      {/* Swap Notification Dialog */}
       {showSwapNotificationDialog && pendingSwapData && (
         <SwapNotificationDialog
           open={showSwapNotificationDialog}
@@ -1294,10 +1297,10 @@ function ManagerScheduleView({
           onConfirm={processSwapWithNotifications}
           swapType="staff_to_staff"
           swapDetails={{
-            requesterName: pendingSwapData?.requester_name || 'Unknown',
+            requesterName: pendingSwapData?.requester_name || t('common.unknown'),
             targetStaffName: pendingSwapData?.target_staff_name,
-            originalDay: pendingSwapData?.original_day_name || 'Unknown',
-            originalShift: pendingSwapData?.original_shift_name || 'Unknown',
+            originalDay: pendingSwapData?.original_day_name || t('common.unknown'),
+            originalShift: pendingSwapData?.original_shift_name || t('common.unknown'),
             reason: pendingSwapData?.reason,
             urgency: pendingSwapData?.urgency || 'normal'
           }}
@@ -1333,6 +1336,7 @@ export default function SchedulePage() {
   const router = useRouter()
   const { isManager, isAuthenticated, isLoading: authLoading, user } = useAuth()
   const apiClient = useApiClient()
+  const { t } = useTranslations() // Add translation hook to main component
   
   // Core state
   const [facilities, setFacilities] = useState([])
@@ -1412,7 +1416,6 @@ export default function SchedulePage() {
 
   const loadData = async () => {
     try {
-      console.log('=== LOAD DATA STARTED ===')
       setLoading(true)
       setFacilitiesReady(false)
       
@@ -1444,12 +1447,12 @@ export default function SchedulePage() {
           setStaff(facilityStaff)
         } catch (error) {
           console.error('Failed to load staff profile:', error)
-          toast.error('Failed to load your profile')
+          toast.error(t('common.failedToLoad') + ' your profile')
         }
       }
     } catch (error) {
       console.error('Failed to load data:', error)
-      toast.error('Failed to load schedule data')
+      toast.error(t('schedule.loadingScheduleData'))
     } finally {
       setLoading(false)
     }
@@ -1471,17 +1474,17 @@ export default function SchedulePage() {
         console.warn('Failed to load shifts from API, using fallback:', error)
         // Fallback to the working SHIFTS constant format
         facilityShifts = [
-          { id: 0, name: 'Morning', start_time: '06:00', end_time: '14:00', color: '#3B82F6' },
-          { id: 1, name: 'Afternoon', start_time: '14:00', end_time: '22:00', color: '#10B981' },
-          { id: 2, name: 'Evening', start_time: '22:00', end_time: '06:00', color: '#F59E0B' }
+          { id: 0, name: t('schedule.morning'), start_time: '06:00', end_time: '14:00', color: '#3B82F6' },
+          { id: 1, name: t('schedule.afternoon'), start_time: '14:00', end_time: '22:00', color: '#10B981' },
+          { id: 2, name: t('schedule.evening'), start_time: '22:00', end_time: '06:00', color: '#F59E0B' }
         ]
       }
 
       // Process shifts to match the working format, include shift_index always
       const processedShifts = facilityShifts.map((shift, index) => ({
-        shift_index: index, // NEW: stable column index
+        shift_index: index, // stable column index
         id: shift.id ?? index, // keep original id when present
-        name: shift.name ?? shift.shift_name ?? `Shift ${index + 1}`,
+        name: shift.name ?? shift.shift_name ?? `${t('common.shift')} ${index + 1}`,
         start_time: shift.start_time ?? '09:00',
         end_time: shift.end_time ?? '17:00',
         color:
@@ -1503,7 +1506,7 @@ export default function SchedulePage() {
 
     } catch (error) {
       console.error('Failed to load facility data:', error)
-      toast.error('Failed to load facility configuration')
+      toast.error(t('common.failedToLoad') + ' facility configuration')
     }
   }
 
@@ -1511,11 +1514,9 @@ export default function SchedulePage() {
   // normalize assignment data
   const normalizeAssignments = (assignments: any[]): any[] => {
     if (!assignments) {
-      console.log('⚠️ No assignments provided, returning empty array')
+     
       return []
     }
-    
-    console.log('🔧 Normalizing assignments:', assignments.length)
     
     const normalized = assignments.map((assignment, index) => {
       const normalized = {
@@ -1529,11 +1530,10 @@ export default function SchedulePage() {
         staff_role: assignment.staff_role
       }
       
-      console.log(`Assignment ${index}:`, normalized)
+      
       return normalized
     })
     
-    console.log('✅ Normalized assignments complete:', normalized.length)
     return normalized
   }
 
@@ -1544,7 +1544,7 @@ export default function SchedulePage() {
     }
   }, [selectedFacility, currentDate, viewPeriod])
 
-  // FIXED: Implement loadSchedules properly
+  // loadSchedules properly
   const loadSchedules = async () => {
   if (!selectedFacility) {
     console.log('No facility selected, skipping schedule load')
@@ -1565,7 +1565,7 @@ export default function SchedulePage() {
       }))
     })
     
-    // CRITICAL: Normalize schedule data using your working function
+    // CRITICAL: Normalize schedule data
     const normalizedSchedules = schedulesData.map(schedule => {
       const normalized = {
         ...schedule,
@@ -1590,12 +1590,6 @@ export default function SchedulePage() {
     
     console.log('🔍 Current schedule found:', currentPeriodSchedule?.id || 'none')
     setCurrentSchedule(currentPeriodSchedule || null)
-
-    // ↑ add in dev only —  vvv CRUCIAL REMOVE THIS IN PROD
-    if (process.env.NODE_ENV === 'development') {
-      // @ts-ignore – debug helper
-      window.currentSchedule = currentPeriodSchedule
-    }
     
   } catch (error) {
     console.error('❌ Failed to load schedules:', error)
@@ -1717,7 +1711,7 @@ export default function SchedulePage() {
     }
   }
 
-  // FIXED: Implement proper handler functions
+  // Handler functions
   const handleAssignmentChange = async (dayIndex: number, shiftIndex: number, staffId: string) => {
     if (!currentSchedule) return
 
@@ -1741,10 +1735,10 @@ export default function SchedulePage() {
       setCurrentSchedule(updatedSchedule)
       setUnsavedChanges(true)
       
-      toast.success('Assignment added')
+      toast.success(t('common.assignments') + ' ' + t('common.add'))
     } catch (error) {
       console.error('Failed to add assignment:', error)
-      toast.error('Failed to add assignment')
+      toast.error(t('common.failedToCreate') + ' assignment')
     }
   }
 
@@ -1763,10 +1757,10 @@ export default function SchedulePage() {
       setCurrentSchedule(updatedSchedule)
       setUnsavedChanges(true)
       
-      toast.success('Assignment removed')
+      toast.success(t('common.assignments') + ' ' + t('common.delete'))
     } catch (error) {
       console.error('Failed to remove assignment:', error)
-      toast.error('Failed to remove assignment')
+      toast.error(t('common.failedToDelete') + ' assignment')
     }
   }
 
@@ -1788,10 +1782,10 @@ export default function SchedulePage() {
       setUnsavedChanges(true)
       setShowSmartGenerateModal(false)
       
-      toast.success('Smart schedule generated successfully!')
+      toast.success(t('schedule.smartGenerate') + ' ' + t('common.createdSuccessfully'))
     } catch (error) {
       console.error('Failed to generate schedule:', error)
-      toast.error('Failed to generate schedule')
+      toast.error(t('common.failedToCreate') + ' schedule')
     } finally {
       setLoading(false)
     }
@@ -1814,13 +1808,13 @@ export default function SchedulePage() {
       
       setUnsavedChanges(false)
       setShowSaveDialog(false)
-      toast.success('Schedule saved successfully!')
+      toast.success(t('schedule.schedule') + ' ' + t('common.savedSuccessfully'))
       
       // Reload schedules
       loadSchedules()
     } catch (error) {
       console.error('Failed to save schedule:', error)
-      toast.error('Failed to save schedule')
+      toast.error(t('common.failedToSave') + ' schedule')
     }
   }
 
@@ -1839,10 +1833,10 @@ export default function SchedulePage() {
         setUnsavedChanges(false)
       }
       
-      toast.success('Schedule deleted successfully!')
+      toast.success(t('schedule.schedule') + ' ' + t('common.deletedSuccessfully'))
     } catch (error) {
       console.error('Failed to delete schedule:', error)
-      toast.error('Failed to delete schedule')
+      toast.error(t('common.failedToDelete') + ' schedule')
     }
   }
 
@@ -1875,7 +1869,7 @@ export default function SchedulePage() {
   const handleViewSwapHistory = () => {
     console.log('📊 Viewing swap history')
     // Implement swap history view
-    toast.info('Swap history view coming soon')
+    toast.info(t('swaps.swapHistory') + ' view coming soon')
   }
 
   const processSwapWithNotifications = async (swapData: any) => {
@@ -1889,10 +1883,10 @@ export default function SchedulePage() {
       setShowSwapNotificationDialog(false)
       setPendingSwapData(null)
       
-      toast.success('Swap request processed with notifications sent!')
+      toast.success(t('swaps.swapRequest') + ' processed with notifications sent!')
     } catch (error) {
       console.error('Failed to process swap with notifications:', error)
-      toast.error('Failed to process swap request')
+      toast.error(t('common.failedToCreate') + ' swap request')
     }
   }
 
@@ -1902,7 +1896,7 @@ export default function SchedulePage() {
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">Loading schedule data...</p>
+            <p className="text-gray-600">{t('schedule.loadingScheduleData')}</p>
           </div>
         </div>
       </AppLayout>
@@ -1993,7 +1987,7 @@ export default function SchedulePage() {
         />
       )}
 
-      {/* Swap Request Modal - FIX: Only render when needed */}
+      {/* Swap Request Modal */}
       {showSwapModal && selectedAssignmentForSwap && (
         <SwapRequestModal
           open={showSwapModal}
