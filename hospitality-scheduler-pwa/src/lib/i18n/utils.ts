@@ -5,29 +5,17 @@ import it from './dictionaries/it';
 
 // Create a more flexible type that accepts any string values
 export type Dictionary = {
-  common: {
-    save: string;
-    cancel: string;
-    loading: string;
-    error: string;
-    success: string;
-    back: string;
-    next: string;
-    close: string;
-    open: string;
-    refresh: string;
-  };
-  navigation: {
-    dashboard: string;
-    schedule: string;
-    swaps: string;
-    staff: string;
-    facilities: string;
-    profile: string;
-    settings: string;
-    logout: string;
-  };
-  test: {
+  auth: Record<string, string>;
+  common: Record<string, string>;
+  errors: Record<string, string>;
+  facilities: Record<string, string>;
+  messages: Record<string, string>;
+  navigation: Record<string, string>;
+  notifications: Record<string, string>;
+  schedule: Record<string, string>;
+  staff: Record<string, string>;
+  swaps: Record<string, string>;
+  test?: {
     welcome: string;
     currentLanguage: string;
     switchLanguage: string;
