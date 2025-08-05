@@ -514,12 +514,13 @@ export const en = {
     pendingSwaps: 'Pending Swaps',
     completedSwaps: 'Completed Swaps',
     urgentSwaps: 'Urgent Swaps',
-    reviewSwap: 'Review Swap Request',
+    reviewSwaps: 'Review Swap Request',
     totalRequests: 'Total Requests',
     requestSwap: 'Request Swap',
     quickApproval: 'Quick Approval Queue',
     requestsForMe: 'Requests For Me',
     forMe: 'For Me',
+    viewAllRequests: 'View All Requests',
     coverageRequests: 'Coverage Requests',
     noRequestsForYou: 'No requests for you',
     actionNeeded: 'Action needed',
@@ -649,8 +650,8 @@ export const en = {
     readyForExecution: 'Ready for Execution',
     executed: 'Executed',
     staffAccepted: 'Staff Accepted',
-    staff_accepted: 'staff_accepted',
-    potentialAssignment: 'Potential Assignment'
+    staff_accepted: 'staff accepted',
+    potential_assignment: 'potential assignment'
 
   },
 
