@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth, useApiClient } from '@/hooks/useApi'
+import { useTranslations } from '@/hooks/useTranslations'
 import { StaffTable } from '@/components/staff/StaffTable'
 import { AddStaffModal } from '@/components/staff/AddStaffModal'
 import { ImportProgressModal } from '@/components/staff/ImportProgressModal'
@@ -21,6 +22,7 @@ export default function StaffPage() {
   const { isManager, isLoading: authLoading } = useAuth()
   const apiClient = useApiClient()
   const router = useRouter()
+  const { t } = useTranslations()
   
   const [staff, setStaff] = useState([])
   const [facilities, setFacilities] = useState([])
@@ -36,10 +38,10 @@ export default function StaffPage() {
   // Check if user is manager - redirect if not
   useEffect(() => {
     if (!authLoading && !isManager) {
-      toast.error('Access denied. Manager permissions required.')
+      toast.error(t('staff.accessDeniedManager'))
       router.push('/dashboard')
     }
-  }, [isManager, authLoading, router])
+  }, [isManager, authLoading, router, t])
 
   // Load data
   useEffect(() => {
@@ -60,7 +62,7 @@ export default function StaffPage() {
       setFacilities(facilitiesData)
     } catch (error) {
       console.error('Failed to load data:', error)
-      toast.error('Failed to load staff data')
+      toast.error(t('staff.failedLoadData'))
     } finally {
       setLoading(false)
     }
@@ -70,7 +72,7 @@ export default function StaffPage() {
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
     if (!file || (!file.name.endsWith('.xlsx') && !file.name.endsWith('.csv'))) {
-      toast.error('Please upload an Excel (.xlsx) or CSV file')
+      toast.error(t('staff.uploadExcelOrCsv'))
       return
     }
 
@@ -183,18 +185,19 @@ export default function StaffPage() {
       await loadData()
 
       if (errors === 0) {
-        toast.success(`Successfully imported ${added} staff members!`)
+        toast.success(t('staff.importSuccess', { count: added }))
       } else {
-        toast.warning(`Imported ${added} staff members with ${errors} errors`)
+        toast.warning(t('staff.importPartialSuccess', { added, errors }))
       }
 
     } catch (error) {
       console.error('Import failed:', error)
       setImportStatus('error')
-      toast.error('Failed to import staff. Please check the file format.')
+      toast.error(t('staff.importFailed'))
     }
-  }, [apiClient, facilities])
+  }, [apiClient, facilities, loadData, t])
 
+  // Setup drag and drop for the entire page
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
@@ -205,55 +208,43 @@ export default function StaffPage() {
     noKeyboard: true
   })
 
-  // Filter staff
+  // Filter staff based on search and facility
   const filteredStaff = staff.filter((member: any) => {
-    const matchesSearch = member.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         member.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         member.phone?.includes(searchQuery)
+    const matchesSearch = !searchQuery || 
+      member.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.email?.toLowerCase().includes(searchQuery.toLowerCase())
     
     const matchesFacility = selectedFacility === 'all' || member.facility_id === selectedFacility
-    
+
     return matchesSearch && matchesFacility
   })
-  .sort((a: any, b: any) => {
-    // Sort alphabetically by full name
-    return a.full_name.localeCompare(b.full_name)
-  })
 
-  // Loading state
   if (authLoading || loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">
-              {authLoading ? 'Checking permissions...' : 'Loading staff data...'}
-            </p>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-gray-600">{t('common.loading')}</p>
           </div>
         </div>
       </AppLayout>
     )
   }
 
-  // Access denied - shouldn't reach here due to redirect, but just in case
+  // Show access denied for non-managers
   if (!isManager) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-96">
-          <Card className="max-w-md">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-red-600">
-                <Shield className="w-5 h-5" />
-                Access Denied
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-4">
-                You need manager permissions to access staff management.
-              </p>
+        <div className="min-h-screen flex items-center justify-center">
+          <Card className="max-w-md mx-auto text-center">
+            <CardContent className="p-6 space-y-4">
+              <Shield className="w-12 h-12 text-gray-400 mx-auto" />
+              <h2 className="text-xl font-semibold">{t('staff.accessDenied')}</h2>
+              <p className="text-gray-600">{t('staff.managerPermissionsRequired')}</p>
               <Button onClick={() => router.push('/dashboard')} className="w-full">
-                Return to Dashboard
+                {t('staff.returnToDashboard')}
               </Button>
             </CardContent>
           </Card>
@@ -286,13 +277,13 @@ export default function StaffPage() {
                 className="gap-2 hover:bg-gray-100"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Dashboard
+                {t('navigation.dashboard')}
               </Button>
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                  Staff Management
+                  {t('staff.staffManagement')}
                 </h1>
-                <p className="text-gray-600 mt-1">Manage your team across all facilities</p>
+                <p className="text-gray-600 mt-1">{t('staff.manageTeamAllFacilities')}</p>
               </div>
             </div>
             
@@ -302,7 +293,7 @@ export default function StaffPage() {
                 className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 <Plus className="w-4 h-4" />
-                Add Staff
+                {t('staff.addStaff')}
               </Button>
             </div>
           </div>
@@ -313,8 +304,7 @@ export default function StaffPage() {
               <div className="flex items-center gap-3">
                 <FileSpreadsheet className="w-5 h-5 text-blue-600" />
                 <p className="text-blue-800 text-sm">
-                  <strong>Drag & Drop Excel files anywhere</strong> to instantly import staff members. 
-                  We support .xlsx and .csv files with columns: Name, Email, Role, Phone, Facility, Skill Level, Status.
+                  <strong>{t('staff.dragDropImport')}</strong> {t('staff.importInstructions')}
                 </p>
               </div>
             </CardContent>
@@ -330,7 +320,7 @@ export default function StaffPage() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{staff.length}</p>
-                    <p className="text-sm text-gray-600">Total Staff</p>
+                    <p className="text-sm text-gray-600">{t('staff.totalStaff')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -344,7 +334,7 @@ export default function StaffPage() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{staff.filter((s: any) => s.is_active).length}</p>
-                    <p className="text-sm text-gray-600">Active</p>
+                    <p className="text-sm text-gray-600">{t('staff.activeStaff')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -358,7 +348,7 @@ export default function StaffPage() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{facilities.length}</p>
-                    <p className="text-sm text-gray-600">Facilities</p>
+                    <p className="text-sm text-gray-600">{t('facilities.facilities')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -374,7 +364,7 @@ export default function StaffPage() {
                     <p className="text-2xl font-bold">
                       {new Set(staff.map((s: any) => s.role)).size}
                     </p>
-                    <p className="text-sm text-gray-600">Unique Roles</p>
+                    <p className="text-sm text-gray-600">{t('staff.uniqueRoles')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -388,7 +378,7 @@ export default function StaffPage() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder="Search staff by name, role, or phone..."
+                    placeholder={t('staff.searchStaffByNameRole')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 border-0 bg-gray-50 focus:bg-white transition-all duration-200"
@@ -400,7 +390,7 @@ export default function StaffPage() {
                   onChange={(e) => setSelectedFacility(e.target.value)}
                   className="px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-blue-500 transition-all duration-200"
                 >
-                  <option value="all">All Facilities</option>
+                  <option value="all">{t('staff.allFacilities')}</option>
                   {facilities.map((facility: any) => (
                     <option key={facility.id} value={facility.id}>
                       {facility.name}
@@ -415,41 +405,40 @@ export default function StaffPage() {
           <Card className="border-0 shadow-sm bg-white/70 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>Staff Members ({filteredStaff.length})</span>
+                <span>{t('staff.staffMembers')} ({filteredStaff.length})</span>
                 <Badge variant="outline" className="text-xs">
-                  Manager Only Access
+                  {t('staff.managerOnlyAccess')}
                 </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <StaffTable 
-                staff={filteredStaff} 
-                facilities={facilities}
-                onRefresh={loadData}
-              />
+              {filteredStaff.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Users className="w-12 h-12 text-gray-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">{t('staff.noStaffFound')}</h3>
+                  <p className="text-gray-600 mb-6">
+                    {searchQuery || selectedFacility !== 'all' 
+                      ? t('staff.tryAdjustingCriteria')
+                      : t('staff.getStartedMessage')}
+                  </p>
+                  <div className="flex gap-3 justify-center">
+                    <Button onClick={() => setShowAddModal(true)} className="gap-2">
+                      <Plus className="w-4 h-4" />
+                      {t('staff.addStaffMember')}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <StaffTable 
+                  staff={filteredStaff} 
+                  facilities={facilities}
+                  onRefresh={loadData}
+                />
+              )}
             </CardContent>
           </Card>
-
-          {/* Empty State */}
-          {filteredStaff.length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Users className="w-12 h-12 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">No staff found</h3>
-              <p className="text-gray-600 mb-6">
-                {searchQuery || selectedFacility !== 'all' 
-                  ? 'Try adjusting your search criteria' 
-                  : 'Get started by adding your first staff member or drag & drop an Excel file'}
-              </p>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={() => setShowAddModal(true)} className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Add Staff Member
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Modals */}
@@ -457,7 +446,10 @@ export default function StaffPage() {
           open={showAddModal} 
           onClose={() => setShowAddModal(false)}
           facilities={facilities}
-          onSuccess={loadData}
+          onSuccess={() => {
+            setShowAddModal(false)
+            loadData()
+          }}
         />
         
         <ImportProgressModal
