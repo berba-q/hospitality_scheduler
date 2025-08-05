@@ -4,6 +4,7 @@
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AlertTriangle, Trash2 } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface DeleteConfirmationDialogProps {
   open: boolean
@@ -20,6 +21,9 @@ export function DeleteConfirmationDialog({
   staffMember, 
   loading = false 
 }: DeleteConfirmationDialogProps) {
+  // setup translations
+  const { t } = useTranslations()
+  
   if (!staffMember) return null
 
   return (
@@ -28,7 +32,7 @@ export function DeleteConfirmationDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-red-600">
             <AlertTriangle className="w-5 h-5" />
-            Delete Staff Member
+              {t('staff.deleteStaffMember')}
           </DialogTitle>
         </DialogHeader>
 
@@ -47,21 +51,21 @@ export function DeleteConfirmationDialog({
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
               <div>
-                <h4 className="font-medium text-yellow-800">This action cannot be undone</h4>
+                <h4 className="font-medium text-yellow-800">{t('common.actionCannotBeUndone')}</h4>
                 <p className="text-sm text-yellow-700 mt-1">
-                  Deleting this staff member will:
+                  {t('staff.deletingWillCause')}
                 </p>
                 <ul className="text-sm text-yellow-700 mt-2 list-disc list-inside space-y-1">
-                  <li>Remove them from all schedules</li>
-                  <li>Cancel any pending shift swaps</li>
-                  <li>Delete their availability records</li>
+                  <li>{t('staff.removeFromSchedules')}</li>
+                  <li>{t('staff.cancelPendingSwaps')}</li>
+                  <li>{t('staff.deleteAvailability')}</li>
                 </ul>
               </div>
             </div>
           </div>
 
           <p className="text-gray-600 text-sm">
-            Are you sure you want to permanently delete <strong>{staffMember.full_name}</strong>?
+            {t('staff.deleteConfirmation')} <strong>{staffMember.full_name}</strong>?
           </p>
         </div>
 
@@ -72,7 +76,7 @@ export function DeleteConfirmationDialog({
             className="flex-1"
             disabled={loading}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={onConfirm}
@@ -82,12 +86,12 @@ export function DeleteConfirmationDialog({
             {loading ? (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Deleting...
+                {t('common.deleting')}
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Trash2 className="w-4 h-4" />
-                Delete Staff Member
+                {t('staff.deleteStaffMember')}
               </div>
             )}
           </Button>

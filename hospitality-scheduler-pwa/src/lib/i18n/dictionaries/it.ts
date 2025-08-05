@@ -33,6 +33,7 @@ export const it = {
     cancel: 'Annulla',
     cancelled: 'Annullato',
     delete: 'Elimina',
+    deleting: 'Eliminazione...',
     edit: 'Modifica',
     view: 'Visualizza',
     viewAll: 'Visualizza Tutto',
@@ -158,6 +159,7 @@ export const it = {
     error: 'Errore',
     warning: 'Attenzione',
     info: 'Informazione',
+    actionCannotBeUndone: 'Questo azione non puo essere annullata',
     
     // Messaggi di successo
     savedSuccessfully: 'Salvato con successo',
@@ -457,6 +459,10 @@ export const it = {
     staffDeletedSuccess: '{{name}} eliminato con successo',
     failedDeleteStaff: 'Impossibile eliminare il membro del personale',
     deleteConfirmation: 'Sei sicuro di voler eliminare {{name}}? Questa azione non può essere annullata.',
+    deletingWillCause: 'L\'eliminazione di questo personale:',
+    removeFromSchedules: 'Rimuovili da qualsiasi programma',
+    cancelPendingSwaps: 'Annulla eventuali scambio in sospeso', 
+    deleteAvailability: 'Cancella loro registi di disponibilita',
     uploadingFile: 'Caricamento File...',
     readingExcelFile: 'Lettura del tuo file Excel',
     processingData: 'Elaborazione Dati...',

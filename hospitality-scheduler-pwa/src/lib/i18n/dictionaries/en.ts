@@ -33,6 +33,7 @@ export const en = {
     saveChanges: 'Save Changes',
     cancel: 'Cancel',
     delete: 'Delete',
+    deleting: 'Deleting...',
     edit: 'Edit',
     view: 'View',
     viewAll: 'View All',
@@ -159,6 +160,7 @@ export const en = {
     error: 'Error',
     warning: 'Warning',
     info: 'Info',
+    actionCannotBeUndone: 'This action cannot be undone',
     
     // Success messages
     savedSuccessfully: 'Saved successfully',
@@ -459,6 +461,10 @@ export const en = {
     staffDeletedSuccess: '{{name}} deleted successfully',
     failedDeleteStaff: 'Failed to delete staff member',
     deleteConfirmation: 'Are you sure you want to delete {{name}}? This action cannot be undone.',
+    deletingWillCause: 'Deleting this staff member will:',
+    removeFromSchedules: 'Remove them from all schedules',
+    cancelPendingSwaps: 'Cancel any pending shift swaps', 
+    deleteAvailability: 'Delete their availability records',
     uploadingFile: 'Uploading File...',
     readingExcelFile: 'Reading your Excel file',
     processingData: 'Processing Data...',
