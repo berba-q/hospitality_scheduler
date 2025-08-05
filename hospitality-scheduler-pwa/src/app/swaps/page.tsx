@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth, useApiClient } from '@/hooks/useApi'
+import { useTranslations } from '@/hooks/useTranslations' // ADD: Translation hook
 import { toast } from 'sonner'
 
 // Import manager components
@@ -61,6 +62,7 @@ export default function SwapsPage() {
   // ============================================================================
   const { isManager, isAuthenticated, isLoading: authLoading, user } = useAuth()
   const apiClient = useApiClient()
+  const { t } = useTranslations() // ADD: Translation hook
   const { showExportModal, setShowExportModal, handleExport } = useExportFunctionality(apiClient)
 
   // ============================================================================
@@ -142,7 +144,7 @@ export default function SwapsPage() {
       setAllSwapRequests(swapsData)
     } catch (error) {
       console.error('Failed to load swap management data:', error)
-      toast.error('Failed to load swap data')
+      toast.error(t('common.failedToLoad'))
     } finally {
       setLoading(false)
     }
@@ -170,7 +172,7 @@ export default function SwapsPage() {
       return response
     } catch (error) {
       console.error('Failed to load facility swaps:', error)
-      toast.error('Failed to load facility swap details')
+      toast.error(t('common.failedToLoad'))
       return []
     }
   }
@@ -184,7 +186,7 @@ export default function SwapsPage() {
       return { swap: swapDetail, history }
     } catch (error) {
       console.error('Failed to load swap history:', error)
-      toast.error('Failed to load swap history')
+      toast.error(t('common.failedToLoad'))
       return { swap: null, history: [] }
     }
   }
@@ -211,11 +213,11 @@ export default function SwapsPage() {
   const handleApproveSwap = async (swapId: string, approved: boolean, notes?: string) => {
     try {
       await apiClient.ManagerSwapDecision(swapId, { approved, notes })
-      toast.success(approved ? 'Swap request approved' : 'Swap request declined')
+      toast.success(approved ? t('swaps.swapApproved') : t('swaps.swapDenied'))
       await loadManagerData()
     } catch (error) {
       console.error('Failed to update swap:', error)
-      toast.error('Failed to update swap request')
+      toast.error(t('common.failed'))
     }
   }
 
@@ -234,11 +236,11 @@ export default function SwapsPage() {
       })
       
       await loadManagerData()
-      toast.success(approved ? 'Swap executed successfully!' : 'Final approval denied')
+      toast.success(approved ? t('swaps.swapExecutedSuccessfully') : t('swaps.swapDenied'))
       
     } catch (error) {
       console.error('❌ Failed to process final approval:', error)
-      const errorMessage = error?.message || 'Failed to process final approval'
+      const errorMessage = error?.message || t('common.failed')
       toast.error(errorMessage)
     }
   }
@@ -246,11 +248,11 @@ export default function SwapsPage() {
   const handleRetryAutoAssignment = async (swapId: string, avoidStaffIds?: string[]) => {
     try {
       await apiClient.retryAutoAssignment(swapId, avoidStaffIds)
-      toast.success('Auto-assignment retried')
+      toast.success(t('swaps.retryAssignment'))
       loadManagerData()
     } catch (error) {
       console.error('Failed to retry assignment:', error)
-      toast.error('Failed to retry auto-assignment')
+      toast.error(t('common.failed'))
     }
   }
 
@@ -273,14 +275,14 @@ export default function SwapsPage() {
           date_to: filters.date_to
         })
         setAllSwapRequests(results)
-        toast.success(`Found ${results.length} matching swap requests`)
+        toast.success(t('messages.searchSuccessful', { count: results.length }))
       } else {
         await loadManagerData()
-        toast.success('Filters applied')
+        toast.success(t('common.success'))
       }
     } catch (error) {
       console.error('Advanced search failed:', error)
-      toast.error('Search failed')
+      toast.error(t('messages.searchFailed'))
     }
   }
 
@@ -290,17 +292,17 @@ export default function SwapsPage() {
     setUrgencyFilter('')
     setSearchTerm('')
     await loadManagerData()
-    toast.success('Filters cleared')
+    toast.success(t('common.success'))
   }
 
   const handleUpdateSwap = async (swapId: string, updates: any) => {
     try {
       await apiClient.updateSwapRequest(swapId, updates)
       await loadManagerData()
-      toast.success('Swap request updated successfully')
+      toast.success(t('common.updatedSuccessfully'))
     } catch (error) {
       console.error('Failed to update swap:', error)
-      toast.error('Failed to update swap request')
+      toast.error(t('common.failedToUpdate'))
     }
   }
 
@@ -308,10 +310,10 @@ export default function SwapsPage() {
     try {
       await apiClient.cancelSwapRequest(swapId, reason)
       await loadManagerData()
-      toast.success('Swap request cancelled')
+      toast.success(t('status.cancelled'))
     } catch (error) {
       console.error('Failed to cancel swap:', error)
-      toast.error('Failed to cancel swap request')
+      toast.error(t('common.failed'))
     }
   }
 
@@ -322,18 +324,18 @@ export default function SwapsPage() {
     )
     
     if (emergencySwaps.length === 0) {
-      toast.info('No emergency swaps need attention')
+      toast.info(t('swaps.noSwapRequestsYet'))
       return
     }
     
     if (emergencySwaps.length <= 5) {
       setSelectedSwaps(emergencySwaps.map(swap => swap.id))
-      toast.success(`Selected ${emergencySwaps.length} urgent swaps - review below`)
+      toast.success(t('common.success'))
     } else {
       setDetailedToolsTab('all')
       setShowDetailedTools(true)
       setUrgencyFilter(SwapUrgency.Emergency)
-      toast.success(`Found ${emergencySwaps.length} urgent swaps - opened detailed view`)
+      toast.success(t('common.success'))
     }
   }
 
@@ -384,7 +386,7 @@ export default function SwapsPage() {
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-gray-600">
-              {authLoading ? 'Checking permissions...' : 'Loading swap management data...'}
+              {authLoading ? t('auth.checkingAuthentication') : t('common.loadingData')}
             </p>
           </div>
         </div>
@@ -424,10 +426,10 @@ export default function SwapsPage() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                Swap Management
+                {t('swaps.swapManagement')}
               </h1>
               <p className="text-gray-600 mt-1">
-                Manage shift swaps across all facilities with intelligent insights and automation
+                {t('swaps.manageSwaps')}
               </p>
             </div>
             <div className="flex gap-2">
@@ -437,11 +439,11 @@ export default function SwapsPage() {
                 className="gap-2"
               >
                 <Download className="h-4 w-4" />
-                Export Report
+                {t('common.exportReport')}
               </Button>
               <Button onClick={loadManagerData} variant="outline" className="gap-2">
                 <RotateCcw className="h-4 w-4" />
-                Refresh
+                {t('common.refresh')}
               </Button>
             </div>
           </div>
@@ -453,17 +455,17 @@ export default function SwapsPage() {
               <AlertDescription>
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="font-semibold text-red-800">Immediate Attention Required: </span>
+                    <span className="font-semibold text-red-800">{t('status.urgent')} {t('common.attention')} {t('common.required')}: </span>
                     {emergencyCount > 0 && (
-                      <span className="text-red-600">{emergencyCount} emergency swap{emergencyCount > 1 ? 's' : ''}</span>
+                      <span className="text-red-600">{emergencyCount} {t('swaps.emergencySwap')}{emergencyCount > 1 ? 's' : ''}</span>
                     )}
                     {emergencyCount > 0 && urgentFinalApprovals.length > 0 && <span>, </span>}
                     {urgentFinalApprovals.length > 0 && (
-                      <span className="text-orange-600">{urgentFinalApprovals.length} urgent final approval{urgentFinalApprovals.length > 1 ? 's' : ''}</span>
+                      <span className="text-orange-600">{urgentFinalApprovals.length} {t('status.urgent')} {t('common.finalApproval')}{urgentFinalApprovals.length > 1 ? 's' : ''}</span>
                     )}
                     {(emergencyCount > 0 || urgentFinalApprovals.length > 0) && criticalFacilities.length > 0 && <span>, </span>}
                     {criticalFacilities.length > 0 && (
-                      <span className="text-red-600">{criticalFacilities.length} facility{criticalFacilities.length > 1 ? 's' : ''} in critical state</span>
+                      <span className="text-red-600">{criticalFacilities.length} {t('common.facility')}{criticalFacilities.length > 1 ? 's' : ''} {t('status.urgent')}</span>
                     )}
                   </div>
                   <Button size="sm" 
@@ -471,7 +473,7 @@ export default function SwapsPage() {
                     onClick={handleTakeAction}
                   >
                     <Zap className="h-4 w-4 mr-1" />
-                    Take Action
+                    {t('common.actions')}
                   </Button>
                 </div>
               </AlertDescription>
@@ -485,12 +487,12 @@ export default function SwapsPage() {
               <AlertDescription>
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="font-semibold text-orange-800">Final Approval Required: </span>
+                    <span className="font-semibold text-orange-800">{t('common.finalApproval')} {t('common.required')}: </span>
                     <span className="text-orange-600">
-                      {pendingFinalApproval.length} swap{pendingFinalApproval.length > 1 ? 's' : ''} ready for execution
+                      {pendingFinalApproval.length} {t('navigation.swaps')}{pendingFinalApproval.length > 1 ? 's' : ''}
                     </span>
                     <span className="text-orange-600 ml-2 text-sm">
-                      (Staff have accepted and are waiting for you to execute)
+                      ({t('common.staff')} {t('status.approved')})
                     </span>
                   </div>
                   <Button size="sm" 
@@ -501,7 +503,7 @@ export default function SwapsPage() {
                     }}
                   >
                     <Shield className="h-4 w-4 mr-1" />
-                    Review Final Approvals
+                    {t('common.review')}
                   </Button>
                 </div>
               </AlertDescription>
@@ -519,12 +521,12 @@ export default function SwapsPage() {
                     </div>
                     <div className="ml-4">
                       <p className="text-2xl font-bold text-gray-900">{globalSummary.total_facilities}</p>
-                      <p className="text-sm text-gray-600">Active Facilities</p>
+                      <p className="text-sm text-gray-600">{t('common.active')} {t('common.facilities')}</p>
                     </div>
                   </div>
                   <div className="absolute top-2 right-2">
                     <Badge variant="outline" className="text-xs bg-blue-50">
-                      All Online
+                      {t('common.online')}
                     </Badge>
                   </div>
                 </CardContent>
@@ -538,13 +540,13 @@ export default function SwapsPage() {
                     </div>
                     <div className="ml-4">
                       <p className="text-2xl font-bold text-gray-900">{pendingInitialApproval.length}</p>
-                      <p className="text-sm text-gray-600">Pending Initial</p>
+                      <p className="text-sm text-gray-600">{t('status.pending')}</p>
                     </div>
                   </div>
                   {pendingInitialApproval.length > 20 && (
                     <div className="absolute top-2 right-2">
                       <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700">
-                        High Volume
+                        {t('swaps.highPriority')}
                       </Badge>
                     </div>
                   )}
@@ -560,13 +562,13 @@ export default function SwapsPage() {
                     </div>
                     <div className="ml-4">
                       <p className="text-2xl font-bold text-gray-900">{pendingFinalApproval.length}</p>
-                      <p className="text-sm text-gray-600">Final Approval</p>
+                      <p className="text-sm text-gray-600">{t('common.finalApproval')}</p>
                     </div>
                   </div>
                   {pendingFinalApproval.length > 0 && (
                     <div className="absolute top-2 right-2">
                       <Badge className="text-xs bg-orange-600 text-white animate-pulse">
-                        Execute Ready
+                        {t('status.readyForExecution')}
                       </Badge>
                     </div>
                   )}
@@ -581,13 +583,13 @@ export default function SwapsPage() {
                     </div>
                     <div className="ml-4">
                       <p className="text-2xl font-bold text-gray-900">{globalSummary.total_urgent_swaps}</p>
-                      <p className="text-sm text-gray-600">Urgent Requests</p>
+                      <p className="text-sm text-gray-600">{t('status.urgent')}</p>
                     </div>
                   </div>
                   {emergencyCount > 0 && (
                     <div className="absolute top-2 right-2">
                       <Badge variant="destructive" className="text-xs animate-pulse">
-                        {emergencyCount} Emergency
+                        {emergencyCount} {t('swaps.emergencySwap')}
                       </Badge>
                     </div>
                   )}
@@ -604,7 +606,7 @@ export default function SwapsPage() {
                       <p className="text-2xl font-bold text-gray-900">
                         {Math.round(globalSummary.auto_assignment_success_rate || 0)}%
                       </p>
-                      <p className="text-sm text-gray-600">Auto Success Rate</p>
+                      <p className="text-sm text-gray-600">{t('swaps.successRate')}</p>
                     </div>
                   </div>
                   <div className="absolute top-2 right-2">
@@ -616,7 +618,7 @@ export default function SwapsPage() {
                           : 'bg-orange-50 text-orange-700'
                       }`}
                     >
-                      {globalSummary.auto_assignment_success_rate >= 80 ? 'Excellent' : 'Needs Work'}
+                      {globalSummary.auto_assignment_success_rate >= 80 ? t('common.excellent') : t('common.needsWork')}
                     </Badge>
                   </div>
                 </CardContent>
@@ -636,7 +638,7 @@ export default function SwapsPage() {
                   <CardTitle className="flex items-center justify-between text-red-800">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="h-5 w-5" />
-                      Immediate Action Required
+                      {t('status.urgent')} {t('common.actions')} {t('common.required')}
                     </div>
                     <Badge variant="destructive">
                       {allSwapRequests.filter(swap => 
@@ -715,7 +717,7 @@ export default function SwapsPage() {
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
                         onClick={() => setShowManagerModal(true)}
                       >
-                        Review &amp; Final Approve ({selectedSwaps.length})
+                        {t('common.review')} &amp; {t('common.approve')} ({selectedSwaps.length})
                       </Button>
                     </div>
                   )}
@@ -725,8 +727,8 @@ export default function SwapsPage() {
                     ).length === 0 && (
                     <div className="text-center py-8 text-gray-500">
                       <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
-                      <p className="text-sm font-medium">No urgent requests!</p>
-                      <p className="text-xs">All systems running smoothly.</p>
+                      <p className="text-sm font-medium">{t('swaps.noSwapRequestsYet')}!</p>
+                      <p className="text-xs">{t('common.success')}.</p>
                     </div>
                   )}
                 </CardContent>
@@ -738,7 +740,7 @@ export default function SwapsPage() {
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-yellow-600" />
-                      Quick Approval Queue
+                      {t('swaps.quickApproval')}
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">
@@ -760,7 +762,7 @@ export default function SwapsPage() {
                           setSelectedSwaps(regularPending)
                         }}
                       >
-                        Select All
+                        {t('common.selectAll')}
                       </Button>
                     </div>
                   </CardTitle>
@@ -823,10 +825,10 @@ export default function SwapsPage() {
                       className="w-full mt-3"
                       onClick={() => setActiveTab('detailed')}
                     >
-                      View All {allSwapRequests.filter(s => 
+                      {t('common.viewAll')} {allSwapRequests.filter(s => 
                           NEEDS_MANAGER_ACTION.includes(s.status) && 
                           ![SwapUrgency.Emergency, SwapUrgency.High].includes(s.urgency as SwapUrgency)
-                        ).length} Pending
+                        ).length} {t('status.pending')}
                     </Button>
                   )}
 
@@ -835,7 +837,7 @@ export default function SwapsPage() {
                       ![SwapUrgency.Emergency, SwapUrgency.High].includes(s.urgency as SwapUrgency)
                     ).length === 0 && (
                     <div className="text-center py-4 text-gray-500">
-                      <p className="text-sm">No pending approvals</p>
+                      <p className="text-sm">{t('swaps.noSwapRequestsYet')}</p>
                     </div>
                   )}
                 </CardContent>
@@ -847,7 +849,7 @@ export default function SwapsPage() {
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Users className="h-5 w-5 text-blue-600" />
-                      Awaiting Staff Response
+                      {t('status.awaitingApproval')} {t('common.staff')}
                     </div>
                     <Badge variant="outline" className="bg-blue-50 text-blue-700">
                       {allSwapRequests.filter(s => NEEDS_STAFF_ACTION.includes(s.status)).length}
@@ -868,7 +870,7 @@ export default function SwapsPage() {
                               <p className="text-xs text-gray-600 truncate max-w-48">{swap.reason}</p>
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge className="text-xs bg-blue-100 text-blue-800">
-                                  {swap.status === 'potential_assignment' ? 'Finding Coverage' : 'Waiting Response'}
+                                  {swap.status === 'potential_assignment' ? t('swaps.findingCoverage') : t('common.waiting')}
                                 </Badge>
                                 {swap.assigned_staff && (
                                   <span className="text-xs text-blue-600">
@@ -898,8 +900,8 @@ export default function SwapsPage() {
                   {allSwapRequests.filter(s => NEEDS_STAFF_ACTION.includes(s.status)).length === 0 && (
                     <div className="text-center py-8 text-gray-500">
                       <CheckCircle className="h-8 w-8 mx-auto mb-2 text-blue-500" />
-                      <p className="text-sm font-medium">All caught up!</p>
-                      <p className="text-xs">No swaps waiting for staff response.</p>
+                      <p className="text-sm font-medium">{t('common.success')}!</p>
+                      <p className="text-xs">{t('swaps.noSwapRequestsYet')}.</p>
                     </div>
                   )}
                 </CardContent>
@@ -914,7 +916,7 @@ export default function SwapsPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Building className="h-5 w-5" />
-                    Facility Health
+                    {t('common.facility')} {t('common.status')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -949,22 +951,22 @@ export default function SwapsPage() {
                                 <div className="flex items-center gap-1 mt-1 flex-wrap">
                                   {facility.emergency_swaps > 0 && (
                                     <Badge variant="destructive" className="text-xs">
-                                      {facility.emergency_swaps} Emergency
+                                      {facility.emergency_swaps} {t('swaps.emergencySwap')}
                                     </Badge>
                                   )}
                                   {facility.urgent_swaps > 0 && (
                                     <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">
-                                      {facility.urgent_swaps} Urgent
+                                      {facility.urgent_swaps} {t('status.urgent')}
                                     </Badge>
                                   )}
                                   {facility.pending_swaps > 0 && (
                                     <Badge variant="outline" className="text-xs">
-                                      {facility.pending_swaps} Pending
+                                      {facility.pending_swaps} {t('status.pending')}
                                     </Badge>
                                   )}
                                   {status === 'quiet' && (
                                     <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
-                                      All Clear
+                                      {t('common.success')}
                                     </Badge>
                                   )}
                                 </div>
@@ -982,7 +984,7 @@ export default function SwapsPage() {
                     className="w-full mt-4"
                     onClick={() => setActiveTab('facilities')}
                   >
-                    Detailed Facility Analysis
+                    {t('common.detailedFacility')}
                   </Button>
                 </CardContent>
               </Card>
@@ -992,13 +994,13 @@ export default function SwapsPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <TrendingUp className="h-4 w-4" />
-                    System Performance
+                    {t('common.systemPerformance')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Auto-Assignment</span>
+                      <span className="text-sm text-gray-600">{t('swaps.autoCoverage')}</span>
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${
                           (globalSummary?.auto_assignment_success_rate || 0) >= 0.8 ? 'bg-green-500' :
@@ -1010,15 +1012,15 @@ export default function SwapsPage() {
                       </div>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Today's Volume</span>
+                      <span className="text-sm text-gray-600">{t('common.today')}</span>
                       <span className="font-medium">{globalSummary?.swaps_today || 0}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">This Week</span>
+                      <span className="text-sm text-gray-600">{t('common.thisWeek')}</span>
                       <span className="font-medium">{globalSummary?.swaps_this_week || 0}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Avg Approval Time</span>
+                      <span className="text-sm text-gray-600">{t('dashboard.avgResponseTime')}</span>
                       <span className="font-medium">{globalSummary?.average_approval_time || 0}h</span>
                     </div>
                   </div>
@@ -1030,7 +1032,7 @@ export default function SwapsPage() {
                     onClick={() => setActiveTab('analytics')}
                   >
                     <BarChart3 className="h-4 w-4 mr-2" />
-                    Full Analytics
+                    {t('common.analytics')}
                   </Button>
                 </CardContent>
               </Card>
@@ -1040,33 +1042,33 @@ export default function SwapsPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Brain className="h-4 w-4" />
-                    Quick Insights
+                    {t('dashboard.teamInsights')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     {criticalFacilities.length > 0 && (
                       <div className="p-2 bg-red-50 rounded text-xs">
-                        <p className="font-medium text-red-800">High Alert</p>
-                        <p className="text-red-600">{criticalFacilities.length} facilities need immediate attention</p>
+                        <p className="font-medium text-red-800">{t('status.urgent')}</p>
+                        <p className="text-red-600">{criticalFacilities.length} {t('common.facilities')} {t('common.attention')}</p>
                       </div>
                     )}
                     {needsAttentionFacilities.length > 0 && (
                       <div className="p-2 bg-yellow-50 rounded text-xs">
-                        <p className="font-medium text-yellow-800">Watch List</p>
-                        <p className="text-yellow-600">{needsAttentionFacilities.length} facilities have high volumes</p>
+                        <p className="font-medium text-yellow-800">{t('common.watch')}</p>
+                        <p className="text-yellow-600">{needsAttentionFacilities.length} {t('common.facilities')} {t('swaps.highPriority')}</p>
                       </div>
                     )}
                     {pendingCount > 20 && (
                       <div className="p-2 bg-blue-50 rounded text-xs">
-                        <p className="font-medium text-blue-800">Heavy Load</p>
-                        <p className="text-blue-600">Consider bulk approval for efficiency</p>
+                        <p className="font-medium text-blue-800">{t('common.busy')}</p>
+                        <p className="text-blue-600">{t('common.consider')} {t('common.bulk')} {t('common.finalApproval')}</p>
                       </div>
                     )}
                     {pendingCount === 0 && urgentCount === 0 && (
                       <div className="p-2 bg-green-50 rounded text-xs">
-                        <p className="font-medium text-green-800">All Clear</p>
-                        <p className="text-green-600">No pending requests requiring attention</p>
+                        <p className="font-medium text-green-800">{t('common.success')}</p>
+                        <p className="text-green-600">{t('swaps.noSwapRequestsYet')}</p>
                       </div>
                     )}
                   </div>
@@ -1091,7 +1093,7 @@ export default function SwapsPage() {
                   }}
                 >
                   <BarChart3 className="h-4 w-4 mr-2" />
-                  Analytics
+                  {t('common.analytics')}
                 </Button>
                 <Button
                   size="sm"
@@ -1103,7 +1105,7 @@ export default function SwapsPage() {
                   }}
                 >
                   <Building className="h-4 w-4 mr-2" />
-                  Facilities
+                  {t('common.facilities')}
                 </Button>
                 <Button
                   size="sm"
@@ -1115,7 +1117,7 @@ export default function SwapsPage() {
                   }}
                 >
                   <Search className="h-4 w-4 mr-2" />
-                  All Requests
+                  {t('common.all')} {t('swaps.swapRequests')}
                 </Button>
               </div>
               
@@ -1125,13 +1127,9 @@ export default function SwapsPage() {
                   size="lg"
                   className="rounded-full w-14 h-14 bg-blue-600 hover:bg-blue-700 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110"
                   onClick={() => setShowDetailedTools(true)}
-                  title="Advanced Management Tools"
+                  title={t('common.advanced')} 
                 >
-                  {/* Better icon options - choose one: */}
-                  <Settings className="h-6 w-6" /> {/* Option 1: Settings/Tools */}
-                  {/* <MoreHorizontal className="h-6 w-6" /> */} {/* Option 2: More options */}
-                  {/* <Zap className="h-6 w-6" /> */} {/* Option 3: Power/Advanced */}
-                  {/* <Target className="h-6 w-6" /> */} {/* Option 4: Precision/Focus */}
+                  <Settings className="h-6 w-6" />
                 </Button>
               </div>
             </div>
@@ -1155,8 +1153,8 @@ export default function SwapsPage() {
                       <Settings className="h-6 w-6 text-blue-600" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold">Advanced Management Tools</h2>
-                      <p className="text-base text-gray-600 mt-1">Deep analysis, bulk operations, and comprehensive reporting</p>
+                      <h2 className="text-2xl font-bold">{t('common.advanced')} {t('common.management')}</h2>
+                      <p className="text-base text-gray-600 mt-1">{t('common.analytics')}, {t('common.operations')}, {t('common.reporting')}</p>
                     </div>
                   </div>
                   
@@ -1165,15 +1163,15 @@ export default function SwapsPage() {
                     <TabsList className="grid w-full grid-cols-3 h-12">
                       <TabsTrigger value="all" className="gap-3 px-6 text-base">
                         <Search className="h-5 w-5" />
-                        All Requests
+                        {t('common.all')} {t('swaps.swapRequests')}
                       </TabsTrigger>
                       <TabsTrigger value="facilities" className="gap-3 px-6 text-base">
                         <Building className="h-5 w-5" />
-                        Facility Deep Dive
+                        {t('common.facility')} {t('common.detailed')}
                       </TabsTrigger>
                       <TabsTrigger value="analytics" className="gap-3 px-6 text-base">
                         <BarChart3 className="h-5 w-5" />
-                        Analytics & Reports
+                        {t('common.analytics')} &amp; {t('common.reports')}
                       </TabsTrigger>
                     </TabsList>
                   </Tabs>
@@ -1186,8 +1184,8 @@ export default function SwapsPage() {
                   <div className="space-y-8 h-full">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-2xl font-bold">All Swap Requests</h3>
-                        <p className="text-lg text-gray-600 mt-2">Advanced search, filtering, and bulk operations - {filteredSwapRequests.length} requests found</p>
+                        <h3 className="text-2xl font-bold">{t('common.all')} {t('swaps.swapRequests')}</h3>
+                        <p className="text-lg text-gray-600 mt-2">{t('common.advanced')} {t('common.search')}, {t('common.filter')}, {t('common.operations')} - {filteredSwapRequests.length} {t('swaps.swapRequests')}</p>
                       </div>
                       <div className="flex gap-4">
                         <Button 
@@ -1197,7 +1195,7 @@ export default function SwapsPage() {
                           className="gap-3 px-6 py-3"
                         >
                           <Filter className="h-5 w-5" />
-                          Advanced Filters
+                          {t('common.advanced')} {t('common.filter')}
                         </Button>
                         <Button 
                           variant="outline" 
@@ -1206,7 +1204,7 @@ export default function SwapsPage() {
                           className="gap-3 px-6 py-3"
                         >
                           <Download className="h-5 w-5" />
-                          Export Report
+                          {t('common.exportReport')}
                         </Button>
                         <Button 
                           variant="outline" 
@@ -1215,7 +1213,7 @@ export default function SwapsPage() {
                           className="gap-3 px-6 py-3"
                         >
                           <X className="h-5 w-5" />
-                          Clear Filters
+                          {t('common.clear')} {t('common.filter')}
                         </Button>
                       </div>
                     </div>
@@ -1223,20 +1221,20 @@ export default function SwapsPage() {
                     {/* Large Search and Filters */}
                     <Card className="shadow-lg">
                       <CardHeader className="pb-6">
-                        <CardTitle className="text-xl">Search & Filter Controls</CardTitle>
+                        <CardTitle className="text-xl">{t('common.search')} &amp; {t('common.filter')} {t('common.controls')}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                           <div className="md:col-span-2">
                             <Input
-                              placeholder="Search by staff name, reason, facility..."
+                              placeholder={t('common.search')}
                               value={searchTerm}
                               onChange={(e) => setSearchTerm(e.target.value)}
                               className="w-full h-12 text-base"
                             />
                           </div>
                           <Select value={selectedFacility || ''} onValueChange={setSelectedFacility}>
-                            <option value="">All Facilities</option>
+                            <option value="">{t('common.all')} {t('common.facilities')}</option>
                             {facilitySummaries.map((facility) => (
                               <option key={facility.facility_id} value={facility.facility_id}>
                                 {facility.facility_name}
@@ -1244,11 +1242,11 @@ export default function SwapsPage() {
                             ))}
                           </Select>
                           <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
-                            <option value="">All Priority Levels</option>
-                            <option value="emergency">Emergency</option>
-                            <option value="high">High Priority</option>
-                            <option value="normal">Normal</option>
-                            <option value="low">Low Priority</option>
+                            <option value="">{t('common.all')} {t('common.priority')}</option>
+                            <option value="emergency">{t('swaps.emergencySwap')}</option>
+                            <option value="high">{t('swaps.highPriority')}</option>
+                            <option value="normal">{t('swaps.normalPriority')}</option>
+                            <option value="low">{t('swaps.lowPriority')}</option>
                           </Select>
                         </div>
                         
@@ -1257,10 +1255,10 @@ export default function SwapsPage() {
                           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                             <div className="flex items-center justify-between">
                               <span className="text-base font-medium text-blue-900">
-                                Active Filters: Showing {filteredSwapRequests.length} of {allSwapRequests.length} requests
+                                {t('common.active')} {t('common.filter')}: {t('common.showing')} {filteredSwapRequests.length} {t('common.of')} {allSwapRequests.length} {t('swaps.swapRequests')}
                               </span>
                               <Button variant="ghost" size="lg" onClick={handleClearFilters} className="text-blue-600">
-                                Clear All Filters
+                                {t('common.clear')} {t('common.all')} {t('common.filter')}
                               </Button>
                             </div>
                           </div>
@@ -1310,18 +1308,18 @@ export default function SwapsPage() {
                   <div className="space-y-8 h-full">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-2xl font-bold">Facility Performance Analysis</h3>
-                        <p className="text-lg text-gray-600 mt-2">Detailed facility performance analysis and management - {facilitySummaries.length} facilities</p>
+                        <h3 className="text-2xl font-bold">{t('common.facility')} {t('common.performance')} {t('common.analytics')}</h3>
+                        <p className="text-lg text-gray-600 mt-2">{t('common.detailed')} {t('common.facility')} {t('common.performance')} {t('common.analytics')} - {facilitySummaries.length} {t('common.facilities')}</p>
                       </div>
                       <div className="flex gap-3">
                         <Badge variant="outline" className="text-base px-4 py-2">
-                          {facilitySummaries.filter(f => f.emergency_swaps > 0).length} Critical
+                          {facilitySummaries.filter(f => f.emergency_swaps > 0).length} {t('status.urgent')}
                         </Badge>
                         <Badge variant="outline" className="text-base px-4 py-2">
-                          {facilitySummaries.filter(f => f.urgent_swaps > 3).length} High Priority
+                          {facilitySummaries.filter(f => f.urgent_swaps > 3).length} {t('swaps.highPriority')}
                         </Badge>
                         <Badge variant="outline" className="text-base px-4 py-2">
-                          {facilitySummaries.filter(f => f.pending_swaps === 0).length} All Clear
+                          {facilitySummaries.filter(f => f.pending_swaps === 0).length} {t('common.success')}
                         </Badge>
                       </div>
                     </div>
@@ -1372,7 +1370,7 @@ export default function SwapsPage() {
                                       {facility.facility_name}
                                     </h3>
                                     <p className="text-sm text-gray-600 capitalize">
-                                      {facility.facility_type} • {facility.staff_count} staff
+                                      {facility.facility_type} • {facility.staff_count} {t('common.staff')}
                                     </p>
                                   </div>
                                 </div>
@@ -1384,26 +1382,26 @@ export default function SwapsPage() {
                               <div className="grid grid-cols-4 gap-2 mb-4">
                                 <div className="text-center p-2 bg-white rounded-lg shadow-sm">
                                   <p className="text-xl font-bold text-gray-900">{facility.pending_swaps}</p>
-                                  <p className="text-xs text-gray-600">Pending</p>
+                                  <p className="text-xs text-gray-600">{t('status.pending')}</p>
                                 </div>
                                 <div className="text-center p-2 bg-white rounded-lg shadow-sm">
                                   <p className="text-xl font-bold text-orange-600">{facility.urgent_swaps}</p>
-                                  <p className="text-xs text-gray-600">Urgent</p>
+                                  <p className="text-xs text-gray-600">{t('status.urgent')}</p>
                                 </div>
                                 <div className="text-center p-2 bg-white rounded-lg shadow-sm">
                                   <p className="text-xl font-bold text-red-600">{facility.emergency_swaps}</p>
-                                  <p className="text-xs text-gray-600">Emergency</p>
+                                  <p className="text-xs text-gray-600">{t('swaps.emergencySwap')}</p>
                                 </div>
                                 <div className="text-center p-2 bg-white rounded-lg shadow-sm">
                                   <p className="text-xl font-bold text-green-600">{facility.recent_completions}</p>
-                                  <p className="text-xs text-gray-600">Resolved</p>
+                                  <p className="text-xs text-gray-600">{t('swaps.completedSwaps')}</p>
                                 </div>
                               </div>
                               
                               <div className="space-y-2">
                                 <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-600">Workload per Staff</span>
-                                  <span className="font-medium">{swapRatio.toFixed(1)} swaps/person</span>
+                                  <span className="text-gray-600">{t('common.workload')} {t('common.staff')}</span>
+                                  <span className="font-medium">{swapRatio.toFixed(1)} {t('navigation.swaps')}/person</span>
                                 </div>
                                 <div className="w-full bg-gray-200 rounded-full h-3">
                                   <div 
@@ -1428,8 +1426,8 @@ export default function SwapsPage() {
                 {detailedToolsTab === 'analytics' && (
                   <div className="h-full">
                     <div className="mb-8">
-                      <h3 className="text-2xl font-bold">Analytics & Reports</h3>
-                      <p className="text-lg text-gray-600 mt-2">Comprehensive analytics, trends, and performance insights</p>
+                      <h3 className="text-2xl font-bold">{t('common.analytics')} &amp; {t('common.reports')}</h3>
+                      <p className="text-lg text-gray-600 mt-2">{t('common.comprehensive')} {t('common.analytics')}, {t('common.trends')}, {t('common.performance')} {t('dashboard.teamInsights')}</p>
                     </div>
                     
                     <div className="h-full min-h-[700px]">
