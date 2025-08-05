@@ -521,6 +521,13 @@ export const en = {
     // Modal titles and headers
     editStaffMember: 'Edit {{name}}',
     basicInformation: 'Basic Information',
+    addNewStaffMember: 'Add New Staff Member',
+    adding: 'Adding...',
+    
+    // Success/Error messages for ADDING with templates
+    staffAddedSuccessfully: '{{name}} added successfully!',
+    failedAddStaff: 'Failed to add staff member',
+    staffWithInfoAlreadyExists: 'A staff member with this information already exists',
     
     // Form fields
     fullName: 'Full Name',

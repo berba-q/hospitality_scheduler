@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge'
 import { Star, User, MapPin, Phone, Clock, Mail } from 'lucide-react'
 import { useApiClient } from '@/hooks/useApi'
+import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
 
 interface AddStaffModalProps {
@@ -25,6 +26,7 @@ const COMMON_ROLES = [
 
 export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaffModalProps) {
   const apiClient = useApiClient()
+  const { t } = useTranslations()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     full_name: '',
@@ -40,7 +42,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
     e.preventDefault()
     
     if (!formData.full_name || !formData.role || !formData.facility_id) {
-      toast.error('Please fill in all required fields')
+      toast.error(t('staff.fillRequiredFields'))
       return
     }
 
@@ -50,11 +52,11 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
       // Check for duplicate staff member
       const duplicateCheck = await apiClient.checkStaffExists(formData.full_name, formData.facility_id)
       if (duplicateCheck.exists) {
-        toast.error(`A staff member named "${formData.full_name}" already exists at this facility`)
+        toast.error(t('staff.staffNameExistsAtFacility', { name: formData.full_name }))
         return
       }
       await apiClient.createStaff(formData)
-      toast.success(`${formData.full_name} added successfully!`)
+      toast.success(t('staff.staffAddedSuccessfully', { name: formData.full_name }))
       onSuccess()
       onClose()
       
@@ -70,9 +72,9 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
       })
     } catch (error: any) {
       if (error.message.includes('409') || error.message.includes('duplicate')) {
-        toast.error('A staff member with this information already exists')
+        toast.error(t('staff.staffWithInfoAlreadyExists'))
       } else {
-        toast.error('Failed to add staff member')
+        toast.error(t('staff.failedAddStaff'))
       }
       console.error(error)
     } finally {
@@ -84,9 +86,20 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
     setFormData(prev => ({ ...prev, role }))
   }
 
+  const getSkillLevelName = (level: number) => {
+    const skillLevels = {
+      1: t('staff.skillBeginner'),
+      2: t('staff.skillBasic'),
+      3: t('staff.skillIntermediate'),
+      4: t('staff.skillAdvanced'),
+      5: t('staff.skillExpert')
+    }
+    return skillLevels[level as keyof typeof skillLevels] || t('staff.skillIntermediate')
+  }
+
   const renderSkillLevel = () => (
     <div className="space-y-3">
-      <Label>Skill Level</Label>
+      <Label>{t('staff.skillLevel')}</Label>
       <div className="flex items-center gap-2">
         {[1, 2, 3, 4, 5].map((level) => (
           <button
@@ -105,12 +118,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
           </button>
         ))}
         <span className="ml-2 text-sm text-gray-600">
-          Level {formData.skill_level} - {
-            formData.skill_level === 1 ? 'Beginner' :
-            formData.skill_level === 2 ? 'Basic' :
-            formData.skill_level === 3 ? 'Intermediate' :
-            formData.skill_level === 4 ? 'Advanced' : 'Expert'
-          }
+          {t('staff.levelNumber', { level: formData.skill_level })} - {getSkillLevelName(formData.skill_level)}
         </span>
       </div>
     </div>
@@ -124,7 +132,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
               <User className="w-4 h-4 text-white" />
             </div>
-            Add New Staff Member
+            {t('staff.addNewStaffMember')}
           </DialogTitle>
         </DialogHeader>
 
@@ -133,24 +141,24 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
           <div className="bg-gray-50 rounded-xl p-6 space-y-4">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
               <User className="w-4 h-4" />
-              Basic Information
+              {t('staff.basicInformation')}
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="full_name">Full Name *</Label>
+                <Label htmlFor="full_name">{t('staff.fullName')} *</Label>
                 <Input
                   id="full_name"
                   value={formData.full_name}
                   onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                  placeholder="John Doe"
+                  placeholder={t('staff.fullNamePlaceholder')}
                   className="bg-white"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">{t('staff.emailAddress')}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -158,21 +166,21 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="john.doe@company.com"
+                    placeholder={t('staff.emailPlaceholder')}
                     className="pl-10 bg-white"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone">{t('staff.phoneNumber')}</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+1 (555) 123-4567"
+                    placeholder={t('staff.phonePlaceholder')}
                     className="pl-10 bg-white"
                   />
                 </div>
@@ -182,10 +190,10 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
 
           {/* Role Selection */}
           <div className="bg-gray-50 rounded-xl p-6 space-y-4">
-            <h3 className="font-semibold text-gray-900">Role & Skills</h3>
+            <h3 className="font-semibold text-gray-900">{t('staff.roleAndSkills')}</h3>
             
             <div className="space-y-3">
-              <Label>Role *</Label>
+              <Label>{t('staff.role')} *</Label>
               <div className="flex flex-wrap gap-2">
                 {COMMON_ROLES.map((role) => (
                   <Badge
@@ -208,7 +216,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
                 <Input
                   value={formData.role}
                   onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                  placeholder="Or enter custom role..."
+                  placeholder={t('staff.customRolePlaceholder')}
                   className="bg-white"
                 />
               </div>
@@ -221,12 +229,12 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
           <div className="bg-gray-50 rounded-xl p-6 space-y-4">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
               <MapPin className="w-4 h-4" />
-              Work Details
+              {t('staff.workDetails')}
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="facility_id">Facility *</Label>
+                <Label htmlFor="facility_id">{t('staff.facility')} *</Label>
                 <select
                   id="facility_id"
                   value={formData.facility_id}
@@ -234,7 +242,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
                   required
                 >
-                  <option value="">Select a facility</option>
+                  <option value="">{t('staff.selectFacility')}</option>
                   {facilities.map((facility) => (
                     <option key={facility.id} value={facility.id}>
                       {facility.name}
@@ -244,7 +252,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="weekly_hours_max">Max Weekly Hours</Label>
+                <Label htmlFor="weekly_hours_max">{t('staff.maxWeeklyHours')}</Label>
                 <div className="relative">
                   <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -270,7 +278,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
               className="flex-1"
               disabled={loading}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
@@ -280,10 +288,10 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
               {loading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Adding...
+                  {t('staff.adding')}
                 </div>
               ) : (
-                'Add Staff Member'
+                t('staff.addStaffMember')
               )}
             </Button>
           </div>

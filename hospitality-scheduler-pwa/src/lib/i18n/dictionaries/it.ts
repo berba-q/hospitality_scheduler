@@ -519,6 +519,13 @@ export const it = {
     // Modal titles and headers
     editStaffMember: 'Modifica {{name}}',
     basicInformation: 'Informazioni di Base',
+    addNewStaffMember: 'Aggiungi Nuovo Membro del Personale',
+    adding: 'Aggiunta...',
+    
+    // Success/Error messages for ADDING with templates
+    staffAddedSuccessfully: '{{name}} aggiunto con successo!',
+    failedAddStaff: 'Impossibile aggiungere il membro del personale',
+    staffWithInfoAlreadyExists: 'Un membro del personale con queste informazioni esiste già',
     // Form fields
     fullName: 'Nome Completo',
     fullNamePlaceholder: 'Mario Rossi',
