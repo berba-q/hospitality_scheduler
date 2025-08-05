@@ -30,6 +30,7 @@ export const it = {
     save: 'Salva',
     saved: 'Salvato',
     saveChanges: 'Salva Modifiche',
+    unsavedChanges: 'Hai modifiche non salvate',
     cancel: 'Annulla',
     cancelled: 'Annullato',
     delete: 'Elimina',
@@ -511,6 +512,41 @@ export const it = {
     manageYourTeam: 'Gestisci il tuo team e le strutture',
     couldNotLink: 'Impossibile collegare il tuo account utente a un profilo del personale. Contatta il tuo manager.',
     youNeedManager: 'Hai bisogno dei permessi di manager per accedere alla gestione del personale.',
+
+    // Modal titles and headers
+    editStaffMember: 'Modifica {{name}}',
+    basicInformation: 'Informazioni di Base',
+    // Form fields
+    fullName: 'Nome Completo',
+    fullNamePlaceholder: 'Mario Rossi',
+    emailAddress: 'Indirizzo Email',
+    emailPlaceholder: 'mario.rossi@azienda.com',
+    phoneNumber: 'Numero di Telefono',
+    phonePlaceholder: '+39 123 456 7890',
+    role: 'Ruolo',
+    // Skill levels
+    skillBeginner: 'Principiante',
+    skillBasic: 'Base',
+    skillIntermediate: 'Intermedio',
+    skillAdvanced: 'Avanzato',
+    skillExpert: 'Esperto',
+    levelNumber: 'Livello {{level}}',
+    
+    // Placeholders and selects
+    customRolePlaceholder: 'O inserisci ruolo personalizzato...',
+    selectFacility: 'Seleziona una struttura',
+    
+    // Status and actions
+    updating: 'Aggiornamento...',
+    noChanges: 'Nessuna Modifica',
+    
+    // Success/Error messages with templates
+    fillRequiredFields: 'Si prega di compilare tutti i campi obbligatori',
+    noChangesToSave: 'Nessuna modifica da salvare',
+    staffNameExistsAtFacility: 'Un membro del personale di nome "{{name}}" esiste già in questa struttura',
+    staffUpdatedSuccessfully: '{{name}} aggiornato con successo!',
+    staffNameAlreadyExists: 'Un membro del personale con questo nome esiste già',
+    failedUpdateStaff: 'Impossibile aggiornare il membro del personale',
   },
 
   facilities: {

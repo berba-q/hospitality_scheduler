@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge'
 import { Star, User, MapPin, Phone, Clock, Save, Mail } from 'lucide-react'
 import { useApiClient } from '@/hooks/useApi'
+import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
 
 interface EditStaffModalProps {
@@ -26,6 +27,7 @@ const COMMON_ROLES = [
 
 export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: EditStaffModalProps) {
   const apiClient = useApiClient()
+  const { t } = useTranslations()
   const [loading, setLoading] = useState(false)
   const [originalData, setOriginalData] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -64,12 +66,12 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
     e.preventDefault()
     
     if (!formData.full_name || !formData.role || !formData.facility_id) {
-      toast.error('Please fill in all required fields')
+      toast.error(t('staff.fillRequiredFields'))
       return
     }
 
     if (!hasChanges) {
-      toast.info('No changes to save')
+      toast.info(t('staff.noChangesToSave'))
       return
     }
 
@@ -79,7 +81,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
       if (formData.full_name !== originalData.full_name || formData.facility_id !== originalData.facility_id) {
         const duplicateCheck = await apiClient.checkStaffExists(formData.full_name, formData.facility_id)
         if (duplicateCheck.exists) {
-          toast.error(`A staff member named "${formData.full_name}" already exists at this facility`)
+          toast.error(t('staff.staffNameExistsAtFacility', { name: formData.full_name }))
           setLoading(false)
           return
         }
@@ -87,14 +89,14 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
 
       // Update staff via API
       await apiClient.updateStaff(staff.id, formData)
-      toast.success(`${formData.full_name} updated successfully!`)
+      toast.success(t('staff.staffUpdatedSuccessfully', { name: formData.full_name }))
       onSuccess()
       onClose()
     } catch (error: any) {
       if (error.message.includes('409') || error.message.includes('already exists')) {
-        toast.error('A staff member with this name already exists')
+        toast.error(t('staff.staffNameAlreadyExists'))
       } else {
-        toast.error('Failed to update staff member')
+        toast.error(t('staff.failedUpdateStaff'))
       }
       console.error(error)
     } finally {
@@ -106,9 +108,20 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
     setFormData(prev => ({ ...prev, role }))
   }
 
+  const getSkillLevelName = (level: number) => {
+    const skillLevels = {
+      1: t('staff.skillBeginner'),
+      2: t('staff.skillBasic'),
+      3: t('staff.skillIntermediate'),
+      4: t('staff.skillAdvanced'),
+      5: t('staff.skillExpert')
+    }
+    return skillLevels[level as keyof typeof skillLevels] || t('staff.skillIntermediate')
+  }
+
   const renderSkillLevel = () => (
     <div className="space-y-3">
-      <Label>Skill Level</Label>
+      <Label>{t('staff.skillLevel')}</Label>
       <div className="flex items-center gap-2">
         {[1, 2, 3, 4, 5].map((level) => (
           <button
@@ -127,12 +140,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
           </button>
         ))}
         <span className="ml-2 text-sm text-gray-600">
-          Level {formData.skill_level} - {
-            formData.skill_level === 1 ? 'Beginner' :
-            formData.skill_level === 2 ? 'Basic' :
-            formData.skill_level === 3 ? 'Intermediate' :
-            formData.skill_level === 4 ? 'Advanced' : 'Expert'
-          }
+          {t('staff.levelNumber', { level: formData.skill_level })} - {getSkillLevelName(formData.skill_level)}
         </span>
       </div>
     </div>
@@ -148,7 +156,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
             <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
               <User className="w-4 h-4 text-white" />
             </div>
-            Edit {staff.full_name}
+            {t('staff.editStaffMember', { name: staff.full_name })}
           </DialogTitle>
         </DialogHeader>
 
@@ -157,24 +165,24 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
           <div className="bg-gray-50 rounded-xl p-6 space-y-4">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
               <User className="w-4 h-4" />
-              Basic Information
+              {t('staff.basicInformation')}
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="full_name">Full Name *</Label>
+                <Label htmlFor="full_name">{t('staff.fullName')} *</Label>
                 <Input
                   id="full_name"
                   value={formData.full_name}
                   onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                  placeholder="John Doe"
+                  placeholder={t('staff.fullNamePlaceholder')}
                   className="bg-white"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">{t('staff.emailAddress')}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -182,21 +190,21 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="john.doe@company.com"
+                    placeholder={t('staff.emailPlaceholder')}
                     className="pl-10 bg-white"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone">{t('staff.phoneNumber')}</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+1 (555) 123-4567"
+                    placeholder={t('staff.phonePlaceholder')}
                     className="pl-10 bg-white"
                   />
                 </div>
@@ -206,10 +214,10 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
 
           {/* Role Selection */}
           <div className="bg-gray-50 rounded-xl p-6 space-y-4">
-            <h3 className="font-semibold text-gray-900">Role & Skills</h3>
+            <h3 className="font-semibold text-gray-900">{t('staff.roleAndSkills')}</h3>
             
             <div className="space-y-3">
-              <Label>Role *</Label>
+              <Label>{t('staff.role')} *</Label>
               <div className="flex flex-wrap gap-2">
                 {COMMON_ROLES.map((role) => (
                   <Badge
@@ -232,7 +240,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
                 <Input
                   value={formData.role}
                   onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                  placeholder="Or enter custom role..."
+                  placeholder={t('staff.customRolePlaceholder')}
                   className="bg-white"
                 />
               </div>
@@ -245,12 +253,12 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
           <div className="bg-gray-50 rounded-xl p-6 space-y-4">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
               <MapPin className="w-4 h-4" />
-              Work Details
+              {t('staff.workDetails')}
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="facility_id">Facility *</Label>
+                <Label htmlFor="facility_id">{t('staff.facility')} *</Label>
                 <select
                   id="facility_id"
                   value={formData.facility_id}
@@ -258,7 +266,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200"
                   required
                 >
-                  <option value="">Select a facility</option>
+                  <option value="">{t('staff.selectFacility')}</option>
                   {facilities.map((facility) => (
                     <option key={facility.id} value={facility.id}>
                       {facility.name}
@@ -268,7 +276,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="weekly_hours_max">Max Weekly Hours</Label>
+                <Label htmlFor="weekly_hours_max">{t('staff.maxWeeklyHours')}</Label>
                 <div className="relative">
                   <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -293,7 +301,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
                 onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
                 className="w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500"
               />
-              <Label htmlFor="is_active">Active staff member</Label>
+              <Label htmlFor="is_active">{t('staff.activeStaffMember')}</Label>
             </div>
           </div>
 
@@ -302,7 +310,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="flex items-center gap-2 text-blue-800">
                 <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium">You have unsaved changes</span>
+                <span className="text-sm font-medium">{t('common.unsavedChanges')}</span>
               </div>
             </div>
           )}
@@ -316,7 +324,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
               className="flex-1"
               disabled={loading}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="submit"
@@ -330,12 +338,12 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
               {loading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Updating...
+                  {t('staff.updating')}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <Save className="w-4 h-4" />
-                  {hasChanges ? 'Save Changes' : 'No Changes'}
+                  {hasChanges ? t('common.saveChanges') : t('staff.noChanges')}
                 </div>
               )}
             </Button>

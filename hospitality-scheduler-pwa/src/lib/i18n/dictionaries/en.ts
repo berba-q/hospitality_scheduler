@@ -31,6 +31,7 @@ export const en = {
     save: 'Save',
     saved: 'Saved',
     saveChanges: 'Save Changes',
+    unsavedChanges: 'You have unsaved changes',
     cancel: 'Cancel',
     delete: 'Delete',
     deleting: 'Deleting...',
@@ -513,6 +514,42 @@ export const en = {
     manageYourTeam: 'Manage your team and facilities',
     couldNotLink: 'Could not link your user account to a staff profile. Please contact your manager.',
     youNeedManager: 'You need manager permissions to access staff management.',
+
+    // Modal titles and headers
+    editStaffMember: 'Edit {{name}}',
+    basicInformation: 'Basic Information',
+    
+    // Form fields
+    fullName: 'Full Name',
+    fullNamePlaceholder: 'John Doe',
+    emailAddress: 'Email Address',
+    emailPlaceholder: 'john.doe@company.com',
+    phoneNumber: 'Phone Number',
+    phonePlaceholder: '+1 (555) 123-4567',
+    role: 'Role',
+    // Skill levels
+    skillBeginner: 'Beginner',
+    skillBasic: 'Basic', 
+    skillIntermediate: 'Intermediate',
+    skillAdvanced: 'Advanced',
+    skillExpert: 'Expert',
+    levelNumber: 'Level {{level}}',
+    
+    // Placeholders and selects
+    customRolePlaceholder: 'Or enter custom role...',
+    selectFacility: 'Select a facility',
+    
+    // Status and actions
+    updating: 'Updating...',
+    noChanges: 'No Changes',
+    
+    // Success/Error messages with templates
+    fillRequiredFields: 'Please fill in all required fields',
+    noChangesToSave: 'No changes to save',
+    staffNameExistsAtFacility: 'A staff member named "{{name}}" already exists at this facility',
+    staffUpdatedSuccessfully: '{{name}} updated successfully!',
+    staffNameAlreadyExists: 'A staff member with this name already exists',
+    failedUpdateStaff: 'Failed to update staff member',
   },
 
   facilities: {
