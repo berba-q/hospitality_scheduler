@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
+import { useTranslations } from '@/hooks/useTranslations'
 
 // Import existing components
 import SwapDetailModal from '@/components/swap/SwapDetailModal'
@@ -100,6 +101,8 @@ const canUserRespondToSwap = (swap: any, userId: string): boolean => {
 
 function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
   const { data: session } = useSession()
+  const { t } = useTranslations()
+  
   // Core data state
   const [swapRequests, setSwapRequests] = useState([])
   const [upcomingShifts, setUpcomingShifts] = useState([])
@@ -244,7 +247,7 @@ console.log('🔍 ===== END DEBUGGING =====')
       
     } catch (error) {
       console.error(' Failed to load data:', error)
-      toast.error('Failed to load swap data')
+      toast.error(t('errors.failedToLoad'))
       setSwapRequests([])
     } finally {
       setLoading(false)
@@ -336,7 +339,7 @@ console.log('🔍 ===== END DEBUGGING =====')
     setRefreshing(true)
     await loadAllData()
     setRefreshing(false)
-    toast.success('Data refreshed!')
+    toast.success(t('messages.dataRefreshed'))
   }
 
   const handleSwapClick = (swap) => {
@@ -352,7 +355,7 @@ console.log('🔍 ===== END DEBUGGING =====')
       // Find the swap to determine type and status
       const swap = swapRequests.find(s => s.id === swapId)
       if (!swap) {
-        throw new Error('Swap not found')
+        throw new Error(t('errors.swapNotFound'))
       }
 
       console.log('🔍 Swap details for response:', {
@@ -386,7 +389,7 @@ console.log('🔍 ===== END DEBUGGING =====')
         })
         
       } else {
-        throw new Error(`Cannot respond to swap in status: ${swap.status} with type: ${swap.swap_type}`)
+        throw new Error(`${t('errors.cannotRespond')}: ${swap.status} ${t('common.with')} ${swap.swap_type}`)
       }
 
       // ✅ Refresh data after successful response
@@ -396,13 +399,13 @@ console.log('🔍 ===== END DEBUGGING =====')
       setShowDetailModal(false)
       
       // ✅ Show success toast
-      toast.success(accepted ? 'Swap request accepted!' : 'Swap request declined')
+      toast.success(accepted ? t('messages.swapAccepted') : t('messages.swapDeclined'))
       
     } catch (error) {
       console.error('❌ Failed to respond to swap:', error)
       
       // ✅ Show specific error message
-      const errorMessage = error?.message || 'Failed to respond to swap request'
+      const errorMessage = error?.message || t('errors.failedToRespond')
       toast.error(errorMessage)
       
       // Re-throw error so calling components can handle it
@@ -415,10 +418,10 @@ console.log('🔍 ===== END DEBUGGING =====')
       await apiClient.cancelSwapRequest(swapId, reason)
       await loadAllData()
       setShowDetailModal(false)
-      toast.success('Swap request cancelled')
+      toast.success(t('messages.swapCancelled'))
     } catch (error) {
       console.error('Failed to cancel swap:', error)
-      toast.error('Failed to cancel swap request')
+      toast.error(t('errors.failedToCancelSwap'))
     }
   }
 
@@ -437,11 +440,11 @@ console.log('🔍 ===== END DEBUGGING =====')
       await loadAllData()
       setShowCreateModal(false)
       setSelectedShiftForSwap(null)
-      toast.success('Swap request created successfully!')
+      toast.success(t('messages.swapRequestCreated'))
       
     } catch (error) {
       console.error('❌ Failed to create swap:', error)
-      toast.error(error.message || 'Failed to create swap request')
+      toast.error(error.message || t('errors.failedToCreateSwap'))
       throw error
     }
   }
@@ -451,7 +454,7 @@ console.log('🔍 ===== END DEBUGGING =====')
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading your swaps...</p>
+          <p className="text-gray-600">{t('common.loadingSwaps')}</p>
         </div>
       </div>
     )
@@ -465,10 +468,10 @@ console.log('🔍 ===== END DEBUGGING =====')
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                Shift Management
+                {t('swaps.shiftManagement')}
               </h1>
               <p className="text-gray-600 mt-2 text-lg">
-                Manage your shifts and support your team
+                {t('swaps.manageShiftsSubtitle')}
               </p>
             </div>
             
@@ -480,14 +483,14 @@ console.log('🔍 ===== END DEBUGGING =====')
                 className="gap-2 hover:bg-blue-50 border-blue-200"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh
+                {t('common.refresh')}
               </Button>
               <Button 
                 onClick={() => setShowCreateModal(true)}
                 className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 <Plus className="w-4 h-4" />
-                Request Swap
+                {t('swaps.requestSwap')}
               </Button>
             </div>
           </div>
@@ -499,7 +502,7 @@ console.log('🔍 ===== END DEBUGGING =====')
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm font-medium">My Requests</p>
+                  <p className="text-blue-100 text-sm font-medium">{t('swaps.myRequests')}</p>
                   <p className="text-3xl font-bold">{filteredAndCategorizedData.myRequests.length}</p>
                 </div>
                 <ArrowLeftRight className="w-8 h-8 text-blue-200" />
@@ -511,12 +514,12 @@ console.log('🔍 ===== END DEBUGGING =====')
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm font-medium">Requests for Me</p>
+                  <p className="text-green-100 text-sm font-medium">{t('swaps.requestsForMe')}</p>
                   <p className="text-3xl font-bold">{filteredAndCategorizedData.forMe.length}</p>
                   {/* ✅ NEW: Show auto-assignments count */}
                   {filteredAndCategorizedData.forMe.filter(s => s.isAutoAssignment).length > 0 && (
                     <p className="text-green-100 text-xs">
-                      {filteredAndCategorizedData.forMe.filter(s => s.isAutoAssignment).length} auto-assignment(s)
+                      {filteredAndCategorizedData.forMe.filter(s => s.isAutoAssignment).length} {t('swaps.autoAssignments')}
                     </p>
                   )}
                 </div>
@@ -529,7 +532,7 @@ console.log('🔍 ===== END DEBUGGING =====')
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-orange-100 text-sm font-medium">Action Needed</p>
+                  <p className="text-orange-100 text-sm font-medium">{t('swaps.actionNeeded')}</p>
                   <p className="text-3xl font-bold">{filteredAndCategorizedData.actionNeeded.length}</p>
                 </div>
                 <AlertTriangle className="w-8 h-8 text-orange-200" />
@@ -541,7 +544,7 @@ console.log('🔍 ===== END DEBUGGING =====')
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm font-medium">Completion Rate</p>
+                  <p className="text-purple-100 text-sm font-medium">{t('swaps.completionRate')}</p>
                   <p className="text-3xl font-bold">{personalStats.acceptanceRate || 0}%</p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-purple-200" />
@@ -558,9 +561,9 @@ console.log('🔍 ===== END DEBUGGING =====')
               <CardContent className="p-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                   <TabsList className="grid w-full grid-cols-5 bg-gray-100">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="overview">{t('swaps.swapsOverview')}</TabsTrigger>
                     <TabsTrigger value="my-requests" className="relative">
-                      My Requests
+                      {t('swaps.myRequests')}
                       {filteredAndCategorizedData.myRequests.length > 0 && (
                         <Badge className="ml-2 h-5 w-5 rounded-full bg-blue-600 text-white text-xs">
                           {filteredAndCategorizedData.myRequests.length}
@@ -568,7 +571,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                       )}
                     </TabsTrigger>
                     <TabsTrigger value="for-me" className="relative">
-                      For Me
+                      {t('swaps.forMe')}
                       {filteredAndCategorizedData.forMe.length > 0 && (
                         <Badge className="ml-2 h-5 w-5 rounded-full bg-green-600 text-white text-xs">
                           {filteredAndCategorizedData.forMe.length}
@@ -576,7 +579,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                       )}
                     </TabsTrigger>
                     <TabsTrigger value="action-needed" className="relative">
-                      Action Needed
+                      {t('swaps.actionNeeded')}
                       {filteredAndCategorizedData.actionNeeded.length > 0 && (
                         <Badge className="ml-2 h-5 w-5 rounded-full bg-red-600 text-white text-xs animate-pulse">
                           {filteredAndCategorizedData.actionNeeded.length}
@@ -584,7 +587,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                       )}
                     </TabsTrigger>
                     <TabsTrigger value="history" className="relative">
-                      History
+                      {t('swaps.swapHistory')}
                       {filteredAndCategorizedData.history.length > 0 && (
                         <Badge className="ml-2 h-5 w-5 rounded-full bg-gray-600 text-white text-xs">
                           {filteredAndCategorizedData.history.length}
@@ -601,13 +604,15 @@ console.log('🔍 ===== END DEBUGGING =====')
                           <div className="flex items-center gap-3">
                             <AlertTriangle className="w-5 h-5 text-red-600" />
                             <div>
-                              <h3 className="font-medium text-red-800">Action Required</h3>
+                              <h3 className="font-medium text-red-800">{t('swaps.actionRequired')}</h3>
                               <p className="text-sm text-red-600">
-                                You have {filteredAndCategorizedData.actionNeeded.length} swap request{filteredAndCategorizedData.actionNeeded.length > 1 ? 's' : ''} waiting for your response
+                                {t('swaps.youHaveSwapRequests', { 
+                                  count: filteredAndCategorizedData.actionNeeded.length 
+                                })}
                                 {/* ✅ NEW: Show auto-assignment indicator */}
                                 {filteredAndCategorizedData.actionNeeded.filter(s => s.isAutoAssignment).length > 0 && (
                                   <span className="ml-1">
-                                    ({filteredAndCategorizedData.actionNeeded.filter(s => s.isAutoAssignment).length} auto-assignment{filteredAndCategorizedData.actionNeeded.filter(s => s.isAutoAssignment).length > 1 ? 's' : ''})
+                                    ({filteredAndCategorizedData.actionNeeded.filter(s => s.isAutoAssignment).length} {t('swaps.autoAssignments')})
                                   </span>
                                 )}
                               </p>
@@ -617,7 +622,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                               onClick={() => setActiveTab('action-needed')}
                               className="ml-auto bg-red-600 hover:bg-red-700"
                             >
-                              Review Now
+                              {t('common.reviewNow')}
                             </Button>
                           </div>
                         </CardContent>
@@ -629,7 +634,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                       <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
                         <CardContent className="p-4 text-center">
                           <ArrowLeftRight className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                          <h3 className="font-medium text-blue-800">Total Requests</h3>
+                          <h3 className="font-medium text-blue-800">{t('swaps.totalRequests')}</h3>
                           <p className="text-2xl font-bold text-blue-900">{filteredAndCategorizedData.all.length}</p>
                         </CardContent>
                       </Card>
@@ -637,7 +642,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                       <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
                         <CardContent className="p-4 text-center">
                           <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                          <h3 className="font-medium text-green-800">Completed</h3>
+                          <h3 className="font-medium text-green-800">{t('common.completed')}</h3>
                           <p className="text-2xl font-bold text-green-900">
                             {filteredAndCategorizedData.all.filter(s => s.status === 'executed').length}
                           </p>
@@ -647,7 +652,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                       <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
                         <CardContent className="p-4 text-center">
                           <Clock className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                          <h3 className="font-medium text-purple-800">Pending</h3>
+                          <h3 className="font-medium text-purple-800">{t('common.pending')}</h3>
                           <p className="text-2xl font-bold text-purple-900">
                             {filteredAndCategorizedData.all.filter(s => s.status === 'pending').length}
                           </p>
@@ -661,11 +666,11 @@ console.log('🔍 ===== END DEBUGGING =====')
                         <CardHeader className="flex flex-row items-center justify-between">
                           <CardTitle className="flex items-center gap-2">
                             <Target className="w-5 h-5" />
-                            Coverage Requests
+                            {t('swaps.coverageRequests')}
                             {/* ✅ NEW: Show auto-assignment indicator in title */}
                             {potentialAssignments.filter(s => s.isAutoAssignment).length > 0 && (
                               <Badge variant="secondary" className="ml-2">
-                                {potentialAssignments.filter(s => s.isAutoAssignment).length} auto-assigned
+                                {potentialAssignments.filter(s => s.isAutoAssignment).length} {t('swaps.autoAssigned')}
                               </Badge>
                             )}
                           </CardTitle>
@@ -678,7 +683,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                               {assignment.isAutoAssignment && (
                                 <div className="absolute top-2 right-2 z-10">
                                   <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                    Auto-assigned
+                                    {t('swaps.autoAssigned')}
                                   </Badge>
                                 </div>
                               )}
@@ -697,7 +702,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                     <div>
                       <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                         <Activity className="w-5 h-5" />
-                        Recent Activity
+                        {t('swaps.recentActivity')}
                       </h3>
                       {filteredAndCategorizedData.all.length > 0 ? (
                         <div className="space-y-3">
@@ -717,15 +722,15 @@ console.log('🔍 ===== END DEBUGGING =====')
                                           swap.status === 'awaiting_target' ? 'bg-purple-100 text-purple-800' :
                                           'bg-gray-100 text-gray-800'
                                         }>
-                                          {swap.status}
+                                          {t(`status.${swap.status}`)}
                                         </Badge>
                                         <Badge variant="outline" className="text-xs">
-                                          {swap.user_role}
+                                          {t(`swaps.${swap.user_role}`)}
                                         </Badge>
-                                        {/* ✅ NEW: Auto-assignment indicator */}
+                                        {/* Auto-assignment indicator */}
                                         {swap.isAutoAssignment && (
                                           <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                            auto
+                                            {t('swaps.auto')}
                                           </Badge>
                                         )}
                                         <span className="text-sm text-gray-500">
@@ -733,7 +738,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                                         </span>
                                       </div>
                                       <p className="text-sm text-gray-600">
-                                        {swap.reason || 'No reason provided'}
+                                        {swap.reason || t('swaps.noReasonProvided')}
                                       </p>
                                     </div>
                                     <Button variant="ghost" size="sm">
@@ -749,11 +754,11 @@ console.log('🔍 ===== END DEBUGGING =====')
                         <Card className="border-dashed border-2 border-gray-200">
                           <CardContent className="p-8 text-center">
                             <ArrowLeftRight className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">No swap requests yet</h3>
-                            <p className="text-gray-600 mb-4">When you need coverage, your requests will appear here</p>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('swaps.noSwapRequests')}</h3>
+                            <p className="text-gray-600 mb-4">{t('swaps.noSwapRequestsSubtitle')}</p>
                             <Button onClick={() => setShowCreateModal(true)} className="gap-2">
                               <Plus className="w-4 h-4" />
-                              Create Your First Request
+                              {t('swaps.createFirstRequest')}
                             </Button>
                           </CardContent>
                         </Card>
@@ -769,8 +774,8 @@ console.log('🔍 ===== END DEBUGGING =====')
                       onSwapResponse={handleSwapResponse}
                       onCancelSwap={handleCancelSwap}
                       showFilters={false}
-                      emptyMessage="No swap requests yet"
-                      emptySubMessage="When you need coverage, your requests will appear here"
+                      emptyMessage={t('swaps.noSwapRequests')}
+                      emptySubMessage={t('swaps.noSwapRequestsSubtitle')}
                     />
                   </TabsContent>
 
@@ -782,8 +787,8 @@ console.log('🔍 ===== END DEBUGGING =====')
                       onSwapResponse={handleSwapResponse}
                       onCancelSwap={handleCancelSwap}
                       showFilters={false}
-                      emptyMessage="No requests for you"
-                      emptySubMessage="When colleagues need your help, requests will appear here"
+                      emptyMessage={t('swaps.noRequestsForYou')}
+                      emptySubMessage={t('swaps.noRequestsForYouSubtitle')}
                       prioritizeUrgent={true}
                     />
                   </TabsContent>
@@ -796,8 +801,8 @@ console.log('🔍 ===== END DEBUGGING =====')
                       onSwapResponse={handleSwapResponse}
                       onCancelSwap={handleCancelSwap}
                       showFilters={false}
-                      emptyMessage="No action needed"
-                      emptySubMessage="Check back later for new requests that need your attention"
+                      emptyMessage={t('swaps.noActionNeeded')}
+                      emptySubMessage={t('swaps.noActionNeededSubtitle')}
                       prioritizeUrgent={true}
                     />
                   </TabsContent>
@@ -810,8 +815,8 @@ console.log('🔍 ===== END DEBUGGING =====')
                       onSwapResponse={handleSwapResponse}
                       onCancelSwap={handleCancelSwap}
                       showFilters={false}
-                      emptyMessage="No history yet"
-                      emptySubMessage="Your completed, declined, and cancelled swaps will appear here"
+                      emptyMessage={t('swaps.noHistory')}
+                      emptySubMessage={t('swaps.noHistorySubtitle')}
                     />
                   </TabsContent>
                 </Tabs>
@@ -826,7 +831,7 @@ console.log('🔍 ===== END DEBUGGING =====')
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white">
                   <Award className="w-5 h-5" />
-                  Team Reliability
+                  {t('swaps.teamReliability')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -835,16 +840,16 @@ console.log('🔍 ===== END DEBUGGING =====')
                     <div className="text-3xl font-bold text-white">
                       {personalStats.teamRating || 85}
                     </div>
-                    <p className="text-indigo-100 text-sm">Reliability Score</p>
+                    <p className="text-indigo-100 text-sm">{t('swaps.reliabilityScore')}</p>
                   </div>
                   
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-indigo-100">Response Rate</span>
+                      <span className="text-indigo-100">{t('swaps.responseRate')}</span>
                       <span className="text-white font-medium">{personalStats.acceptanceRate || 0}%</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-indigo-100">Times Helped</span>
+                      <span className="text-indigo-100">{t('swaps.timesHelped')}</span>
                       <span className="text-white font-medium">{personalStats.totalHelped || 0}</span>
                     </div>
                   </div>
@@ -857,7 +862,7 @@ console.log('🔍 ===== END DEBUGGING =====')
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Zap className="w-5 h-5" />
-                  Quick Actions
+                  {t('common.quickActions')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -866,7 +871,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                   onClick={() => setShowCreateModal(true)}
                 >
                   <Plus className="w-4 h-4" />
-                  Request Swap
+                  {t('swaps.requestSwap')}
                 </Button>
                 
                 <Button 
@@ -875,7 +880,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                   onClick={handleRefresh}
                 >
                   <RefreshCw className="w-4 h-4" />
-                  Refresh Data
+                  {t('common.refreshData')}
                 </Button>
                 
                 <Button 
@@ -884,7 +889,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                   onClick={() => setActiveTab('history')}
                 >
                   <History className="w-4 h-4" />
-                  View History
+                  {t('common.viewHistory')}
                 </Button>
               </CardContent>
             </Card>
@@ -896,9 +901,9 @@ console.log('🔍 ===== END DEBUGGING =====')
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <ThumbsUp className="w-6 h-6 text-green-600" />
                   </div>
-                  <h3 className="font-medium text-green-800 mb-2">Every bit of help matters</h3>
+                  <h3 className="font-medium text-green-800 mb-2">{t('swaps.everyBitHelps')}</h3>
                   <p className="text-sm text-green-600">
-                    Supporting your teammates builds a stronger, more reliable team for everyone.
+                    {t('swaps.supportingTeammates')}
                   </p>
                 </div>
               </CardContent>

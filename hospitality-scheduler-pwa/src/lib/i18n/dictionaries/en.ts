@@ -37,11 +37,13 @@ export const en = {
     view: 'View',
     viewAll: 'View All',
     viewDetails: 'View Details',
+    viewHistory: 'View History',
     viewMore: 'View More',
     add: 'Add',
     create: 'Create',
     update: 'Update',
     refresh: 'Refresh',
+    refreshData: 'Refresh Data',
     reset: 'Reset',
     close: 'Close',
     open: 'Open',
@@ -501,9 +503,11 @@ export const en = {
     // ============================================================================
     // SWAP-SPECIFIC TERMS
     // ============================================================================
+    swapsOverview: 'Overview',
     mySwaps: 'My Swaps',
     swapRequest: 'Swap Request',
     swapRequests: 'Swap Requests',
+    myRequests: 'My Requests',
     swapManagement: 'Swap Management',
     manageSwaps: 'Manage swaps',
     swapManagementDashboard: 'Swap Management Dashboard',
@@ -511,13 +515,15 @@ export const en = {
     completedSwaps: 'Completed Swaps',
     urgentSwaps: 'Urgent Swaps',
     reviewSwap: 'Review Swap Request',
+    totalRequests: 'Total Requests',
     requestSwap: 'Request Swap',
     quickApproval: 'Quick Approval Queue',
     requestsForMe: 'Requests For Me',
     forMe: 'For Me',
     coverageRequests: 'Coverage Requests',
     noRequestsForYou: 'No requests for you',
-    noActionNeeded: 'No acation needed',
+    actionNeeded: 'Action needed',
+    noActionNeeded: 'No action needed',
     teamReliability: 'Team reliability',
     timesHelped: 'Times Helped',
     everyBitHelps: 'Every bit of help counts',
@@ -527,6 +533,7 @@ export const en = {
     specificSwap: 'Specific Swap',
     autoSwap: 'Auto Swap',
     emergencySwap: 'Emergency Swap',
+    auto: 'Auto',
     
     // Swap states
     swapPending: 'Swap Pending',
@@ -538,6 +545,7 @@ export const en = {
     requestingStaff: 'Requesting Staff',
     targetStaff: 'Target Staff',
     staffMemberRequesting: 'Staff Member Requesting Swap',
+    requester: 'Requester',
     
     // Swap management actions
     createSwapRequest: 'Create Swap Request',
@@ -641,6 +649,7 @@ export const en = {
     readyForExecution: 'Ready for Execution',
     executed: 'Executed',
     staffAccepted: 'Staff Accepted',
+    staff_accepted: 'staff_accepted',
     potentialAssignment: 'Potential Assignment'
 
   },

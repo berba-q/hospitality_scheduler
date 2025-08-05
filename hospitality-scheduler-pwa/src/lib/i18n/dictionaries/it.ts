@@ -37,11 +37,13 @@ export const it = {
     view: 'Visualizza',
     viewAll: 'Visualizza Tutto',
     viewDetails: 'Visualizza Dettagli',
+    viewHistory: 'Visualizza la Cronologia',
     viewMore: 'Visualizza Altro',
     add: 'Aggiungi',
     create: 'Crea',
     update: 'Aggiorna',
     refresh: 'Aggiorna',
+    refreshData: 'Aggiorna Dati',
     reset: 'Reimposta',
     close: 'Chiudi',
     open: 'Apri',
@@ -499,14 +501,17 @@ export const it = {
     // ============================================================================
     // TERMINI SPECIFICI SCAMBI
     // ============================================================================
+    swapsOverview: 'Panoramica',
     mySwaps: 'I Miei Scambi',
     swapRequest: 'Richiesta di Scambio',
     swapRequests: 'Richieste di Scambio',
+    myRequests: 'Le Mie Richieste',
     swapManagement: 'Gestione Scambi',
     manageSwaps: 'Gestisci scambi',
     swapManagementDashboard: 'Dashboard Gestione Scambi',
     pendingSwaps: 'Scambi in Sospeso',
     completedSwaps: 'Scambi Completati',
+    totalRequests: 'Richieste Totali',
     urgentSwaps: 'Scambi Urgenti',
     reviewSwap: 'Rivedi Richiesta di Scambio',
     requestSwap: 'Richiedi Scambio',
@@ -515,6 +520,7 @@ export const it = {
     forMe: 'Per Me',
     coverageRequests: 'Richieste di Copertura',
     noRequestsForYou: 'Nessuna richiesta per te',
+    actionNeeded: 'Azione Necessaria',
     noActionNeeded: 'Nessuna azione necessaria',
     teamReliability: 'Affidabilità del Team',
     timesHelped: 'Volte che hai Aiutato',
@@ -525,6 +531,7 @@ export const it = {
     specificSwap: 'Scambio Specifico',
     autoSwap: 'Scambio Automatico',
     emergencySwap: 'Scambio di Emergenza',
+    auto: 'Auto',
     
     // Stati scambio
     swapPending: 'Scambio in Attesa',
@@ -536,6 +543,7 @@ export const it = {
     requestingStaff: 'Personale Richiedente',
     targetStaff: 'Personale Target',
     staffMemberRequesting: 'Membro del Personale che Richiede Scambio',
+    requester: 'richiedente',
     
     // Azioni gestione scambi
     createSwapRequest: 'Crea Richiesta di Scambio',
@@ -642,6 +650,7 @@ export const it = {
     awaitingApproval: 'In Attesa di Approvazione',
     readyForExecution: 'Pronto per l\'Esecuzione',
     staffAccepted: 'Personale Accettato',
+    staff_accepted: 'personale_accettato',
     potentialAssignment: 'Assegnazione Potenziale',
   },
 
