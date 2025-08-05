@@ -140,6 +140,9 @@ export const it = {
     config: 'Configurazione',
     options: 'Opzioni',
     preferences: 'Preferenze',
+    dropFile: 'Lascia qui i file Excel o CSV',
+    releaseFile: 'Rilascia per importare dati dal tuo file',
+    fileSupport: 'Supporta i file .xlsx e .csv', 
     
     // Elementi modulo
     required: 'Obbligatorio',

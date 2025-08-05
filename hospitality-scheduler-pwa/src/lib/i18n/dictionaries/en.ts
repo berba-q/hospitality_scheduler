@@ -141,6 +141,9 @@ export const en = {
     config: 'Configuration',
     options: 'Options',
     preferences: 'Preferences',
+    dropFile: 'Drop Excel or CSV file here',
+    releaseFile: 'Release to import data from your file',
+    fileSupport: 'Supports .xlsx and .csv files',
     
     // Form elements
     required: 'Required',
