@@ -51,6 +51,8 @@ export const en = {
     submit: 'Submit',
     confirm: 'Confirm',
     approve: 'Approve',
+    finalApproval: 'Final Approval',
+    needsWork: 'Needs Work',
     decline: 'Decline',
     reject: 'Reject',
     review: 'Review',
@@ -85,6 +87,7 @@ export const en = {
     unavailable: 'Not Available',
     online: 'Online',
     offline: 'Offline',
+    waiting: "Waiting",
     
     // ============================================================================
     // GENERIC TERMS (reusable across domains)
@@ -128,6 +131,7 @@ export const en = {
     filter: 'Filter',
     sort: 'Sort',
     export: 'Export',
+    exportReport: 'Export Report',
     import: 'Import',
     settings: 'Settings',
     config: 'Configuration',
@@ -221,6 +225,9 @@ export const en = {
     selectAFacility: 'Select a facility',
     facilityName: 'Facility Name',
     facilityType: 'Facility Type',
+    detailedFacility: 'Detailed Facility Analysis',
+    systemPerformance: 'System Performance',
+    analytics: 'Analytics',
     
     // ============================================================================
     // REUSABLE PHRASES
@@ -505,6 +512,16 @@ export const en = {
     urgentSwaps: 'Urgent Swaps',
     reviewSwap: 'Review Swap Request',
     requestSwap: 'Request Swap',
+    quickApproval: 'Quick Approval Queue',
+    requestsForMe: 'Requests For Me',
+    forMe: 'For Me',
+    coverageRequests: 'Coverage Requests',
+    noRequestsForYou: 'No requests for you',
+    noActionNeeded: 'No acation needed',
+    teamReliability: 'Team reliability',
+    timesHelped: 'Times Helped',
+    everyBitHelps: 'Every bit of help counts',
+    supportingTeammates: 'Supporting your teammates builds a stronger, more reliable team for everyone.',
     
     // Swap types
     specificSwap: 'Specific Swap',

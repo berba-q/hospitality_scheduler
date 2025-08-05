@@ -51,6 +51,8 @@ export const it = {
     submit: 'Invia',
     confirm: 'Conferma',
     approve: 'Approva',
+    finalApproval: 'Approvazione Finale',
+    needsWork: 'Ha bisogno di attenzione',
     decline: 'Rifiuta',
     reject: 'Respingi',
     review: 'Rivedi',
@@ -84,6 +86,7 @@ export const it = {
     unavailable: 'Non Disponibile',
     online: 'Online',
     offline: 'Offline',
+    waiting: 'In attesa',
     
     // ============================================================================
     // TERMINI GENERICI (riutilizzabili tra domini)
@@ -127,6 +130,7 @@ export const it = {
     filter: 'Filtra',
     sort: 'Ordina',
     export: 'Esporta',
+    exportReport: 'Esporta Il Rapporto',
     import: 'Importa',
     settings: 'Impostazioni',
     config: 'Configurazione',
@@ -220,6 +224,9 @@ export const it = {
     selectAFacility: 'Seleziona una struttura',
     facilityName: 'Nome Struttura',
     facilityType: 'Tipo Struttura',
+    detailedFacility: 'Analisi Dettagliata Della Struttura',
+    systemPerformance: 'Prestazioni del sistema',
+    analytics: 'Analytica',
     
     // ============================================================================
     // FRASI RIUTILIZZABILI
@@ -503,6 +510,16 @@ export const it = {
     urgentSwaps: 'Scambi Urgenti',
     reviewSwap: 'Rivedi Richiesta di Scambio',
     requestSwap: 'Richiedi Scambio',
+    quickApproval: 'Coda di approvazione rapida',
+    requestsForMe: 'Richieste per Me',
+    forMe: 'Per Me',
+    coverageRequests: 'Richieste di Copertura',
+    noRequestsForYou: 'Nessuna richiesta per te',
+    noActionNeeded: 'Nessuna azione necessaria',
+    teamReliability: 'Affidabilità del Team',
+    timesHelped: 'Volte che hai Aiutato',
+    everyBitHelps: 'Ogni aiuto conta',
+    supportingTeammates: 'Supportare i compagni di squadra costruisce un team più forte e affidabile per tutti.',
     
     // Tipi di scambio
     specificSwap: 'Scambio Specifico',
