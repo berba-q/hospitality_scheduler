@@ -8,6 +8,7 @@ import { Edit, Trash2, Phone, MapPin, Star, Mail } from 'lucide-react'
 import { EditStaffModal } from './EditStaffModal'
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog'
 import { useApiClient } from '@/hooks/useApi'
+import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
 
 interface StaffTableProps {
@@ -17,24 +18,15 @@ interface StaffTableProps {
 }
 
 export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
-  // DEBUG: Log each staff member's is_active value
-  console.log('StaffTable received staff:', staff)
-  staff.forEach((member: any) => {
-    console.log(`${member.full_name}:`, {
-      is_active: member.is_active,
-      type: typeof member.is_active,
-      raw_object: member
-    })
-  })
-
   const apiClient = useApiClient()
+  const { t } = useTranslations()
   const [editingStaff, setEditingStaff] = useState<any>(null)
   const [deletingStaff, setDeletingStaff] = useState<any>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
   const getFacilityName = (facilityId: string) => {
     const facility = facilities.find(f => f.id === facilityId)
-    return facility?.name || 'Unknown'
+    return facility?.name || t('staff.unknownFacility')
   }
 
   const getRoleBadgeColor = (role: string) => {
@@ -56,7 +48,8 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
     return Array.from({ length: 5 }, (_, i) => (
       <Star 
         key={i} 
-        className={`w-3 h-3 ${i < level ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
+        className={`w-3 h-3 ${i < level ? 
+          'text-yellow-400 fill-current' : 'text-gray-300'}`} 
       />
     ))
   }
@@ -67,11 +60,11 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
     setDeleteLoading(true)
     try {
       await apiClient.deleteStaff(deletingStaff.id)
-      toast.success(`${deletingStaff.full_name} deleted successfully`)
+      toast.success(t('staff.staffDeletedSuccess', { name: deletingStaff.full_name }))
       onRefresh()
       setDeletingStaff(null)
     } catch (error) {
-      toast.error('Failed to delete staff member')
+      toast.error(t('staff.failedDeleteStaff'))
       console.error(error)
     } finally {
       setDeleteLoading(false)
@@ -88,12 +81,12 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
         <table className="w-full">
           <thead className="bg-gray-50/50">
             <tr>
-              <th className="text-left p-4 font-medium text-gray-700">Staff Member</th>
-              <th className="text-left p-4 font-medium text-gray-700">Role & Skills</th>
-              <th className="text-left p-4 font-medium text-gray-700">Facility</th>
-              <th className="text-left p-4 font-medium text-gray-700">Contact</th>
-              <th className="text-left p-4 font-medium text-gray-700">Status</th>
-              <th className="text-left p-4 font-medium text-gray-700">Actions</th>
+              <th className="text-left p-4 font-medium text-gray-700">{t('staff.staffMember')}</th>
+              <th className="text-left p-4 font-medium text-gray-700">{t('staff.roleAndSkills')}</th>
+              <th className="text-left p-4 font-medium text-gray-700">{t('staff.facility')}</th>
+              <th className="text-left p-4 font-medium text-gray-700">{t('staff.contact')}</th>
+              <th className="text-left p-4 font-medium text-gray-700">{t('staff.status')}</th>
+              <th className="text-left p-4 font-medium text-gray-700">{t('staff.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -124,7 +117,7 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
                     <div className="flex items-center gap-1">
                       {getSkillStars(member.skill_level || 1)}
                       <span className="text-xs text-gray-500 ml-1">
-                        Level {member.skill_level || 1}
+                        {t('staff.level')} {member.skill_level || 1}
                       </span>
                     </div>
                   </div>
@@ -134,7 +127,7 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
                 <td className="p-4">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-700">
+                    <span className="text-sm font-medium text-gray-700">
                       {getFacilityName(member.facility_id)}
                     </span>
                   </div>
@@ -144,51 +137,54 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
                 <td className="p-4">
                   <div className="space-y-1">
                     {member.email && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Mail className="w-3 h-3" />
-                        <a href={`mailto:${member.email}`} className="hover:text-blue-600 transition-colors">
-                          {member.email}
-                        </a>
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-3 h-3 text-gray-400" />
+                        <span className="text-xs text-gray-600">{member.email}</span>
                       </div>
                     )}
                     {member.phone && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Phone className="w-3 h-3" />
-                        {member.phone}
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-3 h-3 text-gray-400" />
+                        <span className="text-xs text-gray-600">{member.phone}</span>
                       </div>
                     )}
-                    <div className="text-xs text-gray-500">
-                      Max {member.weekly_hours_max || 40}h/week
-                    </div>
                   </div>
                 </td>
 
                 {/* Status */}
                 <td className="p-4">
                   <div className="space-y-1">
-                    <Badge variant={member.is_active === true ? 'default' : 'secondary'}>
-                      {member.is_active === true ? 'Active' : 'Inactive'}
+                    <Badge 
+                      variant={member.is_active ? "default" : "secondary"}
+                      className={member.is_active ? 
+                        "bg-green-100 text-green-800 border-green-200" : 
+                        "bg-gray-100 text-gray-800 border-gray-200"
+                      }
+                    >
+                      {member.is_active ? t('staff.active') : t('staff.inactive')}
                     </Badge>
-                    
+                    <p className="text-xs text-gray-500">
+                      {t('staff.maxHours', { hours: member.weekly_hours_max || 40 })}
+                    </p>
                   </div>
                 </td>
 
                 {/* Actions */}
                 <td className="p-4">
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button
-                      size="sm"
                       variant="ghost"
+                      size="sm"
                       onClick={() => setEditingStaff(member)}
-                      className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600"
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
                     <Button
-                      size="sm"
                       variant="ghost"
+                      size="sm"
                       onClick={() => setDeletingStaff(member)}
-                      className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -201,16 +197,18 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
       </div>
 
       {/* Edit Modal */}
-      <EditStaffModal
-        open={!!editingStaff}
-        onClose={() => setEditingStaff(null)}
-        staff={editingStaff}
-        facilities={facilities}
-        onSuccess={() => {
-          onRefresh()
-          setEditingStaff(null)
-        }}
-      />
+      {editingStaff && (
+        <EditStaffModal
+          open={!!editingStaff}
+          onClose={() => setEditingStaff(null)}
+          staff={editingStaff}
+          facilities={facilities}
+          onSuccess={() => {
+            setEditingStaff(null)
+            onRefresh()
+          }}
+        />
+      )}
 
       {/* Delete Confirmation */}
       <DeleteConfirmationDialog

@@ -11,6 +11,9 @@ import {
 } from '@/lib/i18n/utils';
 import { Locale, defaultLocale, isValidLocale } from '@/lib/i18n/config';
 
+// Template parameters type
+type TemplateParams = Record<string, string | number>;
+
 export function useTranslations() {
   const [locale, setLocaleState] = useState<Locale>(defaultLocale);
   const [dictionary, setDictionary] = useState<Dictionary>(() => 
@@ -47,9 +50,23 @@ export function useTranslations() {
     }
   }, []);
 
-  // Translation function with nested key support
-  const t = useCallback((key: string): string => {
-    return getTranslation(dictionary, key);
+  // Enhanced translation function with template parameter support
+  const t = useCallback((key: string, params?: TemplateParams): string => {
+    // Get the base translation
+    let translation = getTranslation(dictionary, key);
+    
+    // If no template parameters provided, return as-is
+    if (!params) return translation;
+    
+    // Replace template variables like {{name}}, {{count}}, etc.
+    Object.entries(params).forEach(([paramKey, paramValue]) => {
+      const template = `{{${paramKey}}}`;
+      // Use global regex to replace all occurrences
+      const regex = new RegExp(template.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      translation = translation.replace(regex, String(paramValue));
+    });
+    
+    return translation;
   }, [dictionary]);
 
   return {
