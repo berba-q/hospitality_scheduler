@@ -118,6 +118,9 @@ export const it = {
     priority: 'Priorità',
     type: 'Tipo',
     category: 'Categoria',
+    order: 'Ordine',
+    manage: 'Gestisci',
+    important: 'Importante',
     
     // Entità generiche
     facility: 'Struttura',
@@ -782,6 +785,10 @@ export const it = {
     duration: 'Durata',
     requiresManager: 'Richiede Manager',
     warningExistingSchedules: 'I programmi esistenti useranno i nomi dei turni ma i nuovi programmi useranno queste impostazioni orarie.',
+    shiftsImpactAlert: 'Le modifiche alla configurazione dei turni influenzeranno tutte le future pianificazioni.',
+    warningOverlap: 'Attenzione: I turni "{{name1}}" e "{{name2}}" hanno lo stesso orario di inizio',
+    atLeastOneStaff: 'Turno {{index}}: È richiesto almeno 1 membro del personale',
+    templateApplied: 'Template {{type}} applicato',
     
     // Gestione ruoli
     roleManagement: 'Gestione Ruoli',

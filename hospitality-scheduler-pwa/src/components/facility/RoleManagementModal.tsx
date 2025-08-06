@@ -1,4 +1,4 @@
-// RoleManagementModal.tsx
+// RoleManagementModal.tsx - TRANSLATED
 'use client'
 
 import { useState} from 'react'
@@ -22,6 +22,7 @@ import {
   X
 } from 'lucide-react'
 import { useFacilityRoles } from '@/hooks/useFacility'
+import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
 
 interface RoleManagementModalProps {
@@ -44,6 +45,7 @@ interface Role {
 
 export function RoleManagementModal({ open, onClose, facility, onSuccess }: RoleManagementModalProps) {
   const { roles, loading, createRole, updateRole, deleteRole } = useFacilityRoles(facility?.id)
+  const { t } = useTranslations()
   const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   
@@ -58,28 +60,28 @@ export function RoleManagementModal({ open, onClose, facility, onSuccess }: Role
   })
 
   const handleAddRole = async () => {
-  if (!newRole.role_name) {
-    toast.error('Role name is required')
-    return
-  }
+    if (!newRole.role_name) {
+      toast.error(t('facilities.roleNameRequired'))
+      return
+    }
 
-  try {
-    await createRole(newRole)
-    setShowAddForm(false)
-    setNewRole({
-      role_name: '',
-      min_skill_level: 1,
-      max_skill_level: 3,
-      is_management: false,
-      hourly_rate_min: 15,
-      hourly_rate_max: 25,
-      is_active: true
-    })
-    onSuccess()
-  } catch (error) {
-    // Hook already shows error toast
+    try {
+      await createRole(newRole)
+      setShowAddForm(false)
+      setNewRole({
+        role_name: '',
+        min_skill_level: 1,
+        max_skill_level: 3,
+        is_management: false,
+        hourly_rate_min: 15,
+        hourly_rate_max: 25,
+        is_active: true
+      })
+      onSuccess()
+    } catch (error) {
+      // Hook already shows error toast
+    }
   }
-}
 
   const handleUpdateRole = async (roleId: string, updatedRole: Role) => {
     try {
@@ -92,7 +94,7 @@ export function RoleManagementModal({ open, onClose, facility, onSuccess }: Role
   }
 
   const handleDeleteRole = async (roleId: string, roleName: string) => {
-    if (!confirm(`Are you sure you want to delete the role "${roleName}"?`)) {
+    if (!confirm(t('facilities.deleteRoleConfirm', { name: roleName }))) {
       return
     }
 
@@ -115,257 +117,419 @@ export function RoleManagementModal({ open, onClose, facility, onSuccess }: Role
             }`}
           />
         ))}
-        <span className="text-xs ml-1">{level}/5</span>
+        <span className="text-xs text-gray-600 ml-1">{level}/5</span>
       </div>
     )
   }
 
-  const RoleForm = ({ role, onSave, onCancel, isNew = false }: {
-    role: Role
-    onSave: (role: Role) => void
-    onCancel: () => void
-    isNew?: boolean
-  }) => {
+  const RoleCard = ({ role }: { role: Role }) => {
+    const isEditing = editingRole?.id === role.id
     const [formData, setFormData] = useState<Role>(role)
 
-    return (
-      <Card className="border-blue-200 bg-blue-50">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            {isNew ? <Plus className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
-            {isNew ? 'Add New Role' : `Edit ${role.role_name}`}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    const handleSave = () => {
+      if (role.id) {
+        handleUpdateRole(role.id, formData)
+      }
+    }
+
+    const handleCancel = () => {
+      setFormData(role)
+      setEditingRole(null)
+    }
+
+    if (isEditing) {
+      return (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              {t('facilities.editRole')} {role.role_name}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <Label>Role Name *</Label>
+              <Label>{t('facilities.roleName')} *</Label>
               <Input
                 value={formData.role_name}
                 onChange={(e) => setFormData(prev => ({ ...prev, role_name: e.target.value }))}
-                placeholder="e.g., Front Desk Agent"
+                placeholder={t('facilities.roleName')}
                 className="bg-white"
               />
             </div>
-            
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{t('facilities.minSkillLevel')}</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="5"
+                  value={formData.min_skill_level}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    min_skill_level: parseInt(e.target.value) || 1 
+                  }))}
+                  className="bg-white"
+                />
+              </div>
+              <div>
+                <Label>{t('facilities.maxSkillLevel')}</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="5"
+                  value={formData.max_skill_level}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    max_skill_level: parseInt(e.target.value) || 1 
+                  }))}
+                  className="bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{t('facilities.minHourlyRate')} ($)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.25"
+                  value={formData.hourly_rate_min || 0}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    hourly_rate_min: parseFloat(e.target.value) || 0 
+                  }))}
+                  className="bg-white"
+                />
+              </div>
+              <div>
+                <Label>{t('facilities.maxHourlyRate')} ($)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.25"
+                  value={formData.hourly_rate_max || 0}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    hourly_rate_max: parseFloat(e.target.value) || 0 
+                  }))}
+                  className="bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={formData.is_management}
-                  onChange={(e) => setFormData(prev => ({ ...prev, is_management: e.target.checked }))}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    is_management: e.target.checked 
+                  }))}
                   className="rounded"
                 />
-                <Shield className="h-4 w-4" />
-                <span className="text-sm">Management Role</span>
+                <span className="text-sm">{t('facilities.isManagement')}</span>
+              </label>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.is_active}
+                  onChange={(e) => setFormData(prev => ({ 
+                    ...prev, 
+                    is_active: e.target.checked 
+                  }))}
+                  className="rounded"
+                />
+                <span className="text-sm">{t('facilities.isActive')}</span>
               </label>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Min Skill Level</Label>
-              <select
-                value={formData.min_skill_level}
-                onChange={(e) => setFormData(prev => ({ ...prev, min_skill_level: parseInt(e.target.value) }))}
-                className="w-full p-2 border rounded-md bg-white"
-              >
-                {[1, 2, 3, 4, 5].map(level => (
-                  <option key={level} value={level}>{level} Star{level > 1 ? 's' : ''}</option>
-                ))}
-              </select>
+            <div className="flex gap-2 pt-2">
+              <Button size="sm" onClick={handleSave} className="gap-1">
+                <Save className="h-3 w-3" />
+                {t('common.save')}
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleCancel} className="gap-1">
+                <X className="h-3 w-3" />
+                {t('common.cancel')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    return (
+      <Card className="hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                role.is_management ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'
+              }`}>
+                {role.is_management ? <Shield className="w-5 h-5" /> : <Users className="w-5 h-5" />}
+              </div>
+              <div>
+                <CardTitle className="text-base">{role.role_name}</CardTitle>
+                <div className="flex items-center gap-2 mt-1">
+                  {role.is_management && (
+                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                      {t('common.manager')}
+                    </Badge>
+                  )}
+                  <Badge variant={role.is_active ? "default" : "secondary"} className="text-xs">
+                    {role.is_active ? t('common.active') : t('common.inactive')}
+                  </Badge>
+                </div>
+              </div>
             </div>
             
-            <div>
-              <Label>Max Skill Level</Label>
-              <select
-                value={formData.max_skill_level}
-                onChange={(e) => setFormData(prev => ({ ...prev, max_skill_level: parseInt(e.target.value) }))}
-                className="w-full p-2 border rounded-md bg-white"
+            <div className="flex gap-1">
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => setEditingRole(role)}
+                className="hover:bg-gray-100"
               >
-                {[1, 2, 3, 4, 5].map(level => (
-                  <option key={level} value={level}>{level} Star{level > 1 ? 's' : ''}</option>
-                ))}
-              </select>
+                <Edit className="w-4 h-4" />
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => role.id && handleDeleteRole(role.id, role.role_name)}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="pt-0 space-y-3">
+          <div>
+            <div className="text-xs font-medium text-gray-500 mb-1">{t('facilities.skillLevelRange')}</div>
+            <div className="flex items-center gap-2">
+              {renderSkillLevel(role.min_skill_level)}
+              <span className="text-gray-400">-</span>
+              {renderSkillLevel(role.max_skill_level)}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {(role.hourly_rate_min || role.hourly_rate_max) && (
             <div>
-              <Label>Min Hourly Rate ($)</Label>
-              <Input
-                type="number"
-                step="0.50"
-                value={formData.hourly_rate_min || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, hourly_rate_min: parseFloat(e.target.value) || undefined }))}
-                placeholder="15.00"
-                className="bg-white"
-              />
+              <div className="text-xs font-medium text-gray-500 mb-1">{t('facilities.hourlyRateRange')}</div>
+              <div className="flex items-center gap-2 text-sm">
+                <DollarSign className="w-4 h-4 text-green-600" />
+                <span className="text-green-600 font-medium">
+                  ${role.hourly_rate_min || 0} - ${role.hourly_rate_max || 0}
+                </span>
+              </div>
             </div>
-            
-            <div>
-              <Label>Max Hourly Rate ($)</Label>
-              <Input
-                type="number"
-                step="0.50"
-                value={formData.hourly_rate_max || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, hourly_rate_max: parseFloat(e.target.value) || undefined }))}
-                placeholder="25.00"
-                className="bg-white"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              onClick={() => onSave(formData)}
-              disabled={!formData.role_name || loading}
-              className="flex-1"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {isNew ? 'Add Role' : 'Update Role'}
-            </Button>
-            <Button variant="outline" onClick={onCancel}>
-              <X className="h-4 w-4 mr-2" />
-              Cancel
-            </Button>
-          </div>
+          )}
         </CardContent>
       </Card>
     )
   }
 
+  const AddRoleForm = () => (
+    <Card className="border-green-200 bg-green-50">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          {t('facilities.addNewRole')}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label>{t('facilities.roleName')} *</Label>
+          <Input
+            value={newRole.role_name}
+            onChange={(e) => setNewRole(prev => ({ ...prev, role_name: e.target.value }))}
+            placeholder={t('facilities.roleName')}
+            className="bg-white"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>{t('facilities.minSkillLevel')}</Label>
+            <Input
+              type="number"
+              min="1"
+              max="5"
+              value={newRole.min_skill_level}
+              onChange={(e) => setNewRole(prev => ({ 
+                ...prev, 
+                min_skill_level: parseInt(e.target.value) || 1 
+              }))}
+              className="bg-white"
+            />
+          </div>
+          <div>
+            <Label>{t('facilities.maxSkillLevel')}</Label>
+            <Input
+              type="number"
+              min="1"
+              max="5"
+              value={newRole.max_skill_level}
+              onChange={(e) => setNewRole(prev => ({ 
+                ...prev, 
+                max_skill_level: parseInt(e.target.value) || 1 
+              }))}
+              className="bg-white"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>{t('facilities.minHourlyRate')} ($)</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.25"
+              value={newRole.hourly_rate_min || 0}
+              onChange={(e) => setNewRole(prev => ({ 
+                ...prev, 
+                hourly_rate_min: parseFloat(e.target.value) || 0 
+              }))}
+              className="bg-white"
+            />
+          </div>
+          <div>
+            <Label>{t('facilities.maxHourlyRate')} ($)</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.25"
+              value={newRole.hourly_rate_max || 0}
+              onChange={(e) => setNewRole(prev => ({ 
+                ...prev, 
+                hourly_rate_max: parseFloat(e.target.value) || 0 
+              }))}
+              className="bg-white"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={newRole.is_management}
+              onChange={(e) => setNewRole(prev => ({ 
+                ...prev, 
+                is_management: e.target.checked 
+              }))}
+              className="rounded"
+            />
+            <span className="text-sm">{t('facilities.isManagement')}</span>
+          </label>
+
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={newRole.is_active}
+              onChange={(e) => setNewRole(prev => ({ 
+                ...prev, 
+                is_active: e.target.checked 
+              }))}
+              className="rounded"
+            />
+            <span className="text-sm">{t('facilities.isActive')}</span>
+          </label>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <Button size="sm" onClick={handleAddRole} className="gap-1">
+            <Plus className="h-3 w-3" />
+            {t('facilities.addRole')}
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={() => setShowAddForm(false)}
+            className="gap-1"
+          >
+            <X className="h-3 w-3" />
+            {t('common.cancel')}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Manage Roles - {facility?.name}
+            <Users className="w-5 h-5" />
+            {t('facilities.roleManagement')} - {facility?.name}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Add New Role Form */}
-          {showAddForm && (
-            <RoleForm
-              role={newRole}
-              onSave={handleAddRole}
-              onCancel={() => setShowAddForm(false)}
-              isNew={true}
-            />
-          )}
-
-          {/* Add Role Button */}
-          {!showAddForm && (
-            <Button
-              onClick={() => setShowAddForm(true)}
-              className="w-full border-2 border-dashed border-gray-300 bg-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-400"
+          {/* Quick Actions */}
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              {t('common.manage')} {facility?.name} {t('facilities.roles').toLowerCase()}
+            </div>
+            <Button 
+              onClick={() => setShowAddForm(true)} 
+              className="gap-2"
+              disabled={showAddForm}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Role
+              <Plus className="w-4 h-4" />
+              {t('facilities.addRole')}
             </Button>
+          </div>
+
+          {/* Add Role Form */}
+          {showAddForm && <AddRoleForm />}
+
+          {/* Roles List */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-600">{t('common.loadingRoles') || 'Loading roles...'}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {roles.map((role) => (
+                <RoleCard key={role.id} role={role} />
+              ))}
+            </div>
           )}
 
-          {/* Existing Roles */}
-          <div className="space-y-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Current Roles ({roles.length})
-            </h3>
+          {/* Empty State */}
+          {!loading && roles.length === 0 && (
+            <div className="text-center py-12">
+              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {t('facilities.noRolesYet') || 'No roles configured yet'}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {t('facilities.addFirstRole') || 'Add your first role to get started'}
+              </p>
+              <Button onClick={() => setShowAddForm(true)} className="gap-2">
+                <Plus className="w-4 h-4" />
+                {t('facilities.addRole')}
+              </Button>
+            </div>
+          )}
+        </div>
 
-            {loading && roles.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Loading roles...</div>
-            ) : roles.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No roles defined yet. Add your first role above.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {roles.map((role) => (
-                  <div key={role.id}>
-                    {editingRole?.id === role.id ? (
-                      <RoleForm
-                        role={editingRole}
-                        onSave={(updatedRole) => handleUpdateRole(role.id!, updatedRole)}
-                        onCancel={() => setEditingRole(null)}
-                      />
-                    ) : (
-                      <Card className="hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                              {role.is_management && <Shield className="h-4 w-4 text-blue-600" />}
-                              {role.role_name}
-                            </CardTitle>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setEditingRole(role)}
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDeleteRole(role.id!, role.role_name)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">Skill Range</span>
-                            <div className="flex items-center gap-2">
-                              {renderSkillLevel(role.min_skill_level)}
-                              <span className="text-xs text-gray-400">to</span>
-                              {renderSkillLevel(role.max_skill_level)}
-                            </div>
-                          </div>
-                          
-                          {(role.hourly_rate_min || role.hourly_rate_max) && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-600">Hourly Rate</span>
-                              <div className="flex items-center gap-1">
-                                <DollarSign className="h-3 w-3 text-green-600" />
-                                <span className="text-sm font-medium">
-                                  ${role.hourly_rate_min || 0} - ${role.hourly_rate_max || 0}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center gap-2">
-                            {role.is_management && (
-                              <Badge variant="default" className="text-xs">
-                                <Shield className="h-3 w-3 mr-1" />
-                                Management
-                              </Badge>
-                            )}
-                            <Badge 
-                              variant={role.is_active ? "default" : "secondary"} 
-                              className="text-xs"
-                            >
-                              {role.is_active ? (
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                              ) : (
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                              )}
-                              {role.is_active ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* Actions */}
+        <div className="flex justify-end pt-4 border-t">
+          <Button variant="outline" onClick={onClose}>
+            {t('common.close')}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

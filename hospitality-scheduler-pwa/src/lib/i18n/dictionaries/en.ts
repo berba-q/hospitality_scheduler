@@ -119,6 +119,9 @@ export const en = {
     priority: 'Priority',
     type: 'Type',
     category: 'Category',
+    order: 'Order',
+    manage: 'Manage',
+    important: 'Important',
     
     // Generic entities
     facility: 'Facility',
@@ -769,6 +772,10 @@ export const en = {
     duration: 'Duration',
     requiresManager: 'Requires Manager',
     warningExistingSchedules: 'Existing schedules will use the shift names but new schedules will use these time settings.',
+    shiftsImpactAlert: 'Changes to shift configuration will affect all future scheduling.',
+    warningOverlap: 'Warning: Shifts "{{name1}}" and "{{name2}}" have the same start time',
+    atLeastOneStaff: 'Shift {{index}}: At least 1 staff member is required',
+    templateApplied: 'Applied {{type}} template',
     
     // Role management
     roleManagement: 'Role Management',

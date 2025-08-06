@@ -1,4 +1,4 @@
-// ZoneManagementModal.tsx
+// ZoneManagementModal.tsx 
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -25,6 +25,7 @@ import {
   Target
 } from 'lucide-react'
 import { useFacilityZones, useFacilityRoles } from '@/hooks/useFacility'
+import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
 
 interface ZoneManagementModalProps {
@@ -49,6 +50,8 @@ interface Zone {
 
 export function ZoneManagementModal({ open, onClose, facility, onSuccess }: ZoneManagementModalProps) {
   const { zones, loading: zonesLoading, createZone, updateZone, deleteZone } = useFacilityZones(facility?.id)
+  const { roles, loading: rolesLoading } = useFacilityRoles(facility?.id)
+  const { t } = useTranslations()
   const [editingZone, setEditingZone] = useState<Zone | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   
@@ -69,12 +72,12 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
   }
 
   const handleAddZone = async () => {
-  if (!newZone.zone_name) {
-    toast.error('Zone name is required')
-    return
-  }
+    if (!newZone.zone_name) {
+      toast.error(t('facilities.zoneNameRequired'))
+      return
+    }
 
-  const zoneData = {
+    const zoneData = {
       ...newZone,
       zone_id: newZone.zone_id || generateZoneId(newZone.zone_name),
       display_order: zones.length
@@ -110,8 +113,8 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
     }
   }
 
- const handleDeleteZone = async (zoneId: string, zoneName: string) => {
-    if (!confirm(`Are you sure you want to delete the zone "${zoneName}"?`)) {
+  const handleDeleteZone = async (zoneId: string, zoneName: string) => {
+    if (!confirm(t('facilities.deleteZoneConfirm', { name: zoneName }))) {
       return
     }
 
@@ -147,27 +150,12 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
   }) => {
     const [formData, setFormData] = useState<Zone>(zone)
 
-    const handleRoleToggle = (roleName: string, type: 'required' | 'preferred') => {
-      const currentRoles = type === 'required' ? formData.required_roles : formData.preferred_roles
-      const otherRoles = type === 'required' ? formData.preferred_roles : formData.required_roles
-      
-      let updatedRoles
-      if (currentRoles.includes(roleName)) {
-        updatedRoles = currentRoles.filter(r => r !== roleName)
-      } else {
-        updatedRoles = [...currentRoles, roleName]
-        // Remove from other category to avoid conflicts
-        const updatedOtherRoles = otherRoles.filter(r => r !== roleName)
-        if (type === 'required') {
-          setFormData(prev => ({ ...prev, preferred_roles: updatedOtherRoles }))
-        } else {
-          setFormData(prev => ({ ...prev, required_roles: updatedOtherRoles }))
-        }
-      }
-
+    const updateRoleSelection = (roleName: string, roleType: 'required' | 'preferred', isSelected: boolean) => {
       setFormData(prev => ({
         ...prev,
-        [type === 'required' ? 'required_roles' : 'preferred_roles']: updatedRoles
+        [roleType === 'required' ? 'required_roles' : 'preferred_roles']: isSelected 
+          ? [...prev[roleType === 'required' ? 'required_roles' : 'preferred_roles'], roleName]
+          : prev[roleType === 'required' ? 'required_roles' : 'preferred_roles'].filter(r => r !== roleName)
       }))
     }
 
@@ -176,13 +164,13 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             {isNew ? <Plus className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
-            {isNew ? 'Add New Zone' : `Edit ${zone.zone_name}`}
+            {isNew ? t('facilities.addNewZone') : t('facilities.editZone') + ` ${zone.zone_name}`}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Zone Name *</Label>
+              <Label>{t('facilities.zoneName')} *</Label>
               <Input
                 value={formData.zone_name}
                 onChange={(e) => {
@@ -199,7 +187,7 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
             </div>
             
             <div>
-              <Label>Zone ID</Label>
+              <Label>{t('facilities.zoneId')}</Label>
               <Input
                 value={formData.zone_id}
                 onChange={(e) => setFormData(prev => ({ ...prev, zone_id: e.target.value }))}
@@ -210,11 +198,11 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
           </div>
 
           <div>
-            <Label>Description</Label>
+            <Label>{t('common.description')}</Label>
             <Textarea
               value={formData.description || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Brief description of this zone..."
+              placeholder={t('facilities.briefDescriptionThe')}
               className="bg-white"
               rows={2}
             />
@@ -222,7 +210,7 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Min Staff per Shift</Label>
+              <Label>{t('facilities.minStaffPerShift')}</Label>
               <Input
                 type="number"
                 min="0"
@@ -234,7 +222,7 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
             </div>
             
             <div>
-              <Label>Max Staff per Shift</Label>
+              <Label>{t('facilities.maxStaffPerShift')}</Label>
               <Input
                 type="number"
                 min="1"
@@ -249,17 +237,16 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
           {roles.length > 0 && (
             <div className="space-y-4">
               <div>
-                <Label className="text-sm font-medium">Required Roles</Label>
-                <p className="text-xs text-gray-600 mb-2">Roles that must be present in this zone</p>
+                <Label className="text-sm font-medium">{t('facilities.requiredRoles')}</Label>
+                <p className="text-xs text-gray-600 mb-2">{t('facilities.requiredRolesDesc')}</p>
                 <div className="flex flex-wrap gap-2">
                   {roles.map((role) => (
                     <Badge
                       key={`req-${role.id}`}
-                      variant={formData.required_roles.includes(role.role_name) ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => handleRoleToggle(role.role_name, 'required')}
+                      variant={formData.required_roles.includes(role.role_name) ? "default" : "outline"}
+                      className="cursor-pointer transition-colors"
+                      onClick={() => updateRoleSelection(role.role_name, 'required', !formData.required_roles.includes(role.role_name))}
                     >
-                      <Target className="h-3 w-3 mr-1" />
                       {role.role_name}
                     </Badge>
                   ))}
@@ -267,17 +254,16 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
               </div>
 
               <div>
-                <Label className="text-sm font-medium">Preferred Roles</Label>
-                <p className="text-xs text-gray-600 mb-2">Roles that are preferred but not required</p>
+                <Label className="text-sm font-medium">{t('facilities.preferredRoles')}</Label>
+                <p className="text-xs text-gray-600 mb-2">{t('facilities.preferredRolesDesc')}</p>
                 <div className="flex flex-wrap gap-2">
                   {roles.map((role) => (
                     <Badge
                       key={`pref-${role.id}`}
-                      variant={formData.preferred_roles.includes(role.role_name) ? 'secondary' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => handleRoleToggle(role.role_name, 'preferred')}
+                      variant={formData.preferred_roles.includes(role.role_name) ? "secondary" : "outline"}
+                      className="cursor-pointer transition-colors"
+                      onClick={() => updateRoleSelection(role.role_name, 'preferred', !formData.preferred_roles.includes(role.role_name))}
                     >
-                      <Users className="h-3 w-3 mr-1" />
                       {role.role_name}
                     </Badge>
                   ))}
@@ -286,18 +272,25 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
             </div>
           )}
 
-          <div className="flex gap-2">
-            <Button
-              onClick={() => onSave(formData)}
-              disabled={!formData.zone_name || loading}
-              className="flex-1"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {isNew ? 'Add Zone' : 'Update Zone'}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="is_active"
+              checked={formData.is_active}
+              onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+              className="rounded"
+            />
+            <Label htmlFor="is_active" className="text-sm">{t('facilities.isActive')}</Label>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button size="sm" onClick={() => onSave(formData)} className="gap-1">
+              <Save className="h-3 w-3" />
+              {t('common.save')}
             </Button>
-            <Button variant="outline" onClick={onCancel}>
-              <X className="h-4 w-4 mr-2" />
-              Cancel
+            <Button size="sm" variant="outline" onClick={onCancel} className="gap-1">
+              <X className="h-3 w-3" />
+              {t('common.cancel')}
             </Button>
           </div>
         </CardContent>
@@ -305,184 +298,251 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
     )
   }
 
+  const ZoneCard = ({ zone }: { zone: Zone }) => {
+    const isEditing = editingZone?.id === zone.id
+
+    if (isEditing) {
+      return (
+        <ZoneForm
+          zone={zone}
+          onSave={(updatedZone) => zone.id && handleUpdateZone(zone.id, updatedZone)}
+          onCancel={() => setEditingZone(null)}
+        />
+      )
+    }
+
+    return (
+      <Card className="hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-base">{zone.zone_name}</CardTitle>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="text-xs font-mono text-gray-600">
+                    {zone.zone_id}
+                  </Badge>
+                  <Badge variant={zone.is_active ? "default" : "secondary"} className="text-xs">
+                    {zone.is_active ? t('common.active') : t('common.inactive')}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-1">
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => zone.id && handleReorderZone(zone.id, 'up')}
+                className="hover:bg-gray-100"
+                disabled={zone.display_order === 0}
+              >
+                <ArrowUp className="w-4 h-4" />
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => zone.id && handleReorderZone(zone.id, 'down')}
+                className="hover:bg-gray-100"
+                disabled={zone.display_order === zones.length - 1}
+              >
+                <ArrowDown className="w-4 h-4" />
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => setEditingZone(zone)}
+                className="hover:bg-gray-100"
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => zone.id && handleDeleteZone(zone.id, zone.zone_name)}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="pt-0 space-y-3">
+          {zone.description && (
+            <p className="text-sm text-gray-600">{zone.description}</p>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">{t('facilities.staffRange')}</div>
+              <div className="flex items-center gap-2 text-sm">
+                <Users className="w-4 h-4 text-blue-600" />
+                <span className="text-blue-600 font-medium">
+                  {zone.min_staff_per_shift} - {zone.max_staff_per_shift}
+                </span>
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">{t('common.order')}</div>
+              <div className="flex items-center gap-2 text-sm">
+                <Grid className="w-4 h-4 text-purple-600" />
+                <span className="text-purple-600 font-medium">#{zone.display_order + 1}</span>
+              </div>
+            </div>
+          </div>
+
+          {zone.required_roles.length > 0 && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">{t('facilities.requiredRoles')}</div>
+              <div className="flex flex-wrap gap-1">
+                {zone.required_roles.map((role, idx) => (
+                  <Badge key={idx} variant="default" className="text-xs">
+                    <Target className="w-3 h-3 mr-1" />
+                    {role}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {zone.preferred_roles.length > 0 && (
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">{t('facilities.preferredRoles')}</div>
+              <div className="flex flex-wrap gap-1">
+                {zone.preferred_roles.map((role, idx) => (
+                  <Badge key={idx} variant="outline" className="text-xs">
+                    {role}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const AddZoneForm = () => (
+    <ZoneForm
+      zone={newZone}
+      onSave={(zoneData) => {
+        setNewZone(zoneData)
+        handleAddZone()
+      }}
+      onCancel={() => setShowAddForm(false)}
+      isNew={true}
+    />
+  )
+
+  const loading = zonesLoading || rolesLoading
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Manage Zones - {facility?.name}
+            <MapPin className="w-5 h-5" />
+            {t('facilities.zoneManagement')} - {facility?.name}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Add New Zone Form */}
-          {showAddForm && (
-            <ZoneForm
-              zone={newZone}
-              onSave={handleAddZone}
-              onCancel={() => setShowAddForm(false)}
-              isNew={true}
-            />
-          )}
-
-          {/* Add Zone Button */}
-          {!showAddForm && (
-            <Button
-              onClick={() => setShowAddForm(true)}
-              className="w-full border-2 border-dashed border-gray-300 bg-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-400"
+          {/* Quick Actions */}
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              {t('common.manage')} {facility?.name} {t('facilities.zones').toLowerCase()}
+            </div>
+            <Button 
+              onClick={() => setShowAddForm(true)} 
+              className="gap-2"
+              disabled={showAddForm}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Zone
+              <Plus className="w-4 h-4" />
+              {t('facilities.addNewZone')}
             </Button>
+          </div>
+
+          {/* Add Zone Form */}
+          {showAddForm && <AddZoneForm />}
+
+          {/* Zones List */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-gray-600">{t('common.loadingZones') || 'Loading zones...'}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {zones
+                .sort((a, b) => a.display_order - b.display_order)
+                .map((zone) => (
+                  <ZoneCard key={zone.id} zone={zone} />
+                ))}
+            </div>
           )}
 
-          {/* Existing Zones */}
-          <div className="space-y-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Grid className="h-4 w-4" />
-              Current Zones ({zones.length})
-            </h3>
+          {/* Empty State */}
+          {!loading && zones.length === 0 && (
+            <div className="text-center py-12">
+              <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {t('facilities.noZonesYet') || 'No zones configured yet'}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                {t('facilities.addFirstZone') || 'Add your first zone to get started'}
+              </p>
+              <Button onClick={() => setShowAddForm(true)} className="gap-2">
+                <Plus className="w-4 h-4" />
+                {t('facilities.addNewZone')}
+              </Button>
+            </div>
+          )}
 
-            {zonesLoading && zones.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Loading zones...</div>
-            ) : zones.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No zones defined yet. Add your first zone above.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {zones.map((zone, index) => (
-                  <div key={zone.id}>
-                    {editingZone?.id === zone.id ? (
-                      <ZoneForm
-                        zone={editingZone}
-                        onSave={(updatedZone) => handleUpdateZone(zone.id!, updatedZone)}
-                        onCancel={() => setEditingZone(null)}
-                      />
-                    ) : (
-                      <Card className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h4 className="font-semibold">{zone.zone_name}</h4>
-                                <Badge variant="outline" className="text-xs font-mono">
-                                  {zone.zone_id}
-                                </Badge>
-                                <Badge 
-                                  variant={zone.is_active ? "default" : "secondary"} 
-                                  className="text-xs"
-                                >
-                                  {zone.is_active ? (
-                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                  ) : (
-                                    <AlertTriangle className="h-3 w-3 mr-1" />
-                                  )}
-                                  {zone.is_active ? 'Active' : 'Inactive'}
-                                </Badge>
-                              </div>
-                              
-                              {zone.description && (
-                                <p className="text-sm text-gray-600 mb-3">{zone.description}</p>
-                              )}
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                <div>
-                                  <span className="text-gray-600">Staff Range:</span>
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <Users className="h-3 w-3 text-blue-600" />
-                                    <span className="font-medium">
-                                      {zone.min_staff_per_shift} - {zone.max_staff_per_shift}
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                <div>
-                                  <span className="text-gray-600">Required Roles:</span>
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {zone.required_roles.length > 0 ? (
-                                      zone.required_roles.map((role, idx) => (
-                                        <Badge key={idx} variant="default" className="text-xs">
-                                          <Target className="h-2 w-2 mr-1" />
-                                          {role}
-                                        </Badge>
-                                      ))
-                                    ) : (
-                                      <span className="text-xs text-gray-400">None</span>
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                <div>
-                                  <span className="text-gray-600">Preferred Roles:</span>
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {zone.preferred_roles.length > 0 ? (
-                                      zone.preferred_roles.map((role, idx) => (
-                                        <Badge key={idx} variant="secondary" className="text-xs">
-                                          <Users className="h-2 w-2 mr-1" />
-                                          {role}
-                                        </Badge>
-                                      ))
-                                    ) : (
-                                      <span className="text-xs text-gray-400">None</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-1 ml-4">
-                              {/* Reorder buttons */}
-                              <div className="flex flex-col gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleReorderZone(zone.id!, 'up')}
-                                  disabled={index === 0}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <ArrowUp className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleReorderZone(zone.id!, 'down')}
-                                  disabled={index === zones.length - 1}
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <ArrowDown className="h-3 w-3" />
-                                </Button>
-                              </div>
-                              
-                              {/* Edit/Delete buttons */}
-                              <div className="flex gap-1 ml-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setEditingZone(zone)}
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDeleteZone(zone.id!, zone.zone_name)}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
+          {/* Zone Summary */}
+          {zones.length > 0 && (
+            <Card className="border-gray-200 bg-gray-50">
+              <CardContent className="p-4">
+                <div className="text-sm font-medium text-gray-700 mb-2">{t('facilities.configurationSummary')}</div>
+                <div className="grid grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <div className="font-medium text-blue-600">{zones.filter(z => z.is_active).length}</div>
+                    <div className="text-gray-600">{t('facilities.activeZones')}</div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <div>
+                    <div className="font-medium text-green-600">
+                      {zones.reduce((sum, z) => sum + z.min_staff_per_shift, 0)} - {zones.reduce((sum, z) => sum + z.max_staff_per_shift, 0)}
+                    </div>
+                    <div className="text-gray-600">{t('facilities.staffRange')}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-purple-600">
+                      {zones.reduce((total, zone) => total + zone.required_roles.length, 0)}
+                    </div>
+                    <div className="text-gray-600">{t('facilities.requiredRoles')}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-orange-600">
+                      {zones.reduce((total, zone) => total + zone.preferred_roles.length, 0)}
+                    </div>
+                    <div className="text-gray-600">{t('facilities.preferredRoles')}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end pt-4 border-t">
+          <Button variant="outline" onClick={onClose}>
+            {t('common.close')}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

@@ -27,6 +27,7 @@ import {
   Sunset,
   Calendar
 } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
 import { useFacilityShifts } from '@/hooks/useFacility'
 
@@ -132,6 +133,7 @@ export function ShiftManagementModal({
   onShiftsUpdated
 }: ShiftManagementModalProps) {
   const { shifts, loading, updateShiftsBulk } = useFacilityShifts(facility?.id)
+  const { t } = useTranslations()
   const [saving, setSaving] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
@@ -151,19 +153,19 @@ export function ShiftManagementModal({
     
     shiftsToValidate.forEach((shift, index) => {
       if (!shift.name.trim()) {
-        errors.push(`Shift ${index + 1}: Name is required`)
+        errors.push(t('facilities.shiftNameRequired', { index: index + 1 }) || `Shift ${index + 1}: Name is required`)
       }
       
       if (!shift.start_time || !shift.end_time) {
-        errors.push(`Shift ${index + 1}: Start and end times are required`)
+        errors.push(t('facilities.timeRequired', { name: shift.name }) || `Shift ${index + 1}: Start and end times are required`)
       }
       
       if (shift.min_staff > shift.max_staff) {
-        errors.push(`Shift ${index + 1}: Minimum staff cannot exceed maximum staff`)
+        errors.push(t('facilities.minStaffError', { name: shift.name }) || `Shift ${index + 1}: Minimum staff cannot exceed maximum staff`)
       }
       
       if (shift.min_staff < 1) {
-        errors.push(`Shift ${index + 1}: At least 1 staff member is required`)
+        errors.push(t('facilities.atLeastOneStaff', { index: index + 1 }) || `Shift ${index + 1}: At least 1 staff member is required`)
       }
     })
 
@@ -175,7 +177,7 @@ export function ShiftManagementModal({
         
         // Simple overlap check (could be enhanced)
         if (shift1.start_time === shift2.start_time) {
-          errors.push(`Warning: Shifts "${shift1.name}" and "${shift2.name}" have the same start time`)
+          errors.push(t('facilities.warningOverlap', { name1: shift1.name, name2: shift2.name }) || `Warning: Shifts "${shift1.name}" and "${shift2.name}" have the same start time`)
         }
       }
     }
@@ -186,7 +188,7 @@ export function ShiftManagementModal({
   const addShift = () => {
     const newShift: ShiftConfig = {
       id: `shift-${Date.now()}`,
-      name: 'New Shift',
+      name: t('facilities.newShift') || 'New Shift',
       start_time: '09:00',
       end_time: '17:00',
       requires_manager: false,
@@ -211,7 +213,7 @@ export function ShiftManagementModal({
 
   const removeShift = (index: number) => {
     if (localShifts.length <= 1) {
-      toast.error('At least one shift is required')
+      toast.error(t('facilities.cannotRemoveLastShift') || 'At least one shift is required')
       return
     }
     setLocalShifts(localShifts.filter((_, i) => i !== index)) // ✅ Use local state
@@ -245,7 +247,7 @@ export function ShiftManagementModal({
       })))
       setHasChanges(true)
       setShowTemplates(false)
-      toast.success(`Applied ${facilityType} template`)
+      toast.success(t('facilities.templateApplied', { type: facilityType }) || `Applied ${facilityType} template`)
     }
   }
 
@@ -315,6 +317,7 @@ export function ShiftManagementModal({
                   value={shift.name}
                   onChange={(e) => updateShift(index, 'name', e.target.value)}
                   className="text-lg font-semibold bg-transparent border-0 p-0 h-auto focus:bg-white/50 rounded"
+                  placeholder={t('facilities.shiftName')}
                 />
                 <div className={`text-sm ${colorConfig.text} mt-1`}>
                   {formatTime(shift.start_time)} - {formatTime(shift.end_time)} ({duration})
@@ -348,7 +351,7 @@ export function ShiftManagementModal({
           {/* Time Configuration */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-xs font-medium">Start Time</Label>
+              <Label className="text-xs font-medium">{t('facilities.startTime')}</Label>
               <Input 
                 type="time"
                 value={shift.start_time}
@@ -357,7 +360,7 @@ export function ShiftManagementModal({
               />
             </div>
             <div>
-              <Label className="text-xs font-medium">End Time</Label>
+              <Label className="text-xs font-medium">{t('facilities.endTime')}</Label>
               <Input 
                 type="time"
                 value={shift.end_time}
@@ -370,7 +373,7 @@ export function ShiftManagementModal({
           {/* Staffing Requirements */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-xs font-medium">Min Staff</Label>
+              <Label className="text-xs font-medium">{t('facilities.minStaff')}</Label>
               <Input 
                 type="number"
                 min="1"
@@ -381,7 +384,7 @@ export function ShiftManagementModal({
               />
             </div>
             <div>
-              <Label className="text-xs font-medium">Max Staff</Label>
+              <Label className="text-xs font-medium">{t('facilities.maxStaff')}</Label>
               <Input 
                 type="number"
                 min="1"
@@ -404,7 +407,7 @@ export function ShiftManagementModal({
                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
               />
               <label htmlFor={`manager-${index}`} className="text-sm font-medium">
-                Requires Manager
+                {t('facilities.requiresManager')}
               </label>
               {shift.requires_manager && <Shield className="w-4 h-4 text-amber-600" />}
             </div>
@@ -433,8 +436,8 @@ export function ShiftManagementModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <Clock className="w-6 h-6 text-blue-600" />
-            Shift Management - {facility?.name}
-            {hasChanges && <Badge variant="outline" className="text-orange-600">Unsaved Changes</Badge>}
+            {t('facilities.shiftManagement')} - {facility?.name}
+            {hasChanges && <Badge variant="outline" className="text-orange-600">{t('common.unsavedChanges') || 'Unsaved Changes'}</Badge>}
           </DialogTitle>
         </DialogHeader>
         
@@ -443,8 +446,8 @@ export function ShiftManagementModal({
           <Alert className="border-amber-200 bg-amber-50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
             <AlertDescription className="text-amber-800">
-              <strong>Important:</strong> Changes to shift configuration will affect all future scheduling. 
-              Existing schedules will use the shift names but new schedules will use these time settings.
+              <strong>{t('common.important') || 'Important'}:</strong> {t('facilities.shiftsImpactAlert') || 'Changes to shift configuration will affect all future scheduling.'} 
+              {t('facilities.warningExistingSchedules')}
             </AlertDescription>
           </Alert>
 
@@ -456,7 +459,7 @@ export function ShiftManagementModal({
                 className="gap-2"
               >
                 <Plus className="w-4 h-4" />
-                Add Shift
+                {t('facilities.addShift')}
               </Button>
               <Button 
                 onClick={() => setShowTemplates(!showTemplates)} 
@@ -464,7 +467,7 @@ export function ShiftManagementModal({
                 className="gap-2"
               >
                 <Calendar className="w-4 h-4" />
-                Load Template
+                {t('facilities.loadTemplate')}
               </Button>
             </div>
             
@@ -475,7 +478,7 @@ export function ShiftManagementModal({
                 className="gap-2 text-gray-600"
               >
                 <RotateCcw className="w-4 h-4" />
-                Reset Changes
+                {t('facilities.resetChanges')}
               </Button>
             )}
           </div>
@@ -484,7 +487,7 @@ export function ShiftManagementModal({
           {showTemplates && (
             <Card className="border-blue-200 bg-blue-50">
               <CardContent className="p-4">
-                <div className="text-sm font-medium text-blue-800 mb-3">Choose a template:</div>
+                <div className="text-sm font-medium text-blue-800 mb-3">{t('facilities.chooseTemplate')}</div>
                 <div className="grid grid-cols-5 gap-2">
                   {Object.entries(SHIFT_TEMPLATES).map(([type, template]) => (
                     <Button
@@ -508,7 +511,7 @@ export function ShiftManagementModal({
               <AlertTriangle className="h-4 w-4 text-red-600" />
               <AlertDescription>
                 <div className="text-red-800">
-                  <div className="font-medium mb-2">Please fix the following issues:</div>
+                  <div className="font-medium mb-2">{t('facilities.fixFollowingIssues')}</div>
                   <ul className="list-disc list-inside space-y-1 text-sm">
                     {validationErrors.map((error, index) => (
                       <li key={index}>{error}</li>
@@ -524,47 +527,47 @@ export function ShiftManagementModal({
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-gray-600">Loading shift configuration...</p>
+                <p className="text-gray-600">{t('facilities.loadingShiftConfiguration')}</p>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              {shifts.map((shift, index) => (
+              {localShifts.map((shift, index) => (
                 <ShiftCard key={shift.id} shift={shift} index={index} />
               ))}
             </div>
           )}
 
           {/* Summary */}
-          {shifts.length > 0 && (
+          {localShifts.length > 0 && (
             <Card className="border-gray-200 bg-gray-50">
               <CardContent className="p-4">
-                <div className="text-sm font-medium text-gray-700 mb-2">Configuration Summary</div>
+                <div className="text-sm font-medium text-gray-700 mb-2">{t('facilities.configurationSummary')}</div>
                 <div className="grid grid-cols-4 gap-4 text-sm">
                   <div>
-                    <div className="font-medium text-blue-600">{shifts.filter(s => s.is_active).length}</div>
-                    <div className="text-gray-600">Active Shifts</div>
+                    <div className="font-medium text-blue-600">{localShifts.filter(s => s.is_active).length}</div>
+                    <div className="text-gray-600">{t('facilities.activeShifts')}</div>
                   </div>
                   <div>
                     <div className="font-medium text-green-600">
-                      {shifts.reduce((sum, s) => sum + s.min_staff, 0)} - {shifts.reduce((sum, s) => sum + s.max_staff, 0)}
+                      {localShifts.reduce((sum, s) => sum + s.min_staff, 0)} - {localShifts.reduce((sum, s) => sum + s.max_staff, 0)}
                     </div>
-                    <div className="text-gray-600">Staff Range</div>
+                    <div className="text-gray-600">{t('facilities.staffRange')}</div>
                   </div>
                   <div>
                     <div className="font-medium text-purple-600">
-                      {shifts.filter(s => s.requires_manager).length}
+                      {localShifts.filter(s => s.requires_manager).length}
                     </div>
-                    <div className="text-gray-600">Manager Required</div>
+                    <div className="text-gray-600">{t('facilities.managerRequired')}</div>
                   </div>
                   <div>
                     <div className="font-medium text-orange-600">
-                      {shifts.reduce((total, shift) => {
+                      {localShifts.reduce((total, shift) => {
                         const duration = calculateShiftDuration(shift.start_time, shift.end_time)
                         return total + parseInt(duration.split('h')[0])
                       }, 0)}h
                     </div>
-                    <div className="text-gray-600">Total Coverage</div>
+                    <div className="text-gray-600">{t('facilities.totalCoverage')}</div>
                   </div>
                 </div>
               </CardContent>
@@ -575,11 +578,11 @@ export function ShiftManagementModal({
         {/* Actions */}
         <div className="flex justify-between items-center pt-4 border-t">
           <div className="text-sm text-gray-600">
-            {shifts.length} shift{shifts.length !== 1 ? 's' : ''} configured
+            {localShifts.length} {localShifts.length === 1 ? t('facilities.shiftConfigured') : t('facilities.shiftsConfigured')}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={saveShifts} 
@@ -589,12 +592,12 @@ export function ShiftManagementModal({
               {saving ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Saving...
+                  {t('common.saving') || 'Saving...'}
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  Save Configuration
+                  {t('facilities.saveConfiguration')}
                 </>
               )}
             </Button>
