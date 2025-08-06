@@ -61,6 +61,11 @@ export const en = {
     decline: 'Decline',
     reject: 'Reject',
     review: 'Review',
+    checkDuplicates: 'Checking duplicates...',
+    selectedImport: 'Selected for import',
+    withDuplicates: 'With duplicates',
+    conflicts: 'conflicts',
+    records: "Records",
     
     // Show/Hide actions
     show: 'Show',
@@ -71,6 +76,7 @@ export const en = {
     // Selection actions
     select: 'Select',
     selectAll: 'Select All',
+    selectNone: 'Select None',
     clearAll: 'Clear All',
     clearSelection: 'Clear Selection',
     clearFilters: 'Clear Filters',
@@ -164,10 +170,13 @@ export const en = {
     noData: 'No data',
     noResults: 'No results',
     notFound: 'Not found',
+    found: 'Found',
     success: 'Success',
     error: 'Error',
     warning: 'Warning',
     info: 'Info',
+    conflictsAttention: 'conflicts that need attention.',
+    override: 'Override conflicts (create duplicates)',
     actionCannotBeUndone: 'This action cannot be undone',
     
     // Success messages
@@ -540,6 +549,12 @@ export const en = {
     staffAddedSuccessfully: '{{name}} added successfully!',
     failedAddStaff: 'Failed to add staff member',
     staffWithInfoAlreadyExists: 'A staff member with this information already exists',
+    emailExists: 'Email already exists:',
+    emailExist: 'Email exists',
+    similar: 'Similar found',
+    nameFound: 'Similar names found:',
+    phoneExists: 'Phone may exist:',
+    duplicateDetectedOverride: 'Duplicate detected. Please check and take action.',
     
     // Form fields
     fullName: 'Name',

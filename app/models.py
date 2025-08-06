@@ -170,6 +170,8 @@ class Staff(SQLModel, table=True):
     weekly_hours_max: int | None = Field(default=40)
     phone: Optional[str] = None
     is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = None
     unavailability: List["StaffUnavailability"] = Relationship(back_populates="staff")
     facility: Facility = Relationship(back_populates="staff")
 

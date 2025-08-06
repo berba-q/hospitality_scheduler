@@ -61,6 +61,11 @@ export const it = {
     decline: 'Rifiuta',
     reject: 'Respingi',
     review: 'Rivedi',
+    checkDuplicates: 'Controllo dei duplicati...',
+    selectedImport: 'Selezionato per le importazione',
+    withDuplicates: 'Con duplicati',
+    conflicts: 'Conflitti',
+    records: 'Registri',
     
     // Azioni mostra/nascondi
     show: 'Mostra',
@@ -71,6 +76,7 @@ export const it = {
     // Azioni di selezione
     select: 'Seleziona',
     selectAll: 'Seleziona Tutto',
+    selectNone: 'Seleziona Nessuno',
     clearAll: 'Cancella Tutto',
     clearSelection: 'Cancella Selezione',
     clearFilters: 'Cancella Filtri',
@@ -164,10 +170,13 @@ export const it = {
     noData: 'Nessun dato',
     noResults: 'Nessun risultato',
     notFound: 'Non trovato',
+    found: 'Trovato',
     success: 'Successo',
     error: 'Errore',
     warning: 'Attenzione',
     info: 'Informazione',
+    conflictsAttention: 'conflitti che servono attenzione',
+    override: 'Sovrascrivere i conflitti',
     actionCannotBeUndone: 'Questo azione non puo essere annullata',
     
     // Messaggi di successo
@@ -554,6 +563,14 @@ export const it = {
     staffAddedSuccessfully: '{{name}} aggiunto con successo!',
     failedAddStaff: 'Impossibile aggiungere il membro del personale',
     staffWithInfoAlreadyExists: 'Un membro del personale con queste informazioni esiste già',
+    emailExists: 'Email gia esiste',
+    emailExist: 'Email esiste',
+    similar: 'Trovato simili',
+    nameFound: 'Nomi simili trovati',
+    phoneExists: 'Il numero simili esiste',
+    duplicateDetectedOverride: 'Rilevato duplicati. Per favore controllare.',
+
+
     // Form fields
     fullName: 'Nome',
     fullNamePlaceholder: 'Mario Rossi',

@@ -51,7 +51,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
   const [parsedData, setParsedData] = useState<ParsedStaffMember[]>([])
   const [file, setFile] = useState<File | null>(null)
   
-  // NEW: Duplicate checking state
+  // Duplicate checking state
   const [checkingDuplicates, setCheckingDuplicates] = useState(false)
   const [duplicatesChecked, setDuplicatesChecked] = useState(false)
   const [selectedForImport, setSelectedForImport] = useState<Set<number>>(new Set())
@@ -166,7 +166,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
           is_active,
           valid: true,
           errors: [],
-          // NEW: Initialize duplicate fields
+          // Initialize duplicate fields
           hasDuplicates: false,
           duplicateSeverity: 'none',
           canImport: true,
@@ -212,7 +212,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
       setOriginalColumnNames(originalColumnNames)
       setParsedData(parsed)
       
-      // NEW: Auto-select all valid staff initially
+      // Auto-select all valid staff initially
       const validIndices = new Set(
         parsed.map((_, index) => index).filter(i => parsed[i].valid)
       )
@@ -220,7 +220,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
       
       setStep('preview')
       
-      // NEW: Check for duplicates after parsing
+      // Check for duplicates after parsing
       await checkForDuplicates(parsed)
       
     } catch (error) {
@@ -229,7 +229,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     }
   }
 
-  // NEW: Check all staff for duplicates
+  // Check all staff for duplicates
   const checkForDuplicates = async (staffList: ParsedStaffMember[]) => {
     if (!staffList.length) return
 
@@ -263,7 +263,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
               duplicateSeverity: response.duplicates.severity,
               canImport: response.can_create,
               errors: response.duplicates.severity === 'error' && !forceCreateAll 
-                ? [...staff.errors, 'Duplicate detected - use override to force create']
+                ? [...staff.errors, t('staff.duplicateDetectedOverride')]
                 : staff.errors
             }
             
@@ -289,7 +289,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     }
   }
 
-  // NEW: Toggle selection of individual staff
+  // Toggle selection of individual staff
   const toggleSelection = (index: number) => {
     const staff = parsedData[index]
     const newSelection = new Set(selectedForImport)
@@ -306,7 +306,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     setSelectedForImport(newSelection)
   }
 
-  // NEW: Toggle duplicate details view
+  // Toggle duplicate details view
   const toggleDuplicateDetails = (index: number) => {
     const newSet = new Set(showDuplicateDetails)
     if (newSet.has(index)) {
@@ -317,7 +317,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     setShowDuplicateDetails(newSet)
   }
 
-  // NEW: Force create toggle
+  // Force create toggle
   const handleForceCreateToggle = (checked: boolean) => {
     setForceCreateAll(checked)
     
@@ -360,7 +360,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     if (detectedColumns.has('full_name')) {
       columns.push({ 
         key: 'full_name', 
-        label: `${originalColumnNames['full_name']} (${t('staff.name')})`,
+        label: `${originalColumnNames['full_name']}`,
         width: 'min-w-[150px]'
       })
     }
@@ -368,7 +368,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     if (detectedColumns.has('role')) {
       columns.push({ 
         key: 'role', 
-        label: `${originalColumnNames['role']} (${t('staff.role')})`,
+        label: `${originalColumnNames['role']} `,
         width: 'w-32'
       })
     }
@@ -376,7 +376,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     if (detectedColumns.has('email')) {
       columns.push({ 
         key: 'email', 
-        label: `${originalColumnNames['email']} (${t('common.email')})`,
+        label: `${originalColumnNames['email']} `,
         width: 'w-48'
       })
     }
@@ -384,7 +384,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     if (detectedColumns.has('phone')) {
       columns.push({ 
         key: 'phone', 
-        label: `${originalColumnNames['phone']} (${t('common.phone')})`,
+        label: `${originalColumnNames['phone']} `,
         width: 'w-32'
       })
     }
@@ -392,7 +392,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     if (detectedColumns.has('facility')) {
       columns.push({ 
         key: 'facility_name', 
-        label: `${originalColumnNames['facility']} (${t('staff.facility')})`,
+        label: `${originalColumnNames['facility']} `,
         width: 'w-32'
       })
     }
@@ -400,7 +400,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     if (detectedColumns.has('skill_level')) {
       columns.push({ 
         key: 'skill_level', 
-        label: `${originalColumnNames['skill_level']} (${t('staff.level')})`,
+        label: `${originalColumnNames['skill_level']} `,
         width: 'w-20'
       })
     }
@@ -501,12 +501,12 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
                   {t('common.expectedFormat')}:
                 </h4>
                 <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
-                  <div>• Name, Full Name, Nome</div>
-                  <div>• Role, Position, Ruolo</div>
-                  <div>• Email, E-mail</div>
-                  <div>• Phone, Telefono</div>
-                  <div>• Facility, Struttura</div>
-                  <div>• Skill Level, Livello</div>
+                  <div>• {t('staff.fullName')}</div>
+                  <div>• {t('staff.role')}</div>
+                  <div>• {t('staff.emailAddress')}</div>
+                  <div>• {t('staff.phoneNumber')}</div>
+                  <div>• {t('staff.facility')}</div>
+                  <div>• {t('staff.skillLevel')}</div>
                 </div>
               </div>
             </div>
@@ -519,18 +519,18 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
   // Enhanced preview step with duplicate checking
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent size='6xl' className="max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent size='2xl'>
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5" />
-              {t('staff.importPreview')} - {parsedData.length} {t('common.records')}
+              {t('common.previewImport')} - {parsedData.length} {t('common.records')}
             </div>
             
             {checkingDuplicates && (
               <div className="flex items-center gap-2 text-sm text-blue-600">
                 <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                Checking duplicates...
+                {t('common.checkDuplicates')}
               </div>
             )}
           </DialogTitle>
@@ -543,18 +543,18 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
             <div className="flex items-center justify-between">
               <div className="flex gap-2">
                 <Badge variant="outline" className="bg-green-50">
-                  {validCount} Selected for Import
+                  {validCount} {t('common.selectedImport')}
                 </Badge>
                 
                 {duplicateCount > 0 && (
                   <Badge variant="outline" className="bg-yellow-50">
-                    {duplicateCount} With Duplicates
+                    {duplicateCount} {t('common.withDuplicates')}
                   </Badge>
                 )}
                 
                 {conflictCount > 0 && (
                   <Badge variant="outline" className="bg-red-50">
-                    {conflictCount} Conflicts
+                    {conflictCount} {t('common.conflicts')}
                   </Badge>
                 )}
               </div>
@@ -571,7 +571,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
                     setSelectedForImport(new Set(allValidIndices))
                   }}
                 >
-                  Select All Valid
+                  {t('common.selectAll')}
                 </Button>
                 
                 <Button
@@ -579,7 +579,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
                   size="sm"
                   onClick={() => setSelectedForImport(new Set())}
                 >
-                  Select None
+                  {t('common.selectNone')}
                 </Button>
               </div>
             </div>
@@ -590,7 +590,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
                 <AlertTriangle className="h-4 w-4 text-orange-600" />
                 <AlertDescription className="flex items-center justify-between">
                   <span className="text-orange-800">
-                    Found {conflictCount} email conflicts that need attention.
+                    {t('common.found')} {conflictCount} {t('common.conflictsAttention')}
                   </span>
                   
                   <div className="flex items-center gap-2">
@@ -600,7 +600,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
                       onCheckedChange={handleForceCreateToggle}
                     />
                     <label htmlFor="force-create" className="text-sm font-medium text-orange-800 cursor-pointer">
-                      Override conflicts (create duplicates)
+                      {t('common.override')}
                     </label>
                   </div>
                 </AlertDescription>
@@ -667,7 +667,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
                                     <div className="space-y-1">
                                       <div className="flex items-center gap-2">
                                         <Badge className={`text-xs px-1 py-0 ${getDuplicateBadgeColor(staff.duplicateSeverity)}`}>
-                                          {staff.duplicateSeverity === 'error' ? 'Email Exists' : 'Similar Found'}
+                                          {staff.duplicateSeverity === 'error' ? t('staff.emailExist') : t('staff.similar')}
                                         </Badge>
                                         
                                         <Button
@@ -685,19 +685,19 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
                                         <div className="text-xs text-gray-600 space-y-1 pl-2 border-l-2 border-gray-200">
                                           {staff.duplicateInfo.exact_email_match && (
                                             <div className="text-red-600">
-                                              ✗ Email already exists: {staff.duplicateInfo.exact_email_match.full_name}
+                                              ✗ {t('staff.emailExists')} {staff.duplicateInfo.exact_email_match.full_name}
                                             </div>
                                           )}
                                           
                                           {staff.duplicateInfo.name_similarity_matches?.length > 0 && (
                                             <div className="text-yellow-600">
-                                              ⚠ Similar names found: {staff.duplicateInfo.name_similarity_matches.length}
+                                              ⚠ {t('staff.nameFound')} {staff.duplicateInfo.name_similarity_matches.length}
                                             </div>
                                           )}
                                           
                                           {staff.duplicateInfo.phone_matches?.length > 0 && (
                                             <div className="text-yellow-600">
-                                              ⚠ Phone may exist: {staff.duplicateInfo.phone_matches.length}
+                                              ⚠ {t('staff.phoneExists')} {staff.duplicateInfo.phone_matches.length}
                                             </div>
                                           )}
                                         </div>

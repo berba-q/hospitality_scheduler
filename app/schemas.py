@@ -289,7 +289,7 @@ class StaffCreate(BaseModel):
             return v
 
 class StaffRead(BaseModel):
-    """Staff read response - clean, no inheritance"""
+    """Staff read response - clean, no inheritance of validation fields"""
     id: uuid.UUID
     full_name: str
     email: Optional[str] = None
@@ -301,7 +301,7 @@ class StaffRead(BaseModel):
     is_active: bool
     created_at: datetime
     
-    # Optional duplicate information for new imports
+    # Optional duplicate warnings for new imports
     _duplicate_warnings: Optional[DuplicateInfo] = None
 
     model_config = ConfigDict(from_attributes=True)
