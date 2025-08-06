@@ -330,15 +330,6 @@ function StaffScheduleView({
         {/* Staff Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => window.location.href = '/dashboard'}
-              className="gap-2 hover:bg-gray-100"
-            >
-              <Home className="w-4 h-4" />
-              {t('navigation.dashboard')}
-            </Button>
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
                 {t('schedule.mySchedule')}
@@ -510,15 +501,6 @@ function StaffScheduleView({
               >
                 <ArrowLeftRight className="w-4 h-4 mr-2" />
                 {t('schedule.viewAllMySwaps')}
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => window.location.href = '/dashboard'}
-              >
-                <Home className="w-4 h-4 mr-2" />
-                {t('common.backToDashboard')}
               </Button>
             </CardContent>
           </Card>
@@ -875,15 +857,6 @@ function ManagerScheduleView({
         {/* Manager Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/dashboard')}
-              className="gap-2 hover:bg-gray-100"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              {t('navigation.dashboard')}
-            </Button>
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
                 {t('schedule.smartScheduleManagement')}

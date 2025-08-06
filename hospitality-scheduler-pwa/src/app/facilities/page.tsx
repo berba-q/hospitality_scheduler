@@ -552,15 +552,6 @@ export default function FacilitiesManagementPage() {
           {/* Header with Back Button */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/dashboard')}
-                className="gap-2 hover:bg-gray-100"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Dashboard
-              </Button>
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
                   Facilities Management
