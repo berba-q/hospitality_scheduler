@@ -37,6 +37,7 @@ export const en = {
     deleting: 'Deleting...',
     edit: 'Edit',
     view: 'View',
+    previewImport: 'Preview Import',
     viewAll: 'View All',
     viewDetails: 'View Details',
     viewHistory: 'View History',
@@ -136,12 +137,15 @@ export const en = {
     sort: 'Sort',
     export: 'Export',
     exportReport: 'Export Report',
-    import: 'Import',
+    import: 'Import file, supports Excel or CSV files',
+    detectedColumns: 'Detected columns from file',
     settings: 'Settings',
     config: 'Configuration',
     options: 'Options',
     preferences: 'Preferences',
+    expectedFormat: 'File expected to have atleast one of these columns',
     dropFile: 'Drop Excel or CSV file here',
+    dropFileorChoose: 'Drop file here or click "Choose file" to select and upload a file',
     releaseFile: 'Release to import data from your file',
     fileSupport: 'Supports .xlsx and .csv files',
     
@@ -195,6 +199,7 @@ export const en = {
     unknown: 'Unknown',
     none: 'None',
     all: 'All',
+    issues: 'Issues',
     
     // ============================================================================
     // TIME & DATE TERMS
@@ -439,6 +444,8 @@ export const en = {
     returnToDashboard: 'Return to Dashboard',
     dragDropImport: 'Drag & Drop Excel files anywhere',
     importInstructions: 'to instantly import staff members. We support .xlsx and .csv files with columns: Name, Email, Role, Phone, Facility, Skill Level, Status.',
+    orClickImportButton: 'You can also click the Import staff button to upload a file.',
+    importStaff: 'Import Staff',
     uploadExcelOrCsv: 'Please upload an Excel (.xlsx) or CSV file',
     importSuccess: 'Successfully imported {{count}} staff members!',
     importPartialSuccess: 'Imported {{added}} staff members with {{errors}} errors',
@@ -481,6 +488,11 @@ export const en = {
     staffAdded: 'Staff Added',
     errors: 'Errors',
     importErrorMessage: 'Please check your file format and try again. Make sure all required columns are present.',
+    validRecords: 'Valid Records',
+    invalidRecords: 'Invalid Records',
+    totalRecords: 'Total Records',
+    chooseDifferentFile: 'Choose a different file',
+    importStaffMembers: 'Import staff record(s)',
     
     // Staff roles
     manager: 'Manager',
@@ -530,13 +542,16 @@ export const en = {
     staffWithInfoAlreadyExists: 'A staff member with this information already exists',
     
     // Form fields
-    fullName: 'Full Name',
+    fullName: 'Name',
     fullNamePlaceholder: 'John Doe',
     emailAddress: 'Email Address',
     emailPlaceholder: 'john.doe@company.com',
-    phoneNumber: 'Phone Number',
+    phoneNumber: 'Number',
     phonePlaceholder: '+1 (555) 123-4567',
     role: 'Role',
+    rolePlaceholder: 'Receptionist',
+    facilityPlaceholder: 'Seaside hotel',
+    skillLevelPlaceholder: '3',
     // Skill levels
     skillBeginner: 'Beginner',
     skillBasic: 'Basic', 
@@ -544,10 +559,13 @@ export const en = {
     skillAdvanced: 'Advanced',
     skillExpert: 'Expert',
     levelNumber: 'Level {{level}}',
+
+    hours: 'Weekly hours',
     
     // Placeholders and selects
     customRolePlaceholder: 'Or enter custom role...',
     selectFacility: 'Select a facility',
+    columnNamesFlexible: 'Column names are flexible - the system automatically detects common variations',
     
     // Status and actions
     updating: 'Updating...',

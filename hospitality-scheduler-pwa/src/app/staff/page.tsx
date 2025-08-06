@@ -13,10 +13,21 @@ import { useTranslations } from '@/hooks/useTranslations'
 import { StaffTable } from '@/components/staff/StaffTable'
 import { AddStaffModal } from '@/components/staff/AddStaffModal'
 import { ImportProgressModal } from '@/components/staff/ImportProgressModal'
+import { ImportStaffModal } from '@/components/staff/ImportStaffModal'
 import { GlobalDropZone } from '@/components/staff/GlobalDropZone'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import * as XLSX from 'xlsx'
+
+interface ParsedStaffMember {
+  full_name: string
+  email?: string
+  role: string
+  phone?: string
+  skill_level?: number
+  facility_id?: string
+  weekly_hours_max?: number
+  is_active?: boolean
+}
 
 export default function StaffPage() {
   const { isManager, isLoading: authLoading } = useAuth()
@@ -30,10 +41,12 @@ export default function StaffPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFacility, setSelectedFacility] = useState('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [showImportProgress, setShowImportProgress] = useState(false)
   const [importProgress, setImportProgress] = useState(0)
   const [importStatus, setImportStatus] = useState<'uploading' | 'processing' | 'importing' | 'complete' | 'error'>('uploading')
   const [importResults, setImportResults] = useState({ added: 0, errors: 0 })
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
 
   // Check if user is manager - redirect if not
   useEffect(() => {
@@ -68,101 +81,48 @@ export default function StaffPage() {
     }
   }
 
-  // Auto-import on drag and drop
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+  // Drag & drop with preview
+  const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
     if (!file || (!file.name.endsWith('.xlsx') && !file.name.endsWith('.csv'))) {
       toast.error(t('staff.uploadExcelOrCsv'))
       return
     }
 
+    // Simply open the import modal with the file
+    setPendingImportFile(file)
+    setShowImportModal(true)
+  }, [t])
+
+  // Handle when ImportStaffModal wants to start importing
+  const handleStartImport = async (validStaff: ParsedStaffMember[]) => {
+    // Close preview modal
+    setShowImportModal(false)
+    setPendingImportFile(null)
+    
+    // Open progress modal
     setShowImportProgress(true)
     setImportProgress(0)
-    setImportStatus('uploading')
+    setImportStatus('importing')
+    setImportResults({ added: 0, errors: 0 })
 
     try {
-      // Simulate upload progress
-      for (let i = 0; i <= 30; i += 5) {
-        setImportProgress(i)
-        await new Promise(resolve => setTimeout(resolve, 50))
-      }
-
-      setImportStatus('processing')
-      
-      // Parse the file
-      const arrayBuffer = await file.arrayBuffer()
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' })
-      const sheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[sheetName]
-      const jsonData = XLSX.utils.sheet_to_json(worksheet)
-
-      setImportProgress(50)
-
-      // Process and validate data
-      const staffToImport = jsonData.map((row: any) => {
-        // Extract skill level properly
-        let skillLevel = 3 // default
-        const skillValue = row['Skill Level'] || row['skill_level'] || row['Skill'] || row['Level']
-        if (skillValue !== undefined && skillValue !== null && skillValue !== '') {
-          const parsed = parseInt(skillValue.toString())
-          if (!isNaN(parsed) && parsed >= 1 && parsed <= 5) {
-            skillLevel = parsed
-          }
-        }
-
-        // Extract active status properly
-        let isActive = true // default to active
-        const statusValue = row['Status'] || row['status'] || row['Active'] || row['active'] || row['Is Active']
-        if (statusValue !== undefined) {
-          if (typeof statusValue === 'boolean') {
-            isActive = statusValue
-          } else if (typeof statusValue === 'string') {
-            const lowerStatus = statusValue.toLowerCase()
-            isActive = lowerStatus === 'active' || lowerStatus === 'true' || lowerStatus === 'yes' || lowerStatus === '1'
-          }
-        }
-
-        // Extract phone number properly
-        let phoneNumber = ''
-        const phoneValue = row['Phone'] || row['phone'] || row['Phone Number'] || ''
-        if (phoneValue !== undefined && phoneValue !== null && phoneValue !== '') {
-          phoneNumber = phoneValue.toString().trim()
-        }
-
-        // Extract weekly hours properly
-        let weeklyHours = 40 // default
-        const hoursValue = row['Weekly Hours'] || row['weekly_hours_max'] || row['Hours'] || row['Max Hours']
-        if (hoursValue !== undefined && hoursValue !== null && hoursValue !== '') {
-          const parsed = parseInt(hoursValue.toString())
-          if (!isNaN(parsed) && parsed > 0 && parsed <= 80) {
-            weeklyHours = parsed
-          }
-        }
-
-        return {
-          full_name: (row['Name'] || row['Full Name'] || row['name'] || row['full_name'] || '').toString().trim(),
-          email: (row['Email'] || row['email'] || row['Email Address'] || row['E-mail'] || '').toString().trim(),
-          role: (row['Role'] || row['Position'] || row['role'] || row['position'] || '').toString().trim(),
-          phone: phoneNumber,
-          skill_level: skillLevel,
-          facility_id: facilities.find(f => 
-            f.name.toLowerCase().includes((row['Facility'] || row['facility'] || '').toString().toLowerCase())
-          )?.id || facilities[0]?.id || '',
-          weekly_hours_max: weeklyHours,
-          is_active: isActive
-        }
-      }).filter(staff => staff.full_name && staff.role && staff.facility_id)
-
-      setImportProgress(70)
-      setImportStatus('importing')
-
-      // Import staff members
       let added = 0
       let errors = 0
       
-      for (let i = 0; i < staffToImport.length; i++) {
+      // Import with progress tracking
+      for (let i = 0; i < validStaff.length; i++) {
         try {
-          await apiClient.createStaff(staffToImport[i])
+          await apiClient.createStaff({
+            full_name: validStaff[i].full_name,
+            email: validStaff[i].email || undefined,
+            role: validStaff[i].role,
+            phone: validStaff[i].phone || undefined,
+            skill_level: validStaff[i].skill_level || 3,
+            facility_id: validStaff[i].facility_id!,
+            weekly_hours_max: validStaff[i].weekly_hours_max || 40,
+            is_active: validStaff[i].is_active !== false
+          })
           added++
         } catch (error) {
           errors++
@@ -170,7 +130,7 @@ export default function StaffPage() {
         }
         
         // Update progress
-        const progress = 70 + ((i + 1) / staffToImport.length) * 30
+        const progress = ((i + 1) / validStaff.length) * 100
         setImportProgress(progress)
         
         // Small delay to show progress
@@ -195,7 +155,7 @@ export default function StaffPage() {
       setImportStatus('error')
       toast.error(t('staff.importFailed'))
     }
-  }, [apiClient, facilities, loadData, t])
+  }
 
   // Setup drag and drop for the entire page
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -267,27 +227,30 @@ export default function StaffPage() {
         {isDragActive && <GlobalDropZone />}
 
         <div className="max-w-7xl mx-auto">
-          {/* Header with Back Button */}
+          {/* Header with Import Button */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/dashboard')}
-                className="gap-2 hover:bg-gray-100"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                {t('navigation.dashboard')}
-              </Button>
+            
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
                   {t('staff.staffManagement')}
                 </h1>
-                <p className="text-gray-600 mt-1">{t('staff.manageTeamAllFacilities')}</p>
+                <p className="text-gray-600 mt-1">{t('staff.manageYourTeam')}</p>
               </div>
             </div>
             
             <div className="flex gap-3">
+              {/* Import Staff Button */}
+              <Button
+                variant="outline"
+                onClick={() => setShowImportModal(true)}
+                className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                {t('staff.importStaff')}
+              </Button>
+              
+              {/* Add Staff Button */}
               <Button
                 onClick={() => setShowAddModal(true)}
                 className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200"
@@ -305,6 +268,10 @@ export default function StaffPage() {
                 <FileSpreadsheet className="w-5 h-5 text-blue-600" />
                 <p className="text-blue-800 text-sm">
                   <strong>{t('staff.dragDropImport')}</strong> {t('staff.importInstructions')}
+                  <br />
+                  <span className="text-blue-600">
+                    {t('staff.orClickImportButton')}
+                  </span>
                 </p>
               </div>
             </CardContent>
@@ -441,7 +408,7 @@ export default function StaffPage() {
           </Card>
         </div>
 
-        {/* Modals */}
+        {/* Modals - Clean separation */}
         <AddStaffModal 
           open={showAddModal} 
           onClose={() => setShowAddModal(false)}
@@ -450,6 +417,17 @@ export default function StaffPage() {
             setShowAddModal(false)
             loadData()
           }}
+        />
+
+        <ImportStaffModal 
+          open={showImportModal} 
+          onClose={() => {
+            setShowImportModal(false)
+            setPendingImportFile(null)
+          }}
+          facilities={facilities}
+          onImport={handleStartImport} // Pass callback for import
+          initialFile={pendingImportFile}
         />
         
         <ImportProgressModal

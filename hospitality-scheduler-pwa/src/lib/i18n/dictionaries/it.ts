@@ -37,6 +37,7 @@ export const it = {
     deleting: 'Eliminazione...',
     edit: 'Modifica',
     view: 'Visualizza',
+    previewImport: 'Anteprima File',
     viewAll: 'Visualizza Tutto',
     viewDetails: 'Visualizza Dettagli',
     viewHistory: 'Visualizza la Cronologia',
@@ -135,14 +136,18 @@ export const it = {
     sort: 'Ordina',
     export: 'Esporta',
     exportReport: 'Esporta Il Rapporto',
-    import: 'Importa',
+    import: 'Importa file, supporta Excel o CSV',
+    detectedColumns: 'Colonne rilevate',
     settings: 'Impostazioni',
     config: 'Configurazione',
     options: 'Opzioni',
     preferences: 'Preferenze',
-    dropFile: 'Lascia qui i file Excel o CSV',
+    expectedFormat: 'Il file dvrebbe avere almeno una di queste colonne',
+    dropFile: 'Rilascia il file qui',
+    dropFileorChoose: 'Rilascia il file qui or premi Scegli File per caricare il tuo file.',
     releaseFile: 'Rilascia per importare dati dal tuo file',
-    fileSupport: 'Supporta i file .xlsx e .csv', 
+    fileSupport: 'Supporta file .xlsx e .csv fino a 10MB', 
+    
     
     // Elementi modulo
     required: 'Obbligatorio',
@@ -194,6 +199,7 @@ export const it = {
     unknown: 'Sconosciuto',
     none: 'Nessuno',
     all: 'Tutto',
+    issues: 'Problemi',
     
     // ============================================================================
     // TERMINI TEMPORALI
@@ -437,6 +443,8 @@ export const it = {
     returnToDashboard: 'Torna alla Dashboard',
     dragDropImport: 'Trascina e rilascia file Excel ovunque',
     importInstructions: 'per importare istantaneamente i membri del personale. Supportiamo file .xlsx e .csv con colonne: Nome, Email, Ruolo, Telefono, Struttura, Livello Competenza, Stato.',
+    orClickImportButton: 'Oppure clicca il pulsante "Importa Personale" per sfogliare i file.',
+    importStaff: 'Importa Personale',
     uploadExcelOrCsv: 'Si prega di caricare un file Excel (.xlsx) o CSV',
     importSuccess: 'Importati con successo {{count}} membri del personale!',
     importPartialSuccess: 'Importati {{added}} membri del personale con {{errors}} errori',
@@ -480,6 +488,26 @@ export const it = {
     errors: 'Errori',
     importErrorMessage: 'Controlla il formato del file e riprova. Assicurati che tutte le colonne richieste siano presenti.',
     
+    // File import specific
+    expectedExcelFormat: 'Formato Excel Previsto:',
+    columnNamesFlexible: 'I nomi delle colonne sono flessibili - rileveremo automaticamente le varianti comuni',
+
+
+    // Preview stats
+    validRecords: 'Record Validi',
+    invalidRecords: 'Record Non Validi',
+    totalRecords: 'Record Totali',
+    
+    // Action buttons
+    chooseDifferentFile: 'Scegli File Diverso',
+    importStaffMembers: 'Importa {{count}} Membri del Personale',
+    importing: 'Importazione in corso...',
+
+    nameRequired: 'Il nome è obbligatorio',
+    roleRequired: 'Il ruolo è obbligatorio',
+    facilityNotFound: 'Struttura "{{facilityName}}" non trovata',
+    facilityRequired: 'La struttura è obbligatoria',
+
     // Ruoli personale
     manager: 'Manager',
     assistantManager: 'Assistant Manager',
@@ -527,13 +555,16 @@ export const it = {
     failedAddStaff: 'Impossibile aggiungere il membro del personale',
     staffWithInfoAlreadyExists: 'Un membro del personale con queste informazioni esiste già',
     // Form fields
-    fullName: 'Nome Completo',
+    fullName: 'Nome',
     fullNamePlaceholder: 'Mario Rossi',
-    emailAddress: 'Indirizzo Email',
+    emailAddress: 'Email',
     emailPlaceholder: 'mario.rossi@azienda.com',
-    phoneNumber: 'Numero di Telefono',
+    phoneNumber: 'Telefono',
     phonePlaceholder: '+39 123 456 7890',
     role: 'Ruolo',
+    rolePlaceholder: 'Receptionist',
+    facilityPlaceholder: 'Seaside hotel',
+    skillLevelPlaceholder: '3',
     // Skill levels
     skillBeginner: 'Principiante',
     skillBasic: 'Base',
@@ -541,6 +572,7 @@ export const it = {
     skillAdvanced: 'Avanzato',
     skillExpert: 'Esperto',
     levelNumber: 'Livello {{level}}',
+    hours: 'Ore settimanali',
     
     // Placeholders and selects
     customRolePlaceholder: 'O inserisci ruolo personalizzato...',
