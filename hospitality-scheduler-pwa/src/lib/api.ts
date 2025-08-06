@@ -580,10 +580,24 @@ export class ApiClient {
     phone?: string
     facility_id: string
     weekly_hours_max?: number
+    is_active?: boolean  // Added this field
+    force_create?: boolean  // NEW: Support for duplicate override
+    skip_duplicate_check?: boolean  // NEW: Support for skipping validation
   }) {
-    return this.request<any>('/v1/staff', {
+    // Extract query parameters if they exist
+    const { force_create, skip_duplicate_check, ...bodyData } = staffData
+    
+    // Build query string for duplicate handling
+    const queryParams = new URLSearchParams()
+    if (force_create) queryParams.append('force_create', 'true')
+    if (skip_duplicate_check) queryParams.append('skip_duplicate_check', 'true')
+    
+    const queryString = queryParams.toString()
+    const endpoint = `/v1/staff${queryString ? `?${queryString}` : ''}`
+    
+    return this.request<any>(endpoint, {
       method: 'POST',
-      body: JSON.stringify(staffData),
+      body: JSON.stringify(bodyData)
     })
   }
 
@@ -613,6 +627,33 @@ export class ApiClient {
     return this.request<{ exists: boolean }>('/v1/staff/check-duplicate', {
       method: 'POST',
       body: JSON.stringify({ full_name: name, facility_id: facilityId }),
+    })
+  }
+
+  async validateStaffBeforeCreate(staffData: {
+    full_name: string
+    email?: string
+    role: string
+    phone?: string
+    skill_level?: number
+    facility_id: string
+    weekly_hours_max?: number
+    is_active?: boolean
+  }): Promise<{
+    can_create: boolean
+    validation_errors: string[]
+    duplicates: {
+      exact_email_match?: any
+      name_similarity_matches: any[]
+      phone_matches: any[]
+      has_any_duplicates: boolean
+      severity: 'none' | 'warning' | 'error'
+    }
+    recommendations: string[]
+  }> {
+    return this.request<any>('/v1/staff/validate-before-create', {
+      method: 'POST',
+      body: JSON.stringify(staffData)
     })
   }
 

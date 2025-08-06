@@ -4,41 +4,59 @@ import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileSpreadsheet, Check, X, AlertTriangle} from 'lucide-react'
+import { Upload, FileSpreadsheet, Check, X, AlertTriangle, UserX, Users, Eye, EyeOff } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
+import { useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
+import React from 'react'
 
 interface ImportStaffModalProps {
   open: boolean
   onClose: () => void
   facilities: any[]
-  onImport: (validStaff: ParsedStaffMember[]) => Promise<void> // NEW: Callback for import
+  onImport: (validStaff: ParsedStaffMember[]) => Promise<void>
   initialFile?: File | null
 }
 
 interface ParsedStaffMember {
   full_name: string
-  email?: string // Added email support
+  email?: string
   role: string
   phone?: string
   skill_level?: number
   facility_name?: string
   facility_id?: string
   weekly_hours_max?: number
-  is_active?: boolean // Added active status support
+  is_active?: boolean
   valid: boolean
   errors: string[]
+  // NEW: Duplicate checking fields
+  duplicateInfo?: any
+  hasDuplicates?: boolean
+  duplicateSeverity?: 'none' | 'warning' | 'error'
+  canImport?: boolean
+  forceCreate?: boolean
 }
 
 export function ImportStaffModal({ open, onClose, facilities, onImport, initialFile }: ImportStaffModalProps) {
   const { t } = useTranslations()
+  const apiClient = useApiClient()
   const [step, setStep] = useState<'upload' | 'preview'>('upload')
   const [detectedColumns, setDetectedColumns] = useState<Set<string>>(new Set())
   const [originalColumnNames, setOriginalColumnNames] = useState<Record<string, string>>({})
   const [parsedData, setParsedData] = useState<ParsedStaffMember[]>([])
   const [file, setFile] = useState<File | null>(null)
+  
+  // NEW: Duplicate checking state
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false)
+  const [duplicatesChecked, setDuplicatesChecked] = useState(false)
+  const [selectedForImport, setSelectedForImport] = useState<Set<number>>(new Set())
+  const [showDuplicateDetails, setShowDuplicateDetails] = useState<Set<number>>(new Set())
+  const [forceCreateAll, setForceCreateAll] = useState(false)
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const uploadedFile = acceptedFiles[0]
@@ -67,13 +85,13 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
   // Enhanced column mappings with more variants
   const COLUMN_MAPPINGS = {
     full_name: ['Name', 'Full Name', 'name', 'full_name', 'Nome', 'Nome Completo', 'Nom', 'Nombre'],
-    email: ['Email', 'email', 'Email Address', 'E-mail', 'E-Mail', 'Mail'], // Added email mapping
+    email: ['Email', 'email', 'Email Address', 'E-mail', 'E-Mail', 'Mail'],
     role: ['Role', 'Position', 'role', 'position', 'Ruolo', 'Posizione', 'Rôle', 'Rol'],
     phone: ['Phone', 'phone', 'Phone Number', 'Telefono', 'Cellulare', 'Numero', 'Téléphone'],
     facility: ['Facility', 'facility', 'Location', 'Struttura', 'Posto', 'Sede', 'Établissement'],
     skill_level: ['Skill Level', 'skill_level', 'Level', 'Skill', 'Livello', 'Competenza', 'Livello di Competenza'],
     weekly_hours_max: ['Weekly Hours', 'weekly_hours_max', 'Hours', 'Max Hours', 'Ore settimanali', 'ore_settimanali', 'Ore Massime'],
-    status: ['Status', 'status', 'Active', 'active', 'Is Active', 'Stato', 'Attivo'] // Added status mapping
+    status: ['Status', 'status', 'Active', 'active', 'Is Active', 'Stato', 'Attivo']
   }
 
   function mapColumnValue(row: any, fieldName: string): string {
@@ -94,66 +112,65 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
       const worksheet = workbook.Sheets[sheetName]
       const jsonData = XLSX.utils.sheet_to_json(worksheet)
       
-      // Track columns in the file uploaded
       const detectedColumns = new Set<string>()
       const originalColumnNames: Record<string, string> = {}
 
       const parsed = jsonData.map((row: any) => {
-        // Track columns
         const trackColumn = (fieldName: string) => {
           const possibleColumns = COLUMN_MAPPINGS[fieldName] || []
           for (const col of possibleColumns) {
-            if (row[col] !== undefined && row[col] !== null && row[col].toString().trim()) {
+            if (row[col] !== undefined) {
               detectedColumns.add(fieldName)
-              if (!originalColumnNames[fieldName]) {
-                originalColumnNames[fieldName] = col // Store the original column name
-              }
-              return row[col].toString().trim()
+              originalColumnNames[fieldName] = col
+              return
             }
           }
-          return ''
-        }
-        // Skill level with validation
-        let skillLevel = 3
-        const skillValue = trackColumn('skill_level')
-        if (skillValue) {
-          const parsed = parseInt(skillValue)
-          if (!isNaN(parsed) && parsed >= 1 && parsed <= 5) {
-            skillLevel = parsed
-          }
         }
 
-        // Active status extraction
-        let isActive = true
-        const statusValue = trackColumn('status')
-        if (statusValue) {
-          const lowerStatus = statusValue.toLowerCase()
-          isActive = lowerStatus === 'active' || lowerStatus === 'true' || lowerStatus === 'yes' || lowerStatus === '1'
+        trackColumn('full_name')
+        trackColumn('email')
+        trackColumn('role')
+        trackColumn('phone')
+        trackColumn('facility')
+        trackColumn('skill_level')
+        trackColumn('weekly_hours_max')
+        trackColumn('status')
+
+        const full_name = mapColumnValue(row, 'full_name')
+        const email = mapColumnValue(row, 'email')
+        const role = mapColumnValue(row, 'role')
+        const phone = mapColumnValue(row, 'phone')
+        const facility_name = mapColumnValue(row, 'facility')
+        const skill_level_str = mapColumnValue(row, 'skill_level')
+        const weekly_hours_str = mapColumnValue(row, 'weekly_hours_max')
+        const status_str = mapColumnValue(row, 'status')
+
+        const skillLevel = skill_level_str ? parseInt(skill_level_str, 10) : 3
+        const weeklyHours = weekly_hours_str ? parseInt(weekly_hours_str, 10) : 40
+        
+        let is_active = true
+        if (status_str) {
+          const statusLower = status_str.toLowerCase()
+          is_active = !['false', 'no', 'inactive', 'inattivo', '0'].includes(statusLower)
         }
 
-        // Weekly hours with validation
-        let weeklyHours = 40
-        const hoursValue = trackColumn('weekly_hours_max')
-        if (hoursValue) {
-          const parsed = parseInt(hoursValue)
-          if (!isNaN(parsed) && parsed > 0 && parsed <= 80) {
-            weeklyHours = parsed
-          }
-        }
-
-        const staff: ParsedStaffMember & { detectedColumns?: Set<string>, originalColumnNames?: Record<string, string> } = {
-          full_name: trackColumn('full_name'),
-          email: trackColumn('email'),
-          role: trackColumn('role'), 
-          phone: trackColumn('phone'),
-          facility_name: trackColumn('facility'),
+        const staff: ParsedStaffMember = {
+          full_name,
+          email: email || undefined,
+          role,
+          phone: phone || undefined,
           skill_level: skillLevel,
+          facility_name,
+          facility_id: undefined,
           weekly_hours_max: weeklyHours,
-          is_active: isActive,
+          is_active,
           valid: true,
           errors: [],
-          detectedColumns: detectedColumns, // Store for preview
-          originalColumnNames: originalColumnNames
+          // NEW: Initialize duplicate fields
+          hasDuplicates: false,
+          duplicateSeverity: 'none',
+          canImport: true,
+          forceCreate: false
         }
 
         // Validation with translated error messages
@@ -179,7 +196,6 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
             staff.valid = false
           }
         } else {
-          // Default to first facility if only one exists
           if (facilities.length === 1) {
             staff.facility_id = facilities[0].id
             staff.facility_name = facilities[0].name
@@ -192,68 +208,199 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
         return staff
       })
 
-      // Store detected columns for the preview table
       setDetectedColumns(detectedColumns)
       setOriginalColumnNames(originalColumnNames)
       setParsedData(parsed)
+      
+      // NEW: Auto-select all valid staff initially
+      const validIndices = new Set(
+        parsed.map((_, index) => index).filter(i => parsed[i].valid)
+      )
+      setSelectedForImport(validIndices)
+      
       setStep('preview')
+      
+      // NEW: Check for duplicates after parsing
+      await checkForDuplicates(parsed)
+      
     } catch (error) {
-      toast.error(t('staff.failedToParseExcel'))
-      console.error(error)
+      console.error('Failed to parse Excel file:', error)
+      toast.error(t('common.error'))
     }
   }
 
-  // Dynamic column configuration for preview
-  const getPreviewColumns = () => {
-    const columns = [
-      { key: 'status', label: t('staff.status'), width: 'w-16' }
-    ]
+  // NEW: Check all staff for duplicates
+  const checkForDuplicates = async (staffList: ParsedStaffMember[]) => {
+    if (!staffList.length) return
 
-    // Add columns based on what was actually found in the file
+    setCheckingDuplicates(true)
+    
+    try {
+      const updatedStaff = [...staffList]
+      
+      for (let i = 0; i < updatedStaff.length; i++) {
+        const staff = updatedStaff[i]
+        
+        if (!staff.valid || !staff.facility_id) continue
+
+        try {
+          const response = await apiClient.validateStaffBeforeCreate({
+            full_name: staff.full_name,
+            email: staff.email,
+            role: staff.role,
+            phone: staff.phone,
+            skill_level: staff.skill_level,
+            facility_id: staff.facility_id,
+            weekly_hours_max: staff.weekly_hours_max,
+            is_active: staff.is_active
+          })
+
+          if (response.duplicates?.has_any_duplicates) {
+            updatedStaff[i] = {
+              ...staff,
+              hasDuplicates: true,
+              duplicateInfo: response.duplicates,
+              duplicateSeverity: response.duplicates.severity,
+              canImport: response.can_create,
+              errors: response.duplicates.severity === 'error' && !forceCreateAll 
+                ? [...staff.errors, 'Duplicate detected - use override to force create']
+                : staff.errors
+            }
+            
+            // Remove from auto-selection if it's a blocking duplicate
+            if (response.duplicates.severity === 'error') {
+              setSelectedForImport(prev => {
+                const newSet = new Set(prev)
+                newSet.delete(i)
+                return newSet
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Error checking duplicates for:', staff.full_name, error)
+        }
+      }
+
+      setParsedData(updatedStaff)
+      setDuplicatesChecked(true)
+      
+    } finally {
+      setCheckingDuplicates(false)
+    }
+  }
+
+  // NEW: Toggle selection of individual staff
+  const toggleSelection = (index: number) => {
+    const staff = parsedData[index]
+    const newSelection = new Set(selectedForImport)
+    
+    if (newSelection.has(index)) {
+      newSelection.delete(index)
+    } else {
+      // Only allow selection if staff is valid and can be imported
+      if (staff.valid && (staff.canImport || forceCreateAll)) {
+        newSelection.add(index)
+      }
+    }
+    
+    setSelectedForImport(newSelection)
+  }
+
+  // NEW: Toggle duplicate details view
+  const toggleDuplicateDetails = (index: number) => {
+    const newSet = new Set(showDuplicateDetails)
+    if (newSet.has(index)) {
+      newSet.delete(index)
+    } else {
+      newSet.add(index)
+    }
+    setShowDuplicateDetails(newSet)
+  }
+
+  // NEW: Force create toggle
+  const handleForceCreateToggle = (checked: boolean) => {
+    setForceCreateAll(checked)
+    
+    // Update all staff to mark for force creation
+    const updatedStaff = parsedData.map(staff => ({
+      ...staff,
+      forceCreate: checked,
+      canImport: checked || staff.canImport
+    }))
+    setParsedData(updatedStaff)
+    
+    // Re-select blocked items if force create is enabled
+    if (checked) {
+      const allValidIndices = new Set(
+        updatedStaff.map((_, index) => index).filter(i => updatedStaff[i].valid)
+      )
+      setSelectedForImport(allValidIndices)
+    }
+  }
+
+  const getDuplicateIcon = (severity: string | undefined) => {
+    switch (severity) {
+      case 'error': return <X className="w-4 h-4 text-red-500" />
+      case 'warning': return <AlertTriangle className="w-4 h-4 text-yellow-500" />
+      default: return <Check className="w-4 h-4 text-green-500" />
+    }
+  }
+
+  const getDuplicateBadgeColor = (severity: string | undefined) => {
+    switch (severity) {
+      case 'error': return 'bg-red-100 text-red-800 border-red-200'
+      case 'warning': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      default: return 'bg-green-100 text-green-800 border-green-200'
+    }
+  }
+
+  const getColumns = () => {
+    const columns = []
+    
     if (detectedColumns.has('full_name')) {
       columns.push({ 
         key: 'full_name', 
-        label: `${t('staff.fullName')}`,
-        width: 'min-w-[120px]'
-      })
-    }
-
-    if (detectedColumns.has('email')) {
-      columns.push({ 
-        key: 'email', 
-        label: `${t('staff.emailAddress')}`,
-        width: 'min-w-[140px]'
+        label: `${originalColumnNames['full_name']} (${t('staff.name')})`,
+        width: 'min-w-[150px]'
       })
     }
 
     if (detectedColumns.has('role')) {
       columns.push({ 
         key: 'role', 
-        label: `${t('staff.role')}`,
-        width: 'min-w-[100px]'
+        label: `${originalColumnNames['role']} (${t('staff.role')})`,
+        width: 'w-32'
       })
     }
 
-    if (detectedColumns.has('facility')) {
+    if (detectedColumns.has('email')) {
       columns.push({ 
-        key: 'facility', 
-        label: `${t('staff.facility')} `,
-        width: 'min-w-[120px]'
+        key: 'email', 
+        label: `${originalColumnNames['email']} (${t('common.email')})`,
+        width: 'w-48'
       })
     }
 
     if (detectedColumns.has('phone')) {
       columns.push({ 
         key: 'phone', 
-        label: `${t('staff.phoneNumber')} `,
-        width: 'min-w-[100px]'
+        label: `${originalColumnNames['phone']} (${t('common.phone')})`,
+        width: 'w-32'
+      })
+    }
+
+    if (detectedColumns.has('facility')) {
+      columns.push({ 
+        key: 'facility_name', 
+        label: `${originalColumnNames['facility']} (${t('staff.facility')})`,
+        width: 'w-32'
       })
     }
 
     if (detectedColumns.has('skill_level')) {
       columns.push({ 
         key: 'skill_level', 
-        label: `${t('staff.skillLevel')}`,
+        label: `${originalColumnNames['skill_level']} (${t('staff.level')})`,
         width: 'w-20'
       })
     }
@@ -269,21 +416,27 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     if (detectedColumns.has('status')) {
       columns.push({ 
         key: 'is_active', 
-        label: `${t('common.Status')} `,
+        label: `${t('common.Status')}`,
         width: 'w-20'
       })
     }
 
-    // Always show issues column
+    // Always show issues column (now includes duplicates)
     columns.push({ key: 'issues', label: t('common.issues'), width: 'min-w-[200px]' })
 
     return columns
   }
 
-  // handle the import
+  // Enhanced import handler
   const handleImport = async () => {
-    const validStaff = parsedData.filter(staff => staff.valid)
-    await onImport(validStaff) // Delegate to parent
+    const staffToImport = parsedData
+      .filter((_, index) => selectedForImport.has(index))
+      .map(staff => ({
+        ...staff,
+        force_create: forceCreateAll || staff.forceCreate
+      }))
+    
+    await onImport(staffToImport)
     resetModal()
   }
 
@@ -291,6 +444,11 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     setStep('upload')
     setParsedData([])
     setFile(null)
+    setCheckingDuplicates(false)
+    setDuplicatesChecked(false)
+    setSelectedForImport(new Set())
+    setShowDuplicateDetails(new Set())
+    setForceCreateAll(false)
   }
 
   const handleClose = () => {
@@ -298,8 +456,9 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     onClose()
   }
 
-  const validCount = parsedData.filter(staff => staff.valid).length
-  const invalidCount = parsedData.length - validCount
+  const validCount = parsedData.filter((_, index) => selectedForImport.has(index)).length
+  const duplicateCount = parsedData.filter(staff => staff.hasDuplicates).length
+  const conflictCount = parsedData.filter(staff => staff.duplicateSeverity === 'error').length
 
   if (step === 'upload') {
     return (
@@ -315,7 +474,6 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
           </DialogHeader>
 
           <div className="mt-6">
-            {/* Upload Zone */}
             <div
               {...getRootProps()}
               className={`border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200 cursor-pointer ${
@@ -331,48 +489,26 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
               </div>
               
               <h3 className="text-lg font-semibold mb-2">
-                {isDragActive ? t('common.dropFile') : t('common.dropFileorChoose')}
+                {isDragActive ? t('common.releaseFile') : t('common.dropFileorChoose')}
               </h3>
               
-              <p className="text-gray-600 mb-4">
+              <p className="text-sm text-gray-500 mb-4">
                 {t('common.fileSupport')}
               </p>
               
-              <Button variant="outline" type="button">
-                {t('common.chooseFile')}
-              </Button>
-            </div>
-
-            {/* Expected Format */}
-            <div className="mt-8 p-6 bg-blue-50 rounded-xl">
-              <h4 className="font-semibold text-blue-900 mb-3">{t('common.expectedFormat')}</h4>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-blue-100 rounded">
-                      <th className="p-2 text-left">{t('staff.fullName')}</th>
-                      <th className="p-2 text-left">{t('staff.role')}</th>
-                      <th className="p-2 text-left">{t('staff.phoneNumber')}</th>
-                      <th className="p-2 text-left">{t('staff.emailAddress')}</th>
-                      <th className="p-2 text-left">{t('staff.facility')}</th>
-                      <th className="p-2 text-left">{t('staff.skillLevel')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-blue-800">
-                    <tr>
-                      <td className="p-2">{t('staff.fullNamePlaceholder')}</td>
-                      <td className="p-2">{t('staff.rolePlaceholder')}</td>
-                      <td className="p-2">{t('staff.phonePlaceholder')}</td>
-                      <td className="p-2">{t('staff.emailPlaceholder')}</td>
-                      <td className="p-2">{t('staff.facilityPlaceholder')}</td>
-                      <td className="p-2">{t('staff.skillLevelPlaceholder')}</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">
+                  {t('common.expectedFormat')}:
+                </h4>
+                <div className="grid grid-cols-2 gap-2 text-sm text-blue-700">
+                  <div>• Name, Full Name, Nome</div>
+                  <div>• Role, Position, Ruolo</div>
+                  <div>• Email, E-mail</div>
+                  <div>• Phone, Telefono</div>
+                  <div>• Facility, Struttura</div>
+                  <div>• Skill Level, Livello</div>
+                </div>
               </div>
-              <p className="text-xs text-blue-700 mt-2">
-                <strong>{t('staff.columnNamesFlexible')}</strong>
-              </p>
             </div>
           </div>
         </DialogContent>
@@ -380,168 +516,227 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     )
   }
 
-  if (step === 'preview') {
-    return (
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent size='2xl'>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                <FileSpreadsheet className="w-4 h-4 text-white" />
+  // Enhanced preview step with duplicate checking
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent size='6xl' className="max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" />
+              {t('staff.importPreview')} - {parsedData.length} {t('common.records')}
+            </div>
+            
+            {checkingDuplicates && (
+              <div className="flex items-center gap-2 text-sm text-blue-600">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                Checking duplicates...
               </div>
-              {t('common.previewImport')} - {file?.name}
-            </DialogTitle>
-          </DialogHeader>
+            )}
+          </DialogTitle>
+        </DialogHeader>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 my-6">
-            <div className="bg-green-50 p-4 rounded-lg text-center">
-              <div className="text-2xl font-bold text-green-600">{validCount}</div>
-              <div className="text-sm text-green-700">{t('staff.validRecords')}</div>
+        <div className="flex-1 overflow-hidden flex flex-col gap-4">
+          {/* Summary and controls */}
+          <div className="flex flex-col gap-3">
+            {/* Summary badges */}
+            <div className="flex items-center justify-between">
+              <div className="flex gap-2">
+                <Badge variant="outline" className="bg-green-50">
+                  {validCount} Selected for Import
+                </Badge>
+                
+                {duplicateCount > 0 && (
+                  <Badge variant="outline" className="bg-yellow-50">
+                    {duplicateCount} With Duplicates
+                  </Badge>
+                )}
+                
+                {conflictCount > 0 && (
+                  <Badge variant="outline" className="bg-red-50">
+                    {conflictCount} Conflicts
+                  </Badge>
+                )}
+              </div>
+
+              {/* Selection controls */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const allValidIndices = parsedData
+                      .map((_, i) => i)
+                      .filter(i => parsedData[i].valid && (parsedData[i].canImport || forceCreateAll))
+                    setSelectedForImport(new Set(allValidIndices))
+                  }}
+                >
+                  Select All Valid
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedForImport(new Set())}
+                >
+                  Select None
+                </Button>
+              </div>
             </div>
-            <div className="bg-red-50 p-4 rounded-lg text-center">
-              <div className="text-2xl font-bold text-red-600">{invalidCount}</div>
-              <div className="text-sm text-red-700">{t('staff.invalidRecords')}</div>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-lg text-center">
-              <div className="text-2xl font-bold text-blue-600">{parsedData.length}</div>
-              <div className="text-sm text-blue-700">{t('staff.totalRecords')}</div>
-            </div>
+
+            {/* Duplicate handling controls */}
+            {duplicatesChecked && conflictCount > 0 && (
+              <Alert className="border-orange-200 bg-orange-50">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="flex items-center justify-between">
+                  <span className="text-orange-800">
+                    Found {conflictCount} email conflicts that need attention.
+                  </span>
+                  
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="force-create"
+                      checked={forceCreateAll}
+                      onCheckedChange={handleForceCreateToggle}
+                    />
+                    <label htmlFor="force-create" className="text-sm font-medium text-orange-800 cursor-pointer">
+                      Override conflicts (create duplicates)
+                    </label>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
-          {/* Detected Columns Info */}
-          {detectedColumns.size > 0 && (
-            <div className="bg-blue-50 p-3 rounded-lg mb-4">
-              <p className="text-sm text-blue-800 mb-2">
-                <strong>{t('common.detectedColumns')}:</strong>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {Array.from(detectedColumns).map(col => (
-                  <Badge key={col} variant="outline" className="text-xs">
-                    {originalColumnNames[col]}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Data Preview - Dynamic Columns */}
-          <div className="flex-1 overflow-y-auto border rounded-lg">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 sticky top-0">
+          {/* Enhanced data table */}
+          <div className="flex-1 overflow-auto border rounded-lg">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b sticky top-0">
                 <tr>
-                  {getPreviewColumns().map(col => (
-                    <th key={col.key} className={`p-3 text-left ${col.width}`}>
+                  <th className="w-12 p-3 text-left">
+                    <Users className="w-4 h-4" />
+                  </th>
+                  {getColumns().map(col => (
+                    <th key={col.key} className={`${col.width} p-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider`}>
                       {col.label}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
-                {parsedData.map((staff, index) => (
-                  <tr key={index} className={`border-t ${staff.valid ? 'bg-green-50/30' : 'bg-red-50/30'}`}>
-                    {getPreviewColumns().map(col => {
-                      if (col.key === 'status') {
-                        return (
-                          <td key={col.key} className="p-3">
-                            {staff.valid ? (
-                              <Check className="w-5 h-5 text-green-600" />
-                            ) : (
-                              <X className="w-5 h-5 text-red-600" />
-                            )}
-                          </td>
-                        )
-                      }
-                      
-                      if (col.key === 'full_name') {
-                        return (
-                          <td key={col.key} className="p-3 font-medium">
-                            {staff.full_name}
-                          </td>
-                        )
-                      }
-                      
-                      if (col.key === 'email') {
-                        return (
-                          <td key={col.key} className="p-3 text-blue-600">
-                            {staff.email}
-                          </td>
-                        )
-                      }
-                      
-                      if (col.key === 'role') {
-                        return (
-                          <td key={col.key} className="p-3">
-                            <Badge variant="outline">{staff.role}</Badge>
-                          </td>
-                        )
-                      }
-                      
-                      if (col.key === 'facility') {
-                        return (
-                          <td key={col.key} className="p-3">
-                            {staff.facility_name}
-                          </td>
-                        )
-                      }
-                      
-                      if (col.key === 'phone') {
-                        return (
-                          <td key={col.key} className="p-3">
-                            {staff.phone}
-                          </td>
-                        )
-                      }
-                      
-                      if (col.key === 'skill_level') {
-                        return (
-                          <td key={col.key} className="p-3 text-center">
-                            <Badge variant="secondary">{staff.skill_level}</Badge>
-                          </td>
-                        )
-                      }
-                      
-                      if (col.key === 'weekly_hours_max') {
-                        return (
-                          <td key={col.key} className="p-3 text-center">
-                            {staff.weekly_hours_max}h
-                          </td>
-                        )
-                      }
-                      
-                      if (col.key === 'is_active') {
-                        return (
-                          <td key={col.key} className="p-3">
-                            <Badge variant={staff.is_active ? "default" : "secondary"}>
-                              {staff.is_active ? t('staff.active') : t('staff.inactive')}
-                            </Badge>
-                          </td>
-                        )
-                      }
-                      
-                      if (col.key === 'issues') {
-                        return (
-                          <td key={col.key} className="p-3">
-                            {staff.errors.length > 0 && (
-                              <div className="flex items-center gap-1 text-red-600">
-                                <AlertTriangle className="w-4 h-4" />
-                                <span className="text-xs">{staff.errors.join(', ')}</span>
-                              </div>
-                            )}
-                          </td>
-                        )
-                      }
-                      
-                      return <td key={col.key} className="p-3">-</td>
-                    })}
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-gray-200">
+                {parsedData.map((staff, index) => {
+                  const isSelected = selectedForImport.has(index)
+                  const showingDetails = showDuplicateDetails.has(index)
+                  
+                  return (
+                    <React.Fragment key={index}>
+                      <tr className={`
+                        ${!staff.valid ? 'bg-red-50' : 
+                          staff.hasDuplicates ? 
+                            (staff.duplicateSeverity === 'error' ? 'bg-red-25' : 'bg-yellow-25') 
+                            : 'bg-white'
+                        }
+                        hover:bg-gray-50
+                      `}>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleSelection(index)}
+                              disabled={!staff.valid || (!staff.canImport && !forceCreateAll)}
+                            />
+                            {staff.hasDuplicates && getDuplicateIcon(staff.duplicateSeverity)}
+                          </div>
+                        </td>
+                        
+                        {getColumns().map(col => {
+                          if (col.key === 'issues') {
+                            return (
+                              <td key={col.key} className="p-3">
+                                <div className="space-y-1">
+                                  {/* Basic validation errors */}
+                                  {staff.errors.length > 0 && (
+                                    <div className="flex items-center gap-1 text-red-600">
+                                      <AlertTriangle className="w-4 h-4" />
+                                      <span className="text-xs">{staff.errors.join(', ')}</span>
+                                    </div>
+                                  )}
+                                  
+                                  {/* NEW: Duplicate information */}
+                                  {staff.hasDuplicates && (
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <Badge className={`text-xs px-1 py-0 ${getDuplicateBadgeColor(staff.duplicateSeverity)}`}>
+                                          {staff.duplicateSeverity === 'error' ? 'Email Exists' : 'Similar Found'}
+                                        </Badge>
+                                        
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-5 w-5 p-0"
+                                          onClick={() => toggleDuplicateDetails(index)}
+                                        >
+                                          {showingDetails ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                        </Button>
+                                      </div>
+                                      
+                                      {/* Duplicate details when expanded */}
+                                      {showingDetails && staff.duplicateInfo && (
+                                        <div className="text-xs text-gray-600 space-y-1 pl-2 border-l-2 border-gray-200">
+                                          {staff.duplicateInfo.exact_email_match && (
+                                            <div className="text-red-600">
+                                              ✗ Email already exists: {staff.duplicateInfo.exact_email_match.full_name}
+                                            </div>
+                                          )}
+                                          
+                                          {staff.duplicateInfo.name_similarity_matches?.length > 0 && (
+                                            <div className="text-yellow-600">
+                                              ⚠ Similar names found: {staff.duplicateInfo.name_similarity_matches.length}
+                                            </div>
+                                          )}
+                                          
+                                          {staff.duplicateInfo.phone_matches?.length > 0 && (
+                                            <div className="text-yellow-600">
+                                              ⚠ Phone may exist: {staff.duplicateInfo.phone_matches.length}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            )
+                          }
+                          
+                          // Handle other columns normally
+                          if (col.key === 'is_active') {
+                            return (
+                              <td key={col.key} className="p-3">
+                                <Badge variant={staff.is_active ? "default" : "secondary"}>
+                                  {staff.is_active ? t('staff.active') : t('staff.inactive')}
+                                </Badge>
+                              </td>
+                            )
+                          }
+                          
+                          const value = staff[col.key as keyof ParsedStaffMember]
+                          return (
+                            <td key={col.key} className="p-3">
+                              {value?.toString() || '-'}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    </React.Fragment>
+                  )
+                })}
               </tbody>
             </table>
           </div>
 
-          {/* Actions - Simplified, no progress handling */}
-          <div className="flex gap-3 pt-4">
+          {/* Enhanced actions */}
+          <div className="flex gap-3 pt-4 border-t">
             <Button variant="outline" onClick={resetModal} className="flex-1">
               {t('staff.chooseDifferentFile')}
             </Button>
@@ -553,10 +748,8 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
               {t('staff.importStaffMembers', { count: validCount })}
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
-    )
-  }
-
-  return null
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }

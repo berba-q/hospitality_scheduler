@@ -113,6 +113,7 @@ export default function StaffPage() {
       // Import with progress tracking
       for (let i = 0; i < validStaff.length; i++) {
         try {
+          // Use the enhanced existing createStaff method
           await apiClient.createStaff({
             full_name: validStaff[i].full_name,
             email: validStaff[i].email || undefined,
@@ -121,34 +122,35 @@ export default function StaffPage() {
             skill_level: validStaff[i].skill_level || 3,
             facility_id: validStaff[i].facility_id!,
             weekly_hours_max: validStaff[i].weekly_hours_max || 40,
-            is_active: validStaff[i].is_active !== false
+            is_active: validStaff[i].is_active ?? true,
+            force_create: validStaff[i].force_create || false, // NEW: Pass force_create flag
+            skip_duplicate_check: false
           })
+          
           added++
-        } catch (error) {
+          setImportResults({ added, errors })
+          setImportProgress((i + 1) / validStaff.length * 100)
+          
+        } catch (error: any) {
+          console.error('Failed to create staff:', validStaff[i].full_name, error)
           errors++
-          console.error('Failed to import staff:', error)
+          setImportResults({ added, errors })
         }
-        
-        // Update progress
-        const progress = ((i + 1) / validStaff.length) * 100
-        setImportProgress(progress)
-        
-        // Small delay to show progress
-        await new Promise(resolve => setTimeout(resolve, 100))
       }
 
-      setImportResults({ added, errors })
+      // Finish import
       setImportStatus('complete')
-      setImportProgress(100)
-
-      // Refresh data
-      await loadData()
-
+      await loadData() // Refresh data
+      
       if (errors === 0) {
         toast.success(t('staff.importSuccess', { count: added }))
       } else {
         toast.warning(t('staff.importPartialSuccess', { added, errors }))
       }
+
+      setTimeout(() => {
+        setShowImportProgress(false)
+      }, 2000)
 
     } catch (error) {
       console.error('Import failed:', error)
