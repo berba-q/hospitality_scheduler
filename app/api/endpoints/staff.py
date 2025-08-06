@@ -11,11 +11,111 @@ from ...models import (
     Schedule,
     ShiftAssignment,
     SwapRequest,
-    SwapStatus,        # NEW: workflow enum
+    SwapStatus,        
 )
 from ...schemas import StaffCreate, StaffDuplicateCheck, StaffRead, StaffUpdate
 
 router = APIRouter(prefix="/staff", tags=["staff"])
+
+def check_for_duplicates(
+    db: Session, 
+    staff_in: StaffCreate, 
+    current_user, 
+    check_email: bool = True,
+    check_name_similarity: bool = True
+) -> dict:
+    """
+    Comprehensive duplicate checking for staff members.
+    Returns dict with duplicate information and suggestions.
+    """
+    duplicates = {
+        "exact_email_match": None,
+        "name_similarity_matches": [],
+        "phone_matches": [],
+        "has_any_duplicates": False,
+        "severity": "none"  # none, warning, error
+    }
+    
+    # Verify facility belongs to tenant
+    facility = db.get(Facility, staff_in.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        return duplicates
+    
+    # 1. Check for exact email duplicates (most critical)
+    if check_email and staff_in.email:
+        exact_email_match = db.exec(
+            select(Staff).join(Facility).where(
+                func.lower(Staff.email) == staff_in.email.lower().strip(),
+                Facility.tenant_id == current_user.tenant_id,
+                Staff.is_active == True
+            )
+        ).first()
+        
+        if exact_email_match:
+            duplicates["exact_email_match"] = {
+                "id": str(exact_email_match.id),
+                "full_name": exact_email_match.full_name,
+                "facility_name": facility.name if facility else "Unknown",
+                "email": exact_email_match.email
+            }
+            duplicates["has_any_duplicates"] = True
+            duplicates["severity"] = "error"  # Email duplicates should block creation
+    
+    # 2. Check for name similarity within the same facility
+    if check_name_similarity and staff_in.full_name:
+        # Use fuzzy matching - check if names are very similar
+        name_parts = staff_in.full_name.lower().split()
+        
+        similar_names = db.exec(
+            select(Staff).where(
+                Staff.facility_id == staff_in.facility_id,
+                Staff.is_active == True,
+                # Check for names that contain similar parts
+                or_(
+                    *[Staff.full_name.ilike(f"%{part}%") for part in name_parts if len(part) > 2]
+                )
+            )
+        ).all()
+        
+        for similar_staff in similar_names:
+            # Calculate similarity score (simple approach)
+            similarity_score = len(set(name_parts) & set(similar_staff.full_name.lower().split()))
+            if similarity_score >= 2 or similar_staff.full_name.lower() == staff_in.full_name.lower():
+                duplicates["name_similarity_matches"].append({
+                    "id": str(similar_staff.id),
+                    "full_name": similar_staff.full_name,
+                    "email": similar_staff.email,
+                    "similarity_score": similarity_score
+                })
+                duplicates["has_any_duplicates"] = True
+                if duplicates["severity"] == "none":
+                    duplicates["severity"] = "warning"
+    
+    # 3. Check for phone number duplicates
+    if staff_in.phone:
+        # Normalize phone number for comparison
+        normalized_phone = ''.join(filter(str.isdigit, staff_in.phone))
+        if len(normalized_phone) >= 10:  # Only check substantial phone numbers
+            phone_matches = db.exec(
+                select(Staff).join(Facility).where(
+                    Staff.phone.like(f"%{normalized_phone[-10:]}%"),  # Check last 10 digits
+                    Facility.tenant_id == current_user.tenant_id,
+                    Staff.is_active == True
+                )
+            ).all()
+            
+            for phone_staff in phone_matches:
+                duplicates["phone_matches"].append({
+                    "id": str(phone_staff.id),
+                    "full_name": phone_staff.full_name,
+                    "phone": phone_staff.phone,
+                    "facility_name": facility.name if facility else "Unknown"
+                })
+                duplicates["has_any_duplicates"] = True
+                if duplicates["severity"] == "none":
+                    duplicates["severity"] = "warning"
+    
+    return duplicates
 
 
 @router.post("/", response_model=StaffRead, status_code=201)
@@ -23,16 +123,100 @@ def create_staff(
     staff_in: StaffCreate,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
+    force_create: bool = Query(False, description="Force creation even if duplicates are found"),
+    skip_duplicate_check: bool = Query(False, description="Skip all duplicate validation")
 ):
+    """Create a staff member with comprehensive duplicate checking"""
+    
+    # Verify facility access
     facility = db.get(Facility, staff_in.facility_id)
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid facility")
-    staff = Staff(**staff_in.dict())
+    
+    # Perform duplicate checking unless explicitly skipped
+    if not skip_duplicate_check:
+        duplicates = check_for_duplicates(db, staff_in, current_user)
+        
+        # Block creation if exact email duplicate found and not forced
+        if duplicates["exact_email_match"] and not force_create:
+            existing_staff = duplicates["exact_email_match"]
+            raise HTTPException(
+                status_code=409,  # Conflict
+                detail={
+                    "error": "duplicate_email",
+                    "message": f"Staff member with email '{staff_in.email}' already exists",
+                    "existing_staff": existing_staff,
+                    "duplicates": duplicates,
+                    "suggestions": [
+                        "Check if this person is already in the system",
+                        "Update the existing staff member instead",
+                        "Use force_create=true to create anyway (not recommended)"
+                    ]
+                }
+            )
+        
+        # Warn about potential duplicates but allow creation
+        if duplicates["severity"] == "warning" and not force_create:
+            # For API consistency, we'll still create but include warnings in response
+            # Frontend can handle this by showing warnings to user
+            pass
+    
+    # Create the staff member
+    staff = Staff(**staff_in.model_dump())
     db.add(staff)
     db.commit()
     db.refresh(staff)
+    
+    # Include duplicate warnings in response if any were found
+    response_data = staff.model_dump()
+    if not skip_duplicate_check and 'duplicates' in locals():
+        response_data["_duplicate_warnings"] = duplicates if duplicates["has_any_duplicates"] else None
+    
     return staff
 
+@router.post("/validate-before-create")
+def validate_staff_before_create(
+    staff_in: StaffCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """Validate staff data and check for duplicates before creation (for frontend preview)"""
+    
+    # Verify facility access
+    facility = db.get(Facility, staff_in.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid facility")
+    
+    # Check for duplicates
+    duplicates = check_for_duplicates(db, staff_in, current_user)
+    
+    # Validate required fields
+    validation_errors = []
+    if not staff_in.full_name or len(staff_in.full_name.strip()) < 2:
+        validation_errors.append("Full name must be at least 2 characters long")
+    
+    if staff_in.email and "@" not in staff_in.email:
+        validation_errors.append("Email format is invalid")
+    
+    if not staff_in.role or len(staff_in.role.strip()) < 2:
+        validation_errors.append("Role is required")
+    
+    if staff_in.skill_level and (staff_in.skill_level < 1 or staff_in.skill_level > 5):
+        validation_errors.append("Skill level must be between 1 and 5")
+    
+    # Return validation result
+    can_create = len(validation_errors) == 0 and duplicates["severity"] != "error"
+    
+    return {
+        "can_create": can_create,
+        "validation_errors": validation_errors,
+        "duplicates": duplicates,
+        "recommendations": [
+            "Review potential duplicates before creating",
+            "Consider updating existing staff instead",
+            "Use different email if this is a different person"
+        ] if duplicates["has_any_duplicates"] else []
+    }
 
 @router.get("/", response_model=list[StaffRead])
 def list_staff(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
@@ -64,8 +248,25 @@ def update_staff(
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
+    # Check for email duplicates if email is being updated
+    if staff_update.email and staff_update.email != staff.email:
+        existing_email_staff = db.exec(
+            select(Staff).join(Facility).where(
+                func.lower(Staff.email) == staff_update.email.lower().strip(),
+                Staff.id != staff.id,  # Exclude current staff
+                Facility.tenant_id == current_user.tenant_id,
+                Staff.is_active == True
+            )
+        ).first()
+        
+        if existing_email_staff:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Email '{staff_update.email}' is already used by another staff member: {existing_email_staff.full_name}"
+            )
+    
     # Update staff fields
-    update_data = staff_update.dict(exclude_unset=True)
+    update_data = staff_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(staff, field, value)
     
@@ -109,22 +310,33 @@ def delete_staff(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete staff member: {str(e)}")
 
+# Enhanced duplicate checking endpoint
 @router.post("/check-duplicate")
 def check_staff_duplicate(
     check_data: StaffDuplicateCheck,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
-    """Check if staff member already exists"""
+    """Check if staff member already exists (legacy endpoint - use validate-before-create instead)"""
+    
     existing = db.exec(
-        select(Staff).where(
+        select(Staff).join(Facility).where(
             Staff.full_name.ilike(f"%{check_data.full_name}%"),
             Staff.facility_id == check_data.facility_id,
+            Facility.tenant_id == current_user.tenant_id,
             Staff.is_active == True
         )
     ).first()
     
-    return {"exists": existing is not None}
+    return {
+        "exists": existing is not None,
+        "existing_staff": {
+            "id": str(existing.id),
+            "full_name": existing.full_name,
+            "email": existing.email,
+            "role": existing.role
+        } if existing else None
+    }
 
 #================== STAFF PROFILING ===============================================
 @router.get("/me", response_model=StaffRead)

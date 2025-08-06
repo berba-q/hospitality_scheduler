@@ -5,9 +5,33 @@ import uuid
 
 from .models import NotificationType, NotificationChannel, NotificationPriority
 from .models import SwapStatus
-from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, validator
 from pydantic import field_validator
 
+# ==================== DUPLICATE CHECKING SCHEMAS ====================
+
+class DuplicateMatch(BaseModel):
+    """Individual duplicate match details"""
+    id: str
+    full_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    facility_name: Optional[str] = None
+    similarity_score: Optional[int] = None
+
+class DuplicateInfo(BaseModel):
+    """Comprehensive duplicate information"""
+    exact_email_match: Optional[DuplicateMatch] = None
+    name_similarity_matches: List[DuplicateMatch] = []
+    phone_matches: List[DuplicateMatch] = []
+    has_any_duplicates: bool = False
+    severity: str = "none"  # none, warning, error
+    
+    @field_validator('severity')
+    def validate_severity(cls, v):
+        if v not in ['none', 'warning', 'error']:
+            raise ValueError('Severity must be none, warning, or error')
+        return v
 
 class Token(BaseModel):
     access_token: str
@@ -248,30 +272,259 @@ class StaffCreate(BaseModel):
     weekly_hours_max: int = 40
     is_active: bool = True
     
+    # Validation options
+    force_create: bool = False
+    skip_duplicate_check: bool = False
+    
+    @field_validator('skill_level')
+    def validate_skill_level(cls, v):
+        if not 1 <= v <= 5:
+            raise ValueError('Skill level must be between 1 and 5')
+        return v
+    
     @field_validator('email')
     def validate_email(cls, v):
             if v and '@' not in v:
                 raise ValueError('Invalid email format')
             return v
 
-class StaffRead(StaffCreate):
+class StaffRead(BaseModel):
+    """Staff read response - clean, no inheritance"""
     id: uuid.UUID
+    full_name: str
+    email: Optional[str] = None
+    role: str
+    skill_level: int
+    phone: Optional[str] = None
+    facility_id: uuid.UUID
+    weekly_hours_max: int
+    is_active: bool
+    created_at: datetime
+    
+    # Optional duplicate information for new imports
+    _duplicate_warnings: Optional[DuplicateInfo] = None
 
     model_config = ConfigDict(from_attributes=True)
     
 class StaffUpdate(BaseModel):
     full_name: Optional[str] = None
+    email: Optional[str] = None
     role: Optional[str] = None
     skill_level: Optional[int] = None
     phone: Optional[str] = None
-    facility_id: Optional[str] = None
     weekly_hours_max: Optional[int] = None
     is_active: Optional[bool] = None
+    
+    # Update options
+    check_duplicates: bool = True
+    force_update: bool = False
+    
+    @field_validator('skill_level')
+    def validate_skill_level(cls, v):
+        if v is not None and not 1 <= v <= 5:
+            raise ValueError('Skill level must be between 1 and 5')
+        return v
+    
+    @field_validator('email')
+    def validate_email(cls, v):
+        if v and '@' not in v:
+            raise ValueError('Invalid email format')
+        return v
 
 class StaffDuplicateCheck(BaseModel):
+    """Check duplicates in uploads"""
     full_name: str
-    facility_id: str
-        
+    facility_id: uuid.UUID
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    
+    # Check options
+    check_email: bool = True
+    check_phone: bool = True
+    check_name_similarity: bool = True
+    similarity_threshold: float = 0.8
+    
+    # Scope options
+    check_across_facilities: bool = False
+    include_inactive_staff: bool = False
+
+class StaffDuplicateCheckResponse(BaseModel):
+    """Enhanced duplicate check response"""
+    exists: bool
+    duplicates: DuplicateInfo
+    existing_staff: List[DuplicateMatch] = []
+    recommendations: List[str] = []
+    can_proceed: bool = True
+    requires_confirmation: bool = False
+
+class StaffValidationResult(BaseModel):
+    """Result of staff validation before creation"""
+    can_create: bool
+    validation_errors: List[str] = []
+    duplicates: DuplicateInfo
+    recommendations: List[str] = []
+    
+class BulkValidationResult(BaseModel):
+    """Result of bulk staff validation"""
+    valid_count: int
+    invalid_count: int
+    duplicate_conflicts: int
+    duplicate_warnings: int
+    individual_results: Dict[int, StaffValidationResult]
+    summary: Dict[str, Any]
+
+# ==================== BULK IMPORT SCHEMAS ====================
+
+class ImportStaffItem(BaseModel):
+    """Individual staff member for bulk import"""
+    full_name: str
+    email: Optional[str] = None
+    role: str
+    phone: Optional[str] = None
+    skill_level: int = 3
+    facility_id: Optional[uuid.UUID] = None
+    facility_name: Optional[str] = None
+    weekly_hours_max: int = 40
+    is_active: bool = True
+    
+    # Import-specific fields
+    row_number: Optional[int] = None
+    source_data: Optional[Dict[str, Any]] = None
+    force_create: bool = False
+
+class BulkImportRequest(BaseModel):
+    """Bulk staff import request"""
+    staff_members: List[ImportStaffItem]
+    validation_options: Dict[str, bool] = {
+        "check_duplicates": True,
+        "strict_validation": True,
+        "auto_resolve_facilities": True
+    }
+    import_options: Dict[str, Any] = {
+        "skip_invalid": False,
+        "force_create_duplicates": False,
+        "notify_on_duplicates": True
+    }
+
+class ImportResult(BaseModel):
+    """Individual import result"""
+    row_number: int
+    success: bool
+    staff_id: Optional[uuid.UUID] = None
+    staff_name: str
+    errors: List[str] = []
+    warnings: List[str] = []
+    duplicate_info: Optional[DuplicateInfo] = None
+    action_taken: str  # created, skipped, force_created, updated
+
+class BulkImportResult(BaseModel):
+    """Result of bulk staff import"""
+    total_processed: int
+    successful_imports: int
+    skipped_duplicates: int
+    forced_creations: int
+    validation_errors: int
+    individual_results: List[ImportResult]
+    
+    # Summary statistics
+    summary: Dict[str, Any] = {
+        "success_rate": 0.0,
+        "duplicate_rate": 0.0,
+        "error_rate": 0.0,
+        "processing_time_seconds": 0.0
+    }
+    
+    execution_details: Dict[str, Any] = {
+        "started_at": None,
+        "completed_at": None,
+        "processed_by": None,
+        "tenant_id": None
+    }
+
+# ==================== DUPLICATE RESOLUTION SCHEMAS ====================
+
+class DuplicateResolutionAction(BaseModel):
+    """Action to take for a duplicate"""
+    staff_row_number: int
+    action: str  # skip, force_create, update_existing, merge
+    target_staff_id: Optional[uuid.UUID] = None
+    notes: Optional[str] = None
+    
+    @field_validator('action')
+    def validate_action(cls, v):
+        allowed_actions = ['skip', 'force_create', 'update_existing', 'merge']
+        if v not in allowed_actions:
+            raise ValueError(f'Action must be one of: {allowed_actions}')
+        return v
+
+class BulkDuplicateResolution(BaseModel):
+    """Bulk resolution for duplicates"""
+    resolutions: List[DuplicateResolutionAction]
+    global_options: Dict[str, bool] = {
+        "update_skill_levels": False,
+        "merge_contact_info": False,
+        "preserve_existing_schedules": True
+    }
+
+# ==================== IMPORT HISTORY SCHEMAS ====================
+
+class ImportHistoryEntry(BaseModel):
+    """Historical record of imports"""
+    id: uuid.UUID
+    filename: str
+    imported_at: datetime
+    imported_by: uuid.UUID
+    tenant_id: uuid.UUID
+    
+    # Import statistics
+    total_records: int
+    successful_imports: int
+    duplicates_found: int
+    errors_encountered: int
+    
+    # Processing details
+    processing_time_seconds: float
+    duplicate_checking_enabled: bool
+    force_create_used: bool
+    
+    # File information
+    file_size_bytes: int
+    file_format: str  # xlsx, csv
+    column_mappings: Dict[str, str]
+
+class ImportHistoryList(BaseModel):
+    """List of import history entries"""
+    imports: List[ImportHistoryEntry]
+    total_count: int
+    page: int
+    page_size: int
+
+# ==================== ERROR REPORTING SCHEMAS ====================
+
+class ValidationError(BaseModel):
+    """Detailed validation error information"""
+    field: str
+    error_code: str
+    message: str
+    current_value: Optional[Any] = None
+    suggested_value: Optional[Any] = None
+    severity: str = "error"  # error, warning, info
+
+class ImportErrorReport(BaseModel):
+    """Comprehensive error report for imports"""
+    filename: str
+    total_errors: int
+    errors_by_type: Dict[str, int]
+    errors_by_row: Dict[int, List[ValidationError]]
+    duplicate_conflicts: Dict[int, DuplicateInfo]
+    
+    recommendations: List[str] = []
+    corrective_actions: List[str] = []
+    
+    generated_at: datetime
+    generated_by: Optional[str] = None
+
+#========== SHIFT ASSIGNMTT =========================
 class ShiftAssignmentRead(BaseModel):
     id: uuid.UUID
     day: int
