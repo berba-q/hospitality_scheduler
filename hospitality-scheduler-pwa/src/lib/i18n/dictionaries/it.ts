@@ -260,6 +260,7 @@ export const it = {
     notAvailable: 'Non disponibile',
     notSet: 'Non impostato',
     notSpecified: 'Non specificato',
+    noAddress: 'Nessun indirizzo',
     
     // Aiuti di navigazione
     goBack: 'Torna indietro',
@@ -614,37 +615,244 @@ export const it = {
     // ============================================================================
     facilityManagement: 'Gestione Strutture',
     addNewFacility: 'Aggiungi Nuova Struttura',
+    addFacility: 'Aggiungi Struttura',
     createFacility: 'Crea Struttura',
     facilities: 'Strutture',
     
+    // Descrizioni delle pagine
+    configureFacilitiesDescription: 'Configura strutture, turni, ruoli e zone operative',
+    
+    // Istruzioni per l\'importazione
+    dragDropInstructions: 'Trascina e rilascia file Excel ovunque per importare strutture istantaneamente. Colonne supportate: Nome, Indirizzo, Tipo (Hotel/Ristorante/Resort/Cafe/Bar).',
+    
+    // Ricerca e filtri
+    searchFacilities: 'Cerca strutture per nome o indirizzo...',
+    allTypes: 'Tutti i Tipi',
+    
     // Tipi di struttura
+    hotel: 'Hotel',
+    restaurant: 'Ristorante',
+    resort: 'Resort',
+    cafe: 'Caffè',
+    bar: 'Bar',
+    barLounge: 'Bar/Lounge',
+    
+    // Descrizioni dei tipi di struttura
     fullServiceHotel: 'Hotel a servizio completo con reception, pulizie e servizi per gli ospiti',
-    largeResortProperty: 'Proprietà resort di grandi dimensioni con più servizi e amenità',
+    largeResortProperty: 'Struttura resort di grandi dimensioni con servizi e amenità multiple',
     diningEstablishmentWith: 'Locale di ristorazione con operazioni di cucina, servizio e bar',
     barLoungeWith: 'Bar o lounge con servizio bevande e cibo leggero',
     coffeeShopCasual: 'Caffetteria o ristorazione casual con servizio al banco',
     
-    // Aree/zone struttura
+    // Nomi delle zone
     frontDesk: 'Reception',
-    diningRoom: 'Sala da Pranzo',
-    hostStation: 'Stazione Host',
-    poolArea: 'Area Piscina',
+    housekeeping: 'Pulizie',
+    kitchen: 'Cucina',
+    dining: 'Sala da Pranzo',
+    security: 'Sicurezza',
+    management: 'Gestione',
+    pool: 'Piscina',
+    spa: 'Spa',
+    activities: 'Attività',
+    counter: 'Banco',
+    seating: 'Posti a Sedere',
+    host: 'Stazione Host',
+    lobby: 'Lobby e Aree Comuni',
+    maintenance: 'Manutenzione',
+    serviceCounter: 'Banco Servizi',
     prepArea: 'Area Preparazione',
-    seatingArea: 'Area Posti a Sedere',
+    
+    // Nomi dei turni
+    dayShift: 'Turno Diurno',
+    eveningShift: 'Turno Serale',
+    nightShift: 'Turno Notturno',
+    breakfast: 'Colazione',
+    lunch: 'Pranzo',
+    dinner: 'Cena',
+    opening: 'Apertura',
+    midday: 'Mezzogiorno',
+    closing: 'Chiusura',
+    happyHour: 'Happy Hour',
+    evening: 'Sera',
+    lateNight: 'Tarda Notte',
+    morning: 'Mattina',
+    afternoon: 'Pomeriggio',
+    
+    // Ruoli comuni
+    manager: 'Manager',
+    frontDeskAgent: 'Addetto Reception',
+    housekeeper: 'Addetto alle Pulizie',
+    concierge: 'Concierge',
+    chef: 'Chef',
+    sousChef: 'Sous Chef',
+    waiter: 'Cameriere',
+    waitress: 'Cameriera',
+    bartender: 'Barista',
+    poolAttendant: 'Addetto Piscina',
+    spaTherapist: 'Terapista Spa',
+    activitiesCoordinator: 'Coordinatore Attività',
+    barista: 'Barista',
+    cashier: 'Cassiere',
+    baker: 'Panettiere',
+    server: 'Cameriere',
+    dj: 'DJ',
+    
+    // Statistiche e conteggi
+    staff: 'Personale',
+    shifts: 'Turni',
+    schedules: 'Programmi',
+    activeZones: 'Zone Attive',
+    activeFacilities: 'Strutture Attive',
+    
+    // Azioni di gestione
+    roles: 'Ruoli',
+    zones: 'Zone',
     
     // Gestione zone
     zonesDepartments: 'Zone e Dipartimenti',
-    addNewZone: 'Aggiungi Nuova Zona',
     unnamedZone: 'Zona Senza Nome',
     
     // Gestione ruoli
     defaultRoles: 'Ruoli Predefiniti',
     addNewRole: 'Aggiungi Nuovo Ruolo',
     
-    // Messaggi specifici strutture
-    briefDescriptionThe: 'Breve descrizione della struttura...',
+    // Stati vuoti
+    noFacilitiesYet: 'Nessuna struttura ancora',
     noFacilitiesFound: 'Nessuna struttura trovata',
-    activeFacilities: 'Strutture Attive',
+    getStartedMessage: 'Inizia aggiungendo la tua prima struttura o importando da Excel',
+    tryAdjustingFilters: 'Prova ad adattare la ricerca o i filtri',
+    
+    // Processo di importazione
+    dropToImport: 'Rilascia per Importare Strutture',
+    releaseToImport: 'Rilascia per importare strutture da file Excel/CSV',
+    importingFacilities: 'Importazione Strutture',
+    uploadingFile: 'Caricamento file...',
+    processingFacilities: 'Elaborazione strutture...',
+    importComplete: 'Importazione completata!',
+    successfullyImported: '{{count}} strutture importate con successo',
+    
+    // Caricamento file
+    pleaseUploadExcel: 'Carica un file Excel (.xlsx) o CSV',
+    failedToImportCheck: 'Impossibile importare strutture. Controlla il formato del file.',
+    
+    // Messaggi di autorizzazione
+    managerPermissionsRequired: 'Permessi manager richiesti.',
+    checkingPermissions: 'Controllo permessi...',
+    loadingFacilities: 'Caricamento strutture...',
+    accessDeniedMessage: 'Hai bisogno dei permessi manager per accedere alla gestione strutture.',
+    
+    // Conferma eliminazione
+    areYouSureDelete: 'Sei sicuro di voler eliminare "{{name}}"? Questa azione non può essere annullata.',
+    deletedSuccessfully: '{{name}} eliminato con successo',
+    failedToDeleteFacility: 'Impossibile eliminare la struttura',
+    
+    // Altri messaggi strutture
+    briefDescriptionThe: 'Breve descrizione della struttura...',
+    more: 'altro',
+    unnamedFacility: 'Struttura Senza Nome',
+    
+    // Etichette modali e form
+    facilityDetails: 'Dettagli Struttura',
+    contactInformation: 'Informazioni di Contatto',
+    selectFacilityType: 'Seleziona Tipo Struttura',
+    facilityConfiguration: 'Configurazione Struttura',
+    
+    // Gestione turni
+    shiftManagement: 'Gestione Turni',
+    shiftConfiguration: 'Configurazione Turni',
+    addShift: 'Aggiungi Turno',
+    editShift: 'Modifica Turno',
+    loadTemplate: 'Carica Template',
+    resetChanges: 'Reimposta Modifiche',
+    configurationSummary: 'Riepilogo Configurazione',
+    activeShifts: 'Turni Attivi',
+    staffRange: 'Range Personale',
+    managerRequired: 'Manager Richiesto',
+    totalCoverage: 'Copertura Totale',
+    shiftsConfigured: 'turni configurati',
+    shiftConfigured: 'turno configurato',
+    loadingShiftConfiguration: 'Caricamento configurazione turni...',
+    chooseTemplate: 'Scegli un template:',
+    fixFollowingIssues: 'Risolvi i seguenti problemi:',
+    shiftName: 'Nome Turno',
+    startTime: 'Ora Inizio',
+    endTime: 'Ora Fine',
+    minStaff: 'Min Personale',
+    maxStaff: 'Max Personale',
+    duration: 'Durata',
+    requiresManager: 'Richiede Manager',
+    warningExistingSchedules: 'I programmi esistenti useranno i nomi dei turni ma i nuovi programmi useranno queste impostazioni orarie.',
+    
+    // Gestione ruoli
+    roleManagement: 'Gestione Ruoli',
+    addRole: 'Aggiungi Ruolo',
+    editRole: 'Modifica Ruolo',
+    deleteRole: 'Elimina Ruolo',
+    roleName: 'Nome Ruolo',
+    roleNameRequired: 'Nome ruolo richiesto',
+    skillLevelRange: 'Range Livello Abilità',
+    minSkillLevel: 'Livello Min Abilità',
+    maxSkillLevel: 'Livello Max Abilità',
+    managementRole: 'Ruolo Gestionale',
+    hourlyRateRange: 'Range Tariffa Oraria',
+    minHourlyRate: 'Tariffa Min Oraria',
+    maxHourlyRate: 'Tariffa Max Oraria',
+    isManagement: 'È Management',
+    isActive: 'È Attivo',
+    deleteRoleConfirm: 'Sei sicuro di voler eliminare il ruolo "{{name}}"?',
+    roleLevel: 'Livello Ruolo',
+    
+    // Gestione zone
+    zoneManagement: 'Gestione Zone',
+    addNewZone: 'Aggiungi Nuova Zona',
+    editZone: 'Modifica Zona',
+    deleteZone: 'Elimina Zona',
+    zoneName: 'Nome Zona',
+    zoneNameRequired: 'Nome zona richiesto',
+    zoneId: 'ID Zona',
+    minStaffPerShift: 'Min Personale per Turno',
+    maxStaffPerShift: 'Max Personale per Turno',
+    requiredRoles: 'Ruoli Richiesti',
+    preferredRoles: 'Ruoli Preferiti',
+    requiredRolesDesc: 'Ruoli che devono essere presenti in questa zona',
+    preferredRolesDesc: 'Ruoli preferiti ma non richiesti',
+    deleteZoneConfirm: 'Sei sicuro di voler eliminare la zona "{{name}}"?',
+    reorderZone: 'Riordina Zona',
+    
+    // Validazione form e azioni
+    createNew: 'Crea Nuovo',
+    updateExisting: 'Aggiorna Esistente',
+    saveConfiguration: 'Salva Configurazione',
+    cancelChanges: 'Annulla Modifiche',
+    preview: 'Anteprima',
+    
+    // Tipi template
+    hotelTemplate: 'Hotel',
+    restaurantTemplate: 'Ristorante',
+    resortTemplate: 'Resort',
+    cafeTemplate: 'Caffè',
+    barTemplate: 'Bar',
+    
+    // Traduzioni aggiuntive per i form
+    fillRequiredFields: 'Compila i campi obbligatori',
+    facilityWillBeConfigured: 'Questa struttura sarà configurata con i seguenti valori predefiniti:',
+    noRolesYet: 'Nessun ruolo configurato ancora',
+    addFirstRole: 'Aggiungi il tuo primo ruolo per iniziare',
+    noZonesYet: 'Nessuna zona configurata ancora',
+    addFirstZone: 'Aggiungi la tua prima zona per iniziare',
+    newShift: 'Nuovo Turno',
+    cannotRemoveLastShift: 'Non puoi rimuovere l\'ultimo turno',
+    templateLoaded: 'Template caricato con successo',
+    changesReset: 'Le modifiche sono state ripristinate',
+    fixValidationErrors: 'Risolvi prima gli errori di validazione',
+    shiftsUpdated: 'Turni aggiornati con successo',
+    shiftNameRequired: 'Turno {{index}}: Nome richiesto',
+    minStaffError: '{{name}}: Il personale minimo non può superare il massimo',
+    timeRequired: '{{name}}: Orari di inizio e fine sono richiesti',
+    order: 'Ordine',
+    manage: 'Gestisci',
+    creating: 'Creazione...',
+    saving: 'Salvataggio...',
   },
 
   swaps: {

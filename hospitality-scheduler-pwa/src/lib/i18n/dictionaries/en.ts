@@ -260,6 +260,7 @@ export const en = {
     notAvailable: 'Not available',
     notSet: 'Not set',
     notSpecified: 'Not specified',
+    noAddress: 'No address',
     
     // Navigation helpers
     goBack: 'Go back',
@@ -601,38 +602,246 @@ export const en = {
     // ============================================================================
     facilityManagement: 'Facilities Management',
     addNewFacility: 'Add New Facility',
+    addFacility: 'Add Facility',
     createFacility: 'Create Facility',
     facilities: 'Facilities',
     
+    // Page descriptions
+    configureFacilitiesDescription: 'Configure facilities, shifts, roles, and operational zones',
+    
+    // Import instructions
+    dragDropInstructions: 'Drag & Drop Excel files anywhere to instantly import facilities. Support columns: Name, Address, Type (Hotel/Restaurant/Resort/Cafe/Bar).',
+    
+    // Search and filters
+    searchFacilities: 'Search facilities by name or address...',
+    allTypes: 'All Types',
+    
     // Facility types
+    hotel: 'Hotel',
+    restaurant: 'Restaurant', 
+    resort: 'Resort',
+    cafe: 'Cafe',
+    bar: 'Bar',
+    barLounge: 'Bar/Lounge',
+    
+    // Facility type descriptions
     fullServiceHotel: 'Full-service hotel with front desk, housekeeping, and guest services',
     largeResortProperty: 'Large resort property with multiple amenities and services',
     diningEstablishmentWith: 'Dining establishment with kitchen, service, and bar operations',
     barLoungeWith: 'Bar or lounge with beverage service and light food',
     coffeeShopCasual: 'Coffee shop or casual dining with counter service',
     
-    // Facility areas/zones
+    // Zone names
     frontDesk: 'Front Desk',
-    diningRoom: 'Dining Room',
-    hostStation: 'Host Station',
-    poolArea: 'Pool Area',
+    housekeeping: 'Housekeeping',
+    kitchen: 'Kitchen',
+    dining: 'Dining',
+    security: 'Security',
+    management: 'Management',
+    pool: 'Pool',
+    spa: 'Spa',
+    activities: 'Activities',
+    counter: 'Counter',
+    seating: 'Seating',
+    host: 'Host Station',
+    lobby: 'Lobby & Common Areas',
+    maintenance: 'Maintenance',
+    serviceCounter: 'Service Counter',
     prepArea: 'Prep Area',
-    seatingArea: 'Seating Area',
+    
+    // Shift names
+    dayShift: 'Day Shift',
+    eveningShift: 'Evening Shift',
+    nightShift: 'Night Shift',
+    breakfast: 'Breakfast',
+    lunch: 'Lunch',
+    dinner: 'Dinner',
+    opening: 'Opening',
+    midday: 'Midday',
+    closing: 'Closing',
+    happyHour: 'Happy Hour',
+    evening: 'Evening',
+    lateNight: 'Late Night',
+    morning: 'Morning',
+    afternoon: 'Afternoon',
+    
+    // Common roles
+    manager: 'Manager',
+    frontDeskAgent: 'Front Desk Agent',
+    housekeeper: 'Housekeeper',
+    concierge: 'Concierge',
+    chef: 'Chef',
+    sousChef: 'Sous Chef',
+    waiter: 'Waiter',
+    waitress: 'Waitress',
+    bartender: 'Bartender',
+    poolAttendant: 'Pool Attendant',
+    spaTherapist: 'Spa Therapist',
+    activitiesCoordinator: 'Activities Coordinator',
+    barista: 'Barista',
+    cashier: 'Cashier',
+    baker: 'Baker',
+    server: 'Server',
+    dj: 'DJ',
+    
+    // Stats and counts
+    staff: 'Staff',
+    shifts: 'Shifts',
+    schedules: 'Schedules',
+    activeZones: 'Active Zones',
+    activeFacilities: 'Active Facilities',
+    
+    // Management actions
+    roles: 'Roles',
+    zones: 'Zones',
     
     // Zone management
     zonesDepartments: 'Zones & Departments',
-    addNewZone: 'Add New Zone',
     unnamedZone: 'Unnamed Zone',
     
-    // Role management
+    // Role management  
     defaultRoles: 'Default Roles',
     addNewRole: 'Add New Role',
     
-    // Facility-specific messages
-    briefDescriptionThe: 'Brief description of the facility...',
+    // Empty states
+    noFacilitiesYet: 'No facilities yet',
     noFacilitiesFound: 'No facilities found',
-    activeFacilities: 'Active Facilities',
+    getStartedMessage: 'Get started by adding your first facility or importing from Excel',
+    tryAdjustingFilters: 'Try adjusting your search or filters',
+    
+    // Import process
+    dropToImport: 'Drop to Import Facilities',
+    releaseToImport: 'Release to import facilities from Excel/CSV file',
+    importingFacilities: 'Importing Facilities',
+    uploadingFile: 'Uploading file...',
+    processingFacilities: 'Processing facilities...',
+    importComplete: 'Import complete!',
+    successfullyImported: 'Successfully imported {{count}} facilities',
+    
+    // File upload
+    pleaseUploadExcel: 'Please upload an Excel (.xlsx) or CSV file',
+    failedToImportCheck: 'Failed to import facilities. Please check the file format.',
+    
+    // Permission messages
+    managerPermissionsRequired: 'Manager permissions required.',
+    checkingPermissions: 'Checking permissions...',
+    loadingFacilities: 'Loading facilities...',
+    accessDeniedMessage: 'You need manager permissions to access facilities management.',
+    
+    // Delete confirmation
+    areYouSureDelete: 'Are you sure you want to delete "{{name}}"? This action cannot be undone.',
+    deletedSuccessfully: '{{name}} deleted successfully',
+    failedToDeleteFacility: 'Failed to delete facility',
+    
+    // Other facility messages
+    briefDescriptionThe: 'Brief description of the facility...',
+    more: 'more',
+    unnamedFacility: 'Unnamed Facility',
+    
+    // Modal and form labels
+    facilityDetails: 'Facility Details',
+    contactInformation: 'Contact Information',
+    selectFacilityType: 'Select Facility Type',
+    facilityConfiguration: 'Facility Configuration',
+    
+    // Shift management
+    shiftManagement: 'Shift Management',
+    shiftConfiguration: 'Shift Configuration',
+    addShift: 'Add Shift',
+    editShift: 'Edit Shift',
+    loadTemplate: 'Load Template',
+    resetChanges: 'Reset Changes',
+    configurationSummary: 'Configuration Summary',
+    activeShifts: 'Active Shifts',
+    staffRange: 'Staff Range',
+    managerRequired: 'Manager Required',
+    totalCoverage: 'Total Coverage',
+    shiftsConfigured: 'shifts configured',
+    shiftConfigured: 'shift configured',
+    loadingShiftConfiguration: 'Loading shift configuration...',
+    chooseTemplate: 'Choose a template:',
+    fixFollowingIssues: 'Please fix the following issues:',
+    shiftName: 'Shift Name',
+    startTime: 'Start Time',
+    endTime: 'End Time',
+    minStaff: 'Min Staff',
+    maxStaff: 'Max Staff',
+    duration: 'Duration',
+    requiresManager: 'Requires Manager',
+    warningExistingSchedules: 'Existing schedules will use the shift names but new schedules will use these time settings.',
+    
+    // Role management
+    roleManagement: 'Role Management',
+    addRole: 'Add Role',
+    editRole: 'Edit Role',
+    deleteRole: 'Delete Role',
+    roleName: 'Role Name',
+    roleNameRequired: 'Role name is required',
+    skillLevelRange: 'Skill Level Range',
+    minSkillLevel: 'Min Skill Level',
+    maxSkillLevel: 'Max Skill Level',
+    managementRole: 'Management Role',
+    hourlyRateRange: 'Hourly Rate Range',
+    minHourlyRate: 'Min Hourly Rate',
+    maxHourlyRate: 'Max Hourly Rate',
+    isManagement: 'Is Management',
+    isActive: 'Is Active',
+    deleteRoleConfirm: 'Are you sure you want to delete the role "{{name}}"?',
+    roleLevel: 'Role Level',
+    
+    // Zone management  
+    zoneManagement: 'Zone Management',
+    addNewZone: 'Add New Zone',
+    editZone: 'Edit Zone',
+    deleteZone: 'Delete Zone',
+    zoneName: 'Zone Name',
+    zoneNameRequired: 'Zone name is required',
+    zoneId: 'Zone ID',
+    minStaffPerShift: 'Min Staff per Shift',
+    maxStaffPerShift: 'Max Staff per Shift',
+    requiredRoles: 'Required Roles',
+    preferredRoles: 'Preferred Roles',
+    requiredRolesDesc: 'Roles that must be present in this zone',
+    preferredRolesDesc: 'Roles that are preferred but not required',
+    deleteZoneConfirm: 'Are you sure you want to delete the zone "{{name}}"?',
+    reorderZone: 'Reorder Zone',
+    
+    // Form validation and actions
+    createNew: 'Create New',
+    updateExisting: 'Update Existing',
+    saveConfiguration: 'Save Configuration',
+    cancelChanges: 'Cancel Changes',
+    preview: 'Preview',
+    
+    // Template types
+    hotelTemplate: 'Hotel',
+    restaurantTemplate: 'Restaurant', 
+    resortTemplate: 'Resort',
+    cafeTemplate: 'Cafe',
+    barTemplate: 'Bar',
+    
+    // Additional translations for forms
+    fillRequiredFields: 'Please fill in required fields',
+    facilityWillBeConfigured: 'This facility will be configured with the following defaults:',
+    noRolesYet: 'No roles configured yet',
+    addFirstRole: 'Add your first role to get started',
+    noZonesYet: 'No zones configured yet',
+    addFirstZone: 'Add your first zone to get started',
+    newShift: 'New Shift',
+    cannotRemoveLastShift: 'Cannot remove the last shift',
+    templateLoaded: 'Template loaded successfully',
+    changesReset: 'Changes have been reset',
+    fixValidationErrors: 'Please fix validation errors first',
+    shiftsUpdated: 'Shifts updated successfully',
+    shiftNameRequired: 'Shift {{index}}: Name is required',
+    minStaffError: '{{name}}: Min staff cannot exceed max staff',
+    timeRequired: '{{name}}: Start and end times are required',
+    order: 'Order',
+    manage: 'Manage',
+    creating: 'Creating...',
+    saving: 'Saving...',
   },
+
 
   swaps: {
     // ============================================================================

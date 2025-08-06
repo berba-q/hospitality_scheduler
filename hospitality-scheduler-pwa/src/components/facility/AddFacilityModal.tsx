@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-//import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { 
@@ -23,6 +22,7 @@ import {
   Zap
 } from 'lucide-react'
 import { useFacilities } from '@/hooks/useFacility'
+import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
 
 interface AddFacilityModalProps {
@@ -34,58 +34,59 @@ interface AddFacilityModalProps {
 const FACILITY_TYPES = [
   {
     id: 'hotel',
-    name: 'Hotel',
-    description: 'Full-service hotel with front desk, housekeeping, and guest services',
+    name: 'facilities.hotel',
+    description: 'facilities.fullServiceHotel',
     icon: Building,
     color: 'bg-blue-100 text-blue-800',
-    defaultShifts: ['Day Shift (6AM-2PM)', 'Evening Shift (2PM-10PM)', 'Night Shift (10PM-6AM)'],
-    defaultRoles: ['Manager', 'Front Desk Agent', 'Housekeeper', 'Concierge', 'Maintenance'],
-    defaultZones: ['Front Desk', 'Housekeeping', 'Lobby', 'Maintenance']
+    defaultShifts: ['facilities.dayShift', 'facilities.eveningShift', 'facilities.nightShift'],
+    defaultRoles: ['facilities.manager', 'facilities.frontDeskAgent', 'facilities.housekeeper', 'facilities.concierge', 'facilities.maintenance'],
+    defaultZones: ['facilities.frontDesk', 'facilities.housekeeping', 'facilities.lobby', 'facilities.maintenance']
   },
   {
     id: 'restaurant',
-    name: 'Restaurant',
-    description: 'Dining establishment with kitchen, service, and bar operations',
+    name: 'facilities.restaurant',
+    description: 'facilities.diningEstablishmentWith',
     icon: Users,
     color: 'bg-green-100 text-green-800',
-    defaultShifts: ['Breakfast (7AM-11AM)', 'Lunch (11AM-4PM)', 'Dinner (4PM-11PM)'],
-    defaultRoles: ['Manager', 'Chef', 'Server', 'Bartender', 'Host/Hostess'],
-    defaultZones: ['Kitchen', 'Dining Room', 'Bar', 'Host Station']
+    defaultShifts: ['facilities.breakfast', 'facilities.lunch', 'facilities.dinner'],
+    defaultRoles: ['facilities.manager', 'facilities.chef', 'facilities.server', 'facilities.bartender', 'facilities.host'],
+    defaultZones: ['facilities.kitchen', 'facilities.dining', 'facilities.bar', 'facilities.host']
   },
   {
     id: 'cafe',
-    name: 'Cafe',
-    description: 'Coffee shop or casual dining with counter service',
+    name: 'facilities.cafe',
+    description: 'facilities.coffeeShopCasual',
     icon: Star,
     color: 'bg-yellow-100 text-yellow-800',
-    defaultShifts: ['Opening (6AM-12PM)', 'Midday (12PM-6PM)', 'Closing (6PM-9PM)'],
-    defaultRoles: ['Manager', 'Barista', 'Cashier', 'Baker'],
-    defaultZones: ['Counter', 'Prep Area']
+    defaultShifts: ['facilities.opening', 'facilities.midday', 'facilities.closing'],
+    defaultRoles: ['facilities.manager', 'facilities.barista', 'facilities.cashier', 'facilities.baker'],
+    defaultZones: ['facilities.counter', 'facilities.prepArea']
   },
   {
     id: 'resort',
-    name: 'Resort',
-    description: 'Large resort property with multiple amenities and services',
+    name: 'facilities.resort',
+    description: 'facilities.largeResortProperty',
     icon: CheckCircle,
     color: 'bg-purple-100 text-purple-800',
-    defaultShifts: ['Day Shift (6AM-2PM)', 'Evening Shift (2PM-10PM)', 'Night Shift (10PM-6AM)'],
-    defaultRoles: ['Manager', 'Front Desk Agent', 'Concierge', 'Spa Attendant', 'Activities Coordinator'],
-    defaultZones: ['Front Desk', 'Spa', 'Pool Area', 'Activities', 'Housekeeping']
+    defaultShifts: ['facilities.dayShift', 'facilities.eveningShift', 'facilities.nightShift'],
+    defaultRoles: ['facilities.manager', 'facilities.frontDeskAgent', 'facilities.concierge', 'facilities.spaTherapist', 'facilities.activitiesCoordinator'],
+    defaultZones: ['facilities.frontDesk', 'facilities.spa', 'facilities.pool', 'facilities.activities', 'facilities.housekeeping']
   },
   {
     id: 'bar',
-    name: 'Bar/Lounge',
-    description: 'Bar or lounge with beverage service and light food',
+    name: 'facilities.barLounge',
+    description: 'facilities.barLoungeWith',
     icon: Zap,
     color: 'bg-red-100 text-red-800',
-    defaultShifts: ['Happy Hour (4PM-8PM)', 'Evening (8PM-12AM)', 'Late Night (12AM-2AM)'],
-    defaultRoles: ['Manager', 'Bartender', 'Server', 'Security'],
-    defaultZones: ['Bar', 'Seating Area', 'Kitchen']
+    defaultShifts: ['facilities.happyHour', 'facilities.evening', 'facilities.lateNight'],
+    defaultRoles: ['facilities.manager', 'facilities.bartender', 'facilities.server', 'facilities.security'],
+    defaultZones: ['facilities.bar', 'facilities.seating', 'facilities.kitchen']
   }
 ]
 
 export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalProps) {
-  const { createFacility} = useFacilities()
+  const { createFacility } = useFacilities()
+  const { t } = useTranslations()
   const [loading, setLoading] = useState(false)
   const [selectedType, setSelectedType] = useState<string>('')
   const [formData, setFormData] = useState({
@@ -109,17 +110,15 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
     e.preventDefault()
     
     if (!formData.name || !formData.facility_type) {
-      toast.error('Please fill in all required fields')
+      toast.error(t('common.fillRequiredFields') || 'Please fill in required fields')
       return
     }
 
     setLoading(true)
-    
     try {
       await createFacility(formData)
+      toast.success(t('facilities.addedSuccessfully', { name: formData.name }) || `${formData.name} added successfully!`)
       onSuccess()
-      onClose()
-      
       // Reset form
       setFormData({
         name: '',
@@ -131,51 +130,108 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
         description: ''
       })
       setSelectedType('')
-      
-    } catch (error) {
-      // Hook already handles error display
+    } catch (error: any) {
+      console.error('Failed to create facility:', error)
+      toast.error(error.message || t('common.failedToCreate') || 'Failed to create facility')
     } finally {
       setLoading(false)
     }
   }
 
+  const handleCancel = () => {
+    // Reset form
+    setFormData({
+      name: '',
+      facility_type: '',
+      location: '',
+      address: '',
+      phone: '',
+      email: '',
+      description: ''
+    })
+    setSelectedType('')
+    onClose()
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleCancel}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Building className="h-5 w-5" />
-            Add New Facility
+            <Building className="w-5 h-5" />
+            {t('facilities.addNewFacility')}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Facility Type Selection */}
-          <div className="space-y-4">
-            <div>
-              <Label className="text-base font-semibold">Facility Type *</Label>
-              <p className="text-sm text-gray-600 mb-3">Choose the type of facility to automatically configure shifts, roles, and zones</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Step 1: Select Facility Type */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">{t('facilities.selectFacilityType')}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {FACILITY_TYPES.map((type) => {
-                const Icon = type.icon
+                const IconComponent = type.icon
+                const isSelected = selectedType === type.id
+                
                 return (
-                  <Card 
+                  <Card
                     key={type.id}
                     className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                      selectedType === type.id ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'
+                      isSelected 
+                        ? 'ring-2 ring-blue-500 bg-blue-50' 
+                        : 'hover:bg-gray-50'
                     }`}
                     onClick={() => handleTypeSelect(type.id)}
                   >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className={`p-2 rounded-lg ${type.color}`}>
-                          <Icon className="h-5 w-5" />
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${type.color}`}>
+                          <IconComponent className="w-5 h-5" />
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-sm">{type.name}</h3>
-                          <p className="text-xs text-gray-600 mt-1">{type.description}</p>
+                          <CardTitle className="text-base">{t(type.name)}</CardTitle>
+                        </div>
+                        {isSelected && (
+                          <CheckCircle className="w-5 h-5 text-blue-600" />
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <p className="text-sm text-gray-600 mb-3">
+                        {t(type.description)}
+                      </p>
+                      
+                      {/* Preview of defaults */}
+                      <div className="space-y-2">
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">{t('facilities.shifts')}:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {type.defaultShifts.slice(0, 2).map((shift, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {t(shift)}
+                              </Badge>
+                            ))}
+                            {type.defaultShifts.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{type.defaultShifts.length - 2} {t('facilities.more')}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">{t('facilities.zones')}:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {type.defaultZones.slice(0, 2).map((zone, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {t(zone)}
+                              </Badge>
+                            ))}
+                            {type.defaultZones.length > 2 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{type.defaultZones.length - 2} {t('facilities.more')}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -185,158 +241,180 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
             </div>
           </div>
 
-          {/* Selected Type Preview */}
-          {selectedFacilityType && (
-            <Card className="bg-blue-50 border-blue-200">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Info className="h-4 w-4" />
-                  Default Configuration for {selectedFacilityType.name}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-xs font-medium text-gray-700">Default Shifts</Label>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedFacilityType.defaultShifts.map((shift, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {shift}
-                      </Badge>
-                    ))}
+          {/* Step 2: Facility Details (only shown after type selection) */}
+          {selectedType && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold">{t('facilities.facilityDetails')}</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="name">{t('common.name')} *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder={t('facilities.briefDescriptionThe')}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="location">{t('common.location')}</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        id="location"
+                        value={formData.location}
+                        onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                        placeholder={t('common.location')}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="address">{t('common.address')}</Label>
+                    <Textarea
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                      placeholder={t('common.address')}
+                      rows={3}
+                    />
                   </div>
                 </div>
-                
-                <div>
-                  <Label className="text-xs font-medium text-gray-700">Default Roles</Label>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedFacilityType.defaultRoles.map((role, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        <Users className="h-3 w-3 mr-1" />
-                        {role}
-                      </Badge>
-                    ))}
+
+                {/* Contact Information */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900">{t('facilities.contactInformation')}</h4>
+                  
+                  <div>
+                    <Label htmlFor="phone">{t('common.phone')}</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        id="phone"
+                        value={formData.phone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder={t('common.phone')}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="email">{t('common.email')}</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder={t('common.email')}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="description">{t('common.description')}</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder={t('facilities.briefDescriptionThe')}
+                      rows={3}
+                    />
                   </div>
                 </div>
-                
-                <div>
-                  <Label className="text-xs font-medium text-gray-700">Default Zones</Label>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedFacilityType.defaultZones.map((zone, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {zone}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+
+              {/* Configuration Preview */}
+              {selectedFacilityType && (
+                <Card className="bg-gray-50">
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Info className="w-4 h-4" />
+                      {t('facilities.facilityConfiguration')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">
+                      {t('facilities.facilityWillBeConfigured') || 'This facility will be configured with the following defaults:'}
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="w-4 h-4 text-blue-600" />
+                          <span className="font-medium text-sm">{t('facilities.shifts')}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {selectedFacilityType.defaultShifts.map((shift, idx) => (
+                            <div key={idx} className="text-sm text-gray-600">
+                              • {t(shift)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Users className="w-4 h-4 text-green-600" />
+                          <span className="font-medium text-sm">{t('facilities.roles')}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {selectedFacilityType.defaultRoles.map((role, idx) => (
+                            <div key={idx} className="text-sm text-gray-600">
+                              • {t(role)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <MapPin className="w-4 h-4 text-purple-600" />
+                          <span className="font-medium text-sm">{t('facilities.zones')}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {selectedFacilityType.defaultZones.map((zone, idx) => (
+                            <div key={idx} className="text-sm text-gray-600">
+                              • {t(zone)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
 
-          {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">Facility Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Downtown Hotel, Main Street Cafe"
-                  className="bg-white"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="location">Location</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="location"
-                    value={formData.location}
-                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                    placeholder="e.g., Downtown, Airport District"
-                    className="pl-10 bg-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="address">Full Address</Label>
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="123 Main Street, City, State, ZIP"
-                  className="bg-white"
-                  rows={2}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+1 (555) 123-4567"
-                    className="pl-10 bg-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="email">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="info@facility.com"
-                    className="pl-10 bg-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Brief description of the facility..."
-                  className="bg-white"
-                  rows={3}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Cancel
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={handleCancel}>
+              {t('common.cancel')}
             </Button>
-            <Button
-              type="submit"
-              disabled={loading || !formData.name || !formData.facility_type}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+            <Button 
+              type="submit" 
+              disabled={!formData.name || !formData.facility_type || loading}
+              className="gap-2"
             >
               {loading ? (
-                <div className="flex items-center gap-2">
+                <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Creating...
-                </div>
+                  {t('common.creating') || 'Creating...'}
+                </>
               ) : (
-                'Create Facility'
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  {t('facilities.createFacility')}
+                </>
               )}
             </Button>
           </div>

@@ -1,4 +1,4 @@
-// Main facilities page
+// Main facilities page - TRANSLATED
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -40,6 +40,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth, useApiClient } from '@/hooks/useApi'
+import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/AppLayout'
 
@@ -53,68 +54,68 @@ import { ShiftManagementModal } from '@/components/facility/ShiftManagementModal
 const FACILITY_TYPES = [
   { 
     id: 'hotel', 
-    name: 'Hotel', 
+    name: 'facilities.hotel', // Translation key
     icon: Building2,
     color: 'blue',
     zones: ['front-desk', 'housekeeping', 'kitchen', 'restaurant', 'bar', 'security', 'management'],
     defaultShifts: [
-      { name: 'Day Shift', start: '06:00', end: '14:00', requiresManager: false },
-      { name: 'Evening Shift', start: '14:00', end: '22:00', requiresManager: true },
-      { name: 'Night Shift', start: '22:00', end: '06:00', requiresManager: true }
+      { name: 'facilities.dayShift', start: '06:00', end: '14:00', requiresManager: false },
+      { name: 'facilities.eveningShift', start: '14:00', end: '22:00', requiresManager: true },
+      { name: 'facilities.nightShift', start: '22:00', end: '06:00', requiresManager: true }
     ],
-    commonRoles: ['Manager', 'Front Desk Agent', 'Housekeeper', 'Concierge', 'Security', 'Maintenance']
+    commonRoles: ['facilities.manager', 'facilities.frontDeskAgent', 'facilities.housekeeper', 'facilities.concierge', 'facilities.security', 'facilities.maintenance']
   },
   { 
     id: 'restaurant', 
-    name: 'Restaurant', 
+    name: 'facilities.restaurant',
     icon: Utensils,
     color: 'green',
     zones: ['kitchen', 'dining', 'bar', 'management'],
     defaultShifts: [
-      { name: 'Breakfast', start: '07:00', end: '11:00', requiresManager: false },
-      { name: 'Lunch', start: '11:00', end: '16:00', requiresManager: true },
-      { name: 'Dinner', start: '16:00', end: '23:00', requiresManager: true }
+      { name: 'facilities.breakfast', start: '07:00', end: '11:00', requiresManager: false },
+      { name: 'facilities.lunch', start: '11:00', end: '16:00', requiresManager: true },
+      { name: 'facilities.dinner', start: '16:00', end: '23:00', requiresManager: true }
     ],
-    commonRoles: ['Manager', 'Chef', 'Sous Chef', 'Waiter', 'Waitress', 'Bartender', 'Host']
+    commonRoles: ['facilities.manager', 'facilities.chef', 'facilities.sousChef', 'facilities.waiter', 'facilities.waitress', 'facilities.bartender', 'facilities.host']
   },
   { 
     id: 'resort', 
-    name: 'Resort', 
+    name: 'facilities.resort',
     icon: Waves,
     color: 'purple',
     zones: ['front-desk', 'housekeeping', 'kitchen', 'restaurant', 'bar', 'pool', 'spa', 'activities', 'security'],
     defaultShifts: [
-      { name: 'Morning', start: '06:00', end: '14:00', requiresManager: false },
-      { name: 'Afternoon', start: '14:00', end: '22:00', requiresManager: true },
-      { name: 'Evening', start: '22:00', end: '06:00', requiresManager: true }
+      { name: 'facilities.morning', start: '06:00', end: '14:00', requiresManager: false },
+      { name: 'facilities.afternoon', start: '14:00', end: '22:00', requiresManager: true },
+      { name: 'facilities.evening', start: '22:00', end: '06:00', requiresManager: true }
     ],
-    commonRoles: ['Manager', 'Front Desk Agent', 'Housekeeper', 'Chef', 'Bartender', 'Pool Attendant', 'Spa Therapist', 'Activities Coordinator']
+    commonRoles: ['facilities.manager', 'facilities.frontDeskAgent', 'facilities.housekeeper', 'facilities.chef', 'facilities.bartender', 'facilities.poolAttendant', 'facilities.spaTherapist', 'facilities.activitiesCoordinator']
   },
   { 
     id: 'cafe', 
-    name: 'Cafe', 
+    name: 'facilities.cafe',
     icon: Coffee,
     color: 'orange',
     zones: ['counter', 'kitchen', 'seating', 'management'],
     defaultShifts: [
-      { name: 'Opening', start: '06:00', end: '12:00', requiresManager: false },
-      { name: 'Midday', start: '12:00', end: '18:00', requiresManager: true },
-      { name: 'Closing', start: '18:00', end: '21:00', requiresManager: false }
+      { name: 'facilities.opening', start: '06:00', end: '12:00', requiresManager: false },
+      { name: 'facilities.midday', start: '12:00', end: '18:00', requiresManager: true },
+      { name: 'facilities.closing', start: '18:00', end: '21:00', requiresManager: false }
     ],
-    commonRoles: ['Manager', 'Barista', 'Cashier', 'Baker', 'Server']
+    commonRoles: ['facilities.manager', 'facilities.barista', 'facilities.cashier', 'facilities.baker', 'facilities.server']
   },
   { 
     id: 'bar', 
-    name: 'Bar/Lounge', 
+    name: 'facilities.barLounge',
     icon: Zap,
     color: 'red',
     zones: ['bar', 'kitchen', 'seating', 'management'],
     defaultShifts: [
-      { name: 'Happy Hour', start: '16:00', end: '20:00', requiresManager: false },
-      { name: 'Evening', start: '20:00', end: '01:00', requiresManager: true },
-      { name: 'Late Night', start: '01:00', end: '03:00', requiresManager: true }
+      { name: 'facilities.happyHour', start: '16:00', end: '20:00', requiresManager: false },
+      { name: 'facilities.evening', start: '20:00', end: '01:00', requiresManager: true },
+      { name: 'facilities.lateNight', start: '01:00', end: '03:00', requiresManager: true }
     ],
-    commonRoles: ['Manager', 'Bartender', 'Server', 'Security', 'DJ']
+    commonRoles: ['facilities.manager', 'facilities.bartender', 'facilities.server', 'facilities.security', 'facilities.dj']
   }
 ]
 
@@ -161,6 +162,7 @@ export default function FacilitiesManagementPage() {
   const router = useRouter()
   const { user, isManager, loading: authLoading } = useAuth()
   const apiClient = useApiClient()
+  const { t } = useTranslations()
   
   const [facilities, setFacilities] = useState<Facility[]>([])
   const [loading, setLoading] = useState(true)
@@ -182,10 +184,10 @@ export default function FacilitiesManagementPage() {
   // Check permissions and redirect if needed
   useEffect(() => {
     if (!authLoading && !isManager) {
-      toast.error('Manager permissions required.')
+      toast.error(t('facilities.managerPermissionsRequired'))
       router.push('/dashboard')
     }
-  }, [isManager, authLoading, router])
+  }, [isManager, authLoading, router, t])
 
   // Load facilities data
   useEffect(() => {
@@ -201,7 +203,7 @@ export default function FacilitiesManagementPage() {
       setFacilities(data)
     } catch (error) {
       console.error('Failed to load facilities:', error)
-      toast.error('Failed to load facilities')
+      toast.error(t('common.failedToLoad') + ' ' + t('common.facilities'))
     } finally {
       setLoading(false)
     }
@@ -209,17 +211,17 @@ export default function FacilitiesManagementPage() {
 
   // Handle facility deletion
   const handleDeleteFacility = async (facilityId: string, facilityName: string) => {
-    if (!confirm(`Are you sure you want to delete "${facilityName}"? This action cannot be undone.`)) {
+    if (!confirm(t('facilities.areYouSureDelete', { name: facilityName }))) {
       return
     }
 
     try {
       await apiClient.deleteFacility(facilityId)
-      toast.success(`${facilityName} deleted successfully`)
+      toast.success(t('facilities.deletedSuccessfully', { name: facilityName }))
       await loadFacilities()
     } catch (error: any) {
       console.error('Failed to delete facility:', error)
-      toast.error(error.response?.data?.detail || 'Failed to delete facility')
+      toast.error(error.response?.data?.detail || t('facilities.failedToDeleteFacility'))
     }
   }
 
@@ -227,7 +229,7 @@ export default function FacilitiesManagementPage() {
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
     if (!file || (!file.name.endsWith('.xlsx') && !file.name.endsWith('.csv'))) {
-      toast.error('Please upload an Excel (.xlsx) or CSV file')
+      toast.error(t('facilities.pleaseUploadExcel'))
       return
     }
 
@@ -260,7 +262,7 @@ export default function FacilitiesManagementPage() {
         ) || FACILITY_TYPES[0]
 
         return {
-          name: row['Name'] || row['name'] || 'Unnamed Facility',
+          name: row['Name'] || row['name'] || t('facilities.unnamedFacility'),
           location: row['Location'] || row['location'] || '',
           address: row['Address'] || row['address'] || '',
           facility_type: facilityType.id,
@@ -280,7 +282,7 @@ export default function FacilitiesManagementPage() {
       setImportProgress(100)
       setImportStatus('complete')
 
-      toast.success(`Successfully imported ${imported.length} facilities`)
+      toast.success(t('facilities.successfullyImported', { count: imported.length }))
       await loadFacilities()
 
       setTimeout(() => {
@@ -289,10 +291,10 @@ export default function FacilitiesManagementPage() {
 
     } catch (error) {
       console.error('Import failed:', error)
-      toast.error('Failed to import facilities. Please check the file format.')
+      toast.error(t('facilities.failedToImportCheck'))
       setShowImportProgress(false)
     }
-  }, [apiClient])
+  }, [apiClient, t])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -317,8 +319,8 @@ export default function FacilitiesManagementPage() {
     <div className="fixed inset-0 bg-blue-500/20 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="bg-white rounded-lg p-8 text-center shadow-xl border-2 border-dashed border-blue-400">
         <FileSpreadsheet className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-        <h3 className="text-xl font-bold text-gray-900 mb-2">Drop to Import Facilities</h3>
-        <p className="text-gray-600">Release to import facilities from Excel/CSV file</p>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">{t('facilities.dropToImport')}</h3>
+        <p className="text-gray-600">{t('facilities.releaseToImport')}</p>
       </div>
     </div>
   )
@@ -328,7 +330,7 @@ export default function FacilitiesManagementPage() {
     <Dialog open={showImportProgress} onOpenChange={setShowImportProgress}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Importing Facilities</DialogTitle>
+          <DialogTitle>{t('facilities.importingFacilities')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -340,9 +342,9 @@ export default function FacilitiesManagementPage() {
           <div className="text-center">
             <div className="text-lg font-semibold">{importProgress}%</div>
             <div className="text-sm text-gray-600">
-              {importStatus === 'uploading' && 'Uploading file...'}
-              {importStatus === 'processing' && 'Processing facilities...'}
-              {importStatus === 'complete' && 'Import complete!'}
+              {importStatus === 'uploading' && t('facilities.uploadingFile')}
+              {importStatus === 'processing' && t('facilities.processingFacilities')}
+              {importStatus === 'complete' && t('facilities.importComplete')}
             </div>
           </div>
         </div>
@@ -369,13 +371,13 @@ export default function FacilitiesManagementPage() {
                 </CardTitle>
                 <div className="flex items-center gap-2 mb-2">
                   <MapPin className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">{facility.address || 'No address'}</span>
+                  <span className="text-sm text-gray-600">{facility.address || t('common.noAddress')}</span>
                 </div>
                 <Badge 
                   variant="outline" 
                   className={`text-xs border-${facilityType.color}-200 text-${facilityType.color}-700 bg-${facilityType.color}-50`}
                 >
-                  {facilityType.name}
+                  {t(facilityType.name)}
                 </Badge>
               </div>
             </div>
@@ -407,28 +409,66 @@ export default function FacilitiesManagementPage() {
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div className="text-center">
               <div className="text-lg font-bold text-blue-600">{facility.staff_count || 0}</div>
-              <div className="text-xs text-gray-600">Staff</div>
+              <div className="text-xs text-gray-600">{t('facilities.staff')}</div>
             </div>
             <div className="text-center">
               <div className="text-lg font-bold text-green-600">{facility.shifts?.length || 0}</div>
-              <div className="text-xs text-gray-600">Shifts</div>
+              <div className="text-xs text-gray-600">{t('facilities.shifts')}</div>
             </div>
             <div className="text-center">
               <div className="text-lg font-bold text-purple-600">{facility.active_schedules || 0}</div>
-              <div className="text-xs text-gray-600">Schedules</div>
+              <div className="text-xs text-gray-600">{t('facilities.schedules')}</div>
             </div>
           </div>
 
           {/* Zones */}
           <div className="mb-4">
-            <div className="text-sm font-medium text-gray-700 mb-2">Active Zones</div>
+            <div className="text-sm font-medium text-gray-700 mb-2">{t('facilities.activeZones')}</div>
             <div className="flex flex-wrap gap-1">
               {facility.zones?.slice(0, 4).map(zone => {
                 // Handle both string zones and zone objects
                 const zoneKey = typeof zone === 'string' ? zone : zone.zone_id || zone.id;
                 const zoneName = typeof zone === 'string' ? zone : zone.zone_name || zone.name || zoneKey;
-                const displayName = zoneName.replace('-', ' ');
                 
+                // Create a mapping function for zone names to translation keys
+                const getZoneDisplayName = (name: string): string => {
+                  const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  
+                  // Zone name mappings
+                  const zoneMap: Record<string, string> = {
+                    'frontdesk': 'facilities.frontDesk',
+                    'front-desk': 'facilities.frontDesk',
+                    'housekeeping': 'facilities.housekeeping',
+                    'kitchen': 'facilities.kitchen',
+                    'restaurant': 'facilities.restaurant',
+                    'dining': 'facilities.dining',
+                    'diningroom': 'facilities.dining',
+                    'bar': 'facilities.bar',
+                    'security': 'facilities.security',
+                    'management': 'facilities.management',
+                    'pool': 'facilities.pool',
+                    'spa': 'facilities.spa',
+                    'activities': 'facilities.activities',
+                    'counter': 'facilities.counter',
+                    'servicecounter': 'facilities.serviceCounter',
+                    'seating': 'facilities.seating',
+                    'hoststation': 'facilities.host',
+                    'lobbycommonareas': 'facilities.lobby',
+                    'lobby': 'facilities.lobby',
+                    'maintenance': 'facilities.maintenance',
+                    'preparea': 'facilities.prepArea'
+                  };
+                  
+                  const translationKey = zoneMap[normalizedName];
+                  if (translationKey) {
+                    return t(translationKey);
+                  }
+                  
+                  // Fallback to formatted original name
+                  return name.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                };
+                
+                const displayName = getZoneDisplayName(zoneName);
                 const ZoneIcon = ZONE_ICONS[zoneKey] || Users;
                 
                 return (
@@ -443,7 +483,7 @@ export default function FacilitiesManagementPage() {
               })}
               {facility.zones?.length > 4 && (
                 <div className="px-2 py-1 bg-gray-200 rounded text-xs text-gray-500">
-                  +{facility.zones.length - 4} more
+                  +{facility.zones.length - 4} {t('facilities.more')}
                 </div>
               )}
             </div>
@@ -461,7 +501,7 @@ export default function FacilitiesManagementPage() {
               }}
             >
               <Clock className="w-3 h-3" />
-              Shifts
+              {t('facilities.shifts')}
             </Button>
             <Button 
               size="sm" 
@@ -473,7 +513,7 @@ export default function FacilitiesManagementPage() {
               }}
             >
               <UserCog className="w-3 h-3" />
-              Roles
+              {t('facilities.roles')}
             </Button>
             <Button 
               size="sm" 
@@ -485,7 +525,7 @@ export default function FacilitiesManagementPage() {
               }}
             >
               <Settings className="w-3 h-3" />
-              Zones
+              {t('facilities.zones')}
             </Button>
           </div>
         </CardContent>
@@ -501,7 +541,7 @@ export default function FacilitiesManagementPage() {
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-gray-600">
-              {authLoading ? 'Checking permissions...' : 'Loading facilities...'}
+              {authLoading ? t('facilities.checkingPermissions') : t('facilities.loadingFacilities')}
             </p>
           </div>
         </div>
@@ -518,15 +558,15 @@ export default function FacilitiesManagementPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-red-600">
                 <Shield className="w-5 h-5" />
-                Access Denied
+                {t('common.accessDenied')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 mb-4">
-                You need manager permissions to access facilities management.
+                {t('facilities.accessDeniedMessage')}
               </p>
               <Button onClick={() => router.push('/dashboard')} className="w-full">
-                Return to Dashboard
+                {t('common.returnToDashboard')}
               </Button>
             </CardContent>
           </Card>
@@ -554,9 +594,9 @@ export default function FacilitiesManagementPage() {
             <div className="flex items-center gap-4">
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                  Facilities Management
+                  {t('facilities.facilityManagement')}
                 </h1>
-                <p className="text-gray-600 mt-1">Configure facilities, shifts, roles, and operational zones</p>
+                <p className="text-gray-600 mt-1">{t('facilities.configureFacilitiesDescription')}</p>
               </div>
             </div>
             
@@ -566,7 +606,7 @@ export default function FacilitiesManagementPage() {
                 className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200"
               >
                 <Plus className="w-4 h-4" />
-                Add Facility
+                {t('facilities.addFacility')}
               </Button>
             </div>
           </div>
@@ -577,8 +617,7 @@ export default function FacilitiesManagementPage() {
               <div className="flex items-center gap-3">
                 <FileSpreadsheet className="w-5 h-5 text-blue-600" />
                 <p className="text-blue-800 text-sm">
-                  <strong>Drag & Drop Excel files anywhere</strong> to instantly import facilities. 
-                  Support columns: Name, Address, Type (Hotel/Restaurant/Resort/Cafe/Bar).
+                  <strong>{t('facilities.dragDropInstructions')}</strong>
                 </p>
               </div>
             </CardContent>
@@ -589,7 +628,7 @@ export default function FacilitiesManagementPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input 
-                placeholder="Search facilities by name or address..."
+                placeholder={t('facilities.searchFacilities')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-gray-50 border-0 focus:bg-white transition-all duration-200"
@@ -602,9 +641,9 @@ export default function FacilitiesManagementPage() {
                 onChange={(e) => setSelectedType(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-blue-500 transition-all duration-200"
               >
-                <option value="all">All Types</option>
+                <option value="all">{t('facilities.allTypes')}</option>
                 {FACILITY_TYPES.map(type => (
-                  <option key={type.id} value={type.id}>{type.name}</option>
+                  <option key={type.id} value={type.id}>{t(type.name)}</option>
                 ))}
               </select>
             </div>
@@ -622,18 +661,18 @@ export default function FacilitiesManagementPage() {
             <div className="text-center py-12">
               <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchQuery || selectedType !== 'all' ? 'No facilities found' : 'No facilities yet'}
+                {searchQuery || selectedType !== 'all' ? t('facilities.noFacilitiesFound') : t('facilities.noFacilitiesYet')}
               </h3>
               <p className="text-gray-600 mb-4">
                 {searchQuery || selectedType !== 'all' 
-                  ? 'Try adjusting your search or filters'
-                  : 'Get started by adding your first facility or importing from Excel'
+                  ? t('facilities.tryAdjustingFilters')
+                  : t('facilities.getStartedMessage')
                 }
               </p>
               {!searchQuery && selectedType === 'all' && (
                 <Button onClick={() => setShowAddModal(true)} className="gap-2">
                   <Plus className="w-4 h-4" />
-                  Add Facility
+                  {t('facilities.addFacility')}
                 </Button>
               )}
             </div>
