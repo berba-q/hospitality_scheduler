@@ -170,6 +170,8 @@ export const en = {
     // ============================================================================
     loading: 'Loading...',
     loadingData: 'Loading data...',
+    loadingZones: 'Loading zones...',
+    loadingRoles: 'Loading roles...',
     noData: 'No data',
     noResults: 'No results',
     notFound: 'Not found',

@@ -168,8 +168,10 @@ export const it = {
     // ============================================================================
     // MESSAGGI E STATI COMUNI
     // ============================================================================
-    loading: 'Caricamento...',
+    loading: 'Caricamento in corso...',
     loadingData: 'Caricamento dati...',
+    loadingZones: 'Caricamento di zone in corso...',
+    loadingRoles: 'Caricamento di ruoli in corso...',
     noData: 'Nessun dato',
     noResults: 'Nessun risultato',
     notFound: 'Non trovato',
