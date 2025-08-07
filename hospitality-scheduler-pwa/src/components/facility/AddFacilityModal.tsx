@@ -1,7 +1,7 @@
-// AddFacilityModal.tsx - component to add new facilities
+// AddFacilityModal.tsx - component to add new facilities and edit existing ones
 'use client'
 
-import { useState} from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,16 +19,36 @@ import {
   Users,
   Star,
   CheckCircle,
-  Zap
+  Zap,
+  Edit
 } from 'lucide-react'
 import { useFacilities } from '@/hooks/useFacility'
+import { useApiClient } from '@/hooks/useApi'
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
+
+interface Facility {
+  id: string
+  name: string
+  address: string
+  facility_type: string
+  zones: string[]
+  shifts: any[]
+  roles: string[]
+  staff_count: number
+  active_schedules: number
+  created_at: string
+  location?: string
+  phone?: string
+  email?: string
+  description?: string
+}
 
 interface AddFacilityModalProps {
   open: boolean
   onClose: () => void
   onSuccess: () => void
+  facility?: Facility | null // Add facility prop for editing
 }
 
 const FACILITY_TYPES = [
@@ -84,8 +104,9 @@ const FACILITY_TYPES = [
   }
 ]
 
-export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalProps) {
+export function AddFacilityModal({ open, onClose, onSuccess, facility }: AddFacilityModalProps) {
   const { createFacility } = useFacilities()
+  const apiClient = useApiClient()
   const { t } = useTranslations()
   const [loading, setLoading] = useState(false)
   const [selectedType, setSelectedType] = useState<string>('')
@@ -99,6 +120,43 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
     description: ''
   })
 
+  // Determine if we're in edit mode
+  const isEditMode = !!facility
+  const modalTitle = isEditMode 
+    ? t('facilities.editFacility', { name: facility?.name }) || `Edit ${facility?.name}`
+    : t('facilities.addNewFacility')
+
+  // Reset form when modal opens/closes or facility changes
+  useEffect(() => {
+    if (open) {
+      if (facility) {
+        // Pre-populate form for editing
+        setFormData({
+          name: facility.name || '',
+          facility_type: facility.facility_type || '',
+          location: facility.location || '',
+          address: facility.address || '',
+          phone: facility.phone || '',
+          email: facility.email || '',
+          description: facility.description || ''
+        })
+        setSelectedType(facility.facility_type || '')
+      } else {
+        // Reset form for new facility
+        setFormData({
+          name: '',
+          facility_type: '',
+          location: '',
+          address: '',
+          phone: '',
+          email: '',
+          description: ''
+        })
+        setSelectedType('')
+      }
+    }
+  }, [open, facility])
+
   const selectedFacilityType = FACILITY_TYPES.find(type => type.id === selectedType)
 
   const handleTypeSelect = (typeId: string) => {
@@ -110,29 +168,40 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
     e.preventDefault()
     
     if (!formData.name || !formData.facility_type) {
-      toast.error(t('common.fillRequiredFields') || 'Please fill in required fields')
+      toast.error(t('facilities.fillRequiredFields'))
       return
     }
 
     setLoading(true)
     try {
-      await createFacility(formData)
-      toast.success(t('facilities.addedSuccessfully', { name: formData.name }) || `${formData.name} added successfully!`)
+      if (isEditMode && facility) {
+        // Update existing facility
+        const updateData = {
+          name: formData.name,
+          facility_type: formData.facility_type,
+          location: formData.location,
+          address: formData.address,
+          phone: formData.phone,
+          email: formData.email,
+          description: formData.description
+        }
+        
+        await apiClient.updateFacility(facility.id, updateData)
+        toast.success(t('facilities.updatedSuccessfully', { name: formData.name }))
+      } else {
+        // Create new facility
+        await createFacility(formData)
+        toast.success(t('facilities.addedSuccessfully', { name: formData.name }))
+      }
+      
       onSuccess()
-      // Reset form
-      setFormData({
-        name: '',
-        facility_type: '',
-        location: '',
-        address: '',
-        phone: '',
-        email: '',
-        description: ''
-      })
-      setSelectedType('')
+      handleCancel()
     } catch (error: any) {
-      console.error('Failed to create facility:', error)
-      toast.error(error.message || t('common.failedToCreate') || 'Failed to create facility')
+      console.error(isEditMode ? 'Failed to update facility:' : 'Failed to create facility:', error)
+      const errorMessage = isEditMode 
+        ? t('facilities.failedToUpdate') 
+        : t('common.failedToCreate')
+      toast.error(error.message || errorMessage)
     } finally {
       setLoading(false)
     }
@@ -158,8 +227,17 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Building className="w-5 h-5" />
-            {t('facilities.addNewFacility')}
+            {isEditMode ? (
+              <>
+                <Edit className="w-5 h-5" />
+                {modalTitle}
+              </>
+            ) : (
+              <>
+                <Building className="w-5 h-5" />
+                {modalTitle}
+              </>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -200,40 +278,42 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
                         {t(type.description)}
                       </p>
                       
-                      {/* Preview of defaults */}
-                      <div className="space-y-2">
-                        <div>
-                          <span className="text-xs font-medium text-gray-500">{t('facilities.shifts')}:</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {type.defaultShifts.slice(0, 2).map((shift, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs">
-                                {t(shift)}
-                              </Badge>
-                            ))}
-                            {type.defaultShifts.length > 2 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{type.defaultShifts.length - 2} {t('facilities.more')}
-                              </Badge>
-                            )}
+                      {/* Preview of defaults - only show for new facilities */}
+                      {!isEditMode && (
+                        <div className="space-y-2">
+                          <div>
+                            <span className="text-xs font-medium text-gray-500">{t('facilities.shifts')}:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {type.defaultShifts.slice(0, 2).map((shift, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                  {t(shift)}
+                                </Badge>
+                              ))}
+                              {type.defaultShifts.length > 2 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{type.defaultShifts.length - 2} {t('facilities.more')}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <span className="text-xs font-medium text-gray-500">{t('facilities.zones')}:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {type.defaultZones.slice(0, 2).map((zone, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                  {t(zone)}
+                                </Badge>
+                              ))}
+                              {type.defaultZones.length > 2 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{type.defaultZones.length - 2} {t('facilities.more')}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        
-                        <div>
-                          <span className="text-xs font-medium text-gray-500">{t('facilities.zones')}:</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {type.defaultZones.slice(0, 2).map((zone, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs">
-                                {t(zone)}
-                              </Badge>
-                            ))}
-                            {type.defaultZones.length > 2 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{type.defaultZones.length - 2} {t('facilities.more')}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                      )}
                     </CardContent>
                   </Card>
                 )
@@ -242,7 +322,7 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
           </div>
 
           {/* Step 2: Facility Details (only shown after type selection) */}
-          {selectedType && (
+          {(selectedType || facility?.type) && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold">{t('facilities.facilityDetails')}</h3>
               
@@ -255,7 +335,7 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
                       id="name"
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder={t('facilities.briefDescriptionThe')}
+                      placeholder={t('facilities.facilityName')}
                       required
                     />
                   </div>
@@ -332,8 +412,8 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
                 </div>
               </div>
 
-              {/* Configuration Preview */}
-              {selectedFacilityType && (
+              {/* Configuration Preview - only show for new facilities */}
+              {!isEditMode && selectedFacilityType && (
                 <Card className="bg-gray-50">
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
@@ -343,7 +423,7 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-gray-600 mb-4">
-                      {t('facilities.facilityWillBeConfigured') || 'This facility will be configured with the following defaults:'}
+                      {t('facilities.facilityWillBeConfigured')}
                     </p>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -408,12 +488,12 @@ export function AddFacilityModal({ open, onClose, onSuccess }: AddFacilityModalP
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {t('common.creating') || 'Creating...'}
+                  {isEditMode ? t('common.updating') : t('common.creating')}
                 </>
               ) : (
                 <>
                   <CheckCircle className="w-4 h-4" />
-                  {t('facilities.createFacility')}
+                  {isEditMode ? t('common.updateExisting') : t('facilities.createFacility')}
                 </>
               )}
             </Button>

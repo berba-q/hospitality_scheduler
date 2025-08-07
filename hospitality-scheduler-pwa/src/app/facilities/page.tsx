@@ -139,7 +139,7 @@ interface Facility {
   id: string
   name: string
   address: string
-  type: string
+  facility_type: string
   zones: string[]
   shifts: ShiftConfig[]
   roles: string[]
@@ -310,7 +310,7 @@ export default function FacilitiesManagementPage() {
   const filteredFacilities = facilities.filter((facility: Facility) => {
     const matchesSearch = facility.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (facility.address || '').toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesType = selectedType === 'all' || facility.type === selectedType
+    const matchesType = selectedType === 'all' || facility.facility_type === selectedType
     return matchesSearch && matchesType
   })
 
@@ -354,7 +354,7 @@ export default function FacilitiesManagementPage() {
 
   // Facility Card Component
   const FacilityCard = ({ facility }: { facility: Facility }) => {
-    const facilityType = FACILITY_TYPES.find(t => t.id === facility.type) || FACILITY_TYPES[0]
+    const facilityType = FACILITY_TYPES.find(t => t.id === facility.facility_type) || FACILITY_TYPES[0]
     const IconComponent = facilityType.icon
 
     return (
@@ -387,7 +387,10 @@ export default function FacilitiesManagementPage() {
               <Button 
                 size="sm" 
                 variant="ghost" 
-                onClick={() => setEditingFacility(facility)}
+                onClick={() => {
+                  setEditingFacility(facility)
+                  setShowAddModal(true) 
+                }}
                 className="hover:bg-gray-100"
               >
                 <Edit className="w-4 h-4" />
@@ -685,11 +688,16 @@ export default function FacilitiesManagementPage() {
         {/* Facility Management Modals */}
         <AddFacilityModal
           open={showAddModal}
-          onClose={() => setShowAddModal(false)}
+          onClose={() => {
+            setShowAddModal(false)
+            setEditingFacility(null)
+          }}
           onSuccess={() => {
             loadFacilities()
             setShowAddModal(false)
+            setEditingFacility(null)
           }}
+          facility={editingFacility}
         />
 
         <RoleManagementModal

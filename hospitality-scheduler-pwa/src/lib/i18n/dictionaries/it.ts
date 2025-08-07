@@ -45,6 +45,8 @@ export const it = {
     add: 'Aggiungi',
     create: 'Crea',
     update: 'Aggiorna',
+    updating: 'Aggiornamento...',
+    updateExisting: 'Aggiorna esistente',
     refresh: 'Aggiorna',
     refreshData: 'Aggiorna Dati',
     reset: 'Reimposta',
@@ -623,6 +625,11 @@ export const it = {
     addFacility: 'Aggiungi Struttura',
     createFacility: 'Crea Struttura',
     facilities: 'Strutture',
+    editFacility: 'Modifica {{name}}',
+    facilityName: 'Nome Struttura',
+    addedSuccessfully: '{{name}} aggiunto con successo!',
+    updatedSuccessfully: '{{name}} aggiornato con successo!',
+    failedToUpdate: 'Impossibile aggiornare la struttura',
     
     // Descrizioni delle pagine
     configureFacilitiesDescription: 'Configura strutture, turni, ruoli e zone operative',

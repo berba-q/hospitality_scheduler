@@ -45,6 +45,8 @@ export const en = {
     add: 'Add',
     create: 'Create',
     update: 'Update',
+    updating: 'Updating...',
+    updateExisting: 'Update Existing',
     refresh: 'Refresh',
     refreshData: 'Refresh Data',
     reset: 'Reset',
@@ -610,6 +612,12 @@ export const en = {
     addFacility: 'Add Facility',
     createFacility: 'Create Facility',
     facilities: 'Facilities',
+    editFacility: 'Edit {{name}}',
+    facilityName: 'Facility Name',
+    addedSuccessfully: '{{name}} added successfully!',
+    updatedSuccessfully: '{{name}} updated successfully!',
+    failedToUpdate: 'Failed to update facility',
+
     
     // Page descriptions
     configureFacilitiesDescription: 'Configure facilities, shifts, roles, and operational zones',
