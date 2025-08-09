@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
-import * as XLSX from 'sheetjs-style'
+import * as XLSX from 'xlsx'
 import { 
   Building2, 
   Plus, 
@@ -30,7 +30,8 @@ import {
   Utensils,
   Home,
   Waves,
-  Zap
+  Zap,
+  Upload
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -49,6 +50,8 @@ import { AddFacilityModal } from '@/components/facility/AddFacilityModal'
 import { RoleManagementModal } from '@/components/facility/RoleManagementModal'
 import { ZoneManagementModal } from '@/components/facility/ZoneManagementModal'
 import { ShiftManagementModal } from '@/components/facility/ShiftManagementModal'
+import { GlobalDropZone } from '@/components/facility/GlobalDropZone'
+import { ImportFacilitiesModal } from '@/components/facility/ImportFacilitiesModal'
 
 // Real-world facility types with appropriate defaults
 const FACILITY_TYPES = [
@@ -168,6 +171,8 @@ export default function FacilitiesManagementPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedType, setSelectedType] = useState('all')
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
+  const [showImportModal, setShowImportModal] = useState(false)
   
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false)
@@ -175,11 +180,7 @@ export default function FacilitiesManagementPage() {
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [showZoneModal, setShowZoneModal] = useState(false)
   const [editingFacility, setEditingFacility] = useState<Facility | null>(null)
-  
-  // Import states
-  const [showImportProgress, setShowImportProgress] = useState(false)
-  const [importProgress, setImportProgress] = useState(0)
-  const [importStatus, setImportStatus] = useState<'uploading' | 'processing' | 'complete'>('uploading')
+
 
   // Check permissions and redirect if needed
   useEffect(() => {
@@ -225,76 +226,21 @@ export default function FacilitiesManagementPage() {
     }
   }
 
-  // Drag and drop for Excel import
+  // Drag and drop for Excel import - simplified to just open modal
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
-    if (!file || (!file.name.endsWith('.xlsx') && !file.name.endsWith('.csv'))) {
+    if (!file) return
+    
+    // Simple validation only
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.csv')) {
       toast.error(t('facilities.pleaseUploadExcel'))
       return
     }
-
-    setShowImportProgress(true)
-    setImportProgress(0)
-    setImportStatus('uploading')
-
-    try {
-      // Simulate upload progress
-      for (let i = 0; i <= 30; i += 5) {
-        setImportProgress(i)
-        await new Promise(resolve => setTimeout(resolve, 50))
-      }
-
-      setImportStatus('processing')
-      
-      // Parse the file
-      const arrayBuffer = await file.arrayBuffer()
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' })
-      const sheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[sheetName]
-      const jsonData = XLSX.utils.sheet_to_json(worksheet)
-
-      setImportProgress(50)
-
-      // Process and validate data
-      const facilitiesToImport = jsonData.map((row: any) => {
-        const facilityType = FACILITY_TYPES.find(t => 
-          t.name.toLowerCase() === (row['Type'] || row['type'] || '').toLowerCase()
-        ) || FACILITY_TYPES[0]
-
-        return {
-          name: row['Name'] || row['name'] || t('facilities.unnamedFacility'),
-          location: row['Location'] || row['location'] || '',
-          address: row['Address'] || row['address'] || '',
-          facility_type: facilityType.id,
-          phone: row['Phone'] || row['phone'] || '',
-          email: row['Email'] || row['email'] || '',
-          description: row['Description'] || row['description'] || ''
-        }
-      })
-
-      setImportProgress(80)
-
-      // Import facilities via API
-      const imported = await Promise.all(
-        facilitiesToImport.map(facility => apiClient.createFacility(facility))
-      )
-
-      setImportProgress(100)
-      setImportStatus('complete')
-
-      toast.success(t('facilities.successfullyImported', { count: imported.length }))
-      await loadFacilities()
-
-      setTimeout(() => {
-        setShowImportProgress(false)
-      }, 1500)
-
-    } catch (error) {
-      console.error('Import failed:', error)
-      toast.error(t('facilities.failedToImportCheck'))
-      setShowImportProgress(false)
-    }
-  }, [apiClient, t])
+    
+    // Just set the file and open modal - no processing here
+    setPendingImportFile(file)
+    setShowImportModal(true)
+  }, [t])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -325,32 +271,12 @@ export default function FacilitiesManagementPage() {
     </div>
   )
 
-  // Import Progress Modal
-  const ImportProgressModal = () => (
-    <Dialog open={showImportProgress} onOpenChange={setShowImportProgress}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('facilities.importingFacilities')}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${importProgress}%` }}
-            />
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-semibold">{importProgress}%</div>
-            <div className="text-sm text-gray-600">
-              {importStatus === 'uploading' && t('facilities.uploadingFile')}
-              {importStatus === 'processing' && t('facilities.processingFacilities')}
-              {importStatus === 'complete' && t('facilities.importComplete')}
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
+  // Simplified import success handler - just refresh the list
+  const handleImportSuccess = async () => {
+    await loadFacilities()
+    setShowImportModal(false)
+    setPendingImportFile(null)
+  }
 
   // Facility Card Component
   const FacilityCard = ({ facility }: { facility: Facility }) => {
@@ -605,6 +531,14 @@ export default function FacilitiesManagementPage() {
             
             <div className="flex gap-3">
               <Button
+                onClick={() => setShowImportModal(true)}
+                variant="outline"
+                className="gap-2 hover:bg-blue-50 hover:border-blue-300"
+              >
+                <Upload className="w-4 h-4" />
+                {t('facilities.importFacilities')}
+              </Button>
+              <Button
                 onClick={() => setShowAddModal(true)}
                 className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200"
               >
@@ -682,8 +616,16 @@ export default function FacilitiesManagementPage() {
           )}
         </div>
 
-        {/* Import Progress Modal */}
-        <ImportProgressModal />
+        {/* Import Modal - handles all import processing internally */}
+        <ImportFacilitiesModal
+          open={showImportModal}
+          onClose={() => {
+            setShowImportModal(false)
+            setPendingImportFile(null)
+          }}
+          onSuccess={handleImportSuccess}
+          initialFile={pendingImportFile}
+        />
 
         {/* Facility Management Modals */}
         <AddFacilityModal

@@ -25,7 +25,7 @@ class Facility(SQLModel, table=True):
     email: Optional[str] = None
     description: Optional[str] = None
     settings: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
-    
+    is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
     

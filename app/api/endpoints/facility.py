@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select, func, and_, or_
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 import uuid
 
@@ -13,7 +13,7 @@ from ...models import (
 )
 from ...schemas import (
     # Enhanced Facility schemas
-    FacilityCreate, FacilityRead, FacilityUpdate, FacilityWithDetails,
+    FacilityCreate, FacilityDuplicateCheck, FacilityDuplicateInfo, FacilityRead, FacilityUpdate, FacilityValidationResult, FacilityWithDetails,
     FacilityDeleteResponse, FacilityDeleteValidation,
     
     # Shift schemas
@@ -45,21 +45,42 @@ def create_facility(
     facility_in: FacilityCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    force_create: bool = Query(False, description="Force creation even if duplicates are found"),
+    skip_duplicate_check: bool = Query(False, description="Skip all duplicate validation")
 ):
-    """Create a new facility with default shifts, roles, and zones"""
+    """Create a new facility with comprehensive duplicate checking"""
     
-    # Check for duplicate facility name within tenant
-    existing_facility = db.exec(
-        select(Facility)
-        .where(Facility.tenant_id == current_user.tenant_id)
-        .where(Facility.name == facility_in.name)
-    ).first()
+    # Initialize duplicates to avoid unbound variable warning
+    duplicates = None
     
-    if existing_facility:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Facility with name '{facility_in.name}' already exists"
+    # Perform duplicate checking unless explicitly skipped
+    if not skip_duplicate_check:
+        check_data = FacilityDuplicateCheck(
+            name=facility_in.name,
+            address=facility_in.address,
+            phone=facility_in.phone,
+            email=facility_in.email
         )
+        duplicates = check_facility_duplicates(check_data, db, current_user)
+        
+        # Block creation if exact name duplicate found and not forced
+        if duplicates.exact_name_match and not force_create:
+            existing_facility = duplicates.exact_name_match
+            raise HTTPException(
+                status_code=409,  # Conflict
+                detail={
+                    "error": "duplicate_name",
+                    "message": f"Facility with name '{facility_in.name}' already exists",
+                    "existing_facility": existing_facility,
+                    "duplicates": duplicates,
+                    "suggestions": [
+                        "Check if this facility already exists",
+                        "Use a different name",
+                        "Update the existing facility instead",
+                        "Use force_create=true to create anyway (not recommended)"
+                    ]
+                }
+            )
     
     # Create the facility
     facility_data = facility_in.dict()
@@ -71,7 +92,189 @@ def create_facility(
     # Set up default configuration based on facility type
     _setup_default_facility_config(db, facility)
     
+    # Include duplicate warnings in response if any were found
+    response_data = facility.model_dump()
+    if duplicates and duplicates.has_any_duplicates:
+        response_data["_duplicate_warnings"] = duplicates
+    
     return facility
+
+@router.post("/check-duplicates")
+def check_facility_duplicates(
+    check_data: FacilityDuplicateCheck,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Comprehensive duplicate checking for facilities"""
+    
+    duplicates = FacilityDuplicateInfo()
+    
+    # Check for exact name match
+    exact_name = db.exec(
+        select(Facility).where(
+            Facility.tenant_id == current_user.tenant_id,
+            Facility.name.ilike(check_data.name.strip()),
+            Facility.is_active == True
+        )
+    ).first()
+    
+    if exact_name:
+        duplicates.exact_name_match = {
+            "id": str(exact_name.id),
+            "name": exact_name.name,
+            "address": exact_name.address,
+            "facility_type": exact_name.facility_type,
+            "created_at": exact_name.created_at.isoformat()
+        }
+        duplicates.has_any_duplicates = True
+        duplicates.severity = "error"  # Exact name matches are blocking
+    
+    # Check for similar names (fuzzy matching)
+    if not exact_name:
+        name_parts = check_data.name.lower().split()
+        if name_parts:
+            similar_facilities = db.exec(
+                select(Facility).where(
+                    Facility.tenant_id == current_user.tenant_id,
+                    Facility.is_active == True
+                )
+            ).all()
+            
+            for facility in similar_facilities:
+                facility_name_lower = facility.name.lower()
+                # Check if any part of the name matches
+                if any(part in facility_name_lower for part in name_parts if len(part) > 3):
+                    duplicates.similar_names.append({
+                        "id": str(facility.id),
+                        "name": facility.name,
+                        "address": facility.address,
+                        "facility_type": facility.facility_type,
+                        "similarity_score": 0.8  # You could implement proper fuzzy matching
+                    })
+                    duplicates.has_any_duplicates = True
+                    if duplicates.severity == "none":
+                        duplicates.severity = "warning"
+    
+    # Check for address duplicates
+    if check_data.address:
+        address_clean = check_data.address.strip().lower()
+        if len(address_clean) > 10:  # Only check substantial addresses
+            address_matches = db.exec(
+                select(Facility).where(
+                    Facility.tenant_id == current_user.tenant_id,
+                    Facility.address.ilike(f"%{address_clean}%"),
+                    Facility.is_active == True
+                )
+            ).all()
+            
+            for facility in address_matches:
+                if facility.name != check_data.name:  # Don't match against exact name duplicates
+                    duplicates.address_matches.append({
+                        "id": str(facility.id),
+                        "name": facility.name,
+                        "address": facility.address,
+                        "facility_type": facility.facility_type
+                    })
+                    duplicates.has_any_duplicates = True
+                    if duplicates.severity == "none":
+                        duplicates.severity = "warning"
+    
+    # Check for phone duplicates
+    if check_data.phone:
+        normalized_phone = ''.join(filter(str.isdigit, check_data.phone))
+        if len(normalized_phone) >= 10:
+            phone_matches = db.exec(
+                select(Facility).where(
+                    Facility.tenant_id == current_user.tenant_id,
+                    Facility.phone.like(f"%{normalized_phone[-10:]}%"),
+                    Facility.is_active == True
+                )
+            ).all()
+            
+            for facility in phone_matches:
+                duplicates.phone_matches.append({
+                    "id": str(facility.id),
+                    "name": facility.name,
+                    "phone": facility.phone,
+                    "address": facility.address
+                })
+                duplicates.has_any_duplicates = True
+                if duplicates.severity == "none":
+                    duplicates.severity = "warning"
+    
+    # Check for email duplicates
+    if check_data.email:
+        email_matches = db.exec(
+            select(Facility).where(
+                Facility.tenant_id == current_user.tenant_id,
+                Facility.email.ilike(check_data.email.strip()),
+                Facility.is_active == True
+            )
+        ).all()
+        
+        for facility in email_matches:
+            duplicates.email_matches.append({
+                "id": str(facility.id),
+                "name": facility.name,
+                "email": facility.email,
+                "address": facility.address
+            })
+            duplicates.has_any_duplicates = True
+            if duplicates.severity == "none":
+                duplicates.severity = "warning"
+    
+    return duplicates
+
+@router.post("/validate-before-create")
+def validate_facility_before_create(
+    facility_in: FacilityCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Validate facility data and check for duplicates before creation"""
+    
+    # Check for duplicates
+    check_data = FacilityDuplicateCheck(
+        name=facility_in.name,
+        address=facility_in.address,
+        phone=facility_in.phone,
+        email=facility_in.email
+    )
+    duplicates = check_facility_duplicates(check_data, db, current_user)
+    
+    # Validate required fields
+    validation_errors = []
+    recommendations = []
+    
+    if not facility_in.name or len(facility_in.name.strip()) < 2:
+        validation_errors.append("Facility name must be at least 2 characters long")
+    
+    if facility_in.email and "@" not in facility_in.email:
+        validation_errors.append("Email format is invalid")
+    
+    if not facility_in.facility_type:
+        validation_errors.append("Facility type is required")
+    
+    # Add recommendations based on duplicates
+    if duplicates.exact_name_match:
+        recommendations.append("Consider using a different name or updating the existing facility")
+    
+    if duplicates.address_matches:
+        recommendations.append("Verify this is not the same location as existing facilities")
+    
+    if duplicates.similar_names:
+        recommendations.append("Check if this facility already exists with a similar name")
+    
+    can_create = len(validation_errors) == 0 and (
+        duplicates.severity != "error" or len(validation_errors) == 0
+    )
+    
+    return FacilityValidationResult(
+        can_create=can_create,
+        validation_errors=validation_errors,
+        duplicates=duplicates,
+        recommendations=recommendations
+    )
 
 
 @router.get("/", response_model=List[FacilityWithDetails])
@@ -639,41 +842,179 @@ def get_facility_template(facility_type: str):
     return _get_facility_template(facility_type)
 
 
-@router.post("/import", response_model=List[FacilityRead])
+@router.post("/import", response_model=Dict[str, Any])
 def import_facilities(
     facilities_data: List[FacilityImportData],
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    force_create_duplicates: bool = Query(False, description="Force creation of facilities even if duplicates exist"),
+    skip_duplicate_check: bool = Query(False, description="Skip all duplicate validation"),
+    validate_only: bool = Query(False, description="Only validate, don't actually import")
 ):
-    """Import multiple facilities from Excel/CSV data"""
-    created_facilities = []
+    """Import multiple facilities with comprehensive duplicate checking and validation"""
     
-    for facility_data in facilities_data:
-        # Check for duplicate facility name
-        existing = db.exec(
-            select(Facility)
-            .where(Facility.tenant_id == current_user.tenant_id)
-            .where(Facility.name == facility_data.name)
-        ).first()
-        
-        if existing:
-            continue  # Skip duplicates
-        
-        # Create facility
-        facility = Facility(
-            tenant_id=current_user.tenant_id,
-            **facility_data.dict()
-        )
-        db.add(facility)
-        db.commit()
-        db.refresh(facility)
-        
-        # Setup default configuration
-        _setup_default_facility_config(db, facility)
-        
-        created_facilities.append(facility)
+    import_results = {
+        "total_processed": len(facilities_data),
+        "successful_imports": 0,
+        "skipped_duplicates": 0,
+        "validation_errors": 0,
+        "created_facilities": [],
+        "skipped_facilities": [],
+        "error_facilities": [],
+        "duplicate_warnings": [],
+        "processing_details": {
+            "started_at": datetime.utcnow().isoformat(),
+            "force_create_used": force_create_duplicates,
+            "duplicate_checking_enabled": not skip_duplicate_check,
+            "validation_only": validate_only
+        }
+    }
     
-    return created_facilities
+    for index, facility_data in enumerate(facilities_data):
+        facility_result = {
+            "row_number": index + 1,
+            "facility_name": facility_data.name,
+            "success": False,
+            "action_taken": "none",
+            "facility_id": None,
+            "errors": [],
+            "warnings": [],
+            "duplicate_info": None
+        }
+        
+        try:
+            # Step 1: Basic validation
+            validation_errors = []
+            
+            if not facility_data.name or len(facility_data.name.strip()) < 2:
+                validation_errors.append("Facility name must be at least 2 characters long")
+            
+            if facility_data.email and "@" not in facility_data.email:
+                validation_errors.append("Invalid email format")
+            
+            if not facility_data.facility_type:
+                validation_errors.append("Facility type is required")
+            
+            # If basic validation fails, skip this facility
+            if validation_errors:
+                facility_result["errors"] = validation_errors
+                facility_result["action_taken"] = "validation_failed"
+                import_results["error_facilities"].append(facility_result)
+                import_results["validation_errors"] += 1
+                continue
+            
+            # Step 2: Duplicate checking (unless skipped)
+            duplicates = None
+            can_create = True
+            
+            if not skip_duplicate_check:
+                # Use our comprehensive duplicate checking
+                check_data = FacilityDuplicateCheck(
+                    name=facility_data.name,
+                    address=facility_data.address,
+                    phone=facility_data.phone,
+                    email=facility_data.email
+                )
+                duplicates = check_facility_duplicates(check_data, db, current_user)
+                facility_result["duplicate_info"] = duplicates
+                
+                # Check if we can create this facility
+                if duplicates.exact_name_match and not force_create_duplicates:
+                    can_create = False
+                    facility_result["errors"].append(f"Facility with name '{facility_data.name}' already exists")
+                    facility_result["action_taken"] = "blocked_by_duplicate"
+                    import_results["skipped_facilities"].append(facility_result)
+                    import_results["skipped_duplicates"] += 1
+                    continue
+                elif duplicates.has_any_duplicates:
+                    # Has warnings but can proceed
+                    facility_result["warnings"].append(f"Potential duplicates detected (severity: {duplicates.severity})")
+                    if duplicates.similar_names:
+                        facility_result["warnings"].append(f"Similar names found: {[f['name'] for f in duplicates.similar_names[:3]]}")
+                    if duplicates.address_matches:
+                        facility_result["warnings"].append(f"Address matches found: {[f['name'] for f in duplicates.address_matches[:3]]}")
+            
+            # Step 3: If validation_only mode, just record results and continue
+            if validate_only:
+                facility_result["success"] = can_create
+                facility_result["action_taken"] = "validated_only"
+                if can_create:
+                    import_results["created_facilities"].append(facility_result)
+                continue
+            
+            # Step 4: Create the facility
+            if can_create:
+                # Create facility with proper data handling
+                facility_create_data = {
+                    "name": facility_data.name.strip(),
+                    "facility_type": facility_data.facility_type or "hotel",
+                    "location": facility_data.location or "",
+                    "address": facility_data.address or "",
+                    "phone": facility_data.phone or "",
+                    "email": facility_data.email or "",
+                    "description": facility_data.description or ""
+                }
+                
+                facility = Facility(
+                    tenant_id=current_user.tenant_id,
+                    **facility_create_data
+                )
+                
+                db.add(facility)
+                db.flush()  # Get the ID without committing yet
+                
+                # Set up default configuration
+                _setup_default_facility_config(db, facility)
+                
+                # Success!
+                facility_result["success"] = True
+                facility_result["facility_id"] = str(facility.id)
+                facility_result["action_taken"] = "force_created" if (duplicates and duplicates.has_any_duplicates and force_create_duplicates) else "created"
+                
+                import_results["created_facilities"].append(facility_result)
+                import_results["successful_imports"] += 1
+                
+                if duplicates and duplicates.has_any_duplicates:
+                    import_results["duplicate_warnings"].append({
+                        "facility_name": facility_data.name,
+                        "severity": duplicates.severity,
+                        "duplicate_info": duplicates
+                    })
+        
+        except Exception as e:
+            # Handle unexpected errors
+            facility_result["errors"].append(f"Unexpected error: {str(e)}")
+            facility_result["action_taken"] = "error"
+            import_results["error_facilities"].append(facility_result)
+            import_results["validation_errors"] += 1
+            
+            # Log the error for debugging
+            print(f"Error importing facility '{facility_data.name}': {str(e)}")
+    
+    # Commit all successful changes (unless validation_only)
+    if not validate_only and import_results["successful_imports"] > 0:
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            # If commit fails, mark all as failed
+            for facility_result in import_results["created_facilities"]:
+                facility_result["success"] = False
+                facility_result["errors"].append(f"Database commit failed: {str(e)}")
+                facility_result["action_taken"] = "commit_failed"
+            
+            import_results["error_facilities"].extend(import_results["created_facilities"])
+            import_results["created_facilities"] = []
+            import_results["successful_imports"] = 0
+            import_results["validation_errors"] = len(import_results["error_facilities"])
+    
+    # Finalize results
+    import_results["processing_details"]["completed_at"] = datetime.utcnow().isoformat()
+    import_results["processing_details"]["success_rate"] = (
+        import_results["successful_imports"] / max(import_results["total_processed"], 1) * 100
+    )
+    
+    return import_results
 
 
 # ==================== HELPER FUNCTIONS ====================

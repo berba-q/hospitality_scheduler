@@ -32,6 +32,27 @@ class DuplicateInfo(BaseModel):
         if v not in ['none', 'warning', 'error']:
             raise ValueError('Severity must be none, warning, or error')
         return v
+    
+class FacilityDuplicateCheck(BaseModel):
+    name: str
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+
+class FacilityDuplicateInfo(BaseModel):
+    has_any_duplicates: bool = False
+    severity: str = "none"  # none, warning, error
+    exact_name_match: Optional[Dict[str, Any]] = None
+    address_matches: List[Dict[str, Any]] = []
+    phone_matches: List[Dict[str, Any]] = []
+    email_matches: List[Dict[str, Any]] = []
+    similar_names: List[Dict[str, Any]] = []
+
+class FacilityValidationResult(BaseModel):
+    can_create: bool
+    validation_errors: List[str] = []
+    duplicates: FacilityDuplicateInfo
+    recommendations: List[str] = []
 
 class Token(BaseModel):
     access_token: str
@@ -252,14 +273,40 @@ class FacilityTemplate(BaseModel):
     zones: List[FacilityZoneBase]
 
 class FacilityImportData(BaseModel):
-    """Schema for importing facilities from Excel/CSV"""
+    """Enhanced schema for importing facilities from Excel/CSV"""
     name: str
     facility_type: str = "hotel"
+    location: Optional[str] = None
     address: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
-    location: Optional[str] = None
     description: Optional[str] = None
+    
+    # Import-specific fields (similar to staff)
+    row_number: Optional[int] = None
+    source_data: Optional[Dict[str, Any]] = None
+    force_create: bool = False
+    
+    # Validation helpers
+    @field_validator('name')
+    def validate_name(cls, v):
+        if not v or len(v.strip()) < 2:
+            raise ValueError('Facility name must be at least 2 characters long')
+        return v.strip()
+    
+    @field_validator('email')
+    def validate_email(cls, v):
+        if v and '@' not in v:
+            raise ValueError('Invalid email format')
+        return v.strip() if v else None
+    
+    @field_validator('facility_type')
+    def validate_facility_type(cls, v):
+        allowed_types = ['hotel', 'restaurant', 'resort', 'cafe', 'bar']
+        if v and v not in allowed_types:
+            # Don't raise error, just default to hotel
+            return 'hotel'
+        return v or 'hotel'
 
 
 class StaffCreate(BaseModel):

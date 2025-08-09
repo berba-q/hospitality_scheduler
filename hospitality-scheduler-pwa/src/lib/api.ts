@@ -227,6 +227,83 @@ export class ApiClient {
     })
   }
 
+  async importFacilities(facilities: Array<{
+    name: string
+    facility_type: string
+    location?: string
+    address?: string
+    phone?: string
+    email?: string
+    description?: string
+    force_create?: boolean
+  }>, options?: {
+    force_create_duplicates?: boolean
+    skip_duplicate_check?: boolean
+    validate_only?: boolean
+  }): Promise<{
+    total_processed: number
+    successful_imports: number
+    skipped_duplicates: number
+    validation_errors: number
+    created_facilities: any[]
+    skipped_facilities: any[]
+    error_facilities: any[]
+    duplicate_warnings: any[]
+    processing_details: any
+  }> {
+    const queryParams = new URLSearchParams()
+    if (options?.force_create_duplicates) queryParams.append('force_create_duplicates', 'true')
+    if (options?.skip_duplicate_check) queryParams.append('skip_duplicate_check', 'true')
+    if (options?.validate_only) queryParams.append('validate_only', 'true')
+    
+    const queryString = queryParams.toString()
+    const endpoint = `/v1/facilities/import${queryString ? `?${queryString}` : ''}`
+    
+    return this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(facilities.map(f => ({
+        name: f.name,
+        facility_type: f.facility_type,
+        location: f.location || '',
+        address: f.address || '',
+        phone: f.phone || '',
+        email: f.email || '',
+        description: f.description || '',
+        force_create: f.force_create || false
+      })))
+    })
+  }
+
+  // Validate import without actually importing (for preview)
+  async validateFacilitiesImport(facilities: Array<{
+    name: string
+    facility_type: string
+    location?: string
+    address?: string
+    phone?: string
+    email?: string
+    description?: string
+  }>): Promise<{
+    total_processed: number
+    successful_imports: number
+    validation_errors: number
+    created_facilities: any[]
+    error_facilities: any[]
+  }> {
+    return this.request('/v1/facilities/validate-import', {
+      method: 'POST',
+      body: JSON.stringify(facilities.map(f => ({
+        name: f.name,
+        facility_type: f.facility_type,
+        location: f.location || '',
+        address: f.address || '',
+        phone: f.phone || '',
+        email: f.email || '',
+        description: f.description || ''
+      })))
+    })
+  }
+
   async updateFacility(facilityId: string, facilityData: {
     name?: string
     location?: string
