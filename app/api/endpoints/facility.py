@@ -3,13 +3,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select, func, and_, or_
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from datetime import date, datetime, timedelta
 import uuid
 
 from ...deps import get_db, get_current_user
 from ...models import (
-    Facility, FacilityShift, FacilityRole, FacilityZone, 
-    ShiftRoleRequirement, Staff, User, Schedule, SwapRequest
+    Facility, FacilityShift, FacilityRole, FacilityZone, ScheduleTemplate, ShiftAssignment, 
+    ShiftRoleRequirement, Staff, User, Schedule, SwapRequest, ZoneAssignment
 )
 from ...schemas import (
     # Enhanced Facility schemas
@@ -83,7 +83,7 @@ def create_facility(
             )
     
     # Create the facility
-    facility_data = facility_in.dict()
+    facility_data = facility_in.model_dump()
     facility = Facility(tenant_id=current_user.tenant_id, **facility_data)
     db.add(facility)
     db.commit()
@@ -295,7 +295,7 @@ def list_facilities(
     facilities = db.exec(query).all()
     
     if not include_details:
-        return [FacilityRead.from_orm(f) for f in facilities]
+        return [FacilityRead.model_validate(f) for f in facilities]
     
     # Include detailed information
     result = []
@@ -335,10 +335,10 @@ def list_facilities(
         ).first() or 0
         
         facility_detail = FacilityWithDetails(
-            **facility.dict(),
-            shifts=[FacilityShiftRead.from_orm(s) for s in shifts],
-            roles=[FacilityRoleRead.from_orm(r) for r in roles],
-            zones=[FacilityZoneRead.from_orm(z) for z in zones],
+            **facility.model_dump(),
+            shifts=[FacilityShiftRead.model_validate(s) for s in shifts],
+            roles=[FacilityRoleRead.model_validate(r) for r in roles],
+            zones=[FacilityZoneRead.model_validate(z) for z in zones],
             staff_count=staff_count,
             active_schedules=active_schedules
         )
@@ -389,10 +389,10 @@ def get_facility(
     ).first() or 0
     
     return FacilityWithDetails(
-        **facility.dict(),
-        shifts=[FacilityShiftRead.from_orm(s) for s in shifts],
-        roles=[FacilityRoleRead.from_orm(r) for r in roles],
-        zones=[FacilityZoneRead.from_orm(z) for z in zones],
+        **facility.model_dump(),
+        shifts=[FacilityShiftRead.model_validate(s) for s in shifts],
+        roles=[FacilityRoleRead.model_validate(r) for r in roles],
+        zones=[FacilityZoneRead.model_validate(z) for z in zones],
         staff_count=staff_count,
         active_schedules=active_schedules
     )
@@ -424,7 +424,7 @@ def update_facility(
             )
     
     # Update fields
-    for field, value in facility_update.dict(exclude_unset=True).items():
+    for field, value in facility_update.model_dump(exclude_unset=True).items():
         setattr(facility, field, value)
     
     facility.updated_at = datetime.utcnow()
@@ -551,7 +551,7 @@ def get_facility_shifts(
     query = query.order_by(FacilityShift.shift_order)
     shifts = db.exec(query).all()
     
-    return [FacilityShiftRead.from_orm(shift) for shift in shifts]
+    return [FacilityShiftRead.model_validate(shift) for shift in shifts]
 
 
 @router.post("/{facility_id}/shifts", response_model=FacilityShiftRead, status_code=201)
@@ -581,12 +581,12 @@ def create_facility_shift(
             detail=f"Shift '{shift_data.shift_name}' already exists for this facility"
         )
     
-    shift = FacilityShift(**shift_data.dict())
+    shift = FacilityShift(**shift_data.model_dump())
     db.add(shift)
     db.commit()
     db.refresh(shift)
     
-    return FacilityShiftRead.from_orm(shift)
+    return FacilityShiftRead.model_validate(shift)
 
 
 @router.put("/{facility_id}/shifts/bulk", response_model=List[FacilityShiftRead])
@@ -614,7 +614,7 @@ def update_facility_shifts_bulk(
         shift = FacilityShift(
             facility_id=facility_id,
             shift_order=i,
-            **shift_data.dict()
+            **shift_data.model_dump()
         )
         db.add(shift)
         new_shifts.append(shift)
@@ -625,7 +625,7 @@ def update_facility_shifts_bulk(
     for shift in new_shifts:
         db.refresh(shift)
     
-    return [FacilityShiftRead.from_orm(shift) for shift in new_shifts]
+    return [FacilityShiftRead.model_validate(shift) for shift in new_shifts]
 
 
 @router.put("/{facility_id}/shifts/{shift_id}", response_model=FacilityShiftRead)
@@ -660,14 +660,14 @@ def update_facility_shift(
             )
     
     # Update fields
-    for field, value in shift_update.dict(exclude_unset=True).items():
+    for field, value in shift_update.model_dump(exclude_unset=True).items():
         setattr(shift, field, value)
     
     shift.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(shift)
     
-    return FacilityShiftRead.from_orm(shift)
+    return FacilityShiftRead.model_validate(shift)
 
 
 @router.delete("/{facility_id}/shifts/{shift_id}/validate", response_model=FacilityShiftDeleteValidation)
@@ -775,7 +775,7 @@ def get_facility_roles(
         query = query.where(FacilityRole.is_active == True)
     
     roles = db.exec(query).all()
-    return [FacilityRoleRead.from_orm(role) for role in roles]
+    return [FacilityRoleRead.model_validate(role) for role in roles]
 
 
 @router.post("/{facility_id}/roles", response_model=FacilityRoleRead, status_code=201)
@@ -803,12 +803,12 @@ def create_facility_role(
         )
     
     role_data.facility_id = facility_id
-    role = FacilityRole(**role_data.dict())
+    role = FacilityRole(**role_data.model_dump())
     db.add(role)
     db.commit()
     db.refresh(role)
     
-    return FacilityRoleRead.from_orm(role)
+    return FacilityRoleRead.model_validate(role)
 
 
 # ==================== ZONE MANAGEMENT ====================
@@ -831,7 +831,7 @@ def get_facility_zones(
     query = query.order_by(FacilityZone.display_order)
     zones = db.exec(query).all()
     
-    return [FacilityZoneRead.from_orm(zone) for zone in zones]
+    return [FacilityZoneRead.model_validate(zone) for zone in zones]
 
 
 # ==================== TEMPLATES & IMPORT ====================
@@ -1040,7 +1040,7 @@ def _setup_default_facility_config(db: Session, facility: Facility):
         shift = FacilityShift(
             facility_id=facility.id,
             shift_order=i,
-            **shift_data.dict()
+            **shift_data.model_dump()
         )
         db.add(shift)
     
@@ -1048,7 +1048,7 @@ def _setup_default_facility_config(db: Session, facility: Facility):
     for role_data in template.roles:
         role = FacilityRole(
             facility_id=facility.id,
-            **role_data.dict()
+            **role_data.model_dump()
         )
         db.add(role)
     
@@ -1057,7 +1057,7 @@ def _setup_default_facility_config(db: Session, facility: Facility):
         zone = FacilityZone(
             facility_id=facility.id,
             display_order=i,
-            **zone_data.dict()
+            **zone_data.model_dump()
         )
         db.add(zone)
     
@@ -1236,7 +1236,8 @@ def soft_delete_facility(
         success=True,
         message=f"Facility '{facility.name}' and related entities deactivated",
         deactivated_id=facility_id,
-        related_deactivations=related_deactivations
+        related_deactivations=related_deactivations,
+        notifications_sent=0
     )
 
 
@@ -1371,6 +1372,502 @@ def get_zones_for_scheduling(
         })
     
     return scheduling_zones
+
+# ==================== ROLE MANAGEMENT  ====================
+
+@router.put("/{facility_id}/roles/{role_id}", response_model=FacilityRoleRead)
+def update_facility_role(
+    facility_id: uuid.UUID,
+    role_id: uuid.UUID,
+    role_data: FacilityRoleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update a facility role"""
+    _verify_facility_access(db, facility_id, current_user.tenant_id)
+    
+    role = db.get(FacilityRole, role_id)
+    if not role or role.facility_id != facility_id:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    # Check for duplicate role name if updating
+    if role_data.role_name and role_data.role_name != role.role_name:
+        existing_role = db.exec(
+            select(FacilityRole)
+            .where(FacilityRole.facility_id == facility_id)
+            .where(FacilityRole.role_name == role_data.role_name)
+            .where(FacilityRole.id != role_id)
+            .where(FacilityRole.is_active == True)
+        ).first()
+        
+        if existing_role:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Role with name '{role_data.role_name}' already exists for this facility"
+            )
+    
+    # Update fields
+    for field, value in role_data.model_dump(exclude_unset=True).items():
+        setattr(role, field, value)
+    
+    role.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(role)
+    
+    return FacilityRoleRead.model_validate(role)
+
+
+@router.put("/{facility_id}/roles/bulk", response_model=List[FacilityRoleRead])
+def update_facility_roles_bulk(
+    facility_id: uuid.UUID,
+    roles_data: BulkFacilityRoleCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Bulk update/replace all roles for a facility"""
+    _verify_facility_access(db, facility_id, current_user.tenant_id)
+    
+    # Deactivate existing roles
+    existing_roles = db.exec(
+        select(FacilityRole).where(FacilityRole.facility_id == facility_id)
+    ).all()
+    
+    for role in existing_roles:
+        role.is_active = False
+        role.updated_at = datetime.utcnow()
+    
+    # Create new roles
+    new_roles = []
+    for role_data in roles_data.roles:
+        role = FacilityRole(
+            facility_id=facility_id,
+            **role_data.model_dump()
+        )
+        db.add(role)
+        new_roles.append(role)
+    
+    db.commit()
+    
+    # Refresh and return
+    for role in new_roles:
+        db.refresh(role)
+    
+    return [FacilityRoleRead.model_validate(role) for role in new_roles]
+
+
+@router.delete("/{facility_id}/roles/{role_id}/validate", response_model=FacilityRoleDeleteValidation)
+def validate_role_deletion(
+    facility_id: uuid.UUID,
+    role_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Validate if role can be deleted and show impact"""
+    _verify_facility_access(db, facility_id, current_user.tenant_id)
+    
+    role = db.get(FacilityRole, role_id)
+    if not role or role.facility_id != facility_id:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    errors = []
+    warnings = []
+    
+    # Check if role is assigned to active staff members
+    staff_with_role_count = db.exec(
+        select(func.count(Staff.id))
+        .where(Staff.role == role.role_name)
+        .where(Staff.facility_id == facility_id)
+        .where(Staff.is_active == True)
+    ).first() or 0
+    
+    if staff_with_role_count > 0:
+        errors.append(f"Role is assigned to {staff_with_role_count} active staff members")
+    
+    # Check if role is referenced in zones (required_roles or preferred_roles)
+    zones_with_role = db.exec(
+        select(FacilityZone)
+        .where(FacilityZone.facility_id == facility_id)
+        .where(FacilityZone.is_active == True)
+    ).all()
+    
+    zone_requirements_count = 0
+    zone_names_affected = []
+    for zone in zones_with_role:
+        if (role.role_name in (zone.required_roles or []) or 
+            role.role_name in (zone.preferred_roles or [])):
+            zone_requirements_count += 1
+            zone_names_affected.append(zone.zone_name)
+    
+    if zone_requirements_count > 0:
+        warnings.append(f"Role is referenced in {zone_requirements_count} zone configurations: {', '.join(zone_names_affected)}")
+    
+    # Check if role is referenced in shift role requirements
+    shift_requirements_count = db.exec(
+        select(func.count(ShiftRoleRequirement.id))
+        .join(FacilityRole, ShiftRoleRequirement.facility_role_id == FacilityRole.id)
+        .where(FacilityRole.facility_id == facility_id)
+        .where(FacilityRole.id == role_id)
+    ).first() or 0
+    
+    if shift_requirements_count > 0:
+        warnings.append(f"Role is required for {shift_requirements_count} shift configuration(s)")
+    
+    # Check for active staff assignments in current/future schedules
+    future_assignments_with_role = db.exec(
+        select(func.count(ShiftAssignment.id))
+        .join(Staff, ShiftAssignment.staff_id == Staff.id)
+        .join(Schedule, ShiftAssignment.schedule_id == Schedule.id)
+        .where(Staff.role == role.role_name)
+        .where(Staff.facility_id == facility_id)
+        .where(Schedule.week_start >= date.today())
+    ).first() or 0
+    
+    if future_assignments_with_role > 0:
+        warnings.append(f"Role has {future_assignments_with_role} assignments in current/future schedules")
+    
+    # Check if role is the only management role (if it's a management role)
+    if role.is_management:
+        other_management_roles = db.exec(
+            select(func.count(FacilityRole.id))
+            .where(FacilityRole.facility_id == facility_id)
+            .where(FacilityRole.is_management == True)
+            .where(FacilityRole.is_active == True)
+            .where(FacilityRole.id != role_id)
+        ).first() or 0
+        
+        if other_management_roles == 0:
+            warnings.append("This is the only management role for this facility")
+    
+    return FacilityRoleDeleteValidation(
+        can_delete=len(errors) == 0,
+        staff_with_role_count=staff_with_role_count,
+        shift_requirements_count=shift_requirements_count,
+        zone_requirements_count=zone_requirements_count,
+        errors=errors,
+        warnings=warnings
+    )
+
+
+@router.delete("/{facility_id}/roles/{role_id}", response_model=FacilityRoleDeleteResponse)
+def delete_facility_role(
+    facility_id: uuid.UUID,
+    role_id: uuid.UUID,
+    soft_delete: bool = Query(True, description="Soft delete (deactivate) instead of hard delete"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a role (soft delete by default)"""
+    _verify_facility_access(db, facility_id, current_user.tenant_id)
+    
+    role = db.get(FacilityRole, role_id)
+    if not role or role.facility_id != facility_id:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    # Validate deletion
+    validation = validate_role_deletion(facility_id, role_id, db, current_user)
+    if not validation.can_delete:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete role: {'; '.join(validation.errors)}"
+        )
+    
+    if soft_delete:
+        # Soft delete - mark as inactive
+        role.is_active = False
+        role.updated_at = datetime.utcnow()
+        db.commit()
+        message = f"Role '{role.role_name}' deactivated successfully"
+    else:
+        # Hard delete
+        db.delete(role)
+        db.commit()
+        message = f"Role '{role.role_name}' deleted successfully"
+    
+    return FacilityRoleDeleteResponse(
+        success=True,
+        message=message,
+        deleted_id=role_id,
+        entity_type="facility_role",
+        affected_staff_count=validation.staff_with_role_count,
+        affected_zones_count=validation.zone_requirements_count
+    )
+
+
+# ==================== ZONE MANAGEMENT  ====================
+
+@router.post("/{facility_id}/zones", response_model=FacilityZoneRead, status_code=201)
+def create_facility_zone(
+    facility_id: uuid.UUID,
+    zone_data: FacilityZoneCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new zone for a facility"""
+    _verify_facility_access(db, facility_id, current_user.tenant_id)
+    
+    # Check for duplicate zone_id
+    existing_zone = db.exec(
+        select(FacilityZone)
+        .where(FacilityZone.facility_id == facility_id)
+        .where(FacilityZone.zone_id == zone_data.zone_id)
+        .where(FacilityZone.is_active == True)
+    ).first()
+    
+    if existing_zone:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Zone with ID '{zone_data.zone_id}' already exists for this facility"
+        )
+    
+    # Check for duplicate zone name
+    existing_zone_name = db.exec(
+        select(FacilityZone)
+        .where(FacilityZone.facility_id == facility_id)
+        .where(FacilityZone.zone_name == zone_data.zone_name)
+        .where(FacilityZone.is_active == True)
+    ).first()
+    
+    if existing_zone_name:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Zone with name '{zone_data.zone_name}' already exists for this facility"
+        )
+    
+    zone_data.facility_id = facility_id
+    zone = FacilityZone(**zone_data.model_dump())
+    db.add(zone)
+    db.commit()
+    db.refresh(zone)
+    
+    return FacilityZoneRead.model_validate(zone)
+
+
+@router.put("/{facility_id}/zones/{zone_id}", response_model=FacilityZoneRead)
+def update_facility_zone(
+    facility_id: uuid.UUID,
+    zone_id: uuid.UUID,
+    zone_data: FacilityZoneUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update a facility zone"""
+    _verify_facility_access(db, facility_id, current_user.tenant_id)
+    
+    zone = db.get(FacilityZone, zone_id)
+    if not zone or zone.facility_id != facility_id:
+        raise HTTPException(status_code=404, detail="Zone not found")
+    
+    # Check for duplicate zone_id if updating
+    if zone_data.zone_id and zone_data.zone_id != zone.zone_id:
+        existing_zone = db.exec(
+            select(FacilityZone)
+            .where(FacilityZone.facility_id == facility_id)
+            .where(FacilityZone.zone_id == zone_data.zone_id)
+            .where(FacilityZone.id != zone_id)
+            .where(FacilityZone.is_active == True)
+        ).first()
+        
+        if existing_zone:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Zone with ID '{zone_data.zone_id}' already exists for this facility"
+            )
+    
+    # Check for duplicate zone name if updating
+    if zone_data.zone_name and zone_data.zone_name != zone.zone_name:
+        existing_zone_name = db.exec(
+            select(FacilityZone)
+            .where(FacilityZone.facility_id == facility_id)
+            .where(FacilityZone.zone_name == zone_data.zone_name)
+            .where(FacilityZone.id != zone_id)
+            .where(FacilityZone.is_active == True)
+        ).first()
+        
+        if existing_zone_name:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Zone with name '{zone_data.zone_name}' already exists for this facility"
+            )
+    
+    # Update fields
+    for field, value in zone_data.model_dump(exclude_unset=True).items():
+        setattr(zone, field, value)
+    
+    zone.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(zone)
+    
+    return FacilityZoneRead.model_validate(zone)
+
+
+@router.put("/{facility_id}/zones/bulk", response_model=List[FacilityZoneRead])
+def update_facility_zones_bulk(
+    facility_id: uuid.UUID,
+    zones_data: BulkFacilityZoneCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Bulk update/replace all zones for a facility"""
+    _verify_facility_access(db, facility_id, current_user.tenant_id)
+    
+    # Deactivate existing zones
+    existing_zones = db.exec(
+        select(FacilityZone).where(FacilityZone.facility_id == facility_id)
+    ).all()
+    
+    for zone in existing_zones:
+        zone.is_active = False
+        zone.updated_at = datetime.utcnow()
+    
+    # Create new zones
+    new_zones = []
+    for i, zone_data in enumerate(zones_data.zones):
+        zone = FacilityZone(
+            facility_id=facility_id,
+            display_order=i,
+            **zone_data.model_dump()
+        )
+        db.add(zone)
+        new_zones.append(zone)
+    
+    db.commit()
+    
+    # Refresh and return
+    for zone in new_zones:
+        db.refresh(zone)
+    
+    return [FacilityZoneRead.model_validate(zone) for zone in new_zones]
+
+
+@router.delete("/{facility_id}/zones/{zone_id}/validate", response_model=FacilityZoneDeleteValidation)
+def validate_zone_deletion(
+    facility_id: uuid.UUID,
+    zone_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Validate if zone can be deleted and show impact"""
+    _verify_facility_access(db, facility_id, current_user.tenant_id)
+    
+    zone = db.get(FacilityZone, zone_id)
+    if not zone or zone.facility_id != facility_id:
+        raise HTTPException(status_code=404, detail="Zone not found")
+    
+    errors = []
+    warnings = []
+    
+    # Check for active zone assignments in current schedules
+    active_assignments_count = db.exec(
+        select(func.count(ZoneAssignment.id))
+        .join(Schedule, ZoneAssignment.schedule_id == Schedule.id)
+        .where(ZoneAssignment.zone_id == zone.zone_id)
+        .where(Schedule.facility_id == facility_id)
+        .where(Schedule.week_start >= date.today() - timedelta(days=7))  # Current and future schedules
+    ).first() or 0
+    
+    if active_assignments_count > 0:
+        errors.append(f"Zone has {active_assignments_count} active staff assignments in current/future schedules")
+    
+    # Check for future schedules that might be affected
+    future_schedules_affected = db.exec(
+        select(func.count(func.distinct(Schedule.id)))
+        .join(ZoneAssignment, ZoneAssignment.schedule_id == Schedule.id)
+        .where(ZoneAssignment.zone_id == zone.zone_id)
+        .where(Schedule.facility_id == facility_id)
+        .where(Schedule.week_start > date.today())
+    ).first() or 0
+    
+    if future_schedules_affected > 0:
+        warnings.append(f"Zone deletion will affect {future_schedules_affected} future schedule(s)")
+    
+    # Check for schedule templates that reference this zone
+    templates_with_zone = db.exec(
+        select(ScheduleTemplate)
+        .where(ScheduleTemplate.facility_id == facility_id)
+    ).all()
+    
+    template_references = 0
+    for template in templates_with_zone:
+        template_data = template.template_data or {}
+        # Check if zone is referenced in template data (JSON structure may vary)
+        if zone.zone_id in str(template_data) or zone.zone_name in str(template_data):
+            template_references += 1
+    
+    if template_references > 0:
+        warnings.append(f"Zone is referenced in {template_references} schedule template(s)")
+    
+    # Check for pending swap requests that involve this zone
+    pending_swaps_with_zone = db.exec(
+        select(func.count(SwapRequest.id))
+        .join(ZoneAssignment, ZoneAssignment.schedule_id == SwapRequest.schedule_id)
+        .where(ZoneAssignment.zone_id == zone.zone_id)
+        .where(SwapRequest.status.in_(['pending', 'manager_approved', 'staff_accepted']))
+    ).first() or 0
+    
+    if pending_swaps_with_zone > 0:
+        errors.append(f"Zone has {pending_swaps_with_zone} pending swap request(s)")
+    
+    # Check if zone is the only zone for this facility
+    total_active_zones = db.exec(
+        select(func.count(FacilityZone.id))
+        .where(FacilityZone.facility_id == facility_id)
+        .where(FacilityZone.is_active == True)
+    ).first() or 0
+    
+    if total_active_zones <= 1:
+        errors.append("Cannot delete the last active zone. At least one zone is required.")
+    
+    return FacilityZoneDeleteValidation(
+        can_delete=len(errors) == 0,
+        active_assignments_count=active_assignments_count,
+        future_schedules_affected=future_schedules_affected,
+        errors=errors,
+        warnings=warnings
+    )
+
+
+@router.delete("/{facility_id}/zones/{zone_id}", response_model=FacilityZoneDeleteResponse)
+def delete_facility_zone(
+    facility_id: uuid.UUID,
+    zone_id: uuid.UUID,
+    soft_delete: bool = Query(True, description="Soft delete (deactivate) instead of hard delete"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a zone (soft delete by default)"""
+    _verify_facility_access(db, facility_id, current_user.tenant_id)
+    
+    zone = db.get(FacilityZone, zone_id)
+    if not zone or zone.facility_id != facility_id:
+        raise HTTPException(status_code=404, detail="Zone not found")
+    
+    # Validate deletion
+    validation = validate_zone_deletion(facility_id, zone_id, db, current_user)
+    if not validation.can_delete:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete zone: {'; '.join(validation.errors)}"
+        )
+    
+    if soft_delete:
+        # Soft delete - mark as inactive
+        zone.is_active = False
+        zone.updated_at = datetime.utcnow()
+        db.commit()
+        message = f"Zone '{zone.zone_name}' deactivated successfully"
+    else:
+        # Hard delete
+        db.delete(zone)
+        db.commit()
+        message = f"Zone '{zone.zone_name}' deleted successfully"
+    
+    return FacilityZoneDeleteResponse(
+        success=True,
+        message=message,
+        deleted_id=zone_id,
+        entity_type="facility_zone",
+        affected_assignments_count=validation.active_assignments_count
+    )
 
 
 # ==================== GET STAFF BY FACILITY ====================

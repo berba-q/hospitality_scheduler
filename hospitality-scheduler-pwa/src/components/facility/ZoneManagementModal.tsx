@@ -442,7 +442,7 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent size='2xl'>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="w-5 h-5" />
