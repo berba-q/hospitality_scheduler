@@ -159,6 +159,7 @@ export const en = {
     dropFileorChoose: 'Drop file here or click "Choose file" to select and upload a file',
     releaseFile: 'Release to import data from your file',
     fileSupport: 'Supports .xlsx and .csv files',
+    uploadExcelOrCsv: 'Please upload an Excel (.xlsx) or CSV file.',
     
     // Form elements
     required: 'Required',
@@ -756,6 +757,47 @@ export const en = {
     contactInformation: 'Contact Information',
     selectFacilityType: 'Select Facility Type',
     facilityConfiguration: 'Facility Configuration',
+    importFacilities: 'Import Facilities',
+    columnNamesFlexible: 'Column names are flexible - the system automatically detects common variations.',
+  processingFile: 'Processing file...',
+  previewImportData: 'Preview Import Data',
+  facilitiesFound: 'facilities found',
+  selected: 'selected',
+  checkingDuplicates: 'Checking duplicates...',
+  foundConflicts: 'Found {{count}} conflicts that need attention.',
+  overrideConflicts: 'Override conflicts (create duplicates)',
+  backToUpload: 'Back to Upload',
+  importFacilitiesCount: 'Import {{count}} Facilities',
+  
+  // Duplicate Detection
+  exactNameMatch: 'Exact name match:',
+  similarNamesFound: 'Similar names found:',
+  addressMatches: 'Address matches:',
+  duplicateDetected: 'Duplicate detected. Please check and take action.',
+  
+  // Validation Messages
+  facilityNameRequired: 'Facility name is required (minimum 2 characters)',
+  unknownFacilityType: 'Unknown facility type "{{type}}", defaulting to Hotel',
+  invalidEmailFormat: 'Invalid email format',
+  
+  // File Processing
+  noDataFound: 'No data found in file',
+  failedToParseExcel: 'Failed to parse Excel file',
+  
+  // Import Results (for toast messages in page)
+  skippedDuplicates: 'Skipped {{count}} duplicate facilities',
+  facilitiesHadErrors: '{{count}} facilities had errors',
+  potentialDuplicatesDetected: 'Potential duplicates detected: {{facilities}}',
+  failedToImportFacilities: 'Failed to import facilities. Please check your data and try again.',
+  
+  // Column Labels (when detected)
+  nameColumn: 'Name',
+  typeColumn: 'Type', 
+  locationColumn: 'Location',
+  addressColumn: 'Address',
+  phoneColumn: 'Phone',
+  emailColumn: 'Email',
+  descriptionColumn: 'Description',
     
     // Shift management
     shiftManagement: 'Shift Management',

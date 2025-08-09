@@ -158,6 +158,7 @@ export const it = {
     dropFileorChoose: 'Rilascia il file qui or premi Scegli File per caricare il tuo file.',
     releaseFile: 'Rilascia per importare dati dal tuo file',
     fileSupport: 'Supporta file .xlsx e .csv fino a 10MB', 
+    uploadExcelOrCsv: 'Si prega di caricare un file Excel (.xlsx) o CSV.',
     
     
     // Elementi modulo
@@ -768,6 +769,47 @@ export const it = {
     contactInformation: 'Informazioni di Contatto',
     selectFacilityType: 'Seleziona Tipo Struttura',
     facilityConfiguration: 'Configurazione Struttura',
+    importFacilities: 'Importa Strutture',
+    columnNamesFlexible: 'I nomi delle colonne sono flessibili - il sistema rileva automaticamente le varianti comuni.',
+  processingFile: 'Elaborazione file...',
+  previewImportData: 'Anteprima Dati Importazione',
+  facilitiesFound: 'strutture trovate',
+  selected: 'selezionate',
+  checkingDuplicates: 'Controllo duplicati...',
+  foundConflicts: 'Trovati {{count}} conflitti che richiedono attenzione.',
+  overrideConflicts: 'Sovrascrivi conflitti (crea duplicati)',
+  backToUpload: 'Torna al Caricamento',
+  importFacilitiesCount: 'Importa {{count}} Strutture',
+  
+  // Duplicate Detection
+  exactNameMatch: 'Corrispondenza nome esatta:',
+  similarNamesFound: 'Nomi simili trovati:',
+  addressMatches: 'Indirizzi corrispondenti:',
+  duplicateDetected: 'Duplicato rilevato. Controlla e agisci.',
+  
+  // Validation Messages
+  facilityNameRequired: 'Nome struttura richiesto (minimo 2 caratteri)',
+  unknownFacilityType: 'Tipo struttura sconosciuto "{{type}}", predefinito a Hotel',
+  invalidEmailFormat: 'Formato email non valido',
+  
+  // File Processing
+  noDataFound: 'Nessun dato trovato nel file',
+  failedToParseExcel: 'Impossibile analizzare il file Excel',
+  
+  // Import Results (for toast messages in page)
+  skippedDuplicates: '{{count}} strutture duplicate saltate',
+  facilitiesHadErrors: '{{count}} strutture hanno avuto errori',
+  potentialDuplicatesDetected: 'Potenziali duplicati rilevati: {{facilities}}',
+  failedToImportFacilities: 'Impossibile importare strutture. Controlla i tuoi dati e riprova.',
+  
+  // Column Labels (when detected)
+  nameColumn: 'Nome',
+  typeColumn: 'Tipo',
+  locationColumn: 'Località', 
+  addressColumn: 'Indirizzo',
+  phoneColumn: 'Telefono',
+  emailColumn: 'Email',
+  descriptionColumn: 'Descrizione',
     
     // Gestione turni
     shiftManagement: 'Gestione Turni',

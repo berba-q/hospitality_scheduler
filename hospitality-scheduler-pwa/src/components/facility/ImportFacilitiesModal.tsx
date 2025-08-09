@@ -454,15 +454,15 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
               <input {...getInputProps()} />
               <FileSpreadsheet className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">
-                {isDragActive ? t('facilities.dropYourFileHere') : t('facilities.dragDropYourExcel')}
+                {isDragActive ? t('common.dropFile') : t('common.fileSupport')}
               </h3>
-              <p className="text-gray-600 mb-4">{t('facilities.orClickToBrowse')}</p>
-              <Button variant="outline">{t('facilities.chooseFile')}</Button>
+              <p className="text-gray-600 mb-4">{t('common.dropFileorChoose')}</p>
+              <Button variant="outline">{t('common.chooseFile')}</Button>
             </div>
 
             <Alert>
               <AlertDescription>
-                {t('facilities.uploadExcelCsv')}
+                {t('common.uploadExcelOrCsv')} {t('common.fileSupport')}
                 <br />
                 {t('facilities.columnNamesFlexible')}
               </AlertDescription>

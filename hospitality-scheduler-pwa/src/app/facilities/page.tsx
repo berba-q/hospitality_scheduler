@@ -184,11 +184,12 @@ export default function FacilitiesManagementPage() {
 
   // Check permissions and redirect if needed
   useEffect(() => {
-    if (!authLoading && !isManager) {
+    // Only redirect if auth is fully loaded AND user is confirmed not a manager
+    if (!authLoading && user && !isManager) {
       toast.error(t('facilities.managerPermissionsRequired'))
       router.push('/dashboard')
     }
-  }, [isManager, authLoading, router, t])
+  }, [isManager, authLoading, user, router, t])
 
   // Load facilities data
   useEffect(() => {
@@ -261,15 +262,7 @@ export default function FacilitiesManagementPage() {
   })
 
   // Global Drop Zone Overlay
-  const GlobalDropZone = () => (
-    <div className="fixed inset-0 bg-blue-500/20 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg p-8 text-center shadow-xl border-2 border-dashed border-blue-400">
-        <FileSpreadsheet className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-        <h3 className="text-xl font-bold text-gray-900 mb-2">{t('facilities.dropToImport')}</h3>
-        <p className="text-gray-600">{t('facilities.releaseToImport')}</p>
-      </div>
-    </div>
-  )
+ 
 
   // Simplified import success handler - just refresh the list
   const handleImportSuccess = async () => {
