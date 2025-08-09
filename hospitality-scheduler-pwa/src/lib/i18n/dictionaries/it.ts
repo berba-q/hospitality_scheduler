@@ -35,6 +35,7 @@ export const it = {
     cancelled: 'Annullato',
     delete: 'Elimina',
     deleting: 'Eliminazione...',
+    reset: 'Reset',
     edit: 'Modifica',
     view: 'Visualizza',
     previewImport: 'Anteprima File',
@@ -49,7 +50,6 @@ export const it = {
     updateExisting: 'Aggiorna esistente',
     refresh: 'Aggiorna',
     refreshData: 'Aggiorna Dati',
-    reset: 'Reimposta',
     close: 'Chiudi',
     open: 'Apri',
     back: 'Indietro',
@@ -1161,6 +1161,21 @@ export const it = {
     priority: 'Priorità',
     noHistoryAvailable: 'Nessuna Cronologia Disponibile',
     unableLoadHistorySwapRequest: 'Impossibile caricare la cronologia per questa richiesta di scambio.',
+    actionBy: 'Azione di',
+
+    // Advanced search modal
+    advancedSearch: 'Ricerca Avanzata',
+    searchTerms: 'Termini di Ricerca',
+    searchByStaffReasonNotes: 'Cerca per nome del personale, motivo, note...',
+    selectFacility: 'Seleziona Struttura',
+    selectStatus: 'Seleziona Stato',
+    selectUrgency: 'Seleziona Urgenza',
+    allUrgencyLevels: 'Tutti i Livelli di Urgenza',
+    selectSwapType: 'Seleziona Tipo di Scambio',
+    allSwapTypes: 'Tutti i Tipi di Scambio',
+    dateFrom: 'Data Inizio',
+    dateTo: 'Data Fine',
+    applyFilters: 'Applica Filtri',
     
     // Stati senza dati
     noSwapRequestsYet: 'Nessuna richiesta di scambio ancora',
@@ -1175,6 +1190,110 @@ export const it = {
     // ============================================================================
     requestTimeOff: 'Richiedi Tempo Libero',
     setAvailability: 'Imposta Disponibilità',
+  },
+
+  workflow: {
+    // Status labels - enhanced with all statuses
+    requested: 'Richiesto',
+    awaitingStaffResponse: 'In Attesa di Risposta del Personale',
+    staffAccepted: 'Personale Accettato',
+    finalApproval: 'Approvazione Finale',
+    completed: 'Completato',
+    staffDeclined: 'Personale Rifiutato',
+    assignmentDeclined: 'Assegnazione Rifiutata',
+    assignmentFailed: 'Assegnazione Fallita',
+    declined: 'Rifiutato',
+    cancelled: 'Annullato',
+    
+    // Action labels - complete set
+    approve: 'Approva',
+    decline: 'Rifiuta',
+    accept: 'Accetta',
+    acceptAssignment: 'Accetta Assegnazione',
+    declineAssignment: 'Rifiuta Assegnazione',
+    finalApprove: 'Approvazione Finale',
+    finalDecline: 'Rifiuto Finale',
+    retryAssignment: 'Riprova Assegnazione',
+    manualAssign: 'Assegnazione Manuale',
+    emergencyOverride: 'Override di Emergenza',
+    viewDetails: 'Visualizza Dettagli',
+    update: 'Aggiorna',
+    cancel: 'Annulla',
+    
+    // UI labels and sections
+    workflowStatus: 'Stato del Flusso di Lavoro',
+    progress: 'Progresso',
+    nextAction: 'Prossima Azione',
+    requiredBy: 'Richiesto da',
+    blockingIssues: 'Problemi Bloccanti',
+    estimatedCompletion: 'Completamento Stimato',
+    availableActions: 'Azioni Disponibili',
+    roleInformation: 'Informazioni sul Ruolo',
+    required: 'Richiesto',
+    assigned: 'Assegnato',
+    target: 'Destinatario',
+    
+    // Actor types
+    manager: 'Manager',
+    staff: 'Personale',
+    system: 'Sistema',
+    
+    // Priority and type labels
+    emergency: 'Emergenza',
+    roleOverride: 'Override Ruolo',
+    autoAssignment: 'Assegnazione Automatica',
+    specificSwap: 'Scambio Specifico',
+    emergencyPriority: 'Priorità di Emergenza',
+    highPriority: 'Alta Priorità',
+    normalPriority: 'Priorità Normale',
+    lowPriority: 'Bassa Priorità',
+    
+    // Stepper labels
+    awaitingStaff: 'In Attesa del Personale',
+    done: '✓ Fatto',
+    active: '● Attivo',
+    
+    // Success messages
+    assignmentAcceptedSuccess: 'Assegnazione accettata con successo!',
+    swapRequestApproved: 'Richiesta di scambio approvata!',
+    swapExecutedSuccess: 'Scambio eseguito con successo!',
+    
+    // Error messages
+    actionNotAvailable: 'Azione non disponibile - nessun client API configurato',
+    processingAction: 'Elaborazione {{action}}...',
+    actionNotImplemented: 'Azione "{{action}}" non ancora implementata',
+    actionFailed: 'Fallito {{action}}',
+    cannotAcceptSwap: 'Impossibile accettare lo scambio nello stato: {{status}} con tipo: {{type}}',
+    cannotDeclineSwap: 'Impossibile rifiutare lo scambio nello stato: {{status}} con tipo: {{type}}',
+    failedAcceptAssignment: 'Impossibile accettare l\'assegnazione',
+    failedDeclineAssignment: 'Impossibile rifiutare l\'assegnazione',
+    
+    // PotentialAssignmentCard labels
+    coverageAssignment: 'Assegnazione di Copertura',
+    needsResponse: 'Richiede Risposta',
+    youveBeenAssignedToCover: 'Sei stato assegnato per coprire {{name}}',
+    zone: 'Zona',
+    roleOverrideApplied: 'Override Ruolo Applicato',
+    notesOptional: 'Note (opzionale)',
+    addNotesPlaceholder: 'Aggiungi note sulla tua disponibilità o preoccupazioni...',
+    accepting: 'Accettando...',
+    declining: 'Rifiutando...',
+    
+    // Day names
+    monday: 'Lunedì',
+    tuesday: 'Martedì',
+    wednesday: 'Mercoledì',
+    thursday: 'Giovedì',
+    friday: 'Venerdì',
+    saturday: 'Sabato',
+    sunday: 'Domenica',
+    day: 'Giorno {{day}}',
+    
+    // Shift names
+    morning: 'Mattino',
+    afternoon: 'Pomeriggio',
+    evening: 'Sera',
+    shift: 'Turno {{shift}}',
   },
 
   notifications: {

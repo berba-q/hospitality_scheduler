@@ -1153,6 +1153,22 @@ export const en = {
     priority: 'Priority',
     noHistoryAvailable: 'No History Available',
     unableLoadHistorySwapRequest: 'Unable to load history for this swap request.',
+    requestedOn: 'Requested on',
+    actionBy: 'Action by',
+
+    // Advanced serach modal
+    advancedSearch: 'Advanced Search',
+    searchTerms: 'Search Terms', 
+    searchByStaffReasonNotes: 'Search by staff name, reason, notes...',
+    selectFacility: 'Select Facility',
+    selectStatus: 'Select Status',
+    selectUrgency: 'Select Urgency',
+    allUrgencyLevels: 'All Urgency Levels',
+    selectSwapType: 'Select Swap Type',
+    allSwapTypes: 'All Swap Types',
+    dateFrom: 'Date From',
+    dateTo: 'Date To',
+    applyFilters: 'Apply Filters',
     
     // No data states
     noSwapRequestsYet: 'No swap requests yet',
@@ -1164,6 +1180,110 @@ export const en = {
   unavailable: {
     requestTimeOff: 'Request Time Off',
     setAvailability: 'Set availability',
+  },
+
+  workflow: {
+    // Status labels - enhanced with all statuses
+    requested: 'Requested',
+    awaitingStaffResponse: 'Awaiting Staff Response',
+    staffAccepted: 'Staff Accepted',
+    finalApproval: 'Final Approval',
+    completed: 'Completed',
+    staffDeclined: 'Staff Declined',
+    assignmentDeclined: 'Assignment Declined',
+    assignmentFailed: 'Assignment Failed',
+    declined: 'Declined',
+    cancelled: 'Cancelled',
+    
+    // Action labels - complete set
+    approve: 'Approve',
+    decline: 'Decline',
+    accept: 'Accept',
+    acceptAssignment: 'Accept Assignment',
+    declineAssignment: 'Decline Assignment',
+    finalApprove: 'Final Approve',
+    finalDecline: 'Final Decline',
+    retryAssignment: 'Retry Assignment',
+    manualAssign: 'Manual Assign',
+    emergencyOverride: 'Emergency Override',
+    viewDetails: 'View Details',
+    update: 'Update',
+    cancel: 'Cancel',
+    
+    // UI labels and sections
+    workflowStatus: 'Workflow Status',
+    progress: 'Progress',
+    nextAction: 'Next Action',
+    requiredBy: 'Required By',
+    blockingIssues: 'Blocking Issues',
+    estimatedCompletion: 'Estimated Completion',
+    availableActions: 'Available Actions',
+    roleInformation: 'Role Information',
+    required: 'Required',
+    assigned: 'Assigned',
+    target: 'Target',
+    
+    // Actor types
+    manager: 'Manager',
+    staff: 'Staff',
+    system: 'System',
+    
+    // Priority and type labels
+    emergency: 'Emergency',
+    roleOverride: 'Role Override',
+    autoAssignment: 'Auto Assignment',
+    specificSwap: 'Specific Swap',
+    emergencyPriority: 'Emergency Priority',
+    highPriority: 'High Priority',
+    normalPriority: 'Normal Priority',
+    lowPriority: 'Low Priority',
+    
+    // Stepper labels
+    awaitingStaff: 'Awaiting Staff',
+    done: '✓ Done',
+    active: '● Active',
+    
+    // Success messages
+    assignmentAcceptedSuccess: 'Assignment accepted successfully!',
+    swapRequestApproved: 'Swap request approved!',
+    swapExecutedSuccess: 'Swap executed successfully!',
+    
+    // Error messages
+    actionNotAvailable: 'Action not available - no API client configured',
+    processingAction: 'Processing {{action}}...',
+    actionNotImplemented: 'Action "{{action}}" is not yet implemented',
+    actionFailed: 'Failed to {{action}}',
+    cannotAcceptSwap: 'Cannot accept swap in status: {{status}} with type: {{type}}',
+    cannotDeclineSwap: 'Cannot decline swap in status: {{status}} with type: {{type}}',
+    failedAcceptAssignment: 'Failed to accept assignment',
+    failedDeclineAssignment: 'Failed to decline assignment',
+    
+    // PotentialAssignmentCard labels
+    coverageAssignment: 'Coverage Assignment',
+    needsResponse: 'Needs Response',
+    youveBeenAssignedToCover: 'You\'ve been assigned to cover for {{name}}',
+    zone: 'Zone',
+    roleOverrideApplied: 'Role Override Applied',
+    notesOptional: 'Notes (optional)',
+    addNotesPlaceholder: 'Add any notes about your availability or concerns...',
+    accepting: 'Accepting...',
+    declining: 'Declining...',
+    
+    // Day names
+    monday: 'Monday',
+    tuesday: 'Tuesday',
+    wednesday: 'Wednesday',
+    thursday: 'Thursday',
+    friday: 'Friday',
+    saturday: 'Saturday',
+    sunday: 'Sunday',
+    day: 'Day {{day}}',
+    
+    // Shift names
+    morning: 'Morning',
+    afternoon: 'Afternoon',
+    evening: 'Evening',
+    shift: 'Shift {{shift}}',
   },
 
   notifications: {
