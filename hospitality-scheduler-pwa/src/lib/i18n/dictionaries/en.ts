@@ -68,7 +68,10 @@ export const en = {
     withDuplicates: 'With duplicates',
     conflicts: 'conflicts',
     records: "Records",
-    
+    declining: 'Declining...',
+    cancelling: 'Cancelling...',
+    by: 'by',
+    day: 'Day',
     // Show/Hide actions
     show: 'Show',
     hide: 'Hide',
@@ -933,6 +936,29 @@ export const en = {
     everyBitHelps: 'Every bit of help counts',
     supportingTeammates: 'Supporting your teammates builds a stronger, more reliable team for everyone.',
     
+    searchRequests: 'Search requests...',
+    filterByStatus: 'Filter by status',
+    allStatuses: 'All Statuses',
+    newestFirst: 'Newest First',
+    mostUrgent: 'Most Urgent',
+    noSwapRequests: 'No swap requests',
+    noRequestsFound: 'No requests found',
+    
+
+    // Request types and actions
+    actionRequired: 'Action Required',
+    myRequest: 'My Request',
+    requestedForMe: 'Requested for Me',
+    teamRequest: 'Team Request',
+    
+    // Time and shift info
+    anyDay: 'Any Day',
+    anyShift: 'Any Shift',
+    
+    // Timeline
+    requested: 'Requested',
+    updated: 'Updated',
+
     // Swap types
     specificSwap: 'Specific Swap',
     autoSwap: 'Auto Swap',
@@ -982,11 +1008,127 @@ export const en = {
     responseRate: 'Response Rate',
     completionRate: 'Completion Rate',
     reliabilityScore: 'Reliability Score',
+
+     // Coverage and assignments
+    coverageFound: 'Coverage Found',
+    noCoverageFound: 'No Coverage Found',
+    automaticCoverage: 'Automatic Coverage',
+    manualAssignment: 'Manual Assignment',
+    
+    // Urgency and timing
+    urgent: 'Urgent',
+    emergency: 'Emergency',
+    normal: 'Normal',
+    low: 'Low',
+    
+    // Analytics and reporting
+    swapAnalytics: 'Swap Analytics',
+    averageResponseTime: 'Average Response Time',
+    totalSwaps: 'Total Swaps',
+    
+    // Export and reports
+    exportSwaps: 'Export Swaps',
+    swapReport: 'Swap Report',
+    generateReport: 'Generate Report',
+    
+    // Workflow and process
+    workflowStatus: 'Workflow Status',
+    nextStep: 'Next Step',
+    processSwap: 'Process Swap',
+    finalizeSwap: 'Finalize Swap',
     
     // Swap history & timeline
     swapHistory: 'Swap History',
     actionTimeline: 'Action Timeline',
     recentCompletions: 'Recent Completions',
+
+    // SwapDetailModal specific
+    swapRequestDetails: 'Swap Request Details',
+    details: 'Details',
+    peopleInvolved: 'People Involved',
+    historyTimeline: 'History & Timeline',
+    requestOverview: 'Request Overview',
+    noReasonProvided: 'No reason provided',
+    requestedBy: 'Requested By',
+    requestDate: 'Request Date',
+    facility: 'Facility',
+    shiftDetails: 'Shift Details',
+    reason: 'Reason',
+    staffInvolved: 'Staff Involved',
+    initiatedRequest: 'Initiated this request',
+    hasAccepted: 'Has accepted this request',
+    hasDeclined: 'Has declined this request',
+    pendingResponse: 'Pending response',
+    assignedStaff: 'Assigned Staff',
+    systemAssigned: 'Assigned by system',
+    requestHistory: 'Request History',
+    noDetailedHistory: 'No detailed history available',
+    mayBeDemoData: 'This may be demo data or a newly created swap request',
+    unknownAction: 'Unknown action',
+    unknownDate: 'Unknown date',
+    declineSwapRequest: 'Decline Swap Request',
+    optionalReasonForDeclining: 'Optional reason for declining...',
+    cancelSwapRequest: 'Cancel Swap Request',
+    reasonForCancelling: 'Reason for cancelling...',
+    accepting: 'Accepting...',
+    acceptAssignment: 'Accept Assignment',
+    declining: 'Declining...',
+    declineAssignment: 'Decline Assignment',
+    swapAcceptedSuccessfully: 'Swap accepted successfully',
+    swapDeclinedSuccessfully: 'Swap declined successfully',
+    swapCancelledSuccessfully: 'Swap cancelled successfully',
+    failedAcceptSwap: 'Failed to accept swap',
+    failedDeclineSwap: 'Failed to decline swap',
+
+    // ExportReportModal specific
+    exportSwapReport: 'Export Swap Report',
+    exportFormat: 'Export Format',
+    dateRange: 'Date Range',
+    selectDate: 'Select date',
+    selectFacilities: 'Select Facilities',
+    allFacilities: 'All Facilities',
+    addFilters: 'Add Filters',
+    urgency: 'Urgency',
+    type: 'Type',
+    activeFilters: 'Active Filters',
+    includeFields: 'Include Fields',
+    timestamps: 'Timestamps',
+    history: 'History',
+    exportPreview: 'Export Preview',
+    facilitiesSelected: '{{count}} facility(ies)',
+    customDateRange: 'Custom date range',
+    allDates: 'All dates',
+    totalRecords: 'total records',
+    exporting: 'Exporting...',
+    reportExportedSuccessfully: 'Report exported successfully!',
+    failedExportReport: 'Failed to export report',
+
+    // StaffSwapDashboard specific
+    noSwapRequestsSubtitle: 'When you have requests, they will appear here',
+    createFirstRequest: 'Create your first request',
+    noRequestsForYouSubtitle: 'No one has requested to swap with you yet',
+    youHaveSwapRequests: 'You have {{count}} swap requests waiting for your response.',
+    autoAssignments: 'Automatic assignment',
+    refreshData: 'Refresh data',
+
+    // FacilityDetailModal additional keys
+    pendingReview: 'Pending Review',
+    swapsWaitingApproval: 'Swaps waiting for your approval',
+    approvedActive: 'Approved & Active', 
+    approvedSwapsInProgress: 'Approved swaps in progress',
+    urgentRequests: 'Urgent Requests',
+    highPrioritySwaps: 'High priority swaps',
+    successfullyExecutedSwaps: 'Successfully executed swaps',
+    staffMembers: 'staff members',
+    recentActivity: 'Recent Activity',
+    lastSevenDays: 'Last 7 Days',
+    newRequests: 'New Requests',
+    staffSwapInsights: 'Staff Swap Insights',
+    mostActiveRequesters: 'Most Active Requesters',
+    requests: 'requests',
+    approvalRate: 'Approval Rate',
+    swapsApprovedOrCompleted: '{{approved}} of {{total}} swaps approved or completed',
+    facilitySwapManagement: 'Facility Swap Management',
     
     // No data states
     noSwapRequestsYet: 'No swap requests yet',

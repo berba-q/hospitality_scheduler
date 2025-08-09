@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { toast } from 'sonner'
+import { useTranslations } from '@/hooks/useTranslations'
 import { 
   Download, 
   FileText, 
@@ -48,6 +49,7 @@ export interface ExportConfig {
 }
 
 export function ExportReportModal({ open, onClose, facilitySummaries, allSwapRequests, onExport }: ExportReportProps) {
+  const { t } = useTranslations()
   const [config, setConfig] = useState<ExportConfig>({
     format: 'excel',
     dateRange: {},
@@ -120,20 +122,30 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
     })
   }
 
+  const getFieldLabel = (field: string) => {
+    const labels = {
+      staffDetails: t('swaps.staffDetails'),
+      timestamps: t('swaps.timestamps'),
+      notes: t('common.notes'),
+      history: t('swaps.history')
+    }
+    return labels[field] || field.replace(/([A-Z])/g, ' $1').toLowerCase()
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="h-5 w-5" />
-            Export Swap Report
+            {t('swaps.exportSwapReport')}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           {/* Export Format */}
           <div>
-            <label className="text-sm font-medium mb-3 block">Export Format</label>
+            <label className="text-sm font-medium mb-3 block">{t('swaps.exportFormat')}</label>
             <div className="grid grid-cols-3 gap-2">
               <Button
                 variant={config.format === 'csv' ? 'default' : 'outline'}
@@ -164,18 +176,21 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
 
           {/* Date Range */}
           <div>
-            <label className="text-sm font-medium mb-3 block">Date Range</label>
+            <label className="text-sm font-medium mb-3 block">{t('swaps.dateRange')}</label>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-gray-600 mb-1 block">From</label>
+                <label className="text-xs text-gray-600 mb-1 block">{t('common.from')}</label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start">
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {config.dateRange.from ? config.dateRange.from.toLocaleDateString() : 'Select date'}
+                      {config.dateRange.from ? 
+                        config.dateRange.from.toLocaleDateString() : 
+                        t('swaps.selectDate')
+                      }
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={config.dateRange.from}
@@ -189,15 +204,18 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
                 </Popover>
               </div>
               <div>
-                <label className="text-xs text-gray-600 mb-1 block">To</label>
+                <label className="text-xs text-gray-600 mb-1 block">{t('common.to')}</label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start">
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {config.dateRange.to ? config.dateRange.to.toLocaleDateString() : 'Select date'}
+                      {config.dateRange.to ? 
+                        config.dateRange.to.toLocaleDateString() : 
+                        t('swaps.selectDate')
+                      }
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={config.dateRange.to}
@@ -215,7 +233,7 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
 
           {/* Facilities Selection */}
           <div>
-            <label className="text-sm font-medium mb-3 block">Facilities</label>
+            <label className="text-sm font-medium mb-3 block">{t('swaps.selectFacilities')}</label>
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -224,12 +242,12 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
                   onCheckedChange={toggleAllFacilities}
                 />
                 <label htmlFor="all-facilities" className="text-sm font-medium">
-                  All Facilities ({facilitySummaries.length})
+                  {t('swaps.allFacilities')} ({facilitySummaries.length})
                 </label>
               </div>
-              <div className="max-h-32 overflow-y-auto space-y-1">
+              <div className="max-h-32 overflow-y-auto space-y-1 pl-6">
                 {facilitySummaries.map((facility) => (
-                  <div key={facility.facility_id} className="flex items-center space-x-2 pl-6">
+                  <div key={facility.facility_id} className="flex items-center space-x-2">
                     <Checkbox
                       id={facility.facility_id}
                       checked={config.facilities.includes(facility.facility_id)}
@@ -246,59 +264,51 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
 
           {/* Filters */}
           <div>
-            <label className="text-sm font-medium mb-3 block">Filters</label>
+            <label className="text-sm font-medium mb-3 block">{t('swaps.addFilters')}</label>
             <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs text-gray-600 mb-1 block">Status</label>
-                <Select onValueChange={(value) => addFilter('status', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Add status filter" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="declined">Declined</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs text-gray-600 mb-1 block">Urgency</label>
-                <Select onValueChange={(value) => addFilter('urgency', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Add urgency filter" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="emergency">Emergency</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs text-gray-600 mb-1 block">Swap Type</label>
-                <Select onValueChange={(value) => addFilter('swapType', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Add type filter" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">Auto Assignment</SelectItem>
-                    <SelectItem value="specific">Specific Request</SelectItem>
-                    <SelectItem value="manual">Manual Assignment</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select onValueChange={(value) => addFilter('status', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('status.status')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">{t('status.pending')}</SelectItem>
+                  <SelectItem value="approved">{t('status.approved')}</SelectItem>
+                  <SelectItem value="executed">{t('status.executed')}</SelectItem>
+                  <SelectItem value="declined">{t('status.declined')}</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select onValueChange={(value) => addFilter('urgency', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('swaps.urgency')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="emergency">{t('swaps.emergency')}</SelectItem>
+                  <SelectItem value="high">{t('swaps.high')}</SelectItem>
+                  <SelectItem value="normal">{t('swaps.normal')}</SelectItem>
+                  <SelectItem value="low">{t('swaps.low')}</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select onValueChange={(value) => addFilter('swapType', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('swaps.type')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">{t('swaps.autoSwap')}</SelectItem>
+                  <SelectItem value="specific">{t('swaps.specificSwap')}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Active Filters */}
             {(config.filters.status?.length || config.filters.urgency?.length || config.filters.swapType?.length) && (
               <div className="mt-3">
-                <label className="text-xs text-gray-600 mb-2 block">Active Filters:</label>
-                <div className="flex flex-wrap gap-2">
+                <div className="text-xs text-gray-600 mb-2">{t('swaps.activeFilters')}:</div>
+                <div className="flex flex-wrap gap-1">
                   {config.filters.status?.map(status => (
                     <span key={status} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                      Status: {status}
+                      {t('status.status')}: {t(`status.${status}`)}
                       <button 
                         onClick={() => removeFilter('status', status)}
                         className="ml-1 text-blue-600 hover:text-blue-800"
@@ -309,7 +319,7 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
                   ))}
                   {config.filters.urgency?.map(urgency => (
                     <span key={urgency} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800">
-                      Urgency: {urgency}
+                      {t('swaps.urgency')}: {t(`swaps.${urgency}`)}
                       <button 
                         onClick={() => removeFilter('urgency', urgency)}
                         className="ml-1 text-orange-600 hover:text-orange-800"
@@ -320,7 +330,7 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
                   ))}
                   {config.filters.swapType?.map(type => (
                     <span key={type} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                      Type: {type}
+                      {t('swaps.type')}: {type === 'auto' ? t('swaps.autoSwap') : t('swaps.specificSwap')}
                       <button 
                         onClick={() => removeFilter('swapType', type)}
                         className="ml-1 text-green-600 hover:text-green-800"
@@ -336,7 +346,7 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
 
           {/* Include Fields */}
           <div>
-            <label className="text-sm font-medium mb-3 block">Include Fields</label>
+            <label className="text-sm font-medium mb-3 block">{t('swaps.includeFields')}</label>
             <div className="grid grid-cols-2 gap-2">
               {Object.entries(config.includeFields).map(([field, value]) => (
                 <div key={field} className="flex items-center space-x-2">
@@ -345,8 +355,8 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
                     checked={value}
                     onCheckedChange={(checked) => updateIncludeField(field as keyof typeof config.includeFields, !!checked)}
                   />
-                  <label htmlFor={field} className="text-sm capitalize">
-                    {field.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                  <label htmlFor={field} className="text-sm">
+                    {getFieldLabel(field)}
                   </label>
                 </div>
               ))}
@@ -355,29 +365,35 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
 
           {/* Preview Info */}
           <div className="bg-gray-50 p-3 rounded-md">
-            <h4 className="text-sm font-medium mb-1">Export Preview</h4>
+            <h4 className="text-sm font-medium mb-1">{t('swaps.exportPreview')}</h4>
             <p className="text-xs text-gray-600">
-              {config.facilities.length === 0 ? 'All facilities' : `${config.facilities.length} facility(ies)`} • 
-              {config.dateRange.from || config.dateRange.to ? ' Custom date range' : ' All dates'} • 
-              ~{allSwapRequests.length} total records
+              {config.facilities.length === 0 ? 
+                t('swaps.allFacilities') : 
+                t('swaps.facilitiesSelected', { count: config.facilities.length })
+              } • 
+              {config.dateRange.from || config.dateRange.to ? 
+                t('swaps.customDateRange') : 
+                t('swaps.allDates')
+              } • 
+              ~{allSwapRequests.length} {t('swaps.totalRecords')}
             </p>
           </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleExport} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Exporting...
+                {t('swaps.exporting')}
               </>
             ) : (
               <>
                 <Download className="h-4 w-4 mr-2" />
-                Export Report
+                {t('swaps.exportReport')}
               </>
             )}
           </Button>
@@ -389,6 +405,7 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
 
 // Integration function for the main page
 export function useExportFunctionality(apiClient: any) {
+  const { t } = useTranslations()
   const [showExportModal, setShowExportModal] = useState(false)
 
   const handleExport = async (config: ExportConfig) => {
@@ -420,10 +437,10 @@ export function useExportFunctionality(apiClient: any) {
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
       
-      toast.success('Report exported successfully!')
+      toast.success(t('swaps.reportExportedSuccessfully'))
     } catch (error) {
       console.error('Export failed:', error)
-      toast.error('Failed to export report')
+      toast.error(t('swaps.failedExportReport'))
     }
   }
 

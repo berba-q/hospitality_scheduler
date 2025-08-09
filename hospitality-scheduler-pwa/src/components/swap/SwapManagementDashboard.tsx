@@ -676,7 +676,7 @@ export function SwapManagementDashboard({
 
       {/* ✅ Enhanced Approval Dialog */}
       <Dialog open={!!selectedSwap} onOpenChange={() => setSelectedSwap(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent size='3xl'>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedSwap?.status === 'manager_final_approval' ? (

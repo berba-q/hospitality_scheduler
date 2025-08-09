@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useTranslations } from '@/hooks/useTranslations'
 import { 
   Search, 
   ArrowLeftRight, 
@@ -49,10 +50,11 @@ export function SwapRequestsList({
   setStatusFilter,
   sortBy = 'created_at',
   setSortBy,
-  emptyMessage = "No swap requests",
-  emptySubMessage = "No requests found",
+  emptyMessage,
+  emptySubMessage,
   prioritizeUrgent = false
 }: SwapRequestsListProps) {
+  const { t } = useTranslations()
 
   const getSwapActions = (swap) => {
     const isMyRequest = swap.requesting_staff_id === user.id
@@ -78,7 +80,7 @@ export function SwapRequestsList({
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
-              placeholder="Search requests..."
+              placeholder={t('swaps.searchRequests')}
               value={searchTerm}
               onChange={(e) => setSearchTerm?.(e.target.value)}
               className="pl-10"
@@ -86,23 +88,23 @@ export function SwapRequestsList({
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder={t('swaps.filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="manager_approved">Approved</SelectItem>
-              <SelectItem value="executed">Completed</SelectItem>
-              <SelectItem value="declined">Declined</SelectItem>
+              <SelectItem value="all">{t('swaps.allStatuses')}</SelectItem>
+              <SelectItem value="pending">{t('status.pending')}</SelectItem>
+              <SelectItem value="manager_approved">{t('status.approved')}</SelectItem>
+              <SelectItem value="executed">{t('status.completed')}</SelectItem>
+              <SelectItem value="declined">{t('status.rejected')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Sort by" />
+              <SelectValue placeholder={t('common.sortBy')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="created_at">Newest First</SelectItem>
-              <SelectItem value="urgency">Most Urgent</SelectItem>
+              <SelectItem value="created_at">{t('swaps.newestFirst')}</SelectItem>
+              <SelectItem value="urgency">{t('swaps.mostUrgent')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -112,8 +114,12 @@ export function SwapRequestsList({
       {swaps.length === 0 ? (
         <div className="text-center py-16">
           <ArrowLeftRight className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold mb-2">{emptyMessage}</h3>
-          <p className="text-gray-600">{emptySubMessage}</p>
+          <h3 className="text-xl font-semibold mb-2">
+            {emptyMessage || t('swaps.noSwapRequests')}
+          </h3>
+          <p className="text-gray-600">
+            {emptySubMessage || t('swaps.noRequestsFound')}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -126,145 +132,163 @@ export function SwapRequestsList({
                 key={swap.id}
                 className={`cursor-pointer hover:shadow-md transition-all duration-200 border-l-4 ${
                   urgencyColors[swap.urgency]
-                } ${needsMyAction ? 'ring-2 ring-yellow-200' : ''}`}
+                } ${needsMyAction ? 'ring-2 ring-blue-200 border-blue-300' : ''}`}
                 onClick={() => onSwapClick(swap)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
+                      {/* Header */}
                       <div className="flex items-center gap-2 mb-2">
-                        {actions.isMyRequest && (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                            My Request
-                          </Badge>
-                        )}
-                        {actions.isForMe && (
-                          <Badge variant="outline" className="bg-green-50 text-green-700">
-                            For Me
-                          </Badge>
-                        )}
-                        {needsMyAction && (
-                          <Badge className="bg-yellow-500 text-white animate-pulse">
-                            Action Needed
-                          </Badge>
-                        )}
-                        <Badge className={`${
-                          swap.urgency === 'emergency' ? 'bg-red-500 text-white' :
-                          swap.urgency === 'high' ? 'bg-orange-500 text-white' :
-                          swap.urgency === 'normal' ? 'bg-blue-500 text-white' :
-                          'bg-gray-500 text-white'
-                        }`}>
-                          {swap.urgency}
+                        <Badge 
+                          className={
+                            swap.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            swap.status === 'manager_approved' ? 'bg-green-100 text-green-800' :
+                            swap.status === 'executed' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }
+                        >
+                          {t(`status.${swap.status}`) || swap.status}
                         </Badge>
-                      </div>
+                        
+                        <Badge 
+                          className={
+                            swap.urgency === 'emergency' ? 'bg-red-100 text-red-800' :
+                            swap.urgency === 'high' ? 'bg-orange-100 text-orange-800' :
+                            'bg-gray-100 text-gray-800'
+                          }
+                        >
+                          {t(`swaps.${swap.urgency}Priority`) || swap.urgency}
+                        </Badge>
 
-                      <p className="font-medium mb-2">{swap.reason}</p>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
-                        <div>
-                          <span className="font-medium">From:</span> {swap.requesting_staff_name}
-                        </div>
-                        {swap.target_staff_name && (
-                          <div>
-                            <span className="font-medium">To:</span> {swap.target_staff_name}
-                          </div>
+                        {swap.swap_type && (
+                          <Badge className="bg-purple-100 text-purple-800">
+                            {swap.swap_type === 'auto' ? t('swaps.autoSwap') : t('swaps.specificSwap')}
+                          </Badge>
                         )}
-                        <div>
-                          <span className="font-medium">Original:</span> {
-                            ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][swap.original_day]
-                          } - {['Morning', 'Afternoon', 'Evening'][swap.original_shift]}
-                        </div>
-                        {swap.swap_type === 'specific' && swap.target_day !== null && (
-                          <div>
-                            <span className="font-medium">Requested:</span> {
-                              ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][swap.target_day]
-                            } - {['Morning', 'Afternoon', 'Evening'][swap.target_shift]}
-                          </div>
+
+                        {needsMyAction && (
+                          <Badge className="bg-blue-100 text-blue-800 animate-pulse">
+                            {t('swaps.actionRequired')}
+                          </Badge>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(swap.created_at).toLocaleDateString()}
-                        </span>
-                        {swap.expires_at && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            Expires: {new Date(swap.expires_at).toLocaleDateString()}
+                      {/* Main Content */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">
+                            {actions.isMyRequest ? t('swaps.myRequest') : 
+                             actions.isForMe ? t('swaps.requestedForMe') : 
+                             t('swaps.teamRequest')}
                           </span>
+                        </div>
+
+                        {/* Shift Info */}
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>
+                              {swap.original_day ? t('common.day', { day: swap.original_day + 1 }) : t('swaps.anyDay')}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            <span>
+                              {swap.original_shift ? t('common.shift', { shift: swap.original_shift + 1 }) : t('swaps.anyShift')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Reason */}
+                        {swap.reason && (
+                          <p className="text-sm text-gray-700 italic">
+                            "{swap.reason}"
+                          </p>
+                        )}
+
+                        {/* Target Info */}
+                        {swap.target_staff_name && (
+                          <div className="text-sm">
+                            <span className="text-gray-500">{t('swaps.targetStaff')}:</span>
+                            <span className="font-medium ml-1">{swap.target_staff_name}</span>
+                          </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-2 ml-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onSwapClick(swap)
-                        }}
-                        className="gap-2"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Details
-                      </Button>
-
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 ml-4">
                       {actions.canRespond && (
-                        <div className="flex gap-2">
+                        <>
                           <Button
-                            size="sm"
                             onClick={(e) => {
                               e.stopPropagation()
                               onSwapResponse(swap.id, true)
                             }}
-                            className="gap-1 bg-green-600 hover:bg-green-700"
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
                           >
-                            <CheckCircle className="w-4 h-4" />
-                            Accept
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            {t('common.accept')}
                           </Button>
                           <Button
-                            variant="outline"
-                            size="sm"
                             onClick={(e) => {
                               e.stopPropagation()
                               onSwapResponse(swap.id, false)
                             }}
-                            className="gap-1 text-red-600 hover:text-red-700"
+                            size="sm"
+                            variant="outline"
+                            className="border-red-300 text-red-600 hover:bg-red-50"
                           >
-                            <XCircle className="w-4 h-4" />
-                            Decline
+                            <XCircle className="w-4 h-4 mr-1" />
+                            {t('common.decline')}
                           </Button>
-                        </div>
+                        </>
                       )}
 
                       {actions.canCancel && (
                         <Button
-                          variant="outline"
-                          size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
                             onCancelSwap(swap.id)
                           }}
-                          className="gap-1 text-red-600 hover:text-red-700"
+                          size="sm"
+                          variant="outline"
+                          className="border-red-300 text-red-600 hover:bg-red-50"
                         >
-                          <Trash2 className="w-4 h-4" />
-                          Cancel
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          {t('common.cancel')}
                         </Button>
                       )}
 
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={
-                          swap.status === 'pending' ? 'text-yellow-600 border-yellow-300' :
-                          swap.status === 'executed' ? 'text-green-600 border-green-300' :
-                          swap.status === 'declined' ? 'text-red-600 border-red-300' :
-                          'text-gray-600 border-gray-300'
-                        }>
-                          {swap.status.replace('_', ' ')}
-                        </Badge>
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
-                      </div>
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onSwapClick(swap)
+                        }}
+                        size="sm"
+                        variant="outline"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        {t('common.view')}
+                      </Button>
+
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+
+                  {/* Timeline */}
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>
+                        {t('swaps.requested')} {new Date(swap.created_at).toLocaleDateString()}
+                      </span>
+                      {swap.updated_at && swap.updated_at !== swap.created_at && (
+                        <span>
+                          {t('swaps.updated')} {new Date(swap.updated_at).toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </CardContent>

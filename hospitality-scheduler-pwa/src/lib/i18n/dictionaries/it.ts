@@ -944,6 +944,29 @@ export const it = {
     everyBitHelps: 'Ogni aiuto conta',
     supportingTeammates: 'Supportare i compagni di squadra costruisce un team più forte e affidabile per tutti.',
     
+    // New translations for SwapRequestsList
+    searchRequests: 'Cerca richieste...',
+    filterByStatus: 'Filtra per stato',
+    allStatuses: 'Tutti gli Stati',
+    newestFirst: 'Prima i Più Recenti',
+    mostUrgent: 'Più Urgenti',
+    noSwapRequests: 'Nessuna richiesta di scambio',
+    noRequestsFound: 'Nessuna richiesta trovata',
+    
+    // Request types and actions
+    actionRequired: 'Azione Richiesta',
+    myRequest: 'La Mia Richiesta',
+    requestedForMe: 'Richiesto per Me',
+    teamRequest: 'Richiesta del Team',
+    
+    // Time and shift info
+    anyDay: 'Qualsiasi Giorno',
+    anyShift: 'Qualsiasi Turno',
+    
+    // Timeline
+    requested: 'Richiesto',
+    updated: 'Aggiornato',
+
     // Tipi di scambio
     specificSwap: 'Scambio Specifico',
     autoSwap: 'Scambio Automatico',
@@ -993,11 +1016,127 @@ export const it = {
     responseRate: 'Tasso di Risposta',
     completionRate: 'Tasso di Completamento',
     reliabilityScore: 'Punteggio di Affidabilità',
+
+     // Urgency and timing
+    urgent: 'Urgente',
+    emergency: 'Emergenza',
+    normal: 'Normale',
+    low: 'Basso',
+
+    // Coverage and assignments
+    coverageFound: 'Copertura Trovata',
+    noCoverageFound: 'Nessuna Copertura Trovata',
+    automaticCoverage: 'Copertura Automatica',
+    manualAssignment: 'Assegnazione Manuale',
+    
+    // Analytics and reporting
+    swapAnalytics: 'Analisi Scambi',
+    averageResponseTime: 'Tempo di Risposta Medio',
+    totalSwaps: 'Scambi Totali',
+    
+    // Export and reports
+    exportSwaps: 'Esporta Scambi',
+    swapReport: 'Report Scambi',
+    generateReport: 'Genera Report',
+    
+    // Workflow and process
+    workflowStatus: 'Stato del Workflow',
+    nextStep: 'Prossimo Passo',
+    processSwap: 'Elabora Scambio',
+    finalizeSwap: 'Finalizza Scambio',
     
     // Cronologia e timeline scambi
     swapHistory: 'Cronologia Scambi',
     actionTimeline: 'Timeline Azioni',
     recentCompletions: 'Completamenti Recenti',
+
+    // SwapDetailModal specific
+    swapRequestDetails: 'Dettagli Richiesta di Scambio',
+    details: 'Dettagli',
+    peopleInvolved: 'Persone Coinvolte',
+    historyTimeline: 'Cronologia e Timeline',
+    requestOverview: 'Panoramica Richiesta',
+    noReasonProvided: 'Nessuna motivazione fornita',
+    requestedBy: 'Richiesto da',
+    requestDate: 'Data Richiesta',
+    facility: 'Struttura',
+    shiftDetails: 'Dettagli Turno',
+    reason: 'Motivazione',
+    staffInvolved: 'Staff Coinvolto',
+    initiatedRequest: 'Ha avviato questa richiesta',
+    hasAccepted: 'Ha accettato questa richiesta',
+    hasDeclined: 'Ha rifiutato questa richiesta',
+    pendingResponse: 'In attesa di risposta',
+    assignedStaff: 'Staff Assegnato',
+    systemAssigned: 'Assegnato dal sistema',
+    requestHistory: 'Cronologia Richiesta',
+    noDetailedHistory: 'Nessuna cronologia dettagliata disponibile',
+    mayBeDemoData: 'Potrebbero essere dati demo o una richiesta di scambio appena creata',
+    unknownAction: 'Azione sconosciuta',
+    unknownDate: 'Data sconosciuta',
+    declineSwapRequest: 'Rifiuta Richiesta di Scambio',
+    optionalReasonForDeclining: 'Motivazione opzionale per il rifiuto...',
+    cancelSwapRequest: 'Annulla Richiesta di Scambio',
+    reasonForCancelling: 'Motivazione per l\'annullamento...',
+    accepting: 'Accettando...',
+    acceptAssignment: 'Accetta Assegnazione',
+    declining: 'Rifiutando...',
+    declineAssignment: 'Rifiuta Assegnazione',
+    swapAcceptedSuccessfully: 'Scambio accettato con successo',
+    swapDeclinedSuccessfully: 'Scambio rifiutato con successo',
+    swapCancelledSuccessfully: 'Scambio annullato con successo',
+    failedAcceptSwap: 'Impossibile accettare lo scambio',
+    failedDeclineSwap: 'Impossibile rifiutare lo scambio',
+
+    // ExportReportModal specific
+    exportSwapReport: 'Esporta Report Scambi',
+    exportFormat: 'Formato di Esportazione',
+    dateRange: 'Intervallo Date',
+    selectDate: 'Seleziona data',
+    selectFacilities: 'Seleziona Strutture',
+    allFacilities: 'Tutte le Strutture',
+    addFilters: 'Aggiungi Filtri',
+    urgency: 'Urgenza',
+    type: 'Tipo',
+    activeFilters: 'Filtri Attivi',
+    includeFields: 'Includi Campi',
+    timestamps: 'Timestamp',
+    history: 'Cronologia',
+    exportPreview: 'Anteprima Esportazione',
+    facilitiesSelected: '{{count}} struttura(e)',
+    customDateRange: 'Intervallo date personalizzato',
+    allDates: 'Tutte le date',
+    totalRecords: 'record totali',
+    exporting: 'Esportando...',
+    reportExportedSuccessfully: 'Report esportato con successo!',
+    failedExportReport: 'Impossibile esportare il report',
+
+    // StaffSwapDashboard specific
+    noSwapRequestsSubtitle: 'Quando avrai richieste, appariranno qui',
+    createFirstRequest: 'Crea Prima Richiesta',
+    noRequestsForYouSubtitle: 'Nessuno ha ancora richiesto di scambiare con te',
+    youHaveSwapRequests: 'Hai {{count}} richieste di scambio in attesa della tua risposta',
+    autoAssignments: 'assegnazioni automatiche',
+    refreshData: 'Aggiorna Dati',
+
+    // FacilityDetailModal additional keys
+    pendingReview: 'In Attesa di Revisione',
+    swapsWaitingApproval: 'Scambi in attesa della tua approvazione',
+    approvedActive: 'Approvati e Attivi',
+    approvedSwapsInProgress: 'Scambi approvati in corso',
+    urgentRequests: 'Richieste Urgenti',
+    highPrioritySwaps: 'Scambi ad alta priorità',
+    successfullyExecutedSwaps: 'Scambi eseguiti con successo',
+    staffMembers: 'membri dello staff',
+    recentActivity: 'Attività Recente',
+    lastSevenDays: 'Ultimi 7 Giorni',
+    newRequests: 'Nuove Richieste',
+    staffSwapInsights: 'Insights Scambi Staff',
+    mostActiveRequesters: 'Richiedenti Più Attivi',
+    requests: 'richieste',
+    approvalRate: 'Tasso di Approvazione',
+    swapsApprovedOrCompleted: '{{approved}} di {{total}} scambi approvati o completati',
+    facilitySwapManagement: 'Gestione Scambi Struttura',
     
     // Stati senza dati
     noSwapRequestsYet: 'Nessuna richiesta di scambio ancora',

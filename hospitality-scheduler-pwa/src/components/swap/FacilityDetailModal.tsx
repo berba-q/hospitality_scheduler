@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useTranslations } from '@/hooks/useTranslations'
 import { 
   Building, 
   Users, 
@@ -54,6 +55,7 @@ export function FacilityDetailModal({
   days,
   shifts
 }: FacilityDetailModalProps) {
+  const { t } = useTranslations()
   const [facilitySwaps, setFacilitySwaps] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
@@ -98,45 +100,45 @@ export function FacilityDetailModal({
   const metrics = [
     {
       id: 'pending',
-      label: 'Pending Review',
+      label: t('swaps.pendingReview'),
       value: pendingCount,
       icon: Clock,
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-50',
-      description: 'Swaps waiting for your approval'
+      description: t('swaps.swapsWaitingApproval')
     },
     {
       id: 'approved',
-      label: 'Approved & Active',
+      label: t('swaps.approvedActive'),
       value: approvedCount,
       icon: CheckCircle,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
-      description: 'Approved swaps in progress'
+      description: t('swaps.approvedSwapsInProgress')
     },
     {
       id: 'urgent',
-      label: 'Urgent Requests',
+      label: t('swaps.urgentRequests'),
       value: urgentCount,
       icon: AlertTriangle,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
-      description: 'High priority swaps'
+      description: t('swaps.highPrioritySwaps')
     },
     {
       id: 'completed',
-      label: 'Completed',
+      label: t('swaps.completed'),
       value: completedCount,
       icon: TrendingUp,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
-      description: 'Successfully executed swaps'
+      description: t('swaps.successfullyExecutedSwaps')
     }
   ]
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent size ="3xl" className="max-h-[90vh] overflow-y-auto">
+      <DialogContent size="3xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -148,9 +150,9 @@ export function FacilityDetailModal({
                 <div className="flex items-center gap-4 text-sm text-gray-600">
                   <span className="capitalize">{facility.facility_type}</span>
                   <span>•</span>
-                  <span>{facility.staff_count} staff members</span>
+                  <span>{facility.staff_count} {t('swaps.staffMembers')}</span>
                   <span>•</span>
-                  <span>{totalSwaps} total swaps</span>
+                  <span>{totalSwaps} {t('swaps.totalSwaps')}</span>
                 </div>
               </div>
             </div>
@@ -191,7 +193,7 @@ export function FacilityDetailModal({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Recent Activity (Last 7 Days)
+                {t('swaps.recentActivity')} ({t('swaps.lastSevenDays')})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -202,7 +204,7 @@ export function FacilityDetailModal({
                   </div>
                   <div>
                     <p className="text-lg font-semibold">{recentSwaps.length}</p>
-                    <p className="text-sm text-gray-600">New Requests</p>
+                    <p className="text-sm text-gray-600">{t('swaps.newRequests')}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -213,7 +215,7 @@ export function FacilityDetailModal({
                     <p className="text-lg font-semibold">
                       {recentSwaps.filter(s => s.status === 'executed').length}
                     </p>
-                    <p className="text-sm text-gray-600">Completed</p>
+                    <p className="text-sm text-gray-600">{t('status.completed')}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -224,7 +226,7 @@ export function FacilityDetailModal({
                     <p className="text-lg font-semibold">
                       {recentSwaps.filter(s => s.status === 'pending').length}
                     </p>
-                    <p className="text-sm text-gray-600">Pending</p>
+                    <p className="text-sm text-gray-600">{t('status.pending')}</p>
                   </div>
                 </div>
               </div>
@@ -236,18 +238,18 @@ export function FacilityDetailModal({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Staff Swap Insights
+                {t('swaps.staffSwapInsights')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {/* Most Active Staff */}
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Most Active Requesters</h4>
+                  <h4 className="font-medium text-gray-900 mb-2">{t('swaps.mostActiveRequesters')}</h4>
                   <div className="space-y-2">
                     {(() => {
                       const staffActivity = facilitySwaps.reduce((acc, swap) => {
-                        const staffName = swap.requesting_staff?.full_name || 'Unknown'
+                        const staffName = swap.requesting_staff?.full_name || t('common.unknown')
                         acc[staffName] = (acc[staffName] || 0) + 1
                         return acc
                       }, {})
@@ -259,7 +261,7 @@ export function FacilityDetailModal({
                       return topStaff.map(([name, count], index) => (
                         <div key={name} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                           <span className="text-sm font-medium">{name}</span>
-                          <Badge variant="outline">{count} requests</Badge>
+                          <Badge variant="outline">{count} {t('swaps.requests')}</Badge>
                         </div>
                       ))
                     })()}
@@ -268,7 +270,7 @@ export function FacilityDetailModal({
 
                 {/* Success Rate */}
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Approval Rate</h4>
+                  <h4 className="font-medium text-gray-900 mb-2">{t('swaps.approvalRate')}</h4>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-gray-200 rounded-full h-2">
                       <div 
@@ -283,7 +285,10 @@ export function FacilityDetailModal({
                     </span>
                   </div>
                   <p className="text-xs text-gray-600 mt-1">
-                    {completedCount + approvedCount} of {totalSwaps} swaps approved or completed
+                    {t('swaps.swapsApprovedOrCompleted', { 
+                      approved: completedCount + approvedCount, 
+                      total: totalSwaps 
+                    })}
                   </p>
                 </div>
               </div>
@@ -294,14 +299,14 @@ export function FacilityDetailModal({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>Facility Swap Management</span>
+                <span>{t('swaps.facilitySwapManagement')}</span>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={loadFacilitySwaps}
                   disabled={loading}
                 >
-                  {loading ? 'Loading...' : 'Refresh'}
+                  {loading ? t('common.loading') : t('common.refresh')}
                 </Button>
               </CardTitle>
             </CardHeader>
