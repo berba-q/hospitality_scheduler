@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useTranslations } from '@/hooks/useTranslations'
 import { 
   History, 
   User, 
@@ -44,65 +45,6 @@ interface SwapHistoryModalProps {
   shifts: any[]
 }
 
-const ACTION_CONFIG = {
-  requested: {
-    icon: ArrowLeftRight,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100',
-    label: 'Request Created',
-    description: 'Swap request was submitted'
-  },
-  manager_approved: {
-    icon: CheckCircle,
-    color: 'text-green-600',
-    bgColor: 'bg-green-100',
-    label: 'Manager Approved',
-    description: 'Manager approved the request'
-  },
-  manager_declined: {
-    icon: XCircle,
-    color: 'text-red-600',
-    bgColor: 'bg-red-100',
-    label: 'Manager Declined',
-    description: 'Manager rejected the request'
-  },
-  staff_accepted: {
-    icon: CheckCircle,
-    color: 'text-green-600',
-    bgColor: 'bg-green-100',
-    label: 'Staff Accepted',
-    description: 'Target staff accepted the swap'
-  },
-  staff_declined: {
-    icon: XCircle,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-100',
-    label: 'Staff Declined',
-    description: 'Target staff declined the swap'
-  },
-  auto_assigned: {
-    icon: Zap,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-100',
-    label: 'Auto Assigned',
-    description: 'System found coverage automatically'
-  },
-  completed: {
-    icon: CheckCircle,
-    color: 'text-emerald-600',
-    bgColor: 'bg-emerald-100',
-    label: 'Completed',
-    description: 'Swap was successfully executed'
-  },
-  cancelled: {
-    icon: XCircle,
-    color: 'text-gray-600',
-    bgColor: 'bg-gray-100',
-    label: 'Cancelled',
-    description: 'Request was cancelled'
-  }
-}
-
 export function SwapHistoryModal({
   open,
   onClose,
@@ -111,9 +53,80 @@ export function SwapHistoryModal({
   days,
   shifts
 }: SwapHistoryModalProps) {
+  const { t } = useTranslations()
   const [swap, setSwap] = useState<any>(null)
   const [history, setHistory] = useState<SwapHistoryEntry[]>([])
   const [loading, setLoading] = useState(false)
+
+  // ACTION_CONFIG with translations
+  const getActionConfig = (action: string) => {
+    const ACTION_CONFIG = {
+      requested: {
+        icon: ArrowLeftRight,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-100',
+        label: t('swaps.requestCreated'),
+        description: t('swaps.swapRequestSubmitted')
+      },
+      manager_approved: {
+        icon: CheckCircle,
+        color: 'text-green-600',
+        bgColor: 'bg-green-100',
+        label: t('swaps.managerApproved'),
+        description: t('swaps.managerApprovedRequest')
+      },
+      manager_declined: {
+        icon: XCircle,
+        color: 'text-red-600',
+        bgColor: 'bg-red-100',
+        label: t('swaps.managerDeclined'),
+        description: t('swaps.managerRejectedRequest')
+      },
+      staff_accepted: {
+        icon: CheckCircle,
+        color: 'text-green-600',
+        bgColor: 'bg-green-100',
+        label: t('swaps.staffAccepted'),
+        description: t('swaps.targetStaffAcceptedSwap')
+      },
+      staff_declined: {
+        icon: XCircle,
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-100',
+        label: t('swaps.staffDeclined'),
+        description: t('swaps.targetStaffDeclinedSwap')
+      },
+      auto_assigned: {
+        icon: Zap,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100',
+        label: t('swaps.autoAssigned'),
+        description: t('swaps.systemFoundCoverageAutomatically')
+      },
+      completed: {
+        icon: CheckCircle,
+        color: 'text-emerald-600',
+        bgColor: 'bg-emerald-100',
+        label: t('swaps.completed'),
+        description: t('swaps.swapSuccessfullyExecuted')
+      },
+      cancelled: {
+        icon: XCircle,
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-100',
+        label: t('swaps.cancelled'),
+        description: t('swaps.requestWasCancelled')
+      }
+    }
+
+    return ACTION_CONFIG[action] || {
+      icon: Activity,
+      color: 'text-gray-600',
+      bgColor: 'bg-gray-100',
+      label: action.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      description: t('swaps.actionPerformed')
+    }
+  }
 
   useEffect(() => {
     if (open && swapId) {
@@ -143,20 +156,10 @@ export function SwapHistoryModal({
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
     
-    if (diffInHours < 1) return 'Just now'
-    if (diffInHours < 24) return `${diffInHours}h ago`
-    if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`
+    if (diffInHours < 1) return t('swaps.justNow')
+    if (diffInHours < 24) return t('swaps.hoursAgo', { hours: diffInHours })
+    if (diffInHours < 168) return t('swaps.daysAgo', { days: Math.floor(diffInHours / 24) })
     return date.toLocaleDateString()
-  }
-
-  const getActionConfig = (action: string) => {
-    return ACTION_CONFIG[action] || {
-      icon: Activity,
-      color: 'text-gray-600',
-      bgColor: 'bg-gray-100',
-      label: action.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      description: 'Action performed'
-    }
   }
 
   return (
@@ -169,8 +172,8 @@ export function SwapHistoryModal({
                 <History className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold">Swap Request History</h2>
-                <p className="text-sm text-gray-600">Complete timeline and details</p>
+                <h2 className="text-xl font-semibold">{t('swaps.swapRequestHistory')}</h2>
+                <p className="text-sm text-gray-600">{t('swaps.completeTimelineAndDetails')}</p>
               </div>
             </div>
             <Button
@@ -191,80 +194,41 @@ export function SwapHistoryModal({
             </div>
           ) : (
             <>
-              {/* Swap Details Summary */}
+              {/* Swap Overview */}
               {swap && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <ArrowLeftRight className="h-5 w-5" />
-                      Swap Request Details
+                      {t('swaps.swapOverview')}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Requester Info */}
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-gray-900">Requesting Staff</h4>
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-gray-500" />
-                          <span className="font-medium">{swap.requesting_staff?.full_name}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {swap.requesting_staff?.role}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Calendar className="h-4 w-4" />
-                          <span>
-                            {days[swap.original_day]} - {shifts[swap.original_shift]?.name}
-                          </span>
-                        </div>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">{t('swaps.requestedBy')}</label>
+                        <p className="font-medium">{swap.requesting_staff_name || t('common.unknown')}</p>
                       </div>
-
-                      {/* Target Info */}
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-gray-900">
-                          {swap.swap_type === 'specific' ? 'Target Staff' : 'Coverage Type'}
-                        </h4>
-                        {swap.swap_type === 'specific' && swap.target_staff ? (
-                          <>
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-gray-500" />
-                              <span className="font-medium">{swap.target_staff.full_name}</span>
-                              <Badge variant="outline" className="text-xs">
-                                {swap.target_staff.role}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Calendar className="h-4 w-4" />
-                              <span>
-                                {days[swap.target_day]} - {shifts[swap.target_shift]?.name}
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Zap className="h-4 w-4 text-purple-500" />
-                            <span className="font-medium">Auto Assignment</span>
-                            <Badge variant="outline" className="text-xs">
-                              System Coverage
-                            </Badge>
-                          </div>
-                        )}
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">{t('swaps.requestDate')}</label>
+                        <p className="font-medium">{new Date(swap.created_at).toLocaleDateString()}</p>
+                      </div>
+                      {swap.target_staff_name && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-500">{t('swaps.targetStaff')}</label>
+                          <p className="font-medium">{swap.target_staff_name}</p>
+                        </div>
+                      )}
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">{t('swaps.facility')}</label>
+                        <p className="font-medium">{swap.facility_name || t('common.unknown')}</p>
                       </div>
                     </div>
-
-                    {/* Reason */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-gray-900">Reason</h4>
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-700">{swap.reason}</p>
-                      </div>
-                    </div>
-
-                    {/* Current Status */}
-                    <div className="flex items-center justify-between">
+                    
+                    <div className="flex items-center gap-4 mt-4">
                       <div className="flex items-center gap-2">
-                        <h4 className="font-medium text-gray-900">Current Status:</h4>
+                        <div className={`w-3 h-3 rounded-full ${getActionConfig(swap.status).bgColor} ${getActionConfig(swap.status).color}`}>
+                        </div>
                         <Badge className={`${getActionConfig(swap.status).bgColor} ${getActionConfig(swap.status).color}`}>
                           {getActionConfig(swap.status).label}
                         </Badge>
@@ -272,7 +236,7 @@ export function SwapHistoryModal({
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4 text-gray-400" />
                         <Badge variant="outline" className="capitalize">
-                          {swap.urgency} Priority
+                          {t(`swaps.${swap.urgency}Priority`) || swap.urgency} {t('swaps.priority')}
                         </Badge>
                       </div>
                     </div>
@@ -285,7 +249,7 @@ export function SwapHistoryModal({
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Activity className="h-5 w-5" />
-                    Action Timeline
+                    {t('swaps.actionTimeline')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -293,8 +257,8 @@ export function SwapHistoryModal({
                     {history.length === 0 ? (
                       <div className="text-center py-8">
                         <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No History Available</h3>
-                        <p className="text-gray-600">Unable to load history for this swap request.</p>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('swaps.noHistoryAvailable')}</h3>
+                        <p className="text-gray-600">{t('swaps.unableLoadHistorySwapRequest')}</p>
                       </div>
                     ) : (
                       <div className="relative">
@@ -328,7 +292,7 @@ export function SwapHistoryModal({
                                   <div className="flex items-center gap-2 mb-2">
                                     <User className="h-3 w-3 text-gray-400" />
                                     <span className="text-xs text-gray-500">
-                                      by {entry.actor_staff_name}
+                                      {t('common.by')} {entry.actor_staff_name}
                                     </span>
                                   </div>
                                 )}
