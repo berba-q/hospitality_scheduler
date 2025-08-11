@@ -16,6 +16,7 @@ import {
   Calendar
 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface QuickActionsProps {
   swap: any
@@ -25,6 +26,7 @@ interface QuickActionsProps {
 }
 
 export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }: QuickActionsProps) {
+  const { t } = useTranslations()
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -83,10 +85,10 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
           onValueChange={handleUpdateUrgency}
           disabled={loading || swap.status === 'completed'}
         >
-          <option value="low">Low</option>
-          <option value="normal">Normal</option>
-          <option value="high">High</option>
-          <option value="emergency">Emergency</option>
+          <option value="low">{t('swaps.lowPriority')}</option>
+          <option value="normal">{t('swaps.normalPriority')}</option>
+          <option value="high">{t('swaps.highPriority')}</option>
+          <option value="emergency">{t('swaps.emergencyPriority')}</option>
         </Select>
 
         {/* Quick Approve/Decline if pending */}
@@ -100,7 +102,7 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
               disabled={loading}
             >
               <CheckCircle className="h-3 w-3 mr-1" />
-              Approve
+              {t('workflow.approve')}
             </Button>
             <Button
               size="sm"
@@ -110,7 +112,7 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
               disabled={loading}
             >
               <X className="h-3 w-3 mr-1" />
-              Decline
+              {t('workflow.decline')}
             </Button>
           </>
         )}
@@ -125,7 +127,7 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
               <Edit3 className="h-4 w-4 mr-2" />
-              Edit Details
+              {t('swaps.editDetails')}
             </DropdownMenuItem>
             {swap.status === 'pending' && (
               <DropdownMenuItem 
@@ -133,7 +135,7 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
                 className="text-red-600"
               >
                 <X className="h-4 w-4 mr-2" />
-                Cancel Request
+                {t('swaps.cancelRequest')}
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -144,25 +146,25 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Swap Request</DialogTitle>
+            <DialogTitle>{t('swaps.editSwapRequest')}</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">Urgency</label>
+              <label className="text-sm font-medium mb-2 block">{t('swaps.urgencyLevel')}</label>
               <Select
                 value={editForm.urgency}
                 onValueChange={(value) => setEditForm({ ...editForm, urgency: value })}
               >
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="emergency">Emergency</option>
+                <option value="low">{t('swaps.lowPriority')}</option>
+                <option value="normal">{t('swaps.normalPriority')}</option>
+                <option value="high">{t('swaps.highPriority')}</option>
+                <option value="emergency">{t('swaps.emergencyPriority')}</option>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Reason</label>
+              <label className="text-sm font-medium mb-2 block">{t('swaps.reason')}</label>
               <Textarea
                 value={editForm.reason}
                 onChange={(e) => setEditForm({ ...editForm, reason: e.target.value })}
@@ -171,7 +173,7 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Expires At</label>
+              <label className="text-sm font-medium mb-2 block">{t('swaps.expiresAt')}</label>
               <input
                 type="datetime-local"
                 value={editForm.expires_at?.split('.')[0]}
@@ -183,10 +185,10 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleEditSubmit} disabled={loading}>
-              {loading ? 'Updating...' : 'Update'}
+              {loading ? t('common.saving') : t('common.saveChanges')}
             </Button>
           </div>
         </DialogContent>
@@ -196,29 +198,33 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel Swap Request</DialogTitle>
+            <DialogTitle>{t('swaps.cancelSwapRequest')}</DialogTitle>
           </DialogHeader>
           
-          <div className="py-4">
-            <label className="text-sm font-medium mb-2 block">Cancellation Reason</label>
-            <Textarea
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="Optional reason for cancellation..."
-              rows={3}
-            />
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                {t('swaps.cancellationReason')} ({t('common.optional')})
+              </label>
+              <Textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder={t('swaps.explainWhyCancelling')}
+                rows={3}
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
-              Keep Request
+              {t('common.keepRequest')}
             </Button>
             <Button 
               variant="destructive" 
               onClick={handleCancel} 
               disabled={loading}
             >
-              {loading ? 'Cancelling...' : 'Cancel Request'}
+              {loading ? t('common.cancelling') : t('swaps.confirmCancel')}
             </Button>
           </div>
         </DialogContent>

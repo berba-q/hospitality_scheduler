@@ -104,6 +104,14 @@ export const en = {
     online: 'Online',
     offline: 'Offline',
     waiting: "Waiting",
+    lastWeek: 'Last Week',
+    last30Days: 'Last 30 Days',
+    last60Days: 'Last 60 Days',
+    last90Days: 'Last 90 Days',
+    days: 'days',
+    retry: 'Retry',
+    na: 'N/A',
+    unknown: 'Unknown',
     
     // ============================================================================
     // GENERIC TERMS (reusable across domains)
@@ -127,6 +135,8 @@ export const en = {
     order: 'Order',
     manage: 'Manage',
     important: 'Important',
+    accept: 'Accept',
+    more: 'more',
     
     // Generic entities
     facility: 'Facility',
@@ -216,7 +226,6 @@ export const en = {
     empty: 'Empty',
     full: 'Full',
     partial: 'Partial',
-    unknown: 'Unknown',
     none: 'None',
     all: 'All',
     issues: 'Issues',
@@ -237,9 +246,21 @@ export const en = {
     // Time units
     hours: 'hours',
     minutes: 'minutes',
-    days: 'days',
     weeks: 'weeks',
     months: 'months',
+
+    monday: 'Monday',
+    tuesday: 'Tuesday', 
+    wednesday: 'Wednesday',
+    thursday: 'Thursday',
+    friday: 'Friday',
+    saturday: 'Saturday',
+    sunday: 'Sunday',
+    // SwapNotificationDialog additional keys
+    swapDetails: 'Swap Details',
+    requester: 'Requester',
+    original: 'Original',
+    target: 'Target',
     
     // ============================================================================
     // NUMBERS & QUANTITIES
@@ -556,6 +577,29 @@ export const en = {
     basicInformation: 'Basic Information',
     addNewStaffMember: 'Add New Staff Member',
     adding: 'Adding...',
+
+    // StaffAnalyticsDashboard specific translations
+    noAnalyticsDataAvailable: 'No analytics data available',
+    totalStaffActive: 'Total Staff Active',
+    activeStaffMembers: 'active staff members',
+    swapRequestsCompleted: 'swap requests completed',
+    averageResponseTime: 'average response time',
+    teamReliabilityScore: 'Team Reliability Score',
+    overallTeamReliability: 'overall team reliability',
+    topPerformers: 'Top Performers',
+    requestsHelped: 'requests helped',
+    noPerformanceDataAvailable: 'No performance data available',
+    requestTrends: 'Request Trends',
+    thisWeek: 'This Week',
+    lastWeek: 'Last Week',
+    monthlyAverage: 'Monthly Average',
+    noTrendDataAvailable: 'No trend data available',
+    responseTimeDistribution: 'Response Time Distribution',
+    responses: 'responses',
+    noResponseDataAvailable: 'No response data available',
+    insightsAndRecommendations: 'Insights & Recommendations',
+    noInsightsAvailable: 'No insights available',
+    moreDataNeeded: 'More data needed for analysis',
     
     // Success/Error messages for ADDING with templates
     staffAddedSuccessfully: '{{name}} added successfully!',
@@ -1169,6 +1213,71 @@ export const en = {
     dateFrom: 'Date From',
     dateTo: 'Date To',
     applyFilters: 'Apply Filters',
+
+    // AnalyticsTab specific translations
+    recentSwaps: 'Recent',
+    thisMonth: 'This Month',
+    activeFacilities: 'Active Facilities',
+    urgencyBreakdown: 'Urgency Breakdown',
+    facilityPerformance: 'Facility Performance',
+    topPerformingFacilities: 'Top Performing Facilities',
+    recentActivityTrends: 'Recent Activity Trends',
+    lastWeek: 'Last Week',
+    lastMonth: 'Last Month',
+    performanceSummary: 'Performance Summary',
+    overallSuccessRate: 'Overall Success Rate',
+    emergencyRequests: 'Emergency Requests',
+    activityIncreasing: 'Activity is increasing',
+    activityStable: 'Activity is stable',
+
+    // QuickActionsTab specific translations
+    yourUpcomingShifts: 'Your Upcoming Shifts',
+    noUpcomingShiftsScheduled: 'No upcoming shifts scheduled',
+    teamNeedsHelp: 'Team Needs Help',
+    available: 'available',
+    noTeamRequestsRightNow: 'No team requests right now',
+    checkBackLaterForRequests: 'Check back later for new requests that need your attention',
+
+    // StaffSwapRequestDialog specific translations
+    canWaitFewDays: 'Can wait a few days',
+    standardRequest: 'Standard request',
+    needCoverageSoon: 'Need coverage soon',
+    urgentCoverageNeeded: 'Urgent coverage needed',
+    pleaseProvideReason: 'Please provide a reason for the swap request',
+    noScheduleSelected: 'No schedule selected. Please try again from the schedule page.',
+    pleaseSelectStaffMember: 'Please select a staff member to swap with',
+    failedSubmitSwap: 'Failed to submit swap request',
+    requestSwapCoverage: 'Request Swap Coverage',
+    yourCurrentAssignment: 'Your Current Assignment',
+    swapType: 'Swap Type',
+    systemFindsAutoCoverage: 'System finds coverage automatically',
+    chooseWhoToSwapWith: 'Choose who to swap with',
+    chooseStaffMemberToSwapWith: 'Choose a staff member to swap with...',
+    urgencyLevel: 'Urgency Level',
+    reasonForSwapRequest: 'Reason for Swap Request',
+    pleaseExplainWhyNeedCovered: 'Please explain why you need this shift covered...',
+    emergencyRequest: 'Emergency Request',
+    emergencyRequestWarning: 'This will be marked as high priority and managers will be notified immediately.',
+    submitting: 'Submitting...',
+    submitSwapRequest: 'Submit Swap Request',
+
+    // PersonalStatsCards specific translations
+    helpfulnessScore: 'Helpfulness Score',
+    noDataYet: 'No data yet',
+    acceptanceRate: 'Acceptance Rate',
+    noRequestsYet: 'No requests yet',
+    helpingStreak: 'Helping Streak',
+    startHelping: 'Start helping!',
+    avgResponseTime: 'Avg Response Time',
+    noResponsesYet: 'No responses yet',
+
+    editDetails: 'Edit Details',
+    cancelRequest: 'Cancel Request',
+    editSwapRequest: 'Edit Swap Request',
+    expiresAt: 'Expires At',
+    cancellationReason: 'Cancellation Reason',
+    explainWhyCancelling: 'Please explain why you are cancelling this request...',
+    confirmCancel: 'Confirm Cancel',
     
     // No data states
     noSwapRequestsYet: 'No swap requests yet',
@@ -1322,6 +1431,34 @@ export const en = {
     getNotifiedAbout: 'Get notified about schedule changes and swap requests even when the app is closed.',
     whenNewSchedules: 'When new schedules are published',
     whenYourSchedule: 'When your schedule is modified',
+
+    // SwapNotificationDialog specific translations
+    managerSwapAssignment: 'Manager Swap Assignment',
+    notifyStaffManagerInitiated: 'Notify staff about manager-initiated swap',
+    staffSwapRequest: 'Staff Swap Request',
+    requestSwapBetweenStaff: 'Request swap between staff members',
+    swapRequestApproved: 'Swap Request Approved',
+    notifyAboutApprovedSwap: 'Notify about approved swap request',
+    swapRequestDenied: 'Swap Request Denied',
+    notifyAboutDeniedSwap: 'Notify about denied swap request',
+    swapNotification: 'Swap Notification',
+    sendSwapRelatedNotification: 'Send swap-related notification',
+    priorityAndRecipients: 'Priority & Recipients',
+    priority: 'PRIORITY',
+    notificationChannels: 'Notification Channels',
+    inAppNotifications: 'In-App Notifications',
+    showNotificationInApp: 'Show notification in the app bell icon',
+    sendMobilePushNotifications: 'Send mobile push notifications with action links',
+    whatsappMessages: 'WhatsApp Messages',
+    sendWhatsappWithDetails: 'Send WhatsApp messages with swap details and action links',
+    additionalMessageOptional: 'Additional Message (Optional)',
+    addAdditionalContext: 'Add any additional context or instructions...',
+    emergencyHighBypassPreferences: 'Emergency and High priority bypass user notification preferences',
+    criticalPriorityNotice: 'Critical Priority Notice',
+    notificationSentRegardlessPreferences: 'This notification will be sent regardless of individual staff notification preferences due to its {{priority}} priority level.',
+    sending: 'Sending...',
+    sendNotifications: 'Send Notifications',
+
   },
 
   status: {

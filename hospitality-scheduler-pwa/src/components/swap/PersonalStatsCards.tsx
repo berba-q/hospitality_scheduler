@@ -3,6 +3,7 @@
 
 import { Card, CardContent } from '@/components/ui/card'
 import { ThumbsUp, Target, Zap, Clock } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface PersonalStatsCardsProps {
   stats: {
@@ -14,6 +15,8 @@ interface PersonalStatsCardsProps {
 }
 
 export function PersonalStatsCards({ stats }: PersonalStatsCardsProps) {
+  const { t } = useTranslations()
+
   // Helper function to get color based on score
   const getScoreColor = (score: number, thresholds = { good: 70, great: 85 }) => {
     if (score >= thresholds.great) return 'green'
@@ -27,6 +30,7 @@ export function PersonalStatsCards({ stats }: PersonalStatsCardsProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Helpfulness Score */}
       <Card className={`border-${helpfulnessColor}-200 bg-${helpfulnessColor}-50`}>
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
@@ -37,15 +41,16 @@ export function PersonalStatsCards({ stats }: PersonalStatsCardsProps) {
               <p className={`text-2xl font-bold text-${helpfulnessColor}-800`}>
                 {stats.helpfulnessScore}%
               </p>
-              <p className={`text-sm text-${helpfulnessColor}-600`}>Helpfulness Score</p>
+              <p className={`text-sm text-${helpfulnessColor}-600`}>{t('swaps.helpfulnessScore')}</p>
               {stats.helpfulnessScore === 0 && (
-                <p className="text-xs text-gray-500">No data yet</p>
+                <p className="text-xs text-gray-500">{t('swaps.noDataYet')}</p>
               )}
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Acceptance Rate */}
       <Card className={`border-${acceptanceColor}-200 bg-${acceptanceColor}-50`}>
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
@@ -56,15 +61,16 @@ export function PersonalStatsCards({ stats }: PersonalStatsCardsProps) {
               <p className={`text-2xl font-bold text-${acceptanceColor}-800`}>
                 {stats.acceptanceRate}%
               </p>
-              <p className={`text-sm text-${acceptanceColor}-600`}>Acceptance Rate</p>
+              <p className={`text-sm text-${acceptanceColor}-600`}>{t('swaps.acceptanceRate')}</p>
               {stats.acceptanceRate === 0 && (
-                <p className="text-xs text-gray-500">No requests yet</p>
+                <p className="text-xs text-gray-500">{t('swaps.noRequestsYet')}</p>
               )}
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Helping Streak */}
       <Card className="border-purple-200 bg-purple-50">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
@@ -73,15 +79,16 @@ export function PersonalStatsCards({ stats }: PersonalStatsCardsProps) {
             </div>
             <div>
               <p className="text-2xl font-bold text-purple-800">{stats.currentStreak}</p>
-              <p className="text-sm text-purple-600">Helping Streak</p>
+              <p className="text-sm text-purple-600">{t('swaps.helpingStreak')}</p>
               {stats.currentStreak === 0 && (
-                <p className="text-xs text-gray-500">Start helping!</p>
+                <p className="text-xs text-gray-500">{t('swaps.startHelping')}</p>
               )}
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Average Response Time */}
       <Card className="border-gray-200 bg-gray-50">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
@@ -90,9 +97,9 @@ export function PersonalStatsCards({ stats }: PersonalStatsCardsProps) {
             </div>
             <div>
               <p className="text-lg font-bold text-gray-800">{stats.avgResponseTime}</p>
-              <p className="text-sm text-gray-600">Avg Response Time</p>
+              <p className="text-sm text-gray-600">{t('swaps.avgResponseTime')}</p>
               {stats.avgResponseTime === 'N/A' && (
-                <p className="text-xs text-gray-500">No responses yet</p>
+                <p className="text-xs text-gray-500">{t('swaps.noResponsesYet')}</p>
               )}
             </div>
           </div>

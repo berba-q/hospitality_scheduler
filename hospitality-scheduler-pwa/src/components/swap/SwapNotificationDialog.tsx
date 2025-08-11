@@ -20,6 +20,7 @@ import {
   Clock,
   User
 } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface SwapNotificationDialogProps {
   open: boolean
@@ -55,6 +56,7 @@ export function SwapNotificationDialog({
   swapDetails,
   recipientStaff
 }: SwapNotificationDialogProps) {
+  const { t } = useTranslations()
   const [saving, setSaving] = useState(false)
   const [options, setOptions] = useState<SwapNotificationOptions>({
     sendWhatsApp: true,
@@ -83,36 +85,36 @@ export function SwapNotificationDialog({
     switch (swapType) {
       case 'manager_to_staff':
         return {
-          title: 'Manager Swap Assignment',
-          description: 'Notify staff about manager-initiated swap',
+          title: t('notifications.managerSwapAssignment'),
+          description: t('notifications.notifyStaffManagerInitiated'),
           icon: User,
           color: 'text-blue-600'
         }
       case 'staff_to_staff':
         return {
-          title: 'Staff Swap Request',
-          description: 'Request swap between staff members',
+          title: t('notifications.staffSwapRequest'),
+          description: t('notifications.requestSwapBetweenStaff'),
           icon: ArrowLeftRight,
           color: 'text-green-600'
         }
       case 'swap_approved':
         return {
-          title: 'Swap Request Approved',
-          description: 'Notify about approved swap request',
+          title: t('notifications.swapRequestApproved'),
+          description: t('notifications.notifyAboutApprovedSwap'),
           icon: CheckCircle,
           color: 'text-green-600'
         }
       case 'swap_denied':
         return {
-          title: 'Swap Request Denied',
-          description: 'Notify about denied swap request',
+          title: t('notifications.swapRequestDenied'),
+          description: t('notifications.notifyAboutDeniedSwap'),
           icon: AlertTriangle,
           color: 'text-red-600'
         }
       default:
         return {
-          title: 'Swap Notification',
-          description: 'Send swap-related notification',
+          title: t('notifications.swapNotification'),
+          description: t('notifications.sendSwapRelatedNotification'),
           icon: Bell,
           color: 'text-gray-600'
         }
@@ -149,16 +151,16 @@ export function SwapNotificationDialog({
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <ArrowLeftRight className="w-4 h-4 text-blue-600" />
-                    <span className="font-medium">Swap Details</span>
+                    <span className="font-medium">{t('swaps.swapDetails')}</span>
                   </div>
                   <div className="space-y-1 text-sm text-gray-600">
-                    <p><strong>Requester:</strong> {swapDetails.requesterName}</p>
+                    <p><strong>{t('swaps.requester')}:</strong> {swapDetails.requesterName}</p>
                     {swapDetails.targetStaffName && (
-                      <p><strong>Target Staff:</strong> {swapDetails.targetStaffName}</p>
+                      <p><strong>{t('swaps.targetStaff')}:</strong> {swapDetails.targetStaffName}</p>
                     )}
-                    <p><strong>Original:</strong> {swapDetails.originalDay} {swapDetails.originalShift}</p>
+                    <p><strong>{t('swaps.original')}:</strong> {swapDetails.originalDay} {swapDetails.originalShift}</p>
                     {swapDetails.targetDay && swapDetails.targetShift && (
-                      <p><strong>Target:</strong> {swapDetails.targetDay} {swapDetails.targetShift}</p>
+                      <p><strong>{t('swaps.target')}:</strong> {swapDetails.targetDay} {swapDetails.targetShift}</p>
                     )}
                   </div>
                 </div>
@@ -166,115 +168,78 @@ export function SwapNotificationDialog({
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="w-4 h-4 text-orange-600" />
-                    <span className="font-medium">Priority & Recipients</span>
+                    <span className="font-medium">{t('notifications.priorityAndRecipients')}</span>
                   </div>
                   <div className="space-y-2">
                     <Badge className={getUrgencyColor(swapDetails.urgency)}>
-                      {swapDetails.urgency.toUpperCase()} PRIORITY
+                      {t(`swaps.${swapDetails.urgency}Priority`).toUpperCase()} {t('notifications.priority')}
                     </Badge>
                     <div className="flex flex-wrap gap-1">
-                      {recipientStaff.slice(0, 3).map(staff => (
+                      {recipientStaff.slice(0, 3).map((staff) => (
                         <Badge key={staff.id} variant="outline" className="text-xs">
-                          {staff.full_name}
+                          {staff.name}
                         </Badge>
                       ))}
                       {recipientStaff.length > 3 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{recipientStaff.length - 3} more
+                        <Badge variant="outline" className="text-xs">
+                          +{recipientStaff.length - 3} {t('common.more')}
                         </Badge>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
-              
-              {swapDetails.reason && (
-                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm"><strong>Reason:</strong> {swapDetails.reason}</p>
-                </div>
-              )}
             </CardContent>
           </Card>
 
           {/* Notification Channels */}
-          <div>
-            <h3 className="font-medium mb-3 flex items-center gap-2">
-              <Bell className="w-4 h-4" />
-              Notification Channels
-            </h3>
+          <div className="space-y-4">
+            <Label className="text-base font-medium">{t('notifications.notificationChannels')}</Label>
             
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3">
               {/* In-App Notifications */}
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="send-inapp"
-                  checked={options.sendInApp}
-                  onCheckedChange={(checked) => 
-                    updateOption('sendInApp', checked as boolean)
-                  }
-                />
-                <div className="grid gap-1.5 leading-none">
-                  <Label 
-                    htmlFor="send-inapp"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
-                  >
-                    <Bell className="w-4 h-4 text-blue-600" />
-                    In-App Notifications
-                    <Badge variant="secondary" className="text-xs">Always On</Badge>
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Show notification in the app bell icon
-                  </p>
+              <div className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Bell className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <div className="font-medium">{t('notifications.inAppNotifications')}</div>
+                    <div className="text-sm text-gray-600">{t('notifications.showNotificationInApp')}</div>
+                  </div>
                 </div>
+                <Checkbox
+                  checked={options.sendInApp}
+                  onCheckedChange={(checked) => updateOption('sendInApp', !!checked)}
+                />
               </div>
 
               {/* Push Notifications */}
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="send-push-swap"
-                  checked={options.sendPushNotifications}
-                  onCheckedChange={(checked) => 
-                    updateOption('sendPushNotifications', checked as boolean)
-                  }
-                />
-                <div className="grid gap-1.5 leading-none">
-                  <Label 
-                    htmlFor="send-push-swap"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
-                  >
-                    <Smartphone className="w-4 h-4 text-blue-600" />
-                    Push Notifications
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Send mobile push notifications with action links
-                  </p>
+              <div className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Smartphone className="w-5 h-5 text-green-600" />
+                  <div>
+                    <div className="font-medium">{t('notifications.pushNotifications')}</div>
+                    <div className="text-sm text-gray-600">{t('notifications.sendMobilePushNotifications')}</div>
+                  </div>
                 </div>
+                <Checkbox
+                  checked={options.sendPushNotifications}
+                  onCheckedChange={(checked) => updateOption('sendPushNotifications', !!checked)}
+                />
               </div>
 
-              {/* WhatsApp Messages */}
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="send-whatsapp-swap"
-                  checked={options.sendWhatsApp}
-                  onCheckedChange={(checked) => 
-                    updateOption('sendWhatsApp', checked as boolean)
-                  }
-                />
-                <div className="grid gap-1.5 leading-none">
-                  <Label 
-                    htmlFor="send-whatsapp-swap"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
-                  >
-                    <MessageSquare className="w-4 h-4 text-green-600" />
-                    WhatsApp Messages
-                    {(swapDetails.urgency === 'high' || swapDetails.urgency === 'emergency') && (
-                      <Badge variant="destructive" className="text-xs">Critical</Badge>
-                    )}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Send WhatsApp messages with swap details and action links
-                  </p>
+              {/* WhatsApp */}
+              <div className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="w-5 h-5 text-green-600" />
+                  <div>
+                    <div className="font-medium">{t('notifications.whatsappMessages')}</div>
+                    <div className="text-sm text-gray-600">{t('notifications.sendWhatsappWithDetails')}</div>
+                  </div>
                 </div>
+                <Checkbox
+                  checked={options.sendWhatsApp}
+                  onCheckedChange={(checked) => updateOption('sendWhatsApp', !!checked)}
+                />
               </div>
             </div>
           </div>
@@ -282,11 +247,11 @@ export function SwapNotificationDialog({
           {/* Custom Message */}
           <div>
             <Label htmlFor="custom-message" className="text-sm font-medium">
-              Additional Message (Optional)
+              {t('notifications.additionalMessageOptional')}
             </Label>
             <Textarea
               id="custom-message"
-              placeholder="Add any additional context or instructions..."
+              placeholder={t('notifications.addAdditionalContext')}
               value={options.customMessage || ''}
               onChange={(e) => updateOption('customMessage', e.target.value)}
               className="mt-1"
@@ -297,7 +262,7 @@ export function SwapNotificationDialog({
           {/* Urgency Override */}
           <div>
             <Label htmlFor="urgency-override" className="text-sm font-medium">
-              Priority Level
+              {t('swaps.priorityLevel')}
             </Label>
             <select
               id="urgency-override"
@@ -305,13 +270,13 @@ export function SwapNotificationDialog({
               onChange={(e) => updateOption('urgencyOverride', e.target.value)}
               className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             >
-              <option value="low">Low Priority</option>
-              <option value="normal">Normal Priority</option>
-              <option value="high">High Priority</option>
-              <option value="emergency">Emergency Priority</option>
+              <option value="low">{t('swaps.lowPriority')}</option>
+              <option value="normal">{t('swaps.normalPriority')}</option>
+              <option value="high">{t('swaps.highPriority')}</option>
+              <option value="emergency">{t('swaps.emergencyPriority')}</option>
             </select>
             <p className="text-xs text-muted-foreground mt-1">
-              Emergency and High priority bypass user notification preferences
+              {t('notifications.emergencyHighBypassPreferences')}
             </p>
           </div>
 
@@ -322,59 +287,38 @@ export function SwapNotificationDialog({
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
                   <div>
-                    <h4 className="font-medium text-red-800">Critical Priority Notice</h4>
+                    <h4 className="font-medium text-red-800">{t('notifications.criticalPriorityNotice')}</h4>
                     <p className="text-sm text-red-700 mt-1">
-                      This notification will be sent regardless of individual staff notification 
-                      preferences due to its {options.urgencyOverride} priority level.
+                      {t('notifications.notificationSentRegardlessPreferences', { 
+                        priority: options.urgencyOverride 
+                      })}
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           )}
-
-          {/* Summary */}
-          <Card className="border-blue-200 bg-blue-50">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-blue-800">
-                    Ready to Send Notifications
-                  </h4>
-                  <p className="text-sm text-blue-700 mt-1">
-                    {recipientStaff.length} staff member(s) will receive notifications through the selected channels
-                    {swapType === 'staff_to_staff' && ' and can respond directly through the app or WhatsApp'}.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={saving}
-          >
-            Cancel
+        <DialogFooter className="flex gap-3">
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            {t('common.cancel')}
           </Button>
-          <Button
-            onClick={handleConfirm}
+          <Button 
+            onClick={handleConfirm} 
             disabled={saving}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            className="flex items-center gap-2"
           >
             {saving ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Sending...
-              </div>
+              <>
+                <Clock className="w-4 h-4 animate-spin" />
+                {t('notifications.sending')}
+              </>
             ) : (
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" />
-                Send Notifications
-              </div>
+              <>
+                <Bell className="w-4 h-4" />
+                {t('notifications.sendNotifications')}
+              </>
             )}
           </Button>
         </DialogFooter>

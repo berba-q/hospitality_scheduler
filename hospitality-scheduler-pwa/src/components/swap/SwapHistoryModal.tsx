@@ -86,14 +86,14 @@ export function SwapHistoryModal({
         icon: CheckCircle,
         color: 'text-green-600',
         bgColor: 'bg-green-100',
-        label: t('swaps.staffAccepted'),
+        label: t('status.staffAccepted'),
         description: t('swaps.targetStaffAcceptedSwap')
       },
       staff_declined: {
         icon: XCircle,
         color: 'text-orange-600',
         bgColor: 'bg-orange-100',
-        label: t('swaps.staffDeclined'),
+        label: t('workflow.staffDeclined'),
         description: t('swaps.targetStaffDeclinedSwap')
       },
       auto_assigned: {

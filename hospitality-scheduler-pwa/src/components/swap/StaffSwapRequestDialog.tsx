@@ -22,7 +22,7 @@ import { toast } from 'sonner'
 interface StaffSwapRequestDialogProps {
   isOpen: boolean
   onClose: () => void
-  // 🔥 FIX: Add schedule context - this is what was missing!
+  // Add schedule context
   scheduleId?: string  // Current schedule ID
   currentWeek?: string // Current week for context
   assignmentDetails: {
