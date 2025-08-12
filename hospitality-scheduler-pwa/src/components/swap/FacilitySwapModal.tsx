@@ -5,6 +5,7 @@ import React, { useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ArrowLeftRight, Building} from 'lucide-react'
 import { SwapManagementDashboard } from './SwapManagementDashboard'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface FacilitySwapModalProps {
   open: boolean
@@ -18,6 +19,7 @@ interface FacilitySwapModalProps {
   onRetryAutoAssignment: (swapId: string, avoidStaffIds?: string[]) => Promise<void>
   onViewSwapHistory: (swapId: string) => void
   onRefresh: () => void
+  onFinalApproval: (swapId: string, approved: boolean, notes?: string) => Promise<void>
 }
 
 export function FacilitySwapModal({
@@ -31,8 +33,12 @@ export function FacilitySwapModal({
   onApproveSwap,
   onRetryAutoAssignment,
   onViewSwapHistory,
-  onRefresh
+  onRefresh,
+  onFinalApproval
 }: FacilitySwapModalProps) {
+  
+  // Add translation hook
+  const { t } = useTranslations()
   
   // Debug logging
   useEffect(() => {
@@ -104,7 +110,9 @@ export function FacilitySwapModal({
                 <ArrowLeftRight className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Swap Management Dashboard</h2>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {t('swaps.swapManagementDashboard')}
+                </h2>
                 <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
                   <Building className="h-4 w-4" />
                   <span className="font-medium">{facility.name}</span>
@@ -127,6 +135,7 @@ export function FacilitySwapModal({
               onRetryAutoAssignment={onRetryAutoAssignment}
               onViewSwapHistory={onViewSwapHistory}
               onRefresh={onRefresh}
+              onFinalApproval={onFinalApproval}
             />
           </div>
         </div>

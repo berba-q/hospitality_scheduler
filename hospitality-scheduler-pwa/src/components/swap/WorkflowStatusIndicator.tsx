@@ -545,7 +545,7 @@ interface WorkflowStepperProps {
 const WORKFLOW_STEPS: Record<'auto' | 'specific', { id: SwapStatus; label: string; icon: any }[]> = {
   auto: [
     { id: SwapStatus.Pending,               label: 'workflow.requested',       icon: Clock },
-    { id: SwapStatus.AwaitingTarget,       label: 'workflow.awaitingStaff',  icon: Target },
+    { id: SwapStatus.Pending,       label: 'workflow.awaitingStaff',  icon: Target },
     { id: SwapStatus.StaffAccepted,        label: 'workflow.staffAccepted',  icon: User },
     { id: SwapStatus.ManagerFinalApproval,label: 'workflow.finalApproval',  icon: Shield },
     { id: SwapStatus.Executed,              label: 'workflow.completed',       icon: CheckCircle },

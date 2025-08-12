@@ -31,7 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs,TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { useAuth, useApiClient } from '@/hooks/useApi'
+import { useAuth, useApiClient, apiClient } from '@/hooks/useApi'
 import { DailyCalendar } from '@/components/schedule/DailyCalendar'
 import { WeeklyCalendar } from '@/components/schedule/WeeklyCalendar'
 import { MonthlyCalendar } from '@/components/schedule/MonthlyCalendar'
@@ -851,6 +851,28 @@ function ManagerScheduleView({
   const availableRoles = [...new Set(facilityStaff.map(member => member.role))]
   const availableZones = zones || []
 
+  const handleFinalApproval = async (swapId: string, approved: boolean, notes?: string) => {
+  try {
+    console.log('🎯 Processing final approval:', { swapId, approved, notes })
+    
+    await apiClient.managerFinalApproval(swapId, {
+      approved,
+      notes,
+      override_role_verification: false,
+      role_override_reason: undefined
+    })
+    
+    refreshSwaps() // or your equivalent refresh function
+    toast.success(approved ? t('swaps.swapExecutedSuccessfully') : t('swaps.swapDenied'))
+    
+  } catch (error) {
+    console.error('❌ Failed to process final approval:', error)
+    const errorMessage = error?.message || t('common.failed')
+    toast.error(errorMessage)
+  }
+}
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
       <div className="max-w-7xl mx-auto p-6">
@@ -1246,6 +1268,7 @@ function ManagerScheduleView({
           onRetryAutoAssignment={retryAutoAssignment}
           onViewSwapHistory={handleViewSwapHistory}
           onRefresh={refreshSwaps}
+          onFinalApproval={handleFinalApproval}
         />
       )}
 

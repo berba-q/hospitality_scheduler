@@ -15,6 +15,7 @@ import {
   Users,
   Award
 } from 'lucide-react'
+import { useTranslation } from '@/lib/i18n/hooks'
 
 interface SwapHistoryAnalyticsProps {
   isOpen: boolean
@@ -24,6 +25,8 @@ interface SwapHistoryAnalyticsProps {
 }
 
 export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: SwapHistoryAnalyticsProps) {
+  const { t } = useTranslation()
+  
   // Calculate analytics
   const myRequests = swapRequests.filter(s => s.requesting_staff_id === user.id)
   const requestsForMe = swapRequests.filter(s => s.target_staff_id === user.id)
@@ -69,7 +72,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5" />
-            Your Swap Analytics
+            {t('swaps.yourSwapAnalytics')}
           </DialogTitle>
         </DialogHeader>
 
@@ -84,7 +87,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{myRequests.length}</p>
-                    <p className="text-sm text-gray-600">Total Requests</p>
+                    <p className="text-sm text-gray-600">{t('swaps.totalRequests')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -98,7 +101,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{successRate}%</p>
-                    <p className="text-sm text-gray-600">Success Rate</p>
+                    <p className="text-sm text-gray-600">{t('swaps.successRate')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -112,7 +115,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{helpfulnessRate}%</p>
-                    <p className="text-sm text-gray-600">Helpfulness Rate</p>
+                    <p className="text-sm text-gray-600">{t('swaps.helpfulnessScore')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -126,7 +129,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   </div>
                   <div>
                     <p className="text-2xl font-bold">{acceptedForOthers}</p>
-                    <p className="text-sm text-gray-600">Times Helped</p>
+                    <p className="text-sm text-gray-600">{t('swaps.timesHelped')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -137,11 +140,11 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">My Requests Breakdown</CardTitle>
+                <CardTitle className="text-lg">{t('swaps.myRequestsBreakdown')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Completed</span>
+                  <span className="text-sm text-gray-600">{t('common.completed')}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-20 bg-gray-200 rounded-full h-2">
                       <div 
@@ -153,7 +156,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Declined</span>
+                  <span className="text-sm text-gray-600">{t('common.declined')}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-20 bg-gray-200 rounded-full h-2">
                       <div 
@@ -165,7 +168,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Pending</span>
+                  <span className="text-sm text-gray-600">{t('common.pending')}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-20 bg-gray-200 rounded-full h-2">
                       <div 
@@ -181,11 +184,11 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Helping Others</CardTitle>
+                <CardTitle className="text-lg">{t('swaps.helpingOthers')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Accepted</span>
+                  <span className="text-sm text-gray-600">{t('common.accepted')}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-20 bg-gray-200 rounded-full h-2">
                       <div 
@@ -197,7 +200,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Declined</span>
+                  <span className="text-sm text-gray-600">{t('common.declined')}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-20 bg-gray-200 rounded-full h-2">
                       <div 
@@ -209,7 +212,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">No Response Yet</span>
+                  <span className="text-sm text-gray-600">{t('swaps.noResponseYet')}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-20 bg-gray-200 rounded-full h-2">
                       <div 
@@ -227,7 +230,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
           {/* Monthly Trend */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Monthly Request Trend</CardTitle>
+              <CardTitle className="text-lg">{t('swaps.monthlyRequestTrend')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -245,7 +248,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                           </div>
                         </div>
                         <span className="text-xs text-gray-500 w-16">
-                          {month.completed}/{month.requests} done
+                          {month.completed}/{month.requests} {t('swaps.done')}
                         </span>
                       </div>
                     </div>
@@ -258,25 +261,25 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
           {/* Urgency Patterns */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Request Urgency Patterns</CardTitle>
+              <CardTitle className="text-lg">{t('swaps.requestUrgencyPatterns')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
                   <div className="text-2xl font-bold text-red-700">{urgencyBreakdown.emergency}</div>
-                  <div className="text-sm text-red-600">Emergency</div>
+                  <div className="text-sm text-red-600">{t('swaps.emergency')}</div>
                 </div>
                 <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-200">
                   <div className="text-2xl font-bold text-orange-700">{urgencyBreakdown.high}</div>
-                  <div className="text-sm text-orange-600">High</div>
+                  <div className="text-sm text-orange-600">{t('swaps.high')}</div>
                 </div>
                 <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="text-2xl font-bold text-blue-700">{urgencyBreakdown.normal}</div>
-                  <div className="text-sm text-blue-600">Normal</div>
+                  <div className="text-sm text-blue-600">{t('swaps.normal')}</div>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="text-2xl font-bold text-gray-700">{urgencyBreakdown.low}</div>
-                  <div className="text-sm text-gray-600">Low</div>
+                  <div className="text-sm text-gray-600">{t('swaps.low')}</div>
                 </div>
               </div>
             </CardContent>
@@ -285,7 +288,7 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
           {/* Insights */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Insights & Recommendations</CardTitle>
+              <CardTitle className="text-lg">{t('swaps.insightsRecommendations')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -293,8 +296,8 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
                     <TrendingUp className="w-5 h-5 text-green-600 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-green-800">Great Success Rate!</p>
-                      <p className="text-xs text-green-600">Your requests are being approved at a high rate. Keep up the good work!</p>
+                      <p className="text-sm font-medium text-green-800">{t('swaps.greatSuccessRate')}</p>
+                      <p className="text-xs text-green-600">{t('swaps.successRateMessage')}</p>
                     </div>
                   </div>
                 )}
@@ -303,8 +306,8 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <Award className="w-5 h-5 text-blue-600 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-blue-800">Team Player!</p>
-                      <p className="text-xs text-blue-600">You're very helpful to your colleagues. Your team appreciates you!</p>
+                      <p className="text-sm font-medium text-blue-800">{t('swaps.teamPlayer')}</p>
+                      <p className="text-xs text-blue-600">{t('swaps.teamPlayerMessage')}</p>
                     </div>
                   </div>
                 )}
@@ -313,8 +316,8 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                     <Clock className="w-5 h-5 text-yellow-600 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-yellow-800">Consider Planning Ahead</p>
-                      <p className="text-xs text-yellow-600">You have many emergency requests. Planning shifts in advance might help reduce urgency.</p>
+                      <p className="text-sm font-medium text-yellow-800">{t('swaps.considerPlanningAhead')}</p>
+                      <p className="text-xs text-yellow-600">{t('swaps.planningAheadMessage')}</p>
                     </div>
                   </div>
                 )}
@@ -323,8 +326,8 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
                   <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
                     <Users className="w-5 h-5 text-orange-600 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-orange-800">Help Your Team More</p>
-                      <p className="text-xs text-orange-600">Consider accepting more requests to help your colleagues when possible.</p>
+                      <p className="text-sm font-medium text-orange-800">{t('swaps.helpTeamMore')}</p>
+                      <p className="text-xs text-orange-600">{t('swaps.helpTeamMoreMessage')}</p>
                     </div>
                   </div>
                 )}

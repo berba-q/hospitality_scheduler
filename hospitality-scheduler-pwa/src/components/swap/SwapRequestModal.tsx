@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useTranslations } from '@/hooks/useTranslations'
 import { 
   ArrowLeftRight, 
   Users, 
@@ -40,13 +41,6 @@ interface SwapRequestModalProps {
   onSwapRequest: (swapData: any) => Promise<void>
 }
 
-const URGENCY_LEVELS = [
-  { value: 'low', label: 'Low', color: 'bg-gray-100 text-gray-800', icon: Clock },
-  { value: 'normal', label: 'Normal', color: 'bg-blue-100 text-blue-800', icon: Clock },
-  { value: 'high', label: 'High', color: 'bg-orange-100 text-orange-800', icon: AlertTriangle },
-  { value: 'emergency', label: 'Emergency', color: 'bg-red-100 text-red-800', icon: AlertTriangle }
-]
-
 export function SwapRequestModal({
   open,
   onClose,
@@ -58,6 +52,8 @@ export function SwapRequestModal({
   isManager,
   onSwapRequest
 }: SwapRequestModalProps) {
+  const { t } = useTranslations()
+  
   const [swapType, setSwapType] = useState<'specific' | 'auto'>('specific')
   const [selectedTargetStaff, setSelectedTargetStaff] = useState('')
   const [selectedTargetDay, setSelectedTargetDay] = useState('')
@@ -68,6 +64,14 @@ export function SwapRequestModal({
   const [preferredSkills, setPreferredSkills] = useState<string[]>([])
   const [avoidStaffIds, setAvoidStaffIds] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Define urgency levels with translations
+  const URGENCY_LEVELS = [
+    { value: 'low', label: t('swaps.low'), color: 'bg-gray-100 text-gray-800', icon: Clock },
+    { value: 'normal', label: t('swaps.normal'), color: 'bg-blue-100 text-blue-800', icon: Clock },
+    { value: 'high', label: t('swaps.high'), color: 'bg-orange-100 text-orange-800', icon: AlertTriangle },
+    { value: 'emergency', label: t('swaps.emergency'), color: 'bg-red-100 text-red-800', icon: AlertTriangle }
+  ]
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -95,7 +99,6 @@ export function SwapRequestModal({
   }
 
   // Get available staff for specific swaps
-  
   const getAvailableStaff = () => {
     console.log('🔍 getAvailableStaff called with:', {
       selectedTargetDay,
@@ -136,22 +139,21 @@ export function SwapRequestModal({
     return availableStaff
   }
 
-  
   const handleSubmit = async () => {
     if (!reason.trim()) {
-      toast.error('Please provide a reason for the swap')
+      toast.error(t('swaps.pleaseProvideReason'))
       return
     }
 
     if (swapType === 'specific') {
       if (!selectedTargetStaff || selectedTargetDay === '' || selectedTargetShift === '') {
-        toast.error('Please select target staff member and shift')
+        toast.error(t('swaps.pleaseSelectTargetStaffAndShift'))
         return
       }
     }
 
     if (isManager && !requestingStaffId) {
-      toast.error('Please select which staff member is requesting the swap')
+      toast.error(t('swaps.pleaseSelectRequestingStaff'))
       return
     }
 
@@ -176,10 +178,10 @@ export function SwapRequestModal({
       }
 
       await onSwapRequest(swapData)
-      toast.success('Swap request created successfully!')
+      toast.success(t('swaps.swapRequestCreatedSuccessfully'))
       onClose()
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create swap request')
+      toast.error(error.message || t('swaps.failedToCreateSwapRequest'))
     } finally {
       setLoading(false)
     }
@@ -194,7 +196,7 @@ export function SwapRequestModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowLeftRight className="h-5 w-5" />
-            Request Shift Swap
+            {t('swaps.requestShiftSwap')}
           </DialogTitle>
         </DialogHeader>
 
@@ -203,7 +205,7 @@ export function SwapRequestModal({
           {currentAssignment && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium">Current Assignment</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('swaps.currentAssignment')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -233,9 +235,9 @@ export function SwapRequestModal({
           {/* Manager: Select Requesting Staff */}
           {isManager && (
             <div className="space-y-2">
-              <Label>Staff Member Requesting Swap</Label>
+              <Label>{t('swaps.staffMemberRequestingSwap')}</Label>
               <Select value={requestingStaffId} onValueChange={setRequestingStaffId}>
-                <option value="" disabled>Select staff member...</option>
+                <option value="" disabled>{t('swaps.selectStaffMember')}</option>
                 {staff.filter(s => s.is_active).map(staffMember => (
                   <option key={staffMember.id} value={staffMember.id}>
                     {staffMember.full_name} - {staffMember.role}
@@ -250,24 +252,24 @@ export function SwapRequestModal({
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="specific" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                Specific Swap
+                {t('swaps.specificSwap')}
               </TabsTrigger>
               <TabsTrigger value="auto" className="flex items-center gap-2">
                 <Zap className="h-4 w-4" />
-                Auto Assignment
+                {t('swaps.autoAssignment')}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="specific" className="space-y-4">
               <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
-                Request to swap shifts with a specific staff member. Both parties must agree.
+                {t('swaps.specificSwapDescription')}
               </div>
 
               {/* Target Day Selection */}
               <div className="space-y-2">
-                <Label>Target Day</Label>
+                <Label>{t('swaps.targetDay')}</Label>
                 <Select value={selectedTargetDay} onValueChange={setSelectedTargetDay}>
-                  <option value="" disabled>Select day...</option>
+                  <option value="" disabled>{t('swaps.selectDay')}</option>
                   {days.map((day, index) => (
                     <option key={index} value={index.toString()}>
                       {day}
@@ -278,9 +280,9 @@ export function SwapRequestModal({
 
               {/* Target Shift Selection */}
               <div className="space-y-2">
-                <Label>Target Shift</Label>
+                <Label>{t('swaps.targetShift')}</Label>
                 <Select value={selectedTargetShift} onValueChange={setSelectedTargetShift}>
-                  <option value="" disabled>Select shift...</option>
+                  <option value="" disabled>{t('swaps.selectShift')}</option>
                   {shifts.map((shift, index) => (
                     <option key={index} value={index.toString()}>
                       {shift.name} ({shift.time})
@@ -292,18 +294,18 @@ export function SwapRequestModal({
               {/* Target Staff Selection */}
               {selectedTargetDay && selectedTargetShift !== '' && (
                 <div className="space-y-2">
-                  <Label>Staff Member to Swap With</Label>
+                  <Label>{t('swaps.staffMemberToSwapWith')}</Label>
                   <Select value={selectedTargetStaff} onValueChange={setSelectedTargetStaff}>
-                    <option value="" disabled>Select staff member...</option>
+                    <option value="" disabled>{t('swaps.selectStaffMember')}</option>
                     {getAvailableStaff().map(staffMember => (
                       <option key={staffMember.id} value={staffMember.id}>
-                        {staffMember.full_name} - {staffMember.role} ⭐{staffMember.skill_level || 'N/A'}
+                        {staffMember.full_name} - {staffMember.role} ⭐{staffMember.skill_level || t('common.na')}
                       </option>
                     ))}
                   </Select>
                   {getAvailableStaff().length === 0 && (
                     <p className="text-xs text-gray-500">
-                      No staff assigned to the selected shift
+                      {t('swaps.noStaffAssignedToShift')}
                     </p>
                   )}
                 </div>
@@ -335,27 +337,27 @@ export function SwapRequestModal({
 
             <TabsContent value="auto" className="space-y-4">
               <div className="text-sm text-gray-600 bg-purple-50 p-3 rounded-md">
-                Request automatic coverage assignment. The system will find available staff to cover your shift.
+                {t('swaps.autoAssignmentDescription')}
               </div>
 
               {/* Preferred Skills */}
               <div className="space-y-2">
-                <Label>Preferred Skills (Optional)</Label>
+                <Label>{t('swaps.preferredSkillsOptional')}</Label>
                 <Input
-                  placeholder="e.g., bartending, front desk, cooking..."
+                  placeholder={t('swaps.skillsPlaceholder')}
                   value={preferredSkills.join(', ')}
                   onChange={(e) => setPreferredSkills(
                     e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                   )}
                 />
                 <p className="text-xs text-gray-500">
-                  Comma-separated list of preferred skills for the replacement
+                  {t('swaps.skillsHelpText')}
                 </p>
               </div>
 
               {/* Avoid Staff */}
               <div className="space-y-2">
-                <Label>Avoid Specific Staff (Optional)</Label>
+                <Label>{t('swaps.avoidSpecificStaffOptional')}</Label>
                 <Select 
                   value="" 
                   onValueChange={(value) => {
@@ -364,7 +366,7 @@ export function SwapRequestModal({
                     }
                   }}
                 >
-                  <option value="" disabled>Select staff to avoid...</option>
+                  <option value="" disabled>{t('swaps.selectStaffToAvoid')}</option>
                   {staff
                     .filter(s => s.is_active && s.id !== currentAssignment?.staffId && !avoidStaffIds.includes(s.id))
                     .map(staffMember => (
@@ -401,9 +403,9 @@ export function SwapRequestModal({
 
           {/* Reason */}
           <div className="space-y-2">
-            <Label>Reason for Swap Request *</Label>
+            <Label>{t('swaps.reasonForSwapRequest')}</Label>
             <Textarea
-              placeholder="Please explain why you need this shift swap..."
+              placeholder={t('swaps.reasonPlaceholder')}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
@@ -412,9 +414,9 @@ export function SwapRequestModal({
 
           {/* Urgency */}
           <div className="space-y-2">
-            <Label>Urgency Level</Label>
+            <Label>{t('swaps.urgencyLevel')}</Label>
             <Select value={urgency} onValueChange={setUrgency}>
-              <option value="" disabled>Select urgency...</option>
+              <option value="" disabled>{t('swaps.selectUrgency')}</option>
               {URGENCY_LEVELS.map(level => (
                 <option key={level.value} value={level.value}>
                   {level.label}
@@ -440,14 +442,14 @@ export function SwapRequestModal({
           {/* Action Buttons */}
           <div className="flex gap-2 pt-4 border-t">
             <Button variant="outline" onClick={onClose} className="flex-1">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleSubmit} 
               disabled={loading || !reason.trim()}
               className="flex-1"
             >
-              {loading ? 'Creating...' : 'Create Swap Request'}
+              {loading ? t('swaps.creating') : t('swaps.createSwapRequest')}
             </Button>
           </div>
         </div>

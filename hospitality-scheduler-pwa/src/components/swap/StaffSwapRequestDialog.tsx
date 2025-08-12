@@ -18,6 +18,7 @@ import {
   CheckCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface StaffSwapRequestDialogProps {
   isOpen: boolean
@@ -48,20 +49,6 @@ interface StaffSwapRequestDialogProps {
   }>
 }
 
-const URGENCY_OPTIONS = [
-  { value: 'low', label: 'Low Priority', description: 'Can wait a few days' },
-  { value: 'normal', label: 'Normal', description: 'Standard request' },
-  { value: 'high', label: 'High Priority', description: 'Need coverage soon' },
-  { value: 'emergency', label: 'Emergency', description: 'Urgent coverage needed' }
-]
-
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-const SHIFTS = [
-  { value: 0, label: 'Morning (6AM-2PM)' },
-  { value: 1, label: 'Afternoon (2PM-10PM)' },
-  { value: 2, label: 'Evening (10PM-6AM)' }
-]
-
 export function StaffSwapRequestDialog({
   isOpen,
   onClose,
@@ -71,6 +58,7 @@ export function StaffSwapRequestDialog({
   onSubmitSwap,
   availableStaff = []
 }: StaffSwapRequestDialogProps) {
+  const { t } = useTranslations()
   const [swapType, setSwapType] = useState<'auto' | 'specific'>('auto')
   const [reason, setReason] = useState('')
   const [urgency, setUrgency] = useState<'low' | 'normal' | 'high' | 'emergency'>('normal')
@@ -81,20 +69,43 @@ export function StaffSwapRequestDialog({
   const [selectedDay, setSelectedDay] = useState(0)
   const [selectedShift, setSelectedShift] = useState(0)
 
+  const URGENCY_OPTIONS = [
+    { value: 'low', label: t('swaps.lowPriority'), description: t('swaps.canWaitFewDays') },
+    { value: 'normal', label: t('common.normal'), description: t('swaps.standardRequest') },
+    { value: 'high', label: t('swaps.highPriority'), description: t('swaps.needCoverageSoon') },
+    { value: 'emergency', label: t('swaps.emergency'), description: t('swaps.urgentCoverageNeeded') }
+  ]
+
+  const DAYS = [
+    t('common.monday'),
+    t('common.tuesday'), 
+    t('common.wednesday'),
+    t('common.thursday'),
+    t('common.friday'),
+    t('common.saturday'),
+    t('common.sunday')
+  ]
+
+  const SHIFTS = [
+    { value: 0, label: t('swaps.morningShift') },
+    { value: 1, label: t('swaps.afternoonShift') },
+    { value: 2, label: t('swaps.eveningShift') }
+  ]
+
   const handleSubmit = async () => {
     if (!reason.trim()) {
-      toast.error('Please provide a reason for the swap request')
+      toast.error(t('swaps.pleaseProvideReason'))
       return
     }
 
     // 🔥 FIX: Validate schedule_id exists
     if (!scheduleId) {
-      toast.error('No schedule selected. Please try again from the schedule page.')
+      toast.error(t('swaps.noScheduleSelected'))
       return
     }
 
     if (swapType === 'specific' && !targetStaffId) {
-      toast.error('Please select a staff member to swap with')
+      toast.error(t('swaps.pleaseSelectStaffMember'))
       return
     }
 
@@ -126,7 +137,7 @@ export function StaffSwapRequestDialog({
       
     } catch (error) {
       console.error('❌ Swap request failed:', error)
-      toast.error(error.message || 'Failed to create swap request')
+      toast.error(error.message || t('swaps.failedSubmitSwap'))
     } finally {
       setIsSubmitting(false)
     }
@@ -138,7 +149,7 @@ export function StaffSwapRequestDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowLeftRight className="w-5 h-5" />
-            Request Shift Swap
+            {t('swaps.requestSwapCoverage')}
           </DialogTitle>
         </DialogHeader>
 
@@ -149,9 +160,9 @@ export function StaffSwapRequestDialog({
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-sm text-blue-700">
                   <Calendar className="w-4 h-4" />
-                  <span>Week: {currentWeek || 'Current Schedule'}</span>
+                  <span>{t('swaps.week')}: {currentWeek || t('swaps.currentSchedule')}</span>
                   <span className="text-blue-500">•</span>
-                  <span>Schedule ID: {scheduleId.slice(0, 8)}...</span>
+                  <span>{t('swaps.scheduleId')}: {scheduleId.slice(0, 8)}...</span>
                 </div>
               </CardContent>
             </Card>
@@ -163,23 +174,23 @@ export function StaffSwapRequestDialog({
               <CardContent className="p-4">
                 <h4 className="font-medium mb-2 flex items-center gap-2">
                   <Clock className="w-4 h-4" />
-                  Your Current Assignment
+                  {t('swaps.yourCurrentAssignment')}
                 </h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-600">Day:</span>
+                    <span className="text-gray-600">{t('common.day')}:</span>
                     <div className="font-medium">{DAYS[assignmentDetails.day]}</div>
                   </div>
                   <div>
-                    <span className="text-gray-600">Shift:</span>
+                    <span className="text-gray-600">{t('common.shift')}:</span>
                     <div className="font-medium">{assignmentDetails.shiftName}</div>
                   </div>
                   <div>
-                    <span className="text-gray-600">Date:</span>
+                    <span className="text-gray-600">{t('common.date')}:</span>
                     <div className="font-medium">{assignmentDetails.date}</div>
                   </div>
                   <div>
-                    <span className="text-gray-600">Time:</span>
+                    <span className="text-gray-600">{t('common.time')}:</span>
                     <div className="font-medium">{assignmentDetails.shiftTime}</div>
                   </div>
                 </div>
@@ -189,10 +200,10 @@ export function StaffSwapRequestDialog({
             // Manual shift selection when no assignment context
             <Card className="bg-yellow-50 border-yellow-200">
               <CardContent className="p-4">
-                <h4 className="font-medium mb-3">Select Shift to Swap</h4>
+                <h4 className="font-medium mb-3">{t('swaps.selectShiftToSwap')}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="day">Day</Label>
+                    <Label htmlFor="day">{t('common.day')}</Label>
                     <Select value={selectedDay.toString()} onValueChange={(value) => setSelectedDay(parseInt(value))}>
                       <SelectTrigger>
                         <SelectValue />
@@ -205,7 +216,7 @@ export function StaffSwapRequestDialog({
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="shift">Shift</Label>
+                    <Label htmlFor="shift">{t('common.shift')}</Label>
                     <Select value={selectedShift.toString()} onValueChange={(value) => setSelectedShift(parseInt(value))}>
                       <SelectTrigger>
                         <SelectValue />
@@ -226,7 +237,7 @@ export function StaffSwapRequestDialog({
 
           {/* Swap Type Selection */}
           <div className="space-y-3">
-            <Label>Swap Type</Label>
+            <Label>{t('swaps.swapType')}</Label>
             <div className="grid grid-cols-2 gap-3">
               <Card 
                 className={`cursor-pointer transition-all ${swapType === 'auto' ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'}`}
@@ -234,8 +245,8 @@ export function StaffSwapRequestDialog({
               >
                 <CardContent className="p-4 text-center">
                   <CheckCircle className={`w-6 h-6 mx-auto mb-2 ${swapType === 'auto' ? 'text-blue-600' : 'text-gray-400'}`} />
-                  <div className="font-medium">Auto Coverage</div>
-                  <div className="text-xs text-gray-600 mt-1">System finds coverage</div>
+                  <div className="font-medium">{t('swaps.autoCoverage')}</div>
+                  <div className="text-xs text-gray-600 mt-1">{t('swaps.systemFindsAutoCoverage')}</div>
                 </CardContent>
               </Card>
               
@@ -245,8 +256,8 @@ export function StaffSwapRequestDialog({
               >
                 <CardContent className="p-4 text-center">
                   <Users className={`w-6 h-6 mx-auto mb-2 ${swapType === 'specific' ? 'text-blue-600' : 'text-gray-400'}`} />
-                  <div className="font-medium">Specific Staff</div>
-                  <div className="text-xs text-gray-600 mt-1">Choose who to swap with</div>
+                  <div className="font-medium">{t('swaps.specificStaff')}</div>
+                  <div className="text-xs text-gray-600 mt-1">{t('swaps.chooseWhoToSwapWith')}</div>
                 </CardContent>
               </Card>
             </div>
@@ -255,10 +266,10 @@ export function StaffSwapRequestDialog({
           {/* Target Staff Selection (for specific swaps) */}
           {swapType === 'specific' && (
             <div className="space-y-2">
-              <Label htmlFor="target-staff">Select Staff Member</Label>
+              <Label htmlFor="target-staff">{t('swaps.selectStaffMember')}</Label>
               <Select value={targetStaffId} onValueChange={setTargetStaffId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a staff member to swap with..." />
+                  <SelectValue placeholder={t('swaps.chooseStaffMemberToSwapWith')} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableStaff.map((staff) => (
@@ -273,7 +284,7 @@ export function StaffSwapRequestDialog({
 
           {/* Urgency Level */}
           <div className="space-y-2">
-            <Label htmlFor="urgency">Urgency Level</Label>
+            <Label htmlFor="urgency">{t('swaps.urgencyLevel')}</Label>
             <Select value={urgency} onValueChange={(value: 'low' | 'normal' | 'high' | 'emergency') => setUrgency(value)}>
               <SelectTrigger>
                 <SelectValue />
@@ -293,10 +304,10 @@ export function StaffSwapRequestDialog({
 
           {/* Reason */}
           <div className="space-y-2">
-            <Label htmlFor="reason">Reason for Swap Request</Label>
+            <Label htmlFor="reason">{t('swaps.reasonForSwapRequest')}</Label>
             <Textarea
               id="reason"
-              placeholder="Please explain why you need this shift covered..."
+              placeholder={t('swaps.pleaseExplainWhyNeedCovered')}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="min-h-[100px]"
@@ -308,7 +319,7 @@ export function StaffSwapRequestDialog({
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
                 <div className="text-sm text-red-700">
-                  <strong>Emergency Request:</strong> This will be marked as high priority and managers will be notified immediately.
+                  <strong>{t('swaps.emergencyRequest')}:</strong> {t('swaps.emergencyRequestWarning')}
                 </div>
               </div>
             </div>
@@ -317,10 +328,10 @@ export function StaffSwapRequestDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Creating Request...' : 'Create Swap Request'}
+            {isSubmitting ? t('swaps.submitting') : t('swaps.createSwapRequest')}
           </Button>
         </DialogFooter>
       </DialogContent>

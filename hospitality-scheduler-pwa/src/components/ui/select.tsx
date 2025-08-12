@@ -53,6 +53,33 @@ export function SelectContent({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// 🔥 FIX: Extract text content from complex JSX to prevent hydration errors
+function extractTextContent(children: React.ReactNode): string {
+  if (typeof children === 'string') {
+    return children
+  }
+  
+  if (typeof children === 'number') {
+    return children.toString()
+  }
+  
+  if (React.isValidElement(children)) {
+    // If it's a React element, recursively extract text from its children
+    if (children.props.children) {
+      return extractTextContent(children.props.children)
+    }
+    return ''
+  }
+  
+  if (Array.isArray(children)) {
+    // If it's an array of children, extract text from each and join
+    return children.map(child => extractTextContent(child)).join('')
+  }
+  
+  // Fallback for other types
+  return String(children || '')
+}
+
 export function SelectItem({ 
   value, 
   children,
@@ -63,9 +90,12 @@ export function SelectItem({
   children: React.ReactNode
   className?: string
 }) {
+  // 🔥 FIX: Extract only text content for the <option> element
+  const textContent = extractTextContent(children)
+  
   return (
     <option value={value} className={className} {...props}>
-      {children}
+      {textContent}
     </option>
   )
 }

@@ -3,6 +3,7 @@
 
 import React from 'react'
 import { Badge } from '@/components/ui/badge'
+import { useTranslations } from '@/hooks/useTranslations'
 import { 
   ArrowLeftRight, 
   Clock, 
@@ -46,6 +47,8 @@ export function SwapStatusIndicator({
   staffId,
   size = 'sm'
 }: SwapStatusIndicatorProps) {
+  const { t } = useTranslations()
+
   // Find swap requests affecting this assignment
   const affectingSwaps = swapRequests.filter((swap) => {
     // Original assignment swap requests
@@ -101,7 +104,7 @@ export function SwapStatusIndicator({
       return { 
         color: 'bg-green-100 text-green-800 border-green-200', 
         icon: CheckCircle, 
-        label: 'Swapped' 
+        label: t('swaps.swapped')
       }
     }
     
@@ -109,7 +112,7 @@ export function SwapStatusIndicator({
       return { 
         color: 'bg-red-100 text-red-800 border-red-200', 
         icon: XCircle, 
-        label: 'Declined' 
+        label: t('common.declined')
       }
     }
     
@@ -118,27 +121,27 @@ export function SwapStatusIndicator({
         return { 
           color: 'bg-red-100 text-red-800 border-red-300', 
           icon: AlertTriangle, 
-          label: 'Emergency Swap' 
+          label: t('swaps.emergencySwap')
         }
       }
       if (swap.urgency === 'high') {
         return { 
           color: 'bg-orange-100 text-orange-800 border-orange-300', 
           icon: AlertTriangle, 
-          label: 'Urgent Swap' 
+          label: t('swaps.urgentSwap')
         }
       }
       if (swap.swap_type === 'auto') {
         return { 
           color: 'bg-purple-100 text-purple-800 border-purple-200', 
           icon: Zap, 
-          label: 'Auto Swap' 
+          label: t('swaps.autoSwap')
         }
       }
       return { 
         color: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
         icon: ArrowLeftRight, 
-        label: 'Swap Pending' 
+        label: t('swaps.swapPending')
       }
     }
     
@@ -146,14 +149,14 @@ export function SwapStatusIndicator({
       return { 
         color: 'bg-blue-100 text-blue-800 border-blue-200', 
         icon: CheckCircle, 
-        label: 'Approved' 
+        label: t('common.approved')
       }
     }
     
     return { 
       color: 'bg-gray-100 text-gray-800 border-gray-200', 
       icon: Clock, 
-      label: 'Swap Request' 
+      label: t('swaps.swapRequest')
     }
   }
 

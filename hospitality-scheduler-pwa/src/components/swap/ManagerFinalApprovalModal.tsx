@@ -28,6 +28,7 @@ import {
   Info
 } from 'lucide-react'
 import { SwapStatus, SwapUrgency } from '@/types/swaps'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface ManagerFinalApprovalModalProps {
   swap: any
@@ -49,6 +50,7 @@ export function ManagerFinalApprovalModal({
   onApprove,
   loading = false
 }: ManagerFinalApprovalModalProps) {
+  const { t } = useTranslations()
   const [notes, setNotes] = useState('')
   const [overrideRole, setOverrideRole] = useState(false)
   const [overrideReason, setOverrideReason] = useState('')
@@ -71,7 +73,7 @@ export function ManagerFinalApprovalModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            Final Approval Required
+            {t('swaps.finalApprovalRequired')}
           </DialogTitle>
         </DialogHeader>
 
@@ -81,20 +83,20 @@ export function ManagerFinalApprovalModal({
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <ArrowLeftRight className="h-4 w-4" />
-                Swap Details
+                {t('swaps.swapDetails')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <div className="font-medium text-gray-700">Requesting Staff:</div>
+                  <div className="font-medium text-gray-700">{t('swaps.requestingStaff')}:</div>
                   <div>{swap?.requesting_staff?.full_name}</div>
                   <div className="text-gray-500">{swap?.requesting_staff?.role}</div>
                 </div>
                 
                 <div>
                   <div className="font-medium text-gray-700">
-                    {swap?.swap_type === 'auto' ? 'Assigned Staff:' : 'Target Staff:'}
+                    {swap?.swap_type === 'auto' ? t('swaps.assignedStaff') : t('swaps.targetStaff')}:
                   </div>
                   <div>
                     {swap?.swap_type === 'auto' 
@@ -112,19 +114,19 @@ export function ManagerFinalApprovalModal({
               <div className="border-t pt-3">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <div className="font-medium text-gray-700">Original Shift:</div>
-                    <div>{_get_day_name(swap?.original_day)} - {_get_shift_name(swap?.original_shift)}</div>
+                    <div className="font-medium text-gray-700">{t('swaps.originalShift')}:</div>
+                    <div>{_get_day_name(swap?.original_day, t)} - {_get_shift_name(swap?.original_shift, t)}</div>
                     {swap?.original_zone_id && (
-                      <div className="text-gray-500">Zone: {swap.original_zone_id}</div>
+                      <div className="text-gray-500">{t('common.zone')}: {swap.original_zone_id}</div>
                     )}
                   </div>
                   
                   {swap?.swap_type === 'specific' && (
                     <div>
-                      <div className="font-medium text-gray-700">Target Shift:</div>
-                      <div>{_get_day_name(swap?.target_day)} - {_get_shift_name(swap?.target_shift)}</div>
+                      <div className="font-medium text-gray-700">{t('swaps.targetShift')}:</div>
+                      <div>{_get_day_name(swap?.target_day, t)} - {_get_shift_name(swap?.target_shift, t)}</div>
                       {swap?.target_zone_id && (
-                        <div className="text-gray-500">Zone: {swap.target_zone_id}</div>
+                        <div className="text-gray-500">{t('common.zone')}: {swap.target_zone_id}</div>
                       )}
                     </div>
                   )}
@@ -133,14 +135,14 @@ export function ManagerFinalApprovalModal({
 
               {swap?.reason && (
                 <div className="border-t pt-3">
-                  <div className="font-medium text-gray-700 text-sm">Reason:</div>
+                  <div className="font-medium text-gray-700 text-sm">{t('swaps.reason')}:</div>
                   <div className="text-sm text-gray-600">{swap.reason}</div>
                 </div>
               )}
 
               <div className="flex gap-2">
                 <Badge variant="outline">
-                  {swap?.swap_type === 'auto' ? 'Auto Assignment' : 'Specific Swap'}
+                  {swap?.swap_type === 'auto' ? t('swaps.autoAssignment') : t('swaps.specificSwap')}
                 </Badge>
                 <Badge
                   className={
@@ -149,7 +151,7 @@ export function ManagerFinalApprovalModal({
                     'bg-blue-100 text-blue-800'
                   }
                 >
-                  {String(swap?.urgency)?.charAt(0).toUpperCase() + String(swap?.urgency)?.slice(1)} Priority
+                  {String(swap?.urgency)?.charAt(0).toUpperCase() + String(swap?.urgency)?.slice(1)} {t('swaps.priority')}
                 </Badge>
               </div>
             </CardContent>
@@ -160,13 +162,13 @@ export function ManagerFinalApprovalModal({
             <Alert className="border-orange-200 bg-orange-50">
               <AlertTriangle className="h-4 w-4 text-orange-600" />
               <AlertDescription className="text-orange-800">
-                <div className="font-medium mb-2">Role Compatibility Issue Detected</div>
+                <div className="font-medium mb-2">{t('swaps.roleCompatibilityIssueDetected')}</div>
                 <div className="space-y-1 text-sm">
                   <div>
-                    Required Role: <span className="font-medium">{swap?.original_shift_role_name || 'Not specified'}</span>
+                    {t('swaps.requiredRole')}: <span className="font-medium">{swap?.original_shift_role_name || t('swaps.notSpecified')}</span>
                   </div>
                   <div>
-                    {swap?.swap_type === 'auto' ? 'Assigned' : 'Target'} Staff Role: 
+                    {swap?.swap_type === 'auto' ? t('swaps.assignedStaffRole') : t('swaps.targetStaffRole')}: 
                     <span className="font-medium ml-1">
                       {swap?.swap_type === 'auto' 
                         ? swap?.assigned_staff_role_name 
@@ -185,12 +187,12 @@ export function ManagerFinalApprovalModal({
 
           {/* Manager Notes */}
           <div className="space-y-2">
-            <Label htmlFor="notes">Manager Notes</Label>
+            <Label htmlFor="notes">{t('swaps.managerNotes')}</Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any final notes or instructions..."
+              placeholder={t('swaps.addFinalNotesPlaceholder')}
               rows={3}
             />
           </div>
@@ -201,7 +203,7 @@ export function ManagerFinalApprovalModal({
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2 text-orange-800">
                   <Settings className="h-4 w-4" />
-                  Role Override Options
+                  {t('swaps.roleOverrideOptions')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -216,22 +218,22 @@ export function ManagerFinalApprovalModal({
                       htmlFor="override"
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
-                      Override role verification and approve anyway
+                      {t('swaps.overrideRoleVerification')}
                     </label>
                     <p className="text-xs text-muted-foreground">
-                      This will allow the swap to proceed despite role mismatches. Use only in emergency situations.
+                      {t('swaps.overrideRoleWarning')}
                     </p>
                   </div>
                 </div>
 
                 {overrideRole && (
                   <div className="space-y-2">
-                    <Label htmlFor="override-reason">Override Justification (Required)</Label>
+                    <Label htmlFor="override-reason">{t('swaps.overrideJustificationRequired')}</Label>
                     <Textarea
                       id="override-reason"
                       value={overrideReason}
                       onChange={(e) => setOverrideReason(e.target.value)}
-                      placeholder="Explain why this role override is necessary..."
+                      placeholder={t('swaps.explainRoleOverridePlaceholder')}
                       rows={2}
                       required
                     />
@@ -245,13 +247,13 @@ export function ManagerFinalApprovalModal({
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              <div className="font-medium mb-2">What happens after approval:</div>
+              <div className="font-medium mb-2">{t('swaps.whatHappensAfterApproval')}:</div>
               <ul className="text-sm space-y-1">
-                <li>• The schedule will be immediately updated</li>
-                <li>• All affected staff will be notified</li>
-                <li>• The swap will be marked as completed</li>
+                <li>• {t('swaps.scheduleWillBeUpdated')}</li>
+                <li>• {t('swaps.allAffectedStaffNotified')}</li>
+                <li>• {t('swaps.swapWillBeMarkedCompleted')}</li>
                 {overrideRole && (
-                  <li className="text-orange-700">• Role override will be logged for audit purposes</li>
+                  <li className="text-orange-700">• {t('swaps.roleOverrideWillBeLogged')}</li>
                 )}
               </ul>
             </AlertDescription>
@@ -264,7 +266,7 @@ export function ManagerFinalApprovalModal({
             onClick={onClose}
             disabled={loading}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           
           <Button
@@ -273,7 +275,7 @@ export function ManagerFinalApprovalModal({
             disabled={loading}
           >
             <XCircle className="h-4 w-4 mr-2" />
-            Deny Final Approval
+            {t('swaps.denyFinalApproval')}
           </Button>
           
           <Button
@@ -281,7 +283,7 @@ export function ManagerFinalApprovalModal({
             disabled={loading || (overrideRole && !overrideReason.trim())}
           >
             <CheckCircle className="h-4 w-4 mr-2" />
-            {overrideRole ? 'Approve with Override' : 'Final Approve & Execute'}
+            {overrideRole ? t('swaps.approveWithOverride') : t('swaps.finalApproveAndExecute')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -306,6 +308,7 @@ export function BulkSwapManager({
   onBulkAction,
   loading = false
 }: BulkSwapManagerProps) {
+  const { t } = useTranslations()
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkAction, setBulkAction] = useState<'approve' | 'decline'>('approve')
   const [bulkNotes, setBulkNotes] = useState('')
@@ -348,10 +351,10 @@ export function BulkSwapManager({
           <CardTitle className="text-sm flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
-              Bulk Actions
+              {t('swaps.bulkActions')}
             </div>
             <Badge variant="outline">
-              {selectedSwaps.length} selected
+              {selectedSwaps.length} {t('swaps.selected')}
             </Badge>
           </CardTitle>
         </CardHeader>
@@ -363,7 +366,7 @@ export function BulkSwapManager({
               onClick={handleSelectAll}
               disabled={eligibleSwaps.length === 0}
             >
-              Select All ({eligibleSwaps.length})
+              {t('swaps.selectAll')} ({eligibleSwaps.length})
             </Button>
             <Button
               size="sm"
@@ -371,7 +374,7 @@ export function BulkSwapManager({
               onClick={handleClearAll}
               disabled={selectedSwaps.length === 0}
             >
-              Clear Selection
+              {t('swaps.clearSelection')}
             </Button>
           </div>
 
@@ -386,7 +389,7 @@ export function BulkSwapManager({
                 disabled={loading}
               >
                 <CheckCircle className="h-3 w-3 mr-1" />
-                Bulk Approve ({selectedSwaps.length})
+                {t('swaps.bulkApprove')} ({selectedSwaps.length})
               </Button>
               <Button
                 size="sm"
@@ -398,7 +401,7 @@ export function BulkSwapManager({
                 disabled={loading}
               >
                 <XCircle className="h-3 w-3 mr-1" />
-                Bulk Decline ({selectedSwaps.length})
+                {t('swaps.bulkDecline')} ({selectedSwaps.length})
               </Button>
             </div>
           )}
@@ -407,7 +410,7 @@ export function BulkSwapManager({
             <Alert className="border-orange-200 bg-orange-50">
               <AlertTriangle className="h-4 w-4 text-orange-600" />
               <AlertDescription className="text-orange-800 text-xs">
-                Some selected swaps have role compatibility issues that may require override.
+                {t('swaps.someSelectedSwapsHaveRoleIssues')}
               </AlertDescription>
             </Alert>
           )}
@@ -419,32 +422,35 @@ export function BulkSwapManager({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {bulkAction === 'approve' ? 'Bulk Approve' : 'Bulk Decline'} Swaps
+              {bulkAction === 'approve' ? t('swaps.bulkApproveSwaps') : t('swaps.bulkDeclineSwaps')}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
               <div className="text-sm text-gray-600 mb-2">
-                You are about to {bulkAction} {selectedSwaps.length} swap request(s).
+                {t('swaps.youAreAboutToBulkAction', { 
+                  action: bulkAction === 'approve' ? t('common.approve') : t('common.decline'),
+                  count: selectedSwaps.length 
+                })}
               </div>
               {hasRoleIssues && (
                 <Alert className="border-orange-200 bg-orange-50">
                   <AlertTriangle className="h-4 w-4 text-orange-600" />
                   <AlertDescription className="text-orange-800 text-sm">
-                    Some swaps have role compatibility issues.
+                    {t('swaps.someSwapsHaveRoleCompatibilityIssues')}
                   </AlertDescription>
                 </Alert>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bulk-notes">Notes (Optional)</Label>
+              <Label htmlFor="bulk-notes">{t('swaps.notesOptional')}</Label>
               <Textarea
                 id="bulk-notes"
                 value={bulkNotes}
                 onChange={(e) => setBulkNotes(e.target.value)}
-                placeholder={`Add notes for this bulk ${bulkAction} action...`}
+                placeholder={t('swaps.addBulkActionNotesPlaceholder', { action: bulkAction })}
                 rows={2}
               />
             </div>
@@ -459,22 +465,22 @@ export function BulkSwapManager({
                   />
                   <div>
                     <label htmlFor="ignore-roles" className="text-sm font-medium">
-                      Override role verification for affected swaps
+                      {t('swaps.overrideRoleVerificationBulk')}
                     </label>
                     <p className="text-xs text-gray-500">
-                      This will approve swaps even with role mismatches
+                      {t('swaps.overrideRoleVerificationBulkDescription')}
                     </p>
                   </div>
                 </div>
 
                 {ignoreRoleIssues && (
                   <div className="space-y-2">
-                    <Label htmlFor="override-reason">Override Justification</Label>
+                    <Label htmlFor="override-reason">{t('swaps.overrideJustification')}</Label>
                     <Textarea
                       id="override-reason"
                       value={roleOverrideReason}
                       onChange={(e) => setRoleOverrideReason(e.target.value)}
-                      placeholder="Explain why role overrides are necessary..."
+                      placeholder={t('swaps.explainRoleOverridesNecessaryPlaceholder')}
                       rows={2}
                     />
                   </div>
@@ -485,14 +491,14 @@ export function BulkSwapManager({
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBulkModal(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={handleBulkSubmit}
               disabled={ignoreRoleIssues && !roleOverrideReason.trim()}
               variant={bulkAction === 'approve' ? 'default' : 'destructive'}
             >
-              {bulkAction === 'approve' ? 'Approve All' : 'Decline All'}
+              {bulkAction === 'approve' ? t('swaps.approveAll') : t('swaps.declineAll')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -502,12 +508,24 @@ export function BulkSwapManager({
 }
 
 // Helper functions
-function _get_day_name(day: number): string {
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-  return days[day] || `Day ${day}`
+function _get_day_name(day: number, t: any): string {
+  const days = [
+    t('schedule.monday'),
+    t('schedule.tuesday'), 
+    t('schedule.wednesday'),
+    t('schedule.thursday'),
+    t('schedule.friday'),
+    t('schedule.saturday'),
+    t('schedule.sunday')
+  ]
+  return days[day] || `${t('schedule.day')} ${day}`
 }
 
-function _get_shift_name(shift: number): string {
-  const shifts = ['Morning', 'Afternoon', 'Evening']
-  return shifts[shift] || `Shift ${shift}`
+function _get_shift_name(shift: number, t: any): string {
+  const shifts = [
+    t('schedule.morning'),
+    t('schedule.afternoon'), 
+    t('schedule.evening')
+  ]
+  return shifts[shift] || `${t('schedule.shift')} ${shift}`
 }

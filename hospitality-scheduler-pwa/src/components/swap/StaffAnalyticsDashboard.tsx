@@ -17,6 +17,7 @@ import {
   Zap,
   User
 } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface StaffAnalyticsProps {
   facilityId: string
@@ -24,6 +25,7 @@ interface StaffAnalyticsProps {
 }
 
 export function StaffAnalyticsDashboard({ facilityId, apiClient }: StaffAnalyticsProps) {
+  const { t } = useTranslations()
   const [analyticsData, setAnalyticsData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState(30)
@@ -61,9 +63,9 @@ export function StaffAnalyticsDashboard({ facilityId, apiClient }: StaffAnalytic
     return (
       <Card>
         <CardContent className="p-6 text-center">
-          <p className="text-gray-500">No analytics data available</p>
+          <p className="text-gray-500">{t('staff.noAnalyticsDataAvailable')}</p>
           <Button onClick={loadAnalytics} variant="outline" className="mt-4">
-            Retry
+            {t('common.retry')}
           </Button>
         </CardContent>
       </Card>
@@ -74,7 +76,7 @@ export function StaffAnalyticsDashboard({ facilityId, apiClient }: StaffAnalytic
     <div className="space-y-6">
       {/* Period Selector */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Staff Analytics</h2>
+        <h2 className="text-2xl font-bold text-gray-900">{t('staff.staffAnalytics')}</h2>
         <div className="flex gap-2">
           {[7, 30, 60, 90].map(days => (
             <Button
@@ -83,7 +85,7 @@ export function StaffAnalyticsDashboard({ facilityId, apiClient }: StaffAnalytic
               size="sm"
               onClick={() => setSelectedPeriod(days)}
             >
-              {days} days
+              {days} {t('common.days')}
             </Button>
           ))}
         </div>
@@ -105,6 +107,7 @@ export function StaffAnalyticsDashboard({ facilityId, apiClient }: StaffAnalytic
 }
 
 function TopRequestingStaffCard({ data }) {
+  const { t } = useTranslations()
   const topRequesters = data?.top_requesters || []
   
   return (
@@ -112,12 +115,12 @@ function TopRequestingStaffCard({ data }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Users className="h-5 w-5 text-blue-600" />
-          Top Requesting Staff ({data?.period_days || 30} Days)
+          {t('staff.topRequestingStaff')} ({data?.period_days || 30} {t('common.days')})
         </CardTitle>
       </CardHeader>
       <CardContent>
         {topRequesters.length === 0 ? (
-          <p className="text-gray-500 text-center py-4">No swap requests in this period</p>
+          <p className="text-gray-500 text-center py-4">{t('staff.noSwapRequestsInPeriod')}</p>
         ) : (
           <div className="space-y-4">
             {topRequesters.slice(0, 5).map((staff, index) => (
@@ -134,17 +137,17 @@ function TopRequestingStaffCard({ data }) {
                 <div className="text-right">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">
-                      {staff.total_requests} requests
+                      {staff.total_requests} {t('swaps.requests')}
                     </Badge>
                     <Badge 
                       variant={staff.success_rate >= 70 ? "default" : staff.success_rate >= 50 ? "secondary" : "destructive"}
                     >
-                      {staff.success_rate.toFixed(0)}% approved
+                      {staff.success_rate.toFixed(0)}% {t('common.approved')}
                     </Badge>
                   </div>
                   {staff.most_common_reason && (
                     <p className="text-xs text-gray-400 mt-1 max-w-40 truncate">
-                      "{staff.most_common_reason}"
+                      &quot;{staff.most_common_reason}&quot;
                     </p>
                   )}
                 </div>
@@ -155,15 +158,15 @@ function TopRequestingStaffCard({ data }) {
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <p className="text-2xl font-bold text-blue-600">{data.summary?.total_unique_requesters || 0}</p>
-                  <p className="text-sm text-gray-600">Unique Requesters</p>
+                  <p className="text-sm text-gray-600">{t('staff.uniqueRequesters')}</p>
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-blue-600">{data.summary?.total_requests_period || 0}</p>
-                  <p className="text-sm text-gray-600">Total Requests</p>
+                  <p className="text-sm text-gray-600">{t('swaps.totalRequests')}</p>
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-blue-600">{data.summary?.avg_success_rate?.toFixed(0) || 0}%</p>
-                  <p className="text-sm text-gray-600">Avg Success Rate</p>
+                  <p className="text-sm text-gray-600">{t('staff.avgSuccessRate')}</p>
                 </div>
               </div>
             </div>
@@ -175,6 +178,8 @@ function TopRequestingStaffCard({ data }) {
 }
 
 function ProblemPatternsCard({ data }) {
+  const { t } = useTranslations()
+  
   console.log('🔍 ProblemPatternsCard received data:', data)
   
   // Safely access the data structure
@@ -200,11 +205,11 @@ function ProblemPatternsCard({ data }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-green-700">
             <Award className="h-5 w-5" />
-            Great News! No Problem Patterns Detected
+            {t('staff.greatNewsNoProblemPatterns')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-green-600">Your team is managing swaps efficiently with no concerning patterns.</p>
+          <p className="text-green-600">{t('staff.teamManagingSwapsEfficiently')}</p>
         </CardContent>
       </Card>
     )
@@ -215,22 +220,22 @@ function ProblemPatternsCard({ data }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-red-700">
           <AlertTriangle className="h-5 w-5" />
-          Problem Patterns Detected
+          {t('staff.problemPatternsDetected')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* High Frequency Requesters */}
         {Array.isArray(highFreqRequesters) && highFreqRequesters.length > 0 && (
           <div>
-            <h4 className="font-medium text-red-800 mb-2">High Frequency Requesters (&gt;5 requests)</h4>
+            <h4 className="font-medium text-red-800 mb-2">{t('staff.highFrequencyRequesters')}</h4>
             <div className="space-y-2">
               {highFreqRequesters.slice(0, 3).map((staff, index) => (
                 <div key={`high-freq-${index}`} className="flex items-center justify-between p-2 bg-white rounded border">
                   <span className="font-medium">
-                    {staff?.staff_name || 'Unknown'} ({staff?.role || 'Unknown Role'})
+                    {staff?.staff_name || t('common.unknown')} ({staff?.role || t('staff.unknownRole')})
                   </span>
                   <Badge variant="destructive">
-                    {staff?.total_requests || 0} requests
+                    {staff?.total_requests || 0} {t('swaps.requests')}
                   </Badge>
                 </div>
               ))}
@@ -241,13 +246,13 @@ function ProblemPatternsCard({ data }) {
         {/* Frequent Emergency Users */}
         {Array.isArray(emergencyUsers) && emergencyUsers.length > 0 && (
           <div>
-            <h4 className="font-medium text-red-800 mb-2">Frequent Emergency Users</h4>
+            <h4 className="font-medium text-red-800 mb-2">{t('staff.frequentEmergencyUsers')}</h4>
             <div className="space-y-2">
               {emergencyUsers.slice(0, 3).map((staff, index) => (
                 <div key={`emergency-${index}`} className="flex items-center justify-between p-2 bg-white rounded border">
-                  <span className="font-medium">{staff?.staff_name || 'Unknown'}</span>
+                  <span className="font-medium">{staff?.staff_name || t('common.unknown')}</span>
                   <Badge variant="destructive">
-                    {staff?.emergency_requests || 0} emergencies
+                    {staff?.emergency_requests || 0} {t('staff.emergencies')}
                   </Badge>
                 </div>
               ))}
@@ -258,13 +263,13 @@ function ProblemPatternsCard({ data }) {
         {/* Low Success Rate */}
         {Array.isArray(lowSuccessStaff) && lowSuccessStaff.length > 0 && (
           <div>
-            <h4 className="font-medium text-red-800 mb-2">Low Success Rate (&lt;50%)</h4>
+            <h4 className="font-medium text-red-800 mb-2">{t('staff.lowSuccessRate')}</h4>
             <div className="space-y-2">
               {lowSuccessStaff.slice(0, 3).map((staff, index) => (
                 <div key={`low-success-${index}`} className="flex items-center justify-between p-2 bg-white rounded border">
-                  <span className="font-medium">{staff?.staff_name || 'Unknown'}</span>
+                  <span className="font-medium">{staff?.staff_name || t('common.unknown')}</span>
                   <Badge variant="destructive">
-                    {staff?.success_rate ? staff.success_rate.toFixed(0) : 0}% approved
+                    {staff?.success_rate ? staff.success_rate.toFixed(0) : 0}% {t('common.approved')}
                   </Badge>
                 </div>
               ))}
@@ -274,7 +279,7 @@ function ProblemPatternsCard({ data }) {
 
         <div className="mt-4 p-3 bg-white rounded border-l-4 border-red-400">
           <p className="text-sm text-red-700">
-            <strong>Recommendation:</strong> Consider one-on-one meetings with highlighted staff to understand their challenges and provide support.
+            <strong>{t('staff.recommendation')}:</strong> {t('staff.considerOneOnOneMeetings')}
           </p>
         </div>
       </CardContent>
@@ -283,6 +288,7 @@ function ProblemPatternsCard({ data }) {
 }
 
 function SwapReasonsCard({ data }) {
+  const { t } = useTranslations()
   const reasons = data?.reason_analysis || []
   
   return (
@@ -290,12 +296,12 @@ function SwapReasonsCard({ data }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-purple-600" />
-          Most Common Swap Reasons
+          {t('staff.mostCommonSwapReasons')}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {reasons.length === 0 ? (
-          <p className="text-gray-500 text-center py-4">No reasons data available</p>
+          <p className="text-gray-500 text-center py-4">{t('staff.noReasonsDataAvailable')}</p>
         ) : (
           <div className="space-y-3">
             {reasons.slice(0, 8).map((reason, index) => (
@@ -305,12 +311,12 @@ function SwapReasonsCard({ data }) {
                     {reason.reason}
                   </p>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">{reason.count} times</span>
+                    <span className="text-sm text-gray-600">{reason.count} {t('common.times')}</span>
                     <Badge 
                       variant={reason.success_rate >= 70 ? "default" : "secondary"}
                       className="text-xs"
                     >
-                      {reason.success_rate.toFixed(0)}% success
+                      {reason.success_rate.toFixed(0)}% {t('common.success')}
                     </Badge>
                   </div>
                 </div>
@@ -325,8 +331,10 @@ function SwapReasonsCard({ data }) {
             
             <div className="mt-4 p-3 bg-purple-50 rounded-lg">
               <p className="text-sm text-purple-700">
-                <strong>Insight:</strong> {reasons[0]?.reason || 'Personal matters'} is the most common reason 
-                with {reasons[0]?.success_rate?.toFixed(0) || 0}% approval rate.
+                <strong>{t('staff.insight')}:</strong> {t('staff.mostCommonReasonInsight', { 
+                  reason: reasons[0]?.reason || t('staff.personalMatters'),
+                  rate: reasons[0]?.success_rate?.toFixed(0) || 0
+                })}
               </p>
             </div>
           </div>
@@ -337,6 +345,7 @@ function SwapReasonsCard({ data }) {
 }
 
 function StaffPerformanceCard({ data }) {
+  const { t } = useTranslations()
   const performers = data?.staff_performance || []
   const topPerformers = performers.slice(0, 5)
   
@@ -345,12 +354,12 @@ function StaffPerformanceCard({ data }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Star className="h-5 w-5 text-yellow-600" />
-          Staff Performance Leaderboard
+          {t('staff.staffPerformanceLeaderboard')}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {topPerformers.length === 0 ? (
-          <p className="text-gray-500 text-center py-4">No performance data available</p>
+          <p className="text-gray-500 text-center py-4">{t('staff.noPerformanceDataAvailable')}</p>
         ) : (
           <div className="space-y-4">
             {topPerformers.map((staff, index) => (
@@ -371,11 +380,11 @@ function StaffPerformanceCard({ data }) {
                 <div className="text-right space-y-1">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">
-                      {staff.overall_helpfulness_score.toFixed(0)}% helpful
+                      {staff.overall_helpfulness_score.toFixed(0)}% {t('staff.helpful')}
                     </Badge>
                   </div>
                   <div className="text-xs text-gray-500">
-                    {staff.times_requested_as_target + staff.times_assigned_auto} opportunities
+                    {staff.times_requested_as_target + staff.times_assigned_auto} {t('staff.opportunities')}
                   </div>
                 </div>
               </div>
@@ -384,10 +393,12 @@ function StaffPerformanceCard({ data }) {
             <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
               <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-2">
                 <Award className="h-4 w-4" />
-                Coverage Heroes
+                {t('staff.coverageHeroes')}
               </h4>
               <p className="text-sm text-yellow-700">
-                {data?.summary?.most_helpful_staff || 'Top performer'} leads the team in helping colleagues with swap coverage.
+                {t('staff.leadsTeamInHelping', { 
+                  name: data?.summary?.most_helpful_staff || t('staff.topPerformer')
+                })}
               </p>
             </div>
           </div>

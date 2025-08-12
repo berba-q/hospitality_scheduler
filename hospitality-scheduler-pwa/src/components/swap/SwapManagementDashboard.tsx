@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { BulkSwapManager } from './ManagerFinalApprovalModal'
+import { useTranslations } from '@/hooks/useTranslations'
 import { 
   ArrowLeftRight, 
   Clock, 
@@ -108,70 +109,6 @@ interface SwapManagementDashboardProps {
   onFacilityClick?: (facility: any) => void
 }
 
-// Enhanced status configuration
-const STATUS_CONFIG = {
-  pending: { 
-    color: 'bg-yellow-100 text-yellow-700 border-yellow-200', 
-    icon: Clock,
-    label: 'Pending Approval',
-    description: 'Awaiting manager decision'
-  },
-  manager_approved: { 
-    color: 'bg-blue-100 text-blue-700 border-blue-200', 
-    icon: CheckCircle,
-    label: 'Approved',
-    description: 'Approved by manager'
-  },
-  potential_assignment: { 
-    color: 'bg-purple-100 text-purple-700 border-purple-200', 
-    icon: User,
-    label: 'Awaiting Staff',
-    description: 'Waiting for staff response'
-  },
-  staff_accepted: { 
-    color: 'bg-green-100 text-green-700 border-green-200', 
-    icon: CheckCircle,
-    label: 'Staff Accepted',
-    description: 'Staff accepted assignment'
-  },
-  manager_final_approval: { 
-    color: 'bg-orange-100 text-orange-700 border-orange-200', 
-    icon: Shield,
-    label: 'Final Approval Required',
-    description: 'Ready for execution'
-  },
-  executed: { 
-    color: 'bg-green-100 text-green-700 border-green-200', 
-    icon: CheckCircle,
-    label: 'Executed',
-    description: 'Successfully completed'
-  },
-  declined: { 
-    color: 'bg-red-100 text-red-700 border-red-200', 
-    icon: XCircle,
-    label: 'Declined',
-    description: 'Request was declined'
-  },
-  staff_declined: { 
-    color: 'bg-red-100 text-red-700 border-red-200', 
-    icon: XCircle,
-    label: 'Staff Declined',
-    description: 'Staff declined the assignment'
-  },
-  assignment_failed: { 
-    color: 'bg-red-100 text-red-700 border-red-200', 
-    icon: AlertTriangle,
-    label: 'Assignment Failed',
-    description: 'Could not find coverage'
-  },
-  cancelled: { 
-    color: 'bg-gray-100 text-gray-700 border-gray-200', 
-    icon: StopCircle,
-    label: 'Cancelled',
-    description: 'Request was cancelled'
-  }
-}
-
 export function SwapManagementDashboard({
   facility,
   swapRequests,
@@ -185,6 +122,8 @@ export function SwapManagementDashboard({
   onRefresh,
   onFacilityClick
 }: SwapManagementDashboardProps) {
+  const { t } = useTranslations()
+  
   const [selectedSwap, setSelectedSwap] = useState<SwapRequest | null>(null)
   const [approvalNotes, setApprovalNotes] = useState('')
   const [loading, setLoading] = useState('')
@@ -193,6 +132,70 @@ export function SwapManagementDashboard({
   const [selectedTab, setSelectedTab] = useState('pending')
   const [selectedSwaps, setSelectedSwaps] = useState<string[]>([])
   const [actionType, setActionType] = useState<'initial' | 'final'>('initial')
+
+  // Enhanced status configuration with translations
+  const getStatusConfig = () => ({
+    pending: { 
+      color: 'bg-yellow-100 text-yellow-700 border-yellow-200', 
+      icon: Clock,
+      label: t('swaps.pendingApproval'),
+      description: t('swaps.awaitingManagerDecision')
+    },
+    manager_approved: { 
+      color: 'bg-blue-100 text-blue-700 border-blue-200', 
+      icon: CheckCircle,
+      label: t('common.approved'),
+      description: t('swaps.approvedByManager')
+    },
+    potential_assignment: { 
+      color: 'bg-purple-100 text-purple-700 border-purple-200', 
+      icon: User,
+      label: t('swaps.awaitingStaff'),
+      description: t('swaps.waitingForStaffResponse')
+    },
+    staff_accepted: { 
+      color: 'bg-green-100 text-green-700 border-green-200', 
+      icon: CheckCircle,
+      label: t('workflow.staffAccepted'),
+      description: t('swaps.staffAcceptedAssignment')
+    },
+    manager_final_approval: { 
+      color: 'bg-orange-100 text-orange-700 border-orange-200', 
+      icon: Shield,
+      label: t('swaps.finalApprovalRequired'),
+      description: t('swaps.readyForExecution')
+    },
+    executed: { 
+      color: 'bg-green-100 text-green-700 border-green-200', 
+      icon: CheckCircle,
+      label: t('common.completed'),
+      description: t('swaps.successfullyCompleted')
+    },
+    declined: { 
+      color: 'bg-red-100 text-red-700 border-red-200', 
+      icon: XCircle,
+      label: t('common.declined'),
+      description: t('swaps.requestWasDeclined')
+    },
+    staff_declined: { 
+      color: 'bg-red-100 text-red-700 border-red-200', 
+      icon: XCircle,
+      label: t('workflow.staffDeclined'),
+      description: t('swaps.staffDeclinedAssignment')
+    },
+    assignment_failed: { 
+      color: 'bg-red-100 text-red-700 border-red-200', 
+      icon: AlertTriangle,
+      label: t('swaps.assignmentFailed'),
+      description: t('swaps.couldNotFindCoverage')
+    },
+    cancelled: { 
+      color: 'bg-gray-100 text-gray-700 border-gray-200', 
+      icon: StopCircle,
+      label: t('common.cancelled'),
+      description: t('swaps.requestWasCancelled')
+    }
+  })
 
   // Enhanced categorization including final approval
   const NEEDS_MANAGER_ACTION = ['pending', 'manager_final_approval']
@@ -259,19 +262,19 @@ export function SwapManagementDashboard({
       if (swap?.status === 'manager_final_approval') {
         // This is a final approval
         await onFinalApproval(swapId, approved, approvalNotes)
-        toast.success(approved ? 'Swap executed successfully!' : 'Final approval denied')
+        toast.success(approved ? t('swaps.swapExecutedSuccessfully') : t('swaps.swapDeclinedSuccessfully'))
       } else {
         // This is an initial approval
         await onApproveSwap(swapId, approved, approvalNotes)
         
         if (approved) {
           if (swap?.swap_type === 'specific') {
-            toast.success(`Swap approved! Waiting for ${swap.target_staff?.full_name || 'staff'} to respond.`)
+            toast.success(t('swaps.swapApprovedFinding', { name: swap.target_staff?.full_name || t('common.staff') }))
           } else {
-            toast.success('Swap approved! Finding coverage...')
+            toast.success(t('swaps.swapApprovedFinding'))
           }
         } else {
-          toast.success('Swap request declined.')
+          toast.success(t('swaps.swapDeclinedSuccessfully'))
         }
       }
       
@@ -279,7 +282,7 @@ export function SwapManagementDashboard({
       setApprovalNotes('')
     } catch (error) {
       console.error('Failed to approve swap:', error)
-      toast.error('Failed to process swap decision')
+      toast.error(t('swaps.failedDeclineSwap'))
     } finally {
       setLoading('')
     }
@@ -288,30 +291,23 @@ export function SwapManagementDashboard({
   // ✅ Helper to get action button text
   const getActionButtonText = (swap: SwapRequest) => {
     if (swap.status === 'manager_final_approval') {
-      return 'Execute Swap'
+      return t('swaps.execute')
     }
-    return 'Approve'
+    return t('common.approve')
   }
 
   // ✅ Helper to get approval dialog title
   const getApprovalDialogTitle = () => {
     if (selectedSwap?.status === 'manager_final_approval') {
-      return 'Final Approval - Execute Swap'
+      return t('swaps.finalApprovalExecuteSwap')
     }
-    return 'Approve Swap Request'
-  }
-
-  // ✅ Helper to get approval dialog description
-  const getApprovalDialogDescription = () => {
-    if (selectedSwap?.status === 'manager_final_approval') {
-      return 'Staff has accepted this assignment. Execute the swap to update the schedule.'
-    }
-    return 'Review this swap request and make your decision.'
+    return t('swaps.approveSwapRequest')
   }
 
   // Render individual swap card
   const renderSwapCard = (swap: SwapRequest) => {
-    const config = STATUS_CONFIG[swap.status] || STATUS_CONFIG.pending
+    const statusConfig = getStatusConfig()
+    const config = statusConfig[swap.status] || statusConfig.pending
     const StatusIcon = config.icon
 
     return (
@@ -335,14 +331,14 @@ export function SwapManagementDashboard({
                 {swap.status === 'manager_final_approval' && (
                   <Badge className="bg-orange-500 text-white animate-pulse">
                     <Zap className="h-3 w-3 mr-1" />
-                    ACTION REQUIRED
+                    {t('swaps.actionRequired')}
                   </Badge>
                 )}
                 
                 {swap.urgency === 'emergency' && (
                   <Badge className="bg-red-500 text-white">
                     <AlertTriangle className="h-3 w-3 mr-1" />
-                    URGENT
+                    {t('swaps.urgent')}
                   </Badge>
                 )}
               </div>
@@ -350,17 +346,17 @@ export function SwapManagementDashboard({
               <h3 className="font-semibold text-gray-900 mb-1">
                 {swap.requesting_staff.full_name} → {
                   swap.swap_type === 'auto' 
-                    ? (swap.assigned_staff?.full_name || 'Auto-assignment') 
-                    : (swap.target_staff?.full_name || 'Unspecified')
+                    ? (swap.assigned_staff?.full_name || t('swaps.autoAssignment')) 
+                    : (swap.target_staff?.full_name || t('common.notSpecified'))
                 }
               </h3>
 
               <div className="text-sm text-gray-600 mb-2">
-                <span className="font-medium">Original:</span> {days[swap.original_day]} {shifts[swap.original_shift]?.name}
+                <span className="font-medium">{t('swaps.original')}:</span> {days[swap.original_day]} {shifts[swap.original_shift]?.name}
                 {swap.target_day !== undefined && swap.target_shift !== undefined && (
                   <>
                     <br />
-                    <span className="font-medium">Target:</span> {days[swap.target_day]} {shifts[swap.target_shift]?.name}
+                    <span className="font-medium">{t('swaps.target')}:</span> {days[swap.target_day]} {shifts[swap.target_shift]?.name}
                   </>
                 )}
               </div>
@@ -374,20 +370,19 @@ export function SwapManagementDashboard({
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3">
                   <div className="flex items-center gap-2 text-orange-800">
                     <Shield className="h-4 w-4" />
-                    <span className="font-medium">Ready for Execution</span>
+                    <span className="font-medium">{t('swaps.readyForExecution')}</span>
                   </div>
                   <p className="text-sm text-orange-700 mt-1">
-                    {swap.assigned_staff?.full_name || swap.target_staff?.full_name} has accepted. 
-                    Execute to update the schedule.
+                    {t('swaps.readyForExecutionDescription')}
                   </p>
                 </div>
               )}
 
               <div className="flex items-center gap-4 text-xs text-gray-500">
-                <span>Created: {new Date(swap.created_at).toLocaleDateString()}</span>
+                <span>{t('common.created')}: {new Date(swap.created_at).toLocaleDateString()}</span>
                 {swap.expires_at && (
                   <span className="text-orange-600">
-                    Expires: {new Date(swap.expires_at).toLocaleDateString()}
+                    {t('swaps.expires')}: {new Date(swap.expires_at).toLocaleDateString()}
                   </span>
                 )}
               </div>
@@ -408,7 +403,7 @@ export function SwapManagementDashboard({
                     className="text-red-600 border-red-200 hover:bg-red-50"
                   >
                     <XCircle className="h-4 w-4 mr-1" />
-                    {swap.status === 'manager_final_approval' ? 'Deny' : 'Decline'}
+                    {swap.status === 'manager_final_approval' ? t('swaps.deny') : t('swaps.decline')}
                   </Button>
                   <Button
                     size="sm"
@@ -424,12 +419,12 @@ export function SwapManagementDashboard({
                     {swap.status === 'manager_final_approval' ? (
                       <>
                         <Shield className="h-4 w-4 mr-1" />
-                        Execute
+                        {t('swaps.execute')}
                       </>
                     ) : (
                       <>
                         <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve
+                        {t('common.approve')}
                       </>
                     )}
                   </Button>
@@ -444,7 +439,7 @@ export function SwapManagementDashboard({
                   disabled={loading === swap.id}
                 >
                   <RotateCcw className="h-4 w-4 mr-1" />
-                  Retry Assignment
+                  {t('swaps.retryAssignment')}
                 </Button>
               )}
             </div>
@@ -462,11 +457,11 @@ export function SwapManagementDashboard({
         <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
           <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Initial Approval</CardTitle>
+            <CardTitle className="text-sm">{t('swaps.initialApproval')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{pendingInitialApproval.length}</div>
-            <div className="text-xs text-gray-500">New requests</div>
+            <div className="text-xs text-gray-500">{t('swaps.newRequests')}</div>
           </CardContent>
         </Card>
 
@@ -476,17 +471,17 @@ export function SwapManagementDashboard({
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-1">
               <Shield className="h-4 w-4" />
-              Final Approval
+              {t('swaps.finalApproval')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-orange-600">
               {pendingFinalApproval.length}
             </div>
-            <div className="text-xs text-gray-500">Ready to execute</div>
+            <div className="text-xs text-gray-500">{t('swaps.readyToExecute')}</div>
             {pendingFinalApproval.length > 0 && (
               <div className="text-xs text-orange-600 font-medium mt-1">
-                ACTION REQUIRED
+                {t('swaps.actionRequired')}
               </div>
             )}
           </CardContent>
@@ -496,11 +491,11 @@ export function SwapManagementDashboard({
         <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
           <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Staff Responses</CardTitle>
+            <CardTitle className="text-sm">{t('swaps.staffResponses')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{enhancedSummary?.staff_responses_needed ?? 0}</div>
-            <div className="text-xs text-gray-500">Awaiting staff</div>
+            <div className="text-xs text-gray-500">{t('swaps.awaitingStaff')}</div>
           </CardContent>
         </Card>
 
@@ -508,11 +503,11 @@ export function SwapManagementDashboard({
         <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
           <div className="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Recent Completions</CardTitle>
+            <CardTitle className="text-sm">{t('swaps.recentCompletions')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{enhancedSummary?.recent_completions ?? 0}</div>
-            <div className="text-xs text-gray-500">Last 7 days</div>
+            <div className="text-xs text-gray-500">{t('swaps.lastSevenDays')}</div>
           </CardContent>
         </Card>
       </div>
@@ -524,10 +519,12 @@ export function SwapManagementDashboard({
             <div className="flex items-center gap-3">
               <Shield className="w-5 h-5 text-orange-600" />
               <div>
-                <h3 className="font-medium text-orange-800">Final Approval Required</h3>
+                <h3 className="font-medium text-orange-800">{t('swaps.finalApprovalRequiredAlert')}</h3>
                 <p className="text-sm text-orange-600">
-                  {pendingFinalApproval.length} swap{pendingFinalApproval.length > 1 ? 's' : ''} ready for execution. 
-                  Staff have accepted and are waiting for you to execute.
+                  {t('swaps.swapsReadyForExecution', { 
+                    count: pendingFinalApproval.length,
+                    plural: pendingFinalApproval.length > 1 ? 's' : ''
+                  })}
                 </p>
               </div>
               <Button
@@ -535,7 +532,7 @@ export function SwapManagementDashboard({
                 onClick={() => setSelectedTab('final-approval')}
                 className="ml-auto bg-orange-600 hover:bg-orange-700"
               >
-                Review Now
+                {t('swaps.reviewNow')}
               </Button>
             </div>
           </CardContent>
@@ -547,7 +544,7 @@ export function SwapManagementDashboard({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search by staff name or reason..."
+            placeholder={t('swaps.searchByStaffOrReason')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -555,7 +552,7 @@ export function SwapManagementDashboard({
         </div>
         <Button onClick={onRefresh} variant="outline" size="sm">
           <RotateCcw className="h-4 w-4 mr-1" />
-          Refresh
+          {t('common.refresh')}
         </Button>
       </div>
 
@@ -563,7 +560,7 @@ export function SwapManagementDashboard({
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="pending" className="relative">
-            Pending
+            {t('swaps.pending')}
             {pendingInitialApproval.length > 0 && (
               <Badge className="ml-2 h-5 w-5 rounded-full bg-amber-600 text-white text-xs">
                 {pendingInitialApproval.length}
@@ -572,7 +569,7 @@ export function SwapManagementDashboard({
           </TabsTrigger>
           
           <TabsTrigger value="final-approval" className="relative">
-            Final Approval
+            {t('swaps.finalApproval')}
             {pendingFinalApproval.length > 0 && (
               <Badge className="ml-2 h-5 w-5 rounded-full bg-orange-600 text-white text-xs animate-pulse">
                 {pendingFinalApproval.length}
@@ -581,7 +578,7 @@ export function SwapManagementDashboard({
           </TabsTrigger>
           
           <TabsTrigger value="staff-action" className="relative">
-            Staff Action
+            {t('swaps.staffAction')}
             {staffActionNeeded.length > 0 && (
               <Badge className="ml-2 h-5 w-5 rounded-full bg-purple-600 text-white text-xs">
                 {staffActionNeeded.length}
@@ -589,9 +586,9 @@ export function SwapManagementDashboard({
             )}
           </TabsTrigger>
           
-          <TabsTrigger value="in-progress">In Progress</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="in-progress">{t('swaps.inProgress')}</TabsTrigger>
+          <TabsTrigger value="completed">{t('swaps.completed')}</TabsTrigger>
+          <TabsTrigger value="history">{t('swaps.history')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending" className="space-y-4">
@@ -601,7 +598,7 @@ export function SwapManagementDashboard({
             ) : (
               <Card className="p-8 text-center text-gray-500">
                 <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>No pending requests</p>
+                <p>{t('swaps.noPendingRequests')}</p>
               </Card>
             )}
           </div>
@@ -615,7 +612,7 @@ export function SwapManagementDashboard({
             ) : (
               <Card className="p-8 text-center text-gray-500">
                 <Shield className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>No swaps awaiting final approval</p>
+                <p>{t('swaps.noSwapsAwaitingFinalApproval')}</p>
               </Card>
             )}
           </div>
@@ -628,7 +625,7 @@ export function SwapManagementDashboard({
             ) : (
               <Card className="p-8 text-center text-gray-500">
                 <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>No items awaiting staff action</p>
+                <p>{t('swaps.noItemsAwaitingStaffAction')}</p>
               </Card>
             )}
           </div>
@@ -641,7 +638,7 @@ export function SwapManagementDashboard({
             ) : (
               <Card className="p-8 text-center text-gray-500">
                 <Hourglass className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>No swaps in progress</p>
+                <p>{t('swaps.noSwapsInProgress')}</p>
               </Card>
             )}
           </div>
@@ -654,7 +651,7 @@ export function SwapManagementDashboard({
             ) : (
               <Card className="p-8 text-center text-gray-500">
                 <CheckCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>No completed swaps</p>
+                <p>{t('swaps.noCompletedSwaps')}</p>
               </Card>
             )}
           </div>
@@ -667,7 +664,7 @@ export function SwapManagementDashboard({
             ) : (
               <Card className="p-8 text-center text-gray-500">
                 <History className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>No historical records</p>
+                <p>{t('swaps.noHistoricalRecords')}</p>
               </Card>
             )}
           </div>
@@ -682,12 +679,12 @@ export function SwapManagementDashboard({
               {selectedSwap?.status === 'manager_final_approval' ? (
                 <>
                   <Shield className="h-5 w-5 text-orange-600" />
-                  Final Approval - Execute Swap
+                  {t('swaps.finalApprovalExecuteSwap')}
                 </>
               ) : (
                 <>
                   <CheckCircle className="h-5 w-5 text-blue-600" />
-                  Approve Swap Request
+                  {t('swaps.approveSwapRequest')}
                 </>
               )}
             </DialogTitle>
@@ -698,27 +695,27 @@ export function SwapManagementDashboard({
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium text-gray-600">Requesting:</span>
+                    <span className="font-medium text-gray-600">{t('swaps.requesting')}:</span>
                     <p>{selectedSwap.requesting_staff.full_name}</p>
                   </div>
                   <div>
                     <span className="font-medium text-gray-600">
-                      {selectedSwap.swap_type === 'auto' ? 'Assigned:' : 'Target:'}
+                      {selectedSwap.swap_type === 'auto' ? t('swaps.assigned') + ':' : t('swaps.target') + ':'}
                     </span>
                     <p>
                       {selectedSwap.swap_type === 'auto' 
-                        ? (selectedSwap.assigned_staff?.full_name || 'Auto-assignment') 
-                        : (selectedSwap.target_staff?.full_name || 'Unspecified')
+                        ? (selectedSwap.assigned_staff?.full_name || t('swaps.autoAssignment')) 
+                        : (selectedSwap.target_staff?.full_name || t('common.notSpecified'))
                       }
                     </p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-600">Original Shift:</span>
+                    <span className="font-medium text-gray-600">{t('swaps.originalShift')}:</span>
                     <p>{days[selectedSwap.original_day]} {shifts[selectedSwap.original_shift]?.name}</p>
                   </div>
                   {selectedSwap.target_day !== undefined && (
                     <div>
-                      <span className="font-medium text-gray-600">Target Shift:</span>
+                      <span className="font-medium text-gray-600">{t('swaps.targetShift')}:</span>
                       <p>{days[selectedSwap.target_day]} {shifts[selectedSwap.target_shift!]?.name}</p>
                     </div>
                   )}
@@ -729,29 +726,32 @@ export function SwapManagementDashboard({
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                   <div className="flex items-center gap-2 text-orange-800 mb-2">
                     <Shield className="h-4 w-4" />
-                    <span className="font-medium">Ready for Execution</span>
+                    <span className="font-medium">{t('swaps.readyForExecution')}</span>
                   </div>
                   <p className="text-sm text-orange-700">
-                    {selectedSwap.assigned_staff?.full_name || selectedSwap.target_staff?.full_name} has accepted this assignment. 
-                    Executing will update the schedule and complete the swap process.
+                    {t('swaps.readyForExecutionDetails', { 
+                      name: selectedSwap.assigned_staff?.full_name || selectedSwap.target_staff?.full_name 
+                    })}
                   </p>
                 </div>
               )}
 
               <div>
-                <span className="font-medium text-gray-600">Reason:</span>
+                <span className="font-medium text-gray-600">{t('swaps.reason')}:</span>
                 <p className="mt-1 text-gray-900">{selectedSwap.reason}</p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="approval-notes">
-                  {selectedSwap.status === 'manager_final_approval' ? 'Execution Notes (Optional)' : 'Manager Notes (Optional)'}
+                  {selectedSwap.status === 'manager_final_approval' 
+                    ? t('swaps.executionNotesOptional') 
+                    : t('swaps.managerNotesOptional')}
                 </Label>
                 <Textarea
                   id="approval-notes"
                   placeholder={selectedSwap.status === 'manager_final_approval' 
-                    ? "Add any notes about this execution..." 
-                    : "Add any notes about this decision..."}
+                    ? t('swaps.addExecutionNotes')
+                    : t('swaps.addManagerNotes')}
                   value={approvalNotes}
                   onChange={(e) => setApprovalNotes(e.target.value)}
                   className="min-h-[80px] resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500"
@@ -766,7 +766,7 @@ export function SwapManagementDashboard({
               onClick={() => setSelectedSwap(null)}
               className="border-gray-200"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               variant="outline"
@@ -775,7 +775,7 @@ export function SwapManagementDashboard({
               className="text-red-600 border-red-200 hover:bg-red-50"
             >
               <XCircle className="h-4 w-4 mr-1" />
-              {selectedSwap?.status === 'manager_final_approval' ? 'Deny Execution' : 'Decline'}
+              {selectedSwap?.status === 'manager_final_approval' ? t('swaps.denyExecution') : t('swaps.decline')}
             </Button>
             <Button
               onClick={() => selectedSwap && handleApproval(selectedSwap.id, true)}
@@ -787,12 +787,12 @@ export function SwapManagementDashboard({
               {selectedSwap?.status === 'manager_final_approval' ? (
                 <>
                   <Shield className="h-4 w-4 mr-1" />
-                  Execute Swap
+                  {t('swaps.executeSwap')}
                 </>
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4 mr-1" />
-                  Approve
+                  {t('common.approve')}
                 </>
               )}
             </Button>
