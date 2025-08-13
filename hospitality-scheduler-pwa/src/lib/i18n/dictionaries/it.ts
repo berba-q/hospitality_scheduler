@@ -239,6 +239,50 @@ export const it = {
     nextMonth: 'Prossimo Mese',
     thisPeriod: 'Questo Periodo',
     times: 'Volte',
+
+    // ============================================================================
+    // DAYS OF THE WEEK (reusable across all components)
+    // ============================================================================
+    monday: 'Lunedì',
+    tuesday: 'Martedì',
+    wednesday: 'Mercoledì', 
+    thursday: 'Giovedì',
+    friday: 'Venerdì',
+    saturday: 'Sabato',
+    sunday: 'Domenica',
+    
+    // Short day names (for calendar headers, mobile views, etc.)
+    mon: 'Lun',
+    tue: 'Mar',
+    wed: 'Mer',
+    thu: 'Gio',
+    fri: 'Ven',
+    sat: 'Sab',
+    sun: 'Dom',
+  
+  // ============================================================================
+  // TIME PERIODS (reusable across components)
+  // ============================================================================
+    day: 'Giorno',
+    week: 'Settimana',
+    month: 'Mese', 
+    year: 'Anno',
+    years: 'anni',
+    lastMonth: 'Mese Scorso',
+  
+  // ============================================================================
+  // SHIFTS (reusable across schedule, swaps, staff components)
+  // ============================================================================
+    morning: 'Mattina',
+    afternoon: 'Pomeriggio',
+    evening: 'Sera', 
+    night: 'Notte',
+  
+    // Shift references
+    morningShift: 'Turno del Mattino',
+    afternoonShift: 'Turno del Pomeriggio',
+    eveningShift: 'Turno della Sera',
+    nightShift: 'Turno di Notte',
     
     // Unità di tempo
     hours: 'ore',
@@ -389,6 +433,9 @@ export const it = {
     scheduleOverview: 'Panoramica Pianificazione',
     scheduleDetails: 'Dettagli Pianificazione',
     scheduleSettings: 'Impostazioni Pianificazione',
+    noScheduleForThisWeek: 'Nessuna pianificazione per questa settimana',
+    noScheduleCreatedYet: 'Non è stata ancora creata una pianificazione per questa settimana',
+    generateNewScheduleOrAssign: 'Genera una nuova pianificazione o assegna manualmente il personale ai turni',
     
     // Viste pianificazione
     viewPeriod: 'Periodo di Visualizzazione',
@@ -398,21 +445,32 @@ export const it = {
     dailySchedule: 'Pianificazione Giornaliera',
     weeklySchedule: 'Pianificazione Settimanale',
     monthlyOverview: 'Panoramica Mensile',
+    currentWeek: 'Settimana Corrente',
+    previousWeek: 'Settimana Scorsa',
+
+    // Smart Generation
+    generateSmartSchedule: 'Genera Pianificazione Intelligente',
+    generatingSmartSchedule: 'Generazione Pianificazione Intelligente...',
+    smartGeneration: 'Generazione Intelligente',
     
+    // Schedule Status
+    empty: 'Vuoto',
+    partial: 'Parziale',
+    complete: 'Completo',
+
     // Periodi temporali specifici della pianificazione
     todayShifts: 'Turni di Oggi',
-    monday: 'Lunedì',
-    tuesday: 'Martedì',
-    wednesday: 'Mercoledì',
-    thursday: 'Giovedì',
-    friday: 'Venerdì',
-    saturday: 'Sabato',
-    sunday: 'Domenica',
     day: 'Giorno',
     morning: 'Mattina',
     afternoon: 'Pomeriggio',
     evening: 'Sera',
     shift: 'Turno',
+    shiftTime: 'Orario Turno',
+    shiftName: 'Nome Turno',
+    shiftDay: 'Turno / Giorno',
+    shiftReminders: 'Promemoria Turni',
+    upcomingShifts: 'Prossimi Turni',
+    unknownShift: 'Turno Sconosciuto',
     
     // Creazione/gestione pianificazione
     createSchedule: 'Crea Pianificazione',
@@ -442,10 +500,85 @@ export const it = {
     maxStaff: 'Personale Massimo',
     minStaff: 'Personale Minimo',
     dropStaffHere: 'Trascina personale qui o clicca per assegnare',
+    availableStaff: 'Personale Disponibile',
+    affectedStaff: 'Personale Interessato',
+    staffInvolved: 'Personale Coinvolto',
+    staffRange: 'Range Personale',
+    staffViewOptions: 'Opzioni Visualizzazione Personale',
+    minStaffPer: 'Min Personale per Turno',
+    maxStaffPer: 'Max Personale per Turno',
+    requiredStaff: 'Personale Richiesto',
+    assignedStaff: 'Personale Assegnato',
+    staffScheduled: 'Personale Pianificato',
+    staffAssignments: 'Assegnazioni Personale',
+    daysScheduled: 'Giorni Pianificati',
+    totalHours: 'Ore Totali',
+    totalAssignments: 'Assegnazioni Totali',
+    totalCoverage: 'Copertura Totale',
+    weeklyActivity: 'Attività Settimanale',
     
     // Configurazione
     scheduleConfiguration: 'Configurazione Pianificazione',
     schedulingConstraints: 'Vincoli di Pianificazione',
+    configuration: 'Configurazione',
+    saveConfiguration: 'Salva Configurazione',
+    loadingConfiguration: 'Caricamento configurazione...',
+    loadingShiftConfiguration: 'Caricamento configurazione turni...',
+    configurationSavedSuccessfully: 'Configurazione salvata con successo!',
+    failedSaveConfiguration: 'Impossibile salvare la configurazione',
+    failedLoadConfiguration: 'Impossibile caricare la configurazione',
+
+    // PDF and Export
+    generatePdfSchedule: 'Genera PDF Pianificazione',
+    createPrintablePdf: 'Crea una versione PDF stampabile della pianificazione',
+    pdfScheduleWill: 'Verrà generato un PDF della pianificazione e allegato alle notifiche',
+    
+    // Date and Time
+    unknownDate: 'Data sconosciuta',
+    weekRange: 'Periodo Settimanale',
+    dateRange: 'Periodo Date',
+    
+    // Additional UI Elements
+    searchSchedules: 'Cerca pianificazioni per data...',
+    allStatus: 'Tutti gli Stati',
+    noSchedulesFound: 'Nessuna pianificazione trovata',
+    tryAdjustingFilters: 'Prova ad aggiustare la ricerca o i filtri',
+    
+    // Smart Generation Options
+    useConstraints: 'Usa Vincoli',
+    autoAssignByZone: 'Assegnazione Automatica per Zona',
+    balanceWorkload: 'Bilancia Carico di Lavoro',
+    prioritizeSkillMatch: 'Priorità Competenze',
+    coveragePriority: 'Priorità Copertura',
+    minimal: 'Minima',
+    balanced: 'Bilanciata',
+    maximum: 'Massima',
+    shiftPreferences: 'Preferenze Turno',
+    higherValuesIncrease: 'Valori più alti aumentano la preferenza per quel turno',
+    morningMultiplier: 'Moltiplicatore Mattina',
+    afternoonMultiplier: 'Moltiplicatore Pomeriggio',
+    eveningMultiplier: 'Moltiplicatore Sera',
+    allConstraintsAre: 'Tutti i vincoli sono configurati correttamente e verranno applicati durante la generazione della pianificazione',
+    
+    // Zone Management
+    zoneSetup: 'Configurazione Zone',
+    requiredRoles: 'Ruoli Richiesti',
+    requiresManager: 'Richiede Manager',
+    
+    // Additional Actions
+    resetChanges: 'Reimposta Modifiche',
+    resetDefaults: 'Ripristina Impostazioni',
+    
+    // Messages and Confirmations
+    areYouSure: 'Sei sicuro di voler eliminare la pianificazione per la settimana?',
+    deleteScheduleWarning: 'Questa azione non può essere annullata.',
+    scheduleDeletedSuccessfully: 'Pianificazione eliminata con successo',
+    
+    // Period Types
+    periodType: 'Tipo Periodo',
+    generateDaily: 'Genera Giornaliero',
+    generateWeekly: 'Genera Settimanale',
+    generateMonthly: 'Genera Mensile',
     
     // Messaggi specifici pianificazione
     yourManagerHasntCreated: 'Il tuo manager non ha ancora creato una pianificazione per questo periodo.',
@@ -463,6 +596,33 @@ export const it = {
     createNewSwapRequest: 'Crea Nuova Richiesta di Scambio',
     specificSwapRequest: 'Richiesta di Scambio Specifica',
     autoAssignmentRequest: 'Richiesta di Assegnazione Automatica',
+
+    // You indicator
+    you: 'Tu',
+    
+    // Business Rules
+    allowOvertimeScheduling: 'Permetti pianificazione straordinari',
+    applyBusinessRules: 'Applica regole aziendali e normative',
+    applyWeekendRestrictions: 'Applica restrizioni weekend',
+    
+    // Swap Integration
+    swapActivity: 'Attività scambi',
+    swapAssignments: 'Assegnazioni Scambi',
+    
+    // Additional management terms
+    allFacilityAssignments: 'Tutte le assegnazioni della struttura',
+    assignmentsAndCannot: 'assegnazioni e non può essere annullata',
+    approveAndManage: 'Approva e gestisci modifiche turni',
+
+    // Schedule Operations
+    unsavedChanges: 'Modifiche Non Salvate',
+    assignmentFailed: 'Assegnazione Fallita',
+    failedRetryAuto: 'Impossibile ritentare l\'assegnazione automatica',
+    failedCreateShift: 'Impossibile creare il turno',
+    failedUpdateShift: 'Impossibile aggiornare il turno',
+    failedUpdateShifts: 'Impossibile aggiornare i turni',
+    failedDeleteSchedule: 'Impossibile eliminare la pianificazione',
+    retryAssignment: 'Riprova Assegnazione'
   },
 
   staff: {
@@ -526,6 +686,7 @@ export const it = {
     staffAdded: 'Personale Aggiunto',
     errors: 'Errori',
     importErrorMessage: 'Controlla il formato del file e riprova. Assicurati che tutte le colonne richieste siano presenti.',
+    missingStaff: 'Personale Mancante',
     
     // File import specific
     expectedExcelFormat: 'Formato Excel Previsto:',
@@ -673,6 +834,10 @@ export const it = {
     addedSuccessfully: '{{name}} aggiunto con successo!',
     updatedSuccessfully: '{{name}} aggiornato con successo!',
     failedToUpdate: 'Impossibile aggiornare la struttura',
+    staffAvailable: 'personale disponibile',
+    staffAutoAssignedByRoles: 'Il personale sarà automaticamente assegnato in base ai loro ruoli e requisiti di zona',
+    zonesSelected: '{{count}} zona selezionate',
+
     
     // Descrizioni delle pagine
     configureFacilitiesDescription: 'Configura strutture, turni, ruoli e zone operative',

@@ -9,6 +9,7 @@ import { X, Plus, Clock, User, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
 import { ArrowLeftRight } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface Assignment {
   id: string
@@ -70,6 +71,7 @@ export function WeeklyCalendar({
   onToggleMineOnly,
 }: WeeklyCalendarProps) {
   const [selectedCell, setSelectedCell] = useState<{day: number, shift: number} | null>(null)
+  const { t } = useTranslations()
 
   // Get staff member by ID
   const getStaffMember = (staffId: string) => {
@@ -77,7 +79,7 @@ export function WeeklyCalendar({
   }
 
   // Return assignments for a given day/shift column.
-  // If showMineOnly is active, keep just the current staff member’s rows.
+  // If showMineOnly is active, keep just the current staff member's rows.
   const getAssignments = (day: number, shiftIndex: number) => {
     if (!schedule?.assignments) return []
 
@@ -115,7 +117,7 @@ export function WeeklyCalendar({
     
     console.log('Calling onAssignmentChange:', { day, shift, staffId: draggedStaff.id })
     onAssignmentChange(day, shift, draggedStaff.id)
-    toast.success(`${draggedStaff.full_name} assigned to ${days[day]} ${shifts[shift].name}`)
+    toast.success(`${draggedStaff.full_name} ${t('common.assigned')} to ${days[day]} ${shifts[shift].name}`)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -150,7 +152,7 @@ export function WeeklyCalendar({
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             <Clock className="w-5 h-5" />
-            Weekly Schedule
+            {t('schedule.weeklySchedule')}
           </span>
           {!isManager && (
             <div className="flex items-center gap-2">
@@ -160,7 +162,7 @@ export function WeeklyCalendar({
                 className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
               />
               <span className="text-xs text-gray-500 uppercase tracking-wide">
-                Mine Only
+                {t('schedule.mineOnly')}
               </span>
             </div>
           )}
@@ -172,7 +174,7 @@ export function WeeklyCalendar({
             {/* Header Row */}
             <div className="grid grid-cols-8 bg-gray-50/50">
               <div className="p-4 border-r border-gray-200">
-                <span className="text-sm font-medium text-gray-600">Shift / Day</span>
+                <span className="text-sm font-medium text-gray-600">{t('schedule.shiftDay')}</span>
               </div>
               {days.map((day, index) => (
                 <div key={`header-${day}-${index}`} className="p-4 border-r border-gray-200 text-center">
@@ -222,11 +224,11 @@ export function WeeklyCalendar({
                               <div className="text-center">
                                 <Plus className="w-6 h-6 text-gray-300 mx-auto mb-1" />
                                 <span className="text-xs text-gray-400">
-                                  {draggedStaff ? 'Drop here' : 'Assign staff'}
+                                  {draggedStaff ? t('schedule.dropHere') : t('schedule.assignStaff')}
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-xs text-gray-400">No assignment</span>
+                              <span className="text-xs text-gray-400">{t('schedule.noAssignment')}</span>
                             )}
                           </div>
                         ) : (
@@ -249,10 +251,10 @@ export function WeeklyCalendar({
                                     </div>
                                     <div className="min-w-0 flex-1">
                                       <p className="font-medium truncate">
-                                        {staffMember?.full_name || `Missing Staff (${assignment.staff_id})`}
+                                        {staffMember?.full_name || `${t('staff.missingStaff')} (${assignment.staff_id})`}
                                       </p>
                                       <p className="text-sm opacity-75">
-                                        {staffMember?.role || 'Unknown Role'}
+                                        {staffMember?.role || t('staff.unknownRole')}
                                       </p>
                                     </div>
                                     {staffMember?.skill_level && staffMember.skill_level > 2 && (
@@ -285,7 +287,7 @@ export function WeeklyCalendar({
                                             onSwapRequest(dayIndex, shiftIndex, assignment.staff_id)
                                           }}
                                           className="h-7 w-7 p-0"
-                                          title="Request shift swap"
+                                          title={t('swaps.requestShiftSwap')}
                                         >
                                           <ArrowLeftRight className="h-3 w-3" />
                                         </Button>
@@ -332,17 +334,17 @@ export function WeeklyCalendar({
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Clock className="w-10 h-10 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">No Schedule for This Week</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('schedule.noScheduleForThisWeek')}</h3>
             <p className="text-gray-600 mb-6">
               {isManager 
-                ? 'Generate a new schedule or manually assign staff to shifts'
-                : 'No schedule has been created for this week yet'
+                ? t('schedule.generateNewScheduleOrAssign')
+                : t('schedule.noScheduleCreatedYet')
               }
             </p>
             {isManager && (
               <Button className="gap-2">
                 <Plus className="w-4 h-4" />
-                Create Schedule
+                {t('schedule.createSchedule')}
               </Button>
             )}
           </div>
@@ -356,25 +358,25 @@ export function WeeklyCalendar({
                 <div className="text-lg font-bold text-blue-600">
                   {schedule.assignments.length}
                 </div>
-                <div className="text-xs text-gray-600">Total Assignments</div>
+                <div className="text-xs text-gray-600">{t('schedule.totalAssignments')}</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-green-600">
                   {new Set(schedule.assignments.map(a => a.staff_id)).size}
                 </div>
-                <div className="text-xs text-gray-600">Staff Scheduled</div>
+                <div className="text-xs text-gray-600">{t('schedule.staffScheduled')}</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-orange-600">
                   {Math.round((schedule.assignments.length / (7 * 3)) * 100)}%
                 </div>
-                <div className="text-xs text-gray-600">Coverage</div>
+                <div className="text-xs text-gray-600">{t('schedule.coverage')}</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-purple-600">
                   {schedule.assignments.length * 8}
                 </div>
-                <div className="text-xs text-gray-600">Total Hours</div>
+                <div className="text-xs text-gray-600">{t('schedule.totalHours')}</div>
               </div>
             </div>
           </div>

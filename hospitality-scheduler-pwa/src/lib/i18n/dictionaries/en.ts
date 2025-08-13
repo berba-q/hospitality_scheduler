@@ -256,6 +256,35 @@ export const en = {
     friday: 'Friday',
     saturday: 'Saturday',
     sunday: 'Sunday',
+  
+    // Short day names (for calendar headers, mobile views, etc.)
+    mon: 'Mon',
+    tue: 'Tue',
+    wed: 'Wed',
+    thu: 'Thu',
+    fri: 'Fri',
+    sat: 'Sat',
+    sun: 'Sun',
+    week: 'Week',
+    month: 'Month',
+    year: 'Year',
+    years: 'years',
+    lastMonth: 'Last Month',
+    
+  // ============================================================================
+  // SHIFTS (reusable across schedule, swaps, staff components)
+  // ============================================================================
+    morning: 'Morning',
+    afternoon: 'Afternoon', 
+    evening: 'Evening',
+    night: 'Night',
+  
+    // Shift references
+    morningShift: 'Morning Shift',
+    afternoonShift: 'Afternoon Shift',
+    eveningShift: 'Evening Shift',
+    nightShift: 'Night Shift',
+    
     // SwapNotificationDialog additional keys
     swapDetails: 'Swap Details',
     requester: 'Requester',
@@ -391,7 +420,7 @@ export const en = {
 
   schedule: {
     // ============================================================================
-    // SCHEDULE-SPECIFIC TERMS (not reusable elsewhere)
+    // SCHEDULE-SPECIFIC TERMS
     // ============================================================================
     mySchedule: 'My Schedule',
     noSchedule: 'No Schedule',
@@ -414,21 +443,27 @@ export const en = {
     dailySchedule: 'Daily Schedule',
     weeklySchedule: 'Weekly Schedule',
     monthlyOverview: 'Monthly Overview',
+    currentWeek: 'Current Week',
+    previousWeek: 'Previous Week',
+
+    // Smart Generation
+    generateSmartSchedule: 'Generate Smart Schedule',
+    generatingSmartSchedule: 'Generating Smart Schedule...',
+    smartGeneration: 'Smart Generation',
     
+    // Schedule Status
+    empty: 'Empty',
+    partial: 'Partial',
+    complete: 'Complete',
+
     // Schedule-specific time periods
     todayShifts: "Today's Shifts",
-    monday: 'Monday',
-    tuesday: 'Tuesday', 
-    wednesday: 'Wednesday',
-    thursday: 'Thursday',
-    friday: 'Friday',
-    saturday: 'Saturday',
-    sunday: 'Sunday',
-    day: 'Day',
-    morning: 'Morning',
-    afternoon: 'Afternoon',
-    evening: 'Evening',
-    shift: 'Shift',
+    shiftTime: 'Shift Time',
+    shiftName: 'Shift Name',
+    shiftDay: 'Shift / Day',
+    shiftReminders: 'Shift Reminders',
+    upcomingShifts: 'Upcoming Shifts',
+    unknownShift: 'Unknown Shift',
     
     // Schedule creation/management
     createSchedule: 'Create Schedule',
@@ -458,10 +493,33 @@ export const en = {
     maxStaff: 'Max Staff',
     minStaff: 'Min Staff',
     dropStaffHere: 'Drop staff here or click to assign',
-    
+    availableStaff: 'Available Staff',
+    affectedStaff: 'Affected Staff',
+    staffInvolved: 'Staff Involved',
+    staffRange: 'Staff Range',
+    staffViewOptions: 'Staff View Options',
+    minStaffPer: 'Min Staff per Shift',
+    maxStaffPer: 'Max Staff per Shift',
+    requiredStaff: 'Required Staff',
+    assignedStaff: 'Assigned Staff',
+    staffScheduled: 'Staff Scheduled',
+    staffAssignments: 'Staff Assignments',
+    daysScheduled: 'Days Scheduled',
+    totalHours: 'Total Hours',
+    totalAssignments: 'Total Assignments',
+    totalCoverage: 'Total Coverage',
+    weeklyActivity: 'Weekly Activity',
+
     // Configuration
     scheduleConfiguration: 'Schedule Configuration',
     schedulingConstraints: 'Scheduling Constraints',
+    configuration: 'Configuration',
+    saveConfiguration: 'Save Configuration',
+    loadingConfiguration: 'Loading configuration...',
+    loadingShiftConfiguration: 'Loading shift configuration...',
+    configurationSavedSuccessfully: 'Configuration saved successfully!',
+    failedSaveConfiguration: 'Failed to save configuration',
+    failedLoadConfiguration: 'Failed to load configuration',
     
     // Messages specific to scheduling
     yourManagerHasntCreated: "Your manager hasn't created a schedule for this period yet.",
@@ -479,6 +537,84 @@ export const en = {
     createNewSwapRequest: 'Create New Swap Request',
     specificSwapRequest: 'Specific Swap Request',
     autoAssignmentRequest: 'Auto Assignment Request',
+
+    // PDF and Export
+    generatePdfSchedule: 'Generate PDF Schedule',
+    createPrintablePdf: 'Create a printable PDF version of the schedule',
+    pdfScheduleWill: 'A PDF schedule will be generated and attached to notifications',
+    
+    // Date and Time
+    unknownDate: 'Unknown date',
+    weekRange: 'Week Range',
+    dateRange: 'Date Range',
+    
+    // Additional UI Elements
+    searchSchedules: 'Search schedules by date...',
+    allStatus: 'All Status',
+    noSchedulesFound: 'No schedules found',
+    tryAdjustingFilters: 'Try adjusting your search or filters',
+    
+    // Smart Generation Options
+    useConstraints: 'Use Constraints',
+    autoAssignByZone: 'Auto-assign by Zone',
+    balanceWorkload: 'Balance Workload',
+    prioritizeSkillMatch: 'Prioritize Skill Match',
+    coveragePriority: 'Coverage Priority',
+    minimal: 'Minimal',
+    balanced: 'Balanced',
+    maximum: 'Maximum',
+    shiftPreferences: 'Shift Preferences',
+    higherValuesIncrease: 'Higher values increase staffing preference for that shift',
+    morningMultiplier: 'Morning Multiplier',
+    afternoonMultiplier: 'Afternoon Multiplier',
+    eveningMultiplier: 'Evening Multiplier',
+    allConstraintsAre: 'All constraints are properly configured and will be applied during schedule generation',
+    
+    // Zone Management
+    zoneSetup: 'Zone Setup',
+    requiredRoles: 'Required Roles',
+    requiresManager: 'Requires Manager',
+    
+    // Additional Actions
+    resetChanges: 'Reset Changes',
+    resetDefaults: 'Reset to Defaults',
+    
+    // Messages and Confirmations
+    areYouSure: 'Are you sure you want to delete the schedule for the week?',
+    deleteScheduleWarning: 'This action cannot be undone.',
+    scheduleDeletedSuccessfully: 'Schedule deleted successfully',
+    
+    // Period Types
+    periodType: 'Period Type',
+    generateDaily: 'Generate Daily',
+    generateWeekly: 'Generate Weekly',
+    generateMonthly: 'Generate Monthly',
+
+    // Business Rules
+    allowOvertimeScheduling: 'Allow overtime scheduling',
+    applyBusinessRules: 'Apply business rules and regulations',
+    applyWeekendRestrictions: 'Apply weekend restrictions',
+    
+    // Swap Integration
+    swapActivity: 'Swap activity',
+    swapAssignments: 'Swap Assignments',
+
+    you: 'You',
+    
+    // Additional management terms
+    allFacilityAssignments: 'All facility assignments',
+    assignmentsAndCannot: 'assignments and cannot be undone',
+    approveAndManage: 'Approve and manage shift changes',
+
+    // Schedule Operations
+    unsavedChanges: 'Unsaved Changes',
+    assignmentFailed: 'Assignment Failed',
+    failedRetryAuto: 'Failed to retry auto-assignment',
+    failedCreateShift: 'Failed to create shift',
+    failedUpdateShift: 'Failed to update shift',
+    failedUpdateShifts: 'Failed to update shifts',
+    failedDeleteSchedule: 'Failed to delete schedule',
+    retryAssignment: 'Retry Assignment'
   },
 
   staff: {
@@ -547,6 +683,7 @@ export const en = {
     totalRecords: 'Total Records',
     chooseDifferentFile: 'Choose a different file',
     importStaffMembers: 'Import staff record(s)',
+    missingStaff: 'No staff available',
     
     // Staff roles
     manager: 'Manager',
@@ -698,6 +835,9 @@ export const en = {
     addedSuccessfully: '{{name}} added successfully!',
     updatedSuccessfully: '{{name}} updated successfully!',
     failedToUpdate: 'Failed to update facility',
+    staffAvailable: 'staff available',
+    staffAutoAssignedByRoles: 'Staff will be automatically assigned based on their roles and zone requirements.',
+    zonesSelected: '{{count}} zone(s) selected',
 
     
     // Page descriptions
@@ -1293,6 +1433,10 @@ export const en = {
     emergencyRequestWarning: 'This will be marked as high priority and managers will be notified immediately.',
     submitting: 'Submitting...',
     submitSwapRequest: 'Submit Swap Request',
+    noScheduleForThisWeek: 'No schedule available for this week',
+    noScheduleCreatedYet: 'No schedule created for this week',
+    generateNewScheduleOrAssign: 'Generate a new schedule automatically or manually create assignments.',
+    
 
     // PersonalStatsCards specific translations
     helpfulnessScore: 'Helpfulness Score',

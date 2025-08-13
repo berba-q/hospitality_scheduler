@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Users, CheckCircle, Circle } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface Zone {
   id: string
@@ -34,6 +35,8 @@ export function FacilityZoneSelector({
   onZoneChange,
   staff
 }: FacilityZoneSelectorProps) {
+  const { t } = useTranslations()
+
   const toggleZone = (zoneId: string) => {
     if (selectedZones.includes(zoneId)) {
       onZoneChange(selectedZones.filter(id => id !== zoneId))
@@ -59,7 +62,7 @@ export function FacilityZoneSelector({
   }
 
   const getZoneName = (zone: Zone) => {
-    return zone.name || zone.zone_name || 'Unnamed Zone'
+    return zone.name || zone.zone_name || t('facilities.unnamedZone')
   }
 
   const getZoneId = (zone: Zone) => {
@@ -89,7 +92,7 @@ export function FacilityZoneSelector({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-gray-700">Zones & Departments</label>
+        <label className="text-sm font-medium text-gray-700">{t('facilities.zonesDepartments')}</label>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -97,7 +100,7 @@ export function FacilityZoneSelector({
             onClick={selectAllZones}
             className="text-xs"
           >
-            Select All
+            {t('common.selectAll')}
           </Button>
           <Button
             variant="outline"
@@ -105,7 +108,7 @@ export function FacilityZoneSelector({
             onClick={clearAllZones}
             className="text-xs"
           >
-            Clear All
+            {t('common.clearAll')}
           </Button>
         </div>
       </div>
@@ -144,7 +147,7 @@ export function FacilityZoneSelector({
                       <MapPin className="w-4 h-4 text-gray-500" />
                       <span className="font-medium text-gray-900">{zoneName}</span>
                       <Badge variant="outline" className="text-xs">
-                        {staffCount} staff available
+                        {staffCount} {t('facilities.staffAvailable')}
                       </Badge>
                     </div>
                     
@@ -185,11 +188,11 @@ export function FacilityZoneSelector({
           <div className="flex items-center gap-2 text-blue-800">
             <CheckCircle className="w-4 h-4" />
             <span className="text-sm font-medium">
-              {selectedZones.length} zone{selectedZones.length !== 1 ? 's' : ''} selected
+              {t('facilities.zonesSelected', { count: selectedZones.length })}
             </span>
           </div>
           <p className="text-blue-700 text-xs mt-1">
-            Staff will be automatically assigned based on their roles and zone requirements
+            {t('facilities.staffAutoAssignedByRoles')}
           </p>
         </div>
       )}

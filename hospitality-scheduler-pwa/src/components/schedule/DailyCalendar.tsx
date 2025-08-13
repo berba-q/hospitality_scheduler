@@ -10,6 +10,7 @@ import { X, Plus, Clock, User, Star, MapPin, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
 import { ArrowLeftRight } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface DailyCalendarProps {
   currentDate: Date
@@ -39,6 +40,7 @@ export function DailyCalendar({
   onSwapRequest
 }: DailyCalendarProps) {
   const [selectedShift, setSelectedShift] = useState<number | null>(null)
+  const { t } = useTranslations()
 
   // ENHANCED DEBUG LOGGING
   console.log('=== DailyCalendar Debug Info ===')
@@ -136,7 +138,7 @@ export function DailyCalendar({
     })
     
     onAssignmentChange(shiftIdOrIndex as number, draggedStaff.id)
-    toast.success(`${draggedStaff.full_name} assigned to shift`)
+    toast.success(`${draggedStaff.full_name} ${t('common.assigned')} to shift`)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -180,14 +182,14 @@ export function DailyCalendar({
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Daily Schedule
+            {t('schedule.dailySchedule')}
             <Badge variant="outline" className="ml-2">
-              {stats.totalAssignments} assignments
+              {stats.totalAssignments} {t('common.assignments')}
             </Badge>
           </span>
           {!isManager && (
             <Badge variant="outline" className="text-xs">
-              View Only
+              {t('common.viewOnly')}
             </Badge>
           )}
         </CardTitle>
@@ -195,7 +197,7 @@ export function DailyCalendar({
           {formatDate(currentDate)}
           {schedule && (
             <span className="ml-2">
-              Schedule: {new Date(schedule.week_start).toLocaleDateString()}
+              {t('schedule.schedule')}: {new Date(schedule.week_start).toLocaleDateString()}
             </span>
           )}
         </div>
@@ -243,7 +245,7 @@ export function DailyCalendar({
                         </span>
                       </div>
                       <Badge variant="secondary">
-                        {assignments.length} assigned
+                        {assignments.length} {t('common.assigned')}
                       </Badge>
                     </CardTitle>
                   </CardHeader>
@@ -256,11 +258,11 @@ export function DailyCalendar({
                             <div className="text-center">
                               <Plus className="w-6 h-6 text-gray-400 mx-auto mb-1" />
                               <span className="text-sm text-gray-500">
-                                Drop staff here or click to assign
+                                {t('schedule.dropStaffHere')}
                               </span>
                             </div>
                           ) : (
-                            <span className="text-sm text-gray-500">No assignment</span>
+                            <span className="text-sm text-gray-500">{t('schedule.noAssignment')}</span>
                           )}
                         </div>
                       ) : (
@@ -270,7 +272,7 @@ export function DailyCalendar({
                           if (!staffMember) {
                             return (
                               <div key={`missing-${index}`} className="p-2 bg-red-50 border border-red-200 rounded text-red-600 text-sm">
-                                Staff not found: {assignment.staff_id}
+                                {t('staff.staffNotFound')}: {assignment.staff_id}
                               </div>
                             )
                           }
@@ -350,8 +352,8 @@ export function DailyCalendar({
           {!schedule && (
             <div className="text-center py-8">
               <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Schedule</h3>
-              <p className="text-gray-600">No schedule found for this date</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('schedule.noSchedule')}</h3>
+              <p className="text-gray-600">{t('schedule.noScheduleAvailable')}</p>
             </div>
           )}
         </div>
