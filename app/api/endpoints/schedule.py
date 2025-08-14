@@ -1867,6 +1867,14 @@ async def publish_schedule(
     notification_service = NotificationService(db)
     
     for staff_member in staff_members:
+        # Find User by matching email
+        user = db.exec(
+            select(User).where(User.email == staff_member.email)
+        ).first()
+        
+        if not user:
+            print(f"Skipping notification for {staff_member.full_name} - no user account found")
+            continue
         try:
             # Determine channels
             channels = ['IN_APP']  # Always send in-app
@@ -1888,7 +1896,7 @@ async def publish_schedule(
             # Send notification
             await notification_service.send_notification(
                 notification_type=NotificationType.SCHEDULE_PUBLISHED,
-                recipient_user_id=staff_member.id,
+                recipient_user_id=user.id,
                 template_data=template_data,
                 channels=channels,
                 action_url=f"/schedule?week={schedule.week_start}",
