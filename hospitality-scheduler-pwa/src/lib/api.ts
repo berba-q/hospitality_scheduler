@@ -813,7 +813,7 @@ export class ApiClient {
     shifts_per_day?: number
     hours_per_shift?: number
   }) {
-    return this.request<any>('/v1/schedule/', {
+    return this.request<any>('/v1/schedule/generate', {
       method: 'POST',
       body: JSON.stringify(data),
     })

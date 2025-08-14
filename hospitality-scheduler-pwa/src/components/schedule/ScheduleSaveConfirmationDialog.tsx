@@ -31,7 +31,7 @@ interface ScheduleSaveConfirmationDialogProps {
   isNewSchedule?: boolean
 }
 
-interface SaveConfirmationOptions {
+export interface SaveConfirmationOptions {
   generatePdf: boolean
   sendWhatsApp: boolean
   sendPushNotifications: boolean

@@ -49,7 +49,7 @@ import SwapDetailModal from '@/components/swap/SwapDetailModal'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useSwapRequests } from '@/hooks/useSwapRequests'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ScheduleSaveConfirmationDialog } from '@/components/schedule/ScheduleSaveConfirmationDialog'
+import { SaveConfirmationOptions, ScheduleSaveConfirmationDialog } from '@/components/schedule/ScheduleSaveConfirmationDialog'
 import { SwapNotificationDialog } from '@/components/swap/SwapNotificationDialog'
 import React from 'react'
 
@@ -1787,32 +1787,59 @@ export default function SchedulePage() {
     }
   }
 
-  const handleSaveSchedule = async () => {
-    if (!currentSchedule) return
+  const handleSaveSchedule = async (notificationOptions?: SaveConfirmationOptions) => {
+  if (!currentSchedule) return
 
-    try {
-      console.log('💾 Saving schedule:', currentSchedule.id)
-      
-      if (currentSchedule.id && !currentSchedule.is_generated) {
-        // Update existing schedule
-        await apiClient.updateSchedule(currentSchedule.id, currentSchedule)
-      } else {
-        // Create new schedule
-        const savedSchedule = await apiClient.createSchedule(currentSchedule)
-        setCurrentSchedule(savedSchedule)
+  try {
+    console.log('💾 Saving schedule:', currentSchedule.id)
+    
+    let scheduleId: string
+    
+    // Step 1: Create or update the schedule first
+    if (currentSchedule.id && !currentSchedule.is_generated) {
+      // Update existing schedule
+      await apiClient.updateSchedule(currentSchedule.id, currentSchedule)
+      scheduleId = currentSchedule.id
+    } else {
+      // Create new schedule - FIX: Send correct data structure
+      const createData = {
+        facility_id: selectedFacility.id, // Use selectedFacility.id
+        week_start: getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0],
+        assignments: currentSchedule.assignments || []
       }
       
-      setUnsavedChanges(false)
-      setShowSaveDialog(false)
-      toast.success(t('schedule.schedule') + ' ' + t('common.savedSuccessfully'))
-      
-      // Reload schedules
-      loadSchedules()
-    } catch (error) {
-      console.error('Failed to save schedule:', error)
-      toast.error(t('common.failedToSave') + ' schedule')
+      console.log('📝 Creating schedule with data:', createData)
+      const savedSchedule = await apiClient.createSchedule(createData)
+      setCurrentSchedule(savedSchedule)
+      scheduleId = savedSchedule.id
     }
+    
+    // Step 2: If notification options provided, publish the schedule
+    if (notificationOptions) {
+      console.log('📢 Publishing schedule with notifications:', notificationOptions)
+      await apiClient.publishSchedule(scheduleId, {
+        send_whatsapp: notificationOptions.sendWhatsApp,
+        send_push: notificationOptions.sendPushNotifications,
+        send_email: notificationOptions.sendEmail,
+        generate_pdf: notificationOptions.generatePdf,
+        custom_message: notificationOptions.customMessage
+      })
+      
+      toast.success('Schedule published and notifications sent!')
+    } else {
+      toast.success(t('schedule.schedule') + ' ' + t('common.savedSuccessfully'))
+    }
+    
+    setUnsavedChanges(false)
+    setShowSaveDialog(false)
+    
+    // Reload schedules
+    loadSchedules()
+  } catch (error) {
+    console.error('Failed to save schedule:', error)
+    toast.error(t('common.failedToSave') + ' schedule')
   }
+}
 
   const handleDeleteSchedule = async (scheduleId: string) => {
     try {

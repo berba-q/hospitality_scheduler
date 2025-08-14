@@ -2,8 +2,8 @@ from datetime import date, datetime, time
 from enum import Enum
 from typing import Optional, List, Dict, Any
 import uuid
-from sqlmodel import SQLModel, Field, Relationship, Index, Column, JSON
-from sqlalchemy import Column, Enum as SQLEnum
+from sqlmodel import  SQLModel, Field, Relationship, Index, Column, JSON
+from sqlalchemy import Column, DateTime, Enum as SQLEnum
 
 
 class Tenant(SQLModel, table=True):
@@ -195,6 +195,12 @@ class Schedule(SQLModel, table=True):
     week_start: date
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
+    is_published: bool = Field(default=False, nullable=False)
+    published_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    published_by_id: Optional[uuid.UUID] = Field(default=None, foreign_key="user.id")
 
     assignments: list["ShiftAssignment"] = Relationship(back_populates="schedule")
 

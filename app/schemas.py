@@ -585,6 +585,9 @@ class ScheduleRead(BaseModel):
     id: uuid.UUID
     facility_id: uuid.UUID
     week_start: date
+    is_published: bool
+    published_at: Optional[datetime] = None
+    published_by_id: Optional[uuid.UUID] = None
 
     model_config = ConfigDict(from_attributes=True)
 
