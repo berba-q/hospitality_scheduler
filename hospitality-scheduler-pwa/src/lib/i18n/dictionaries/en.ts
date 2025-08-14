@@ -137,6 +137,9 @@ export const en = {
     important: 'Important',
     accept: 'Accept',
     more: 'more',
+    viewOnly: 'View Only',
+    covered: 'covered',
+    avgPerDay: 'Avg per Day',
     
     // Generic entities
     facility: 'Facility',

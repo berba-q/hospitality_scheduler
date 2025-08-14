@@ -132,6 +132,9 @@ export const it = {
     order: 'Ordine',
     manage: 'Gestisci',
     important: 'Importante',
+    viewOnly: 'Solo Visualizzazione',
+    covered: 'coperto',
+    avgPerDay: 'Media per Giorno',
     
     // Entità generiche
     facility: 'Struttura',

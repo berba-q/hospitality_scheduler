@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Calendar, Users, Clock, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface MonthlyCalendarProps {
   currentMonth: Date
@@ -23,6 +24,8 @@ export function MonthlyCalendar({
   onDayClick,
   swapRequests = []
 }: MonthlyCalendarProps) {
+  const { t } = useTranslations()
+  
   console.log('🗓️ MonthlyCalendar render:', {
     currentMonth: currentMonth.toDateString(),
     schedules_count: schedules.length,
@@ -73,7 +76,15 @@ export function MonthlyCalendar({
     })
   }
 
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const weekDays = [
+    t('common.sun'), 
+    t('common.mon'), 
+    t('common.tue'), 
+    t('common.wed'), 
+    t('common.thu'), 
+    t('common.fri'), 
+    t('common.sat')
+  ]
 
   // Helper function to find schedule that contains a specific date
   const getDateSchedule = (date: Date) => {
@@ -114,7 +125,7 @@ export function MonthlyCalendar({
   const getDateAssignments = (date: Date) => {
     const schedule = getDateSchedule(date)
     if (!schedule || !schedule.assignments) {
-      console.log(`📭 No assignments found for ${date.toDateString()}`)
+      console.log(`🔭 No assignments found for ${date.toDateString()}`)
       return []
     }
     
@@ -190,14 +201,14 @@ export function MonthlyCalendar({
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Monthly Overview
+            {t('schedule.monthlyOverview')}
             <Badge variant="outline" className="ml-2">
-              {monthStats.coveragePercentage}% covered
+              {monthStats.coveragePercentage}% {t('common.covered')}
             </Badge>
           </span>
           {!isManager && (
             <Badge variant="outline" className="text-xs">
-              View Only
+              {t('common.viewOnly')}
             </Badge>
           )}
         </CardTitle>
@@ -258,12 +269,13 @@ export function MonthlyCalendar({
                       {assignments.length > 0 ? (
                         <>
                           <div className={`text-xs font-medium ${scheduleStatus.textColor}`}>
-                            {assignments.length} shifts
+                            {assignments.length} {t('common.shifts')}
                           </div>
                           {/* Show shift distribution */}
                           <div className="flex gap-1">
                             {[0, 1, 2].map(shiftId => {
                               const shiftAssignments = assignments.filter(a => a.shift === shiftId)
+                              const shiftNames = [t('common.morning'), t('common.afternoon'), t('common.evening')]
                               return (
                                 <div
                                   key={shiftId}
@@ -274,7 +286,7 @@ export function MonthlyCalendar({
                                         : 'bg-purple-500'
                                       : 'bg-gray-300'
                                   }`}
-                                  title={`${shiftId === 0 ? 'Morning' : shiftId === 1 ? 'Afternoon' : 'Evening'}: ${shiftAssignments.length} staff`}
+                                  title={`${shiftNames[shiftId]}: ${shiftAssignments.length} ${t('common.staff')}`}
                                 />
                               )
                             })}
@@ -290,13 +302,13 @@ export function MonthlyCalendar({
                           })}
                           {assignments.length > 2 && (
                             <div className="text-xs text-gray-500">
-                              +{assignments.length - 2} more
+                              +{assignments.length - 2} {t('common.more')}
                             </div>
                           )}
                         </>
                       ) : (
                         <div className="text-xs text-yellow-600">
-                          Schedule exists
+                          {t('schedule.scheduleExists')}
                         </div>
                       )}
                     </div>
@@ -305,13 +317,13 @@ export function MonthlyCalendar({
                   {/* No schedule indicator */}
                   {!daySchedule && isCurrentMonth && (
                     <div className="text-xs text-gray-400">
-                      No schedule
+                      {t('schedule.noSchedule')}
                     </div>
                   )}
                   
                   {/* Swap activity indicator */}
                   {hasSwapsOnDate(date, swapRequests) && (
-                    <div className="absolute bottom-1 right-1 w-2 h-2 bg-orange-500 rounded-full" title="Swap activity"></div>
+                    <div className="absolute bottom-1 right-1 w-2 h-2 bg-orange-500 rounded-full" title={t('schedule.swapActivity')}></div>
                   )}
 
                   {/* Today indicator */}
@@ -330,25 +342,25 @@ export function MonthlyCalendar({
                 <div className="text-lg font-bold text-blue-600">
                   {monthStats.totalAssignments}
                 </div>
-                <div className="text-xs text-gray-600">Total Assignments</div>
+                <div className="text-xs text-gray-600">{t('schedule.totalAssignments')}</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-green-600">
                   {monthStats.scheduledDays}
                 </div>
-                <div className="text-xs text-gray-600">Days Scheduled</div>
+                <div className="text-xs text-gray-600">{t('schedule.daysScheduled')}</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-purple-600">
                   {monthStats.uniqueStaff}
                 </div>
-                <div className="text-xs text-gray-600">Staff Involved</div>
+                <div className="text-xs text-gray-600">{t('schedule.staffInvolved')}</div>
               </div>
               <div>
                 <div className="text-lg font-bold text-orange-600">
                   {monthStats.averagePerDay}
                 </div>
-                <div className="text-xs text-gray-600">Avg per Day</div>
+                <div className="text-xs text-gray-600">{t('common.avgPerDay')}</div>
               </div>
             </div>
           </div>
@@ -358,19 +370,19 @@ export function MonthlyCalendar({
             <div className="flex flex-wrap gap-4 text-xs">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-green-100 border border-green-200 rounded"></div>
-                <span>Fully Staffed</span>
+                <span>{t('schedule.fullyStaffed')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-orange-100 border border-orange-200 rounded"></div>
-                <span>Partially Staffed</span>
+                <span>{t('schedule.partiallyStaffed')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-yellow-100 border border-yellow-200 rounded"></div>
-                <span>Schedule Exists</span>
+                <span>{t('schedule.scheduleExists')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-gray-100 border border-gray-200 rounded"></div>
-                <span>No Schedule</span>
+                <span>{t('schedule.noSchedule')}</span>
               </div>
             </div>
           </div>
