@@ -135,6 +135,9 @@ export const it = {
     viewOnly: 'Solo Visualizzazione',
     covered: 'coperto',
     avgPerDay: 'Media per Giorno',
+    viewingAs: 'Visualizzando come',
+    myShifts: 'i miei turni',
+    totalShifts: 'turni totali',
     
     // Entità generiche
     facility: 'Struttura',
@@ -450,6 +453,9 @@ export const it = {
     monthlyOverview: 'Panoramica Mensile',
     currentWeek: 'Settimana Corrente',
     previousWeek: 'Settimana Scorsa',
+    showMyShiftsOnly: 'Mostra Solo i Miei Turni',
+    yourAssignmentsOnly: 'Solo le tue assegnazioni',
+    youreViewingFullSchedule: 'Stai visualizzando la pianificazione completa della struttura. I tuoi turni sono evidenziati a colori.',
 
     // Smart Generation
     generateSmartSchedule: 'Genera Pianificazione Intelligente',

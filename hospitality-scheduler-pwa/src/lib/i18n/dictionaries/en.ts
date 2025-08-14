@@ -140,7 +140,10 @@ export const en = {
     viewOnly: 'View Only',
     covered: 'covered',
     avgPerDay: 'Avg per Day',
-    
+    viewingAs: 'Viewing as',
+    myShifts: 'my shifts',
+    totalShifts: 'total shifts',
+      
     // Generic entities
     facility: 'Facility',
     facilities: 'Facilities',
@@ -448,6 +451,9 @@ export const en = {
     monthlyOverview: 'Monthly Overview',
     currentWeek: 'Current Week',
     previousWeek: 'Previous Week',
+    showMyShiftsOnly: 'Show My Shifts Only',
+    yourAssignmentsOnly: 'Your assignments only',
+    youreViewingFullSchedule: "You're viewing the full facility schedule. Your shifts are highlighted in color.",
 
     // Smart Generation
     generateSmartSchedule: 'Generate Smart Schedule',
