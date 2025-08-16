@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Bell, X, Smartphone } from 'lucide-react';
 import { usePushNotificationContext } from '@/components/providers/PushNotificationProvider';
+import { useTranslations } from '@/hooks/useTranslations';
 
 export function PushNotificationPrompt() {
+  const { t } = useTranslations();
   const { 
     showPermissionPrompt, 
     requestPermission, 
@@ -42,10 +44,10 @@ export function PushNotificationPrompt() {
             
             <div className="flex-1 min-w-0">
               <h4 className="font-medium text-gray-900 text-sm">
-                Stay Updated
+                {t('notifications.stayUpdated')}
               </h4>
               <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                Get notified about schedule changes and swap requests even when the app is closed.
+                {t('notifications.getNotifiedAbout')}
               </p>
               
               <div className="flex items-center gap-2 mt-3">
@@ -56,7 +58,7 @@ export function PushNotificationPrompt() {
                   className="h-7 text-xs bg-blue-600 hover:bg-blue-700"
                 >
                   <Smartphone className="w-3 h-3 mr-1" />
-                  {isRequesting ? 'Enabling...' : 'Enable'}
+                  {isRequesting ? t('notifications.enabling') : t('common.enable')}
                 </Button>
                 
                 <Button 
@@ -65,7 +67,7 @@ export function PushNotificationPrompt() {
                   onClick={dismissPrompt}
                   className="h-7 text-xs text-gray-600 hover:text-gray-800"
                 >
-                  Maybe Later
+                  {t('notifications.maybeLater')}
                 </Button>
               </div>
             </div>

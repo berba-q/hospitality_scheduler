@@ -69,6 +69,7 @@ export const it = {
     withDuplicates: 'Con duplicati',
     conflicts: 'Conflitti',
     records: 'Registri',
+    enable: 'Abilita',
     
     // Azioni mostra/nascondi
     show: 'Mostra',
@@ -1831,6 +1832,10 @@ export const it = {
     setWhatsappNumberToReceive: 'Imposta numero WhatsApp per ricevere notifiche',
     advancedSettings: 'Impostazioni Avanzate',
     manageNotificationTypesAndPreferences: 'Gestisci tipi di notifica e preferenze',
+    stayUpdated: 'Rimani Aggiornato',
+    maybeLater: 'Forse Più Tardi',
+    unreadNotifications: '{{count}} notifiche non lette',
+    goToTop: 'Vai sopra',
 
     // Priority and status
     allPriorities: 'Tutte le Priorità',
@@ -1905,6 +1910,31 @@ export const it = {
     notificationSentRegardlessPreferences: 'Questa notifica sarà inviata indipendentemente dalle preferenze di notifica individuali del personale a causa del suo livello di priorità {{priority}}.',
     sending: 'Invio in corso...',
     sendNotifications: 'Invia Notifiche',
+
+    // notifications settings specific
+    whenSomeoneRequestsSwap: 'Quando qualcuno richiede di scambiare turni con te',
+    whenSwapRequestApproved: 'Quando la tua richiesta di scambio viene approvata',
+    whenSwapRequestDenied: 'Quando la tua richiesta di scambio viene rifiutata',
+    remindersBeforeShifts: 'Promemoria prima dei tuoi turni',
+    urgentCoverageRequests: 'Richieste di copertura urgenti',
+    swapAssignments: 'Assegnazioni Scambi',
+    whenAssignedToCoverShift: 'Quando vieni assegnato per coprire un turno',
+    loadingSettings: 'Caricamento impostazioni...',
+    manageHowAndWhenReceive: 'Gestisci come e quando ricevere le notifiche',
+    receiveNotificationsEvenWhenClosed: 'Ricevi notifiche anche quando l\'app è chiusa',
+    youWillReceivePushNotifications: 'Riceverai notifiche push su questo dispositivo',
+    receiveImportantViaWhatsapp: 'Ricevi notifiche importanti tramite WhatsApp',
+    whatsappNumber: 'Numero WhatsApp',
+    includeCountryCode: 'Includi il prefisso internazionale (es. +1 per USA, +44 per UK)',
+    whatsappConfigured: 'WhatsApp configurato:',
+    whatsappNumberUpdated: 'Numero WhatsApp aggiornato',
+    failedToUpdateWhatsapp: 'Impossibile aggiornare il numero WhatsApp',
+    notificationTypes: 'Tipi di Notifica',
+    chooseHowToReceiveNotifications: 'Scegli come vuoi ricevere i diversi tipi di notifiche',
+    channelTypes: 'Tipi di Canale:',
+    inApp: 'In-App',
+    push: 'Push',
+    setWhatsappNumberToEnable: '* Imposta il tuo numero WhatsApp sopra per abilitare le notifiche WhatsApp'
   },
 
   settings: {

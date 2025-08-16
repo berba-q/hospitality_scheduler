@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Bell, X, Eye, ArrowUp, AlertTriangle, Clock, CheckCircle } from 'lucide-react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { toast } from 'sonner'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface FloatingNotificationIndicatorProps {
   position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'
@@ -18,6 +19,7 @@ export function FloatingNotificationIndicator({
   position = 'bottom-right',
   showOnlyWhenHidden = true 
 }: FloatingNotificationIndicatorProps) {
+  const { t } = useTranslations()
   const { notifications, unreadCount, markAsRead } = useNotifications()
   const [isVisible, setIsVisible] = useState(false)
   const [currentNotification, setCurrentNotification] = useState<any>(null)
@@ -115,7 +117,7 @@ export function FloatingNotificationIndicator({
                   variant="secondary" 
                   className="text-xs flex-shrink-0"
                 >
-                  {unreadCount > 1 ? `+${unreadCount - 1}` : 'New'}
+                  {unreadCount > 1 ? `+${unreadCount - 1}` : t('notifications.new')}
                 </Badge>
               </div>
               
@@ -132,7 +134,7 @@ export function FloatingNotificationIndicator({
                   className="h-7 px-2 text-xs"
                 >
                   <CheckCircle className="w-3 h-3 mr-1" />
-                  Mark Read
+                  {t('notifications.markRead')}
                 </Button>
                 
                 <Button
@@ -142,7 +144,7 @@ export function FloatingNotificationIndicator({
                   className="h-7 px-2 text-xs"
                 >
                   <Eye className="w-3 h-3 mr-1" />
-                  View All
+                  {t('common.viewAll')}
                 </Button>
                 
                 {currentNotification.action_url && (
@@ -154,7 +156,7 @@ export function FloatingNotificationIndicator({
                     }}
                     className="h-7 px-2 text-xs"
                   >
-                    {currentNotification.action_text || 'View'}
+                    {currentNotification.action_text || t('common.view')}
                   </Button>
                 )}
               </div>
@@ -175,7 +177,7 @@ export function FloatingNotificationIndicator({
           {unreadCount > 1 && (
             <div className="mt-2 pt-2 border-t border-gray-100">
               <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>{unreadCount} unread notifications</span>
+                <span>{t('notifications.unreadNotifications', { count: unreadCount })}</span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -183,7 +185,7 @@ export function FloatingNotificationIndicator({
                   className="h-5 px-2 text-xs"
                 >
                   <ArrowUp className="w-3 h-3 mr-1" />
-                  Go to top
+                  {t('notifications.goToTop')}
                 </Button>
               </div>
             </div>

@@ -26,6 +26,7 @@ import {
 import { toast } from 'sonner'
 import { useApiClient, useAuth } from '@/hooks/useApi'
 import { usePushNotificationContext } from '@/components/providers/PushNotificationProvider'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface NotificationPreference {
   notification_type: string
@@ -44,73 +45,6 @@ interface NotificationTypeConfig {
   defaultChannels: string[]
 }
 
-const NOTIFICATION_TYPES: NotificationTypeConfig[] = [
-  {
-    type: 'SCHEDULE_PUBLISHED',
-    title: 'Schedule Published',
-    description: 'When new schedules are published',
-    icon: <Bell className="w-4 h-4" />,
-    priority: 'HIGH',
-    defaultChannels: ['in_app', 'push', 'whatsapp']
-  },
-  {
-    type: 'SWAP_REQUEST',
-    title: 'Swap Requests',
-    description: 'When someone requests to swap shifts with you',
-    icon: <Volume2 className="w-4 h-4" />,
-    priority: 'URGENT',
-    defaultChannels: ['in_app', 'push', 'whatsapp']
-  },
-  {
-    type: 'SWAP_APPROVED',
-    title: 'Swap Approved',
-    description: 'When your swap request is approved',
-    icon: <CheckCircle className="w-4 h-4" />,
-    priority: 'HIGH',
-    defaultChannels: ['in_app', 'push']
-  },
-  {
-    type: 'SWAP_DENIED',
-    title: 'Swap Denied',
-    description: 'When your swap request is denied',
-    icon: <AlertCircle className="w-4 h-4" />,
-    priority: 'MEDIUM',
-    defaultChannels: ['in_app', 'push']
-  },
-  {
-    type: 'SCHEDULE_CHANGE',
-    title: 'Schedule Changes',
-    description: 'When your schedule is modified',
-    icon: <Bell className="w-4 h-4" />,
-    priority: 'HIGH',
-    defaultChannels: ['in_app', 'push', 'whatsapp']
-  },
-  {
-    type: 'SHIFT_REMINDER',
-    title: 'Shift Reminders',
-    description: 'Reminders before your shifts',
-    icon: <Bell className="w-4 h-4" />,
-    priority: 'MEDIUM',
-    defaultChannels: ['in_app', 'push']
-  },
-  {
-    type: 'EMERGENCY_COVERAGE',
-    title: 'Emergency Coverage',
-    description: 'Urgent coverage requests',
-    icon: <AlertCircle className="w-4 h-4" />,
-    priority: 'CRITICAL',
-    defaultChannels: ['in_app', 'push', 'whatsapp']
-  },
-  {
-    type: 'SWAP_ASSIGNMENT',
-    title: 'Swap Assignments',
-    description: 'When you are assigned to cover a shift',
-    icon: <Volume2 className="w-4 h-4" />,
-    priority: 'HIGH',
-    defaultChannels: ['in_app', 'push', 'whatsapp']
-  }
-]
-
 const getPriorityColor = (priority: string) => {
   switch (priority) {
     case 'CRITICAL': return 'bg-red-500'
@@ -123,6 +57,7 @@ const getPriorityColor = (priority: string) => {
 }
 
 export function NotificationSettings() {
+  const { t } = useTranslations()
   const [preferences, setPreferences] = useState<NotificationPreference[]>([])
   const [whatsappNumber, setWhatsappNumber] = useState('')
   const [tempWhatsappNumber, setTempWhatsappNumber] = useState('')
@@ -139,6 +74,73 @@ export function NotificationSettings() {
     token: pushToken,
     requestPermission: requestPushPermission
   } = usePushNotificationContext()
+
+  const NOTIFICATION_TYPES: NotificationTypeConfig[] = [
+    {
+      type: 'SCHEDULE_PUBLISHED',
+      title: t('notifications.schedulePublished'),
+      description: t('notifications.whenNewSchedules'),
+      icon: <Bell className="w-4 h-4" />,
+      priority: 'HIGH',
+      defaultChannels: ['in_app', 'push', 'whatsapp']
+    },
+    {
+      type: 'SWAP_REQUEST',
+      title: t('notifications.swapRequests'),
+      description: t('notifications.whenSomeoneRequestsSwap'),
+      icon: <Volume2 className="w-4 h-4" />,
+      priority: 'URGENT',
+      defaultChannels: ['in_app', 'push', 'whatsapp']
+    },
+    {
+      type: 'SWAP_APPROVED',
+      title: t('swaps.swapApproved'),
+      description: t('notifications.whenSwapRequestApproved'),
+      icon: <CheckCircle className="w-4 h-4" />,
+      priority: 'HIGH',
+      defaultChannels: ['in_app', 'push']
+    },
+    {
+      type: 'SWAP_DENIED',
+      title: t('swaps.swapDenied'),
+      description: t('notifications.whenSwapRequestDenied'),
+      icon: <AlertCircle className="w-4 h-4" />,
+      priority: 'MEDIUM',
+      defaultChannels: ['in_app', 'push']
+    },
+    {
+      type: 'SCHEDULE_CHANGE',
+      title: t('notifications.scheduleChanges'),
+      description: t('notifications.whenYourSchedule'),
+      icon: <Bell className="w-4 h-4" />,
+      priority: 'HIGH',
+      defaultChannels: ['in_app', 'push', 'whatsapp']
+    },
+    {
+      type: 'SHIFT_REMINDER',
+      title: t('notifications.shiftReminders'),
+      description: t('notifications.remindersBeforeShifts'),
+      icon: <Bell className="w-4 h-4" />,
+      priority: 'MEDIUM',
+      defaultChannels: ['in_app', 'push']
+    },
+    {
+      type: 'EMERGENCY_COVERAGE',
+      title: t('notifications.emergencyCoverage'),
+      description: t('notifications.urgentCoverageRequests'),
+      icon: <AlertCircle className="w-4 h-4" />,
+      priority: 'CRITICAL',
+      defaultChannels: ['in_app', 'push', 'whatsapp']
+    },
+    {
+      type: 'SWAP_ASSIGNMENT',
+      title: t('notifications.swapAssignments'),
+      description: t('notifications.whenAssignedToCoverShift'),
+      icon: <Volume2 className="w-4 h-4" />,
+      priority: 'HIGH',
+      defaultChannels: ['in_app', 'push', 'whatsapp']
+    }
+  ]
 
   // Load current preferences
   useEffect(() => {
@@ -158,7 +160,7 @@ export function NotificationSettings() {
       setPreferences(data || [])
     } catch (error) {
       console.error('Failed to load preferences:', error)
-      toast.error('Failed to load notification preferences')
+      toast.error(t('notifications.failedToLoad'))
     } finally {
       setLoading(false)
     }
@@ -175,7 +177,7 @@ export function NotificationSettings() {
     if (channel === 'push_enabled' && enabled && needsPushPermission) {
       const granted = await requestPushPermission()
       if (!granted) {
-        toast.error('Push notifications permission required')
+        toast.error(t('notifications.enableNotifications'))
         return
       }
     }
@@ -209,10 +211,10 @@ export function NotificationSettings() {
         }
       })
 
-      toast.success('Preference updated')
+      toast.success(t('common.updatedSuccessfully'))
     } catch (error) {
       console.error('Failed to update preference:', error)
-      toast.error('Failed to update preference')
+      toast.error(t('common.failedToUpdate'))
     } finally {
       setSaving(false)
     }
@@ -226,10 +228,10 @@ export function NotificationSettings() {
       // The API client method expects just the string, not an object
       await apiClient.updateWhatsAppNumber(tempWhatsappNumber)
       setWhatsappNumber(tempWhatsappNumber)
-      toast.success('WhatsApp number updated')
+      toast.success(t('notifications.whatsappNumberUpdated'))
     } catch (error) {
       console.error('Failed to update WhatsApp number:', error)
-      toast.error('Failed to update WhatsApp number')
+      toast.error(t('notifications.failedToUpdateWhatsapp'))
     } finally {
       setWhatsappSaving(false)
     }
@@ -250,7 +252,7 @@ export function NotificationSettings() {
     
     const granted = await requestPushPermission()
     if (granted) {
-      toast.success('🔔 Push notifications enabled!')
+      toast.success(t('notifications.notificationsEnabled'))
     }
   }
 
@@ -258,7 +260,7 @@ export function NotificationSettings() {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="w-6 h-6 animate-spin" />
-        <span className="ml-2">Loading settings...</span>
+        <span className="ml-2">{t('notifications.loadingSettings')}</span>
       </div>
     )
   }
@@ -268,10 +270,10 @@ export function NotificationSettings() {
       <div className="space-y-2">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <Settings className="w-6 h-6" />
-          Notification Settings
+          {t('notifications.notificationSettings')}
         </h2>
         <p className="text-muted-foreground">
-          Manage how and when you receive notifications
+          {t('notifications.manageHowAndWhenReceive')}
         </p>
       </div>
 
@@ -281,10 +283,10 @@ export function NotificationSettings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Smartphone className="w-5 h-5" />
-              Push Notifications
+              {t('notifications.pushNotifications')}
             </CardTitle>
             <CardDescription>
-              Receive notifications even when the app is closed
+              {t('notifications.receiveNotificationsEvenWhenClosed')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -295,29 +297,29 @@ export function NotificationSettings() {
                     {hasPushPermission ? (
                       <>
                         <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span className="font-medium text-green-700">Enabled</span>
+                        <span className="font-medium text-green-700">{t('common.enabled')}</span>
                       </>
                     ) : (
                       <>
                         <AlertCircle className="w-4 h-4 text-orange-500" />
-                        <span className="font-medium text-orange-700">Disabled</span>
+                        <span className="font-medium text-orange-700">{t('common.disabled')}</span>
                       </>
                     )}
                   </div>
                   {pushToken && (
-                    <Badge variant="secondary" className="text-xs">Connected</Badge>
+                    <Badge variant="secondary" className="text-xs">{t('notifications.connected')}</Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {hasPushPermission 
-                    ? 'You will receive push notifications on this device'
-                    : 'Enable to receive notifications when the app is closed'
+                    ? t('notifications.youWillReceivePushNotifications')
+                    : t('notifications.enableToGetNotificationsWhenClosed')
                   }
                 </p>
               </div>
               {needsPushPermission && (
                 <Button onClick={enablePushNotifications} size="sm">
-                  Enable Push Notifications
+                  {t('notifications.enablePushNotifications')}
                 </Button>
               )}
             </div>
@@ -330,15 +332,15 @@ export function NotificationSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-green-600" />
-            WhatsApp Notifications
+            {t('notifications.whatsappNotifications')}
           </CardTitle>
           <CardDescription>
-            Receive important notifications via WhatsApp
+            {t('notifications.receiveImportantViaWhatsapp')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="whatsapp">WhatsApp Number</Label>
+            <Label htmlFor="whatsapp">{t('notifications.whatsappNumber')}</Label>
             <div className="flex gap-2">
               <Input
                 id="whatsapp"
@@ -357,18 +359,18 @@ export function NotificationSettings() {
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                Save
+                {t('common.save')}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Include country code (e.g., +1 for USA, +44 for UK)
+              {t('notifications.includeCountryCode')}
             </p>
           </div>
           
           {whatsappNumber && (
             <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-2 rounded">
               <CheckCircle className="w-4 h-4" />
-              WhatsApp configured: {whatsappNumber}
+              {t('notifications.whatsappConfigured')} {whatsappNumber}
             </div>
           )}
         </CardContent>
@@ -379,10 +381,10 @@ export function NotificationSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="w-5 h-5" />
-            Notification Types
+            {t('notifications.notificationTypes')}
           </CardTitle>
           <CardDescription>
-            Choose how you want to receive different types of notifications
+            {t('notifications.chooseHowToReceiveNotifications')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -404,7 +406,7 @@ export function NotificationSettings() {
                             variant="secondary" 
                             className={`text-xs text-white ${getPriorityColor(config.priority)}`}
                           >
-                            {config.priority}
+                            {t(`common.${config.priority.toLowerCase()}`)}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
@@ -473,15 +475,15 @@ export function NotificationSettings() {
           
           {/* Legend */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h5 className="font-medium mb-3">Channel Types:</h5>
+            <h5 className="font-medium mb-3">{t('notifications.channelTypes')}</h5>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <Globe className="w-4 h-4 text-blue-500" />
-                <span>In-App</span>
+                <span>{t('notifications.inApp')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Smartphone className="w-4 h-4 text-purple-500" />
-                <span>Push</span>
+                <span>{t('notifications.push')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-green-500" />
@@ -489,12 +491,12 @@ export function NotificationSettings() {
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-red-500" />
-                <span>Email</span>
+                <span>{t('common.email')}</span>
               </div>
             </div>
             {!whatsappNumber && (
               <p className="text-xs text-muted-foreground mt-2">
-                * Set your WhatsApp number above to enable WhatsApp notifications
+                {t('notifications.setWhatsappNumberToEnable')}
               </p>
             )}
           </div>

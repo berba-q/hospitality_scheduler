@@ -72,6 +72,7 @@ export const en = {
     cancelling: 'Cancelling...',
     by: 'by',
     day: 'Day',
+    enable: 'Enable',
     // Show/Hide actions
     show: 'Show',
     hide: 'Hide',
@@ -1835,6 +1836,10 @@ export const en = {
     setWhatsappNumberToReceive: 'Set WhatsApp number to receive notifications',
     advancedSettings: 'Advanced Settings',
     manageNotificationTypesAndPreferences: 'Manage notification types and preferences',
+    stayUpdated: 'Stay Updated',
+    maybeLater: 'Maybe Later',
+    unreadNotifications: '{{count}} unread notifications',
+    goToTop: 'Go to top',
 
     // Priority and status
     allPriorities: 'All Priorities',
@@ -1910,6 +1915,30 @@ export const en = {
     sending: 'Sending...',
     sendNotifications: 'Send Notifications',
 
+    // notifications settings specific
+    whenSomeoneRequestsSwap: 'When someone requests to swap shifts with you',
+    whenSwapRequestApproved: 'When your swap request is approved',
+    whenSwapRequestDenied: 'When your swap request is denied',
+    remindersBeforeShifts: 'Reminders before your shifts',
+    urgentCoverageRequests: 'Urgent coverage requests',
+    swapAssignments: 'Swap Assignments',
+    whenAssignedToCoverShift: 'When you are assigned to cover a shift',
+    loadingSettings: 'Loading settings...',
+    manageHowAndWhenReceive: 'Manage how and when you receive notifications',
+    receiveNotificationsEvenWhenClosed: 'Receive notifications even when the app is closed',
+    youWillReceivePushNotifications: 'You will receive push notifications on this device',
+    receiveImportantViaWhatsapp: 'Receive important notifications via WhatsApp',
+    whatsappNumber: 'WhatsApp Number',
+    includeCountryCode: 'Include country code (e.g., +1 for USA, +44 for UK)',
+    whatsappConfigured: 'WhatsApp configured:',
+    whatsappNumberUpdated: 'WhatsApp number updated',
+    failedToUpdateWhatsapp: 'Failed to update WhatsApp number',
+    notificationTypes: 'Notification Types',
+    chooseHowToReceiveNotifications: 'Choose how you want to receive different types of notifications',
+    channelTypes: 'Channel Types:',
+    inApp: 'In-App',
+    push: 'Push',
+    setWhatsappNumberToEnable: '* Set your WhatsApp number above to enable WhatsApp notifications'
   },
 
   settings: {
