@@ -1,5 +1,5 @@
 // src/components/notification/NotificationBell.tsx
-// Beautiful notification bell component with clean UI
+// Beautiful notification bell component with clean UI - Italian Translation
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -38,6 +38,7 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { useApiClient, useAuth } from '@/hooks/useApi'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface QuickAction {
   id: string
@@ -77,6 +78,7 @@ interface NotificationPreference {
 }
 
 export function NotificationBell() {
+  const { t } = useTranslations()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [preferences, setPreferences] = useState<NotificationPreference[]>([])
@@ -108,7 +110,7 @@ export function NotificationBell() {
     try {
       const success = await requestPushPermission();
       if (success) {
-        toast.success('🔔 Push notifications enabled!');
+        toast.success(t('notifications.notificationsEnabled'));
       }
     } catch (error) {
       console.error('Failed to enable push notifications:', error);
@@ -122,11 +124,11 @@ export function NotificationBell() {
     if (!isPushSupported) return null;
     
     if (hasPushPermission) {
-      return <Badge variant="default" className="text-xs">🔔 Push On</Badge>;
+      return <Badge variant="default" className="text-xs">{t('notifications.pushOn')}</Badge>;
     }
     
     if (needsPushPermission) {
-      return <Badge variant="secondary" className="text-xs">🔕 Push Off</Badge>;
+      return <Badge variant="secondary" className="text-xs">{t('notifications.pushOff')}</Badge>;
     }
     
     return null;
@@ -159,7 +161,7 @@ export function NotificationBell() {
       setNotifications(response || [])
     } catch (error) {
       console.error('Failed to load notifications:', error)
-      toast.error('Failed to load notifications')
+      toast.error(t('notifications.failedToLoad'))
     } finally {
       setLoading(false)
     }
@@ -195,10 +197,10 @@ export function NotificationBell() {
     try {
       await apiClient.markAllNotificationsRead()
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
-      toast.success('All notifications marked as read')
+      toast.success(t('notifications.markAllRead'))
     } catch (error) {
       console.error('Failed to mark all as read:', error)
-      toast.error('Failed to mark all as read')
+      toast.error(t('notifications.failedToMarkAllAsRead'))
     }
   }
 
@@ -214,10 +216,10 @@ export function NotificationBell() {
         prev.map(p => 
           p.notification_type === notificationType ? { ...p, [field]: value } : p)
       )
-      toast.success('Preferences updated')
+      toast.success(t('common.updatedSuccessfully'))
     } catch (error) {
       console.error('Failed to update preferences:', error)
-      toast.error('Failed to update preferences')
+      toast.error(t('common.failedToUpdate'))
     }
   }
 
@@ -230,7 +232,7 @@ export function NotificationBell() {
 
   const handleQuickAction = async (notification: Notification, action: QuickAction) => {
     if (!accessToken) {
-      toast.error('You must be logged in to perform this action')
+      toast.error(t('auth.authenticationRequired'))
       return
     }
     
@@ -253,16 +255,16 @@ export function NotificationBell() {
           
           switch (action.action) {
             case 'approve':
-              toast.success('✅ Request approved!')
+              toast.success('✅ ' + t('workflow.approve') + '!')
               break
             case 'decline':
-              toast.success('❌ Request declined')
+              toast.success('❌ ' + t('workflow.decline'))
               break
             case 'cover':
-              toast.success('🙋‍♂️ Thanks for volunteering!')
+              toast.success('🙋‍♂️ ' + t('common.accepted') + '!')
               break
             default:
-              toast.success('✅ Action completed successfully!')
+              toast.success('✅ ' + t('common.success') + '!')
           }
           
           await markAsRead(notification.id)
@@ -280,7 +282,7 @@ export function NotificationBell() {
       
     } catch (error) {
       console.error('Quick action failed:', error)
-      toast.error(`Failed to ${action.action}: ${error.message}`)
+      toast.error(`${t('common.failed')} ${action.action}: ${error.message}`)
     } finally {
       setActionLoading(null)
     }
@@ -316,15 +318,15 @@ export function NotificationBell() {
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'URGENT':
-        return <Badge variant="destructive" className="text-xs font-medium">Urgent</Badge>
+        return <Badge variant="destructive" className="text-xs font-medium">{t('common.urgent')}</Badge>
       case 'CRITICAL':
-        return <Badge variant="destructive" className="text-xs font-medium">Critical</Badge>
+        return <Badge variant="destructive" className="text-xs font-medium">{t('notifications.critical')}</Badge>
       case 'HIGH':
-        return <Badge className="text-xs font-medium bg-orange-100 text-orange-800 hover:bg-orange-100">High</Badge>
+        return <Badge className="text-xs font-medium bg-orange-100 text-orange-800 hover:bg-orange-100">{t('common.high')}</Badge>
       case 'MEDIUM':
-        return <Badge variant="secondary" className="text-xs font-medium">Medium</Badge>
+        return <Badge variant="secondary" className="text-xs font-medium">{t('common.medium')}</Badge>
       case 'LOW':
-        return <Badge variant="outline" className="text-xs font-medium">Low</Badge>
+        return <Badge variant="outline" className="text-xs font-medium">{t('common.low')}</Badge>
       default:
         return null
     }
@@ -335,10 +337,10 @@ export function NotificationBell() {
     const now = new Date()
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
     
-    if (diffInMinutes < 1) return 'Just now'
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
-    return `${Math.floor(diffInMinutes / 1440)}d ago`
+    if (diffInMinutes < 1) return t('notifications.justNow')
+    if (diffInMinutes < 60) return `${diffInMinutes}${t('notifications.minutesAgo')}`
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}${t('notifications.hoursAgo')}`
+    return `${Math.floor(diffInMinutes / 1440)}${t('notifications.daysAgo')}`
   }
 
   const getQuickActionVariant = (variant?: string) => {
@@ -388,7 +390,7 @@ export function NotificationBell() {
             size="sm"
             onClick={() => setShowDetailedSettings(false)}
           >
-            ← Back to Notifications
+            ← {t('common.back')} {t('notifications.notifications')}
           </Button>
         </div>
         <NotificationSettings />
@@ -403,7 +405,7 @@ export function NotificationBell() {
           variant="ghost"
           size="sm"
           className="relative h-9 w-9 rounded-full"
-          aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
+          aria-label={`${t('notifications.notifications')} ${unreadCount > 0 ? `(${unreadCount} ${unreadCount === 1 ? t('notifications.new') : t('notifications.newPlural')})` : ''}`}
         >
           {unreadCount > 0 ? (
             <BellRing className="w-5 h-5 text-blue-600" />
@@ -427,12 +429,12 @@ export function NotificationBell() {
           <div className="flex items-center justify-between p-4 border-b bg-gray-50/50">
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-gray-600" />
-              <h3 className="font-semibold text-gray-900">Notifications</h3>
+              <h3 className="font-semibold text-gray-900">{t('notifications.notifications')}</h3>
               {/* ADD: Push status badge */}
               {getPushStatusBadge()}
               {unreadCount > 0 && (
                 <Badge variant="secondary" className="text-xs px-2">
-                  {unreadCount} new
+                  {unreadCount} {unreadCount === 1 ? t('notifications.new') : t('notifications.newPlural')}
                 </Badge>
               )}
             </div>
@@ -453,7 +455,7 @@ export function NotificationBell() {
                   onClick={markAllAsRead}
                   className="text-xs h-7 px-2"
                 >
-                  Mark all read
+                  {t('notifications.markAllRead')}
                 </Button>
               )}
             </div>
@@ -461,7 +463,7 @@ export function NotificationBell() {
           
           <TabsList className="grid w-full grid-cols-2 bg-gray-50/50">
             <TabsTrigger value="notifications" className="text-sm">
-              Notifications
+              {t('notifications.notifications')}
             </TabsTrigger>
             <TabsTrigger value="settings" className="text-sm">
               <SettingsIcon className="w-4 h-4" />
@@ -475,9 +477,9 @@ export function NotificationBell() {
                 <div className="text-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-blue-900">📱 Enable Push Notifications</p>
+                      <p className="font-medium text-blue-900">{t('notifications.enablePushNotifications')}</p>
                       <p className="text-blue-700 text-xs mt-1">
-                        Get notified even when the app is closed
+                        {t('notifications.getNotifiedEvenWhenClosed')}
                       </p>
                     </div>
                     <Button 
@@ -486,7 +488,7 @@ export function NotificationBell() {
                       disabled={loading}
                       className="ml-2"
                     >
-                      {loading ? 'Enabling...' : 'Enable'}
+                      {loading ? t('notifications.enabling') : t('common.enabled')}
                     </Button>
                   </div>
                 </div>
@@ -496,26 +498,26 @@ export function NotificationBell() {
             <div className="p-3 border-b bg-gray-50/30 flex gap-2">
               <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger className="flex-1 h-8 text-xs">
-                  <SelectValue placeholder="All Types" />
+                  <SelectValue placeholder={t('facilities.allTypes')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="SWAP_REQUEST">Swap Requests</SelectItem>
-                  <SelectItem value="SCHEDULE_PUBLISHED">Schedules</SelectItem>
-                  <SelectItem value="EMERGENCY_COVERAGE">Emergency</SelectItem>
+                  <SelectItem value="all">{t('facilities.allTypes')}</SelectItem>
+                  <SelectItem value="SWAP_REQUEST">{t('swaps.swapRequests')}</SelectItem>
+                  <SelectItem value="SCHEDULE_PUBLISHED">{t('schedule.schedules')}</SelectItem>
+                  <SelectItem value="EMERGENCY_COVERAGE">{t('common.emergency')}</SelectItem>
                 </SelectContent>
               </Select>
               
               <Select value={filterPriority} onValueChange={setFilterPriority}>
                 <SelectTrigger className="flex-1 h-8 text-xs">
-                  <SelectValue placeholder="All Priorities" />
+                  <SelectValue placeholder={t('notifications.allPriorities')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Priorities</SelectItem>
-                  <SelectItem value="URGENT">Urgent</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="all">{t('notifications.allPriorities')}</SelectItem>
+                  <SelectItem value="URGENT">{t('common.urgent')}</SelectItem>
+                  <SelectItem value="HIGH">{t('common.high')}</SelectItem>
+                  <SelectItem value="MEDIUM">{t('common.medium')}</SelectItem>
+                  <SelectItem value="LOW">{t('common.low')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -526,14 +528,14 @@ export function NotificationBell() {
                 <div className="flex items-center justify-center p-8">
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                    <span className="text-sm text-gray-500">Loading notifications...</span>
+                    <span className="text-sm text-gray-500">{t('notifications.loadingNotifications')}</span>
                   </div>
                 </div>
               ) : filteredNotifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-8 text-gray-500">
                   <Bell className="w-8 h-8 mb-2 text-gray-300" />
-                  <p className="text-sm font-medium">No notifications</p>
-                  <p className="text-xs text-gray-400">You&apos;re all caught up!</p>
+                  <p className="text-sm font-medium">{t('notifications.noNotifications')}</p>
+                  <p className="text-xs text-gray-400">{t('notifications.youreAllCaughtUp')}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
@@ -634,16 +636,16 @@ export function NotificationBell() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Smartphone className="w-4 h-4" />
-                    <span className="text-sm font-medium">Push Notifications</span>
+                    <span className="text-sm font-medium">{t('notifications.pushNotifications')}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {hasPushPermission ? (
                       <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                        Enabled
+                        {t('common.enabled')}
                       </Badge>
                     ) : (
                       <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700">
-                        Disabled
+                        {t('common.disabled')}
                       </Badge>
                     )}
                   </div>
@@ -651,8 +653,8 @@ export function NotificationBell() {
                 
                 <div className="text-xs text-muted-foreground">
                   {hasPushPermission 
-                    ? 'Receiving notifications when app is closed'
-                    : 'Enable to get notifications when app is closed'
+                    ? t('notifications.receivingNotificationsWhenClosed')
+                    : t('notifications.enableToGetNotificationsWhenClosed')
                   }
                 </div>
                 
@@ -662,7 +664,7 @@ export function NotificationBell() {
                     size="sm" 
                     className="w-full"
                   >
-                    Enable Push Notifications
+                    {t('notifications.enableNotifications')}
                   </Button>
                 )}
               </div>
@@ -678,11 +680,11 @@ export function NotificationBell() {
                 <div className="flex items-center gap-2">
                   {user?.whatsapp_number ? (
                     <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                      Connected
+                      {t('notifications.connected')}
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
-                      Not Set
+                      {t('common.notSet')}
                     </Badge>
                   )}
                 </div>
@@ -690,8 +692,8 @@ export function NotificationBell() {
               
               <div className="text-xs text-muted-foreground">
                 {user?.whatsapp_number 
-                  ? `Connected: ${user.whatsapp_number}`
-                  : 'Set your WhatsApp number to receive messages'
+                  ? `${t('notifications.connected')}: ${user.whatsapp_number}`
+                  : t('notifications.setWhatsappNumberToReceive')
                 }
               </div>
             </div>
@@ -706,13 +708,13 @@ export function NotificationBell() {
               >
                 <div className="flex items-center gap-2">
                   <SettingsIcon className="w-4 h-4" />
-                  <span className="text-sm">Advanced Settings</span>
+                  <span className="text-sm">{t('notifications.advancedSettings')}</span>
                 </div>
                 <ChevronRight className="w-4 h-4" />
               </Button>
               
               <div className="text-xs text-muted-foreground">
-                Manage notification types, WhatsApp number, and preferences
+                {t('notifications.manageNotificationTypesAndPreferences')}
               </div>
             </div>
           </TabsContent>

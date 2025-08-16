@@ -104,6 +104,12 @@ export const it = {
     waiting: 'In attesa',
     accept: 'Accetta',
     more: 'altri',
+    emergency: 'Emergenza',
+    accepted: 'Accettato',
+    low: 'Bassa',
+    medium: 'Medio',
+    high: 'Alta',
+    urgent: 'Urgente',
 
     lastWeek: 'Settimana Scorsa',
     last30Days: 'Ultimi 30 Giorni',
@@ -433,7 +439,8 @@ export const it = {
     // ============================================================================
     // TERMINI SPECIFICI PIANIFICAZIONE (non riutilizzabili altrove)
     // ============================================================================
-    schedule: 'programma',
+    schedule: 'Programma',
+    schedules: 'Pianificazioni',
     mySchedule: 'La Mia Pianificazione',
     noSchedule: 'Nessuna Pianificazione',
     scheduleActive: 'Pianificazione Attiva',
@@ -1813,6 +1820,35 @@ export const it = {
     notifications: 'Notifiche',
     notificationSettings: 'Impostazioni Notifiche',
     notificationPreferences: 'Preferenze Notifiche',
+    pushOn: 'Push Attive',
+    pushOff: 'Push Disattive',
+    enablePushNotifications: 'Abilita Notifiche Push',
+    getNotifiedEvenWhenClosed: 'Ricevi notifiche anche quando l\'app è chiusa',
+    enabling: 'Abilitazione...',
+    receivingNotificationsWhenClosed: 'Ricezione notifiche quando l\'app è chiusa',
+    enableToGetNotificationsWhenClosed: 'Abilita per ricevere notifiche quando l\'app è chiusa',
+    connected: 'Connesso',
+    setWhatsappNumberToReceive: 'Imposta numero WhatsApp per ricevere notifiche',
+    advancedSettings: 'Impostazioni Avanzate',
+    manageNotificationTypesAndPreferences: 'Gestisci tipi di notifica e preferenze',
+
+    // Priority and status
+    allPriorities: 'Tutte le Priorità',
+    critical: 'Critico',
+
+    // Time expressions
+    justNow: 'Proprio ora',
+    minutesAgo: 'm fa',
+    hoursAgo: 'h fa',
+    daysAgo: 'g fa',
+
+    // States and counts
+    new: 'nuova',
+    newPlural: 'nuove', 
+    youreAllCaughtUp: 'Sei aggiornato!',
+    loadingNotifications: 'Caricamento notifiche...',
+    failedToLoad: 'Impossibile caricare le notifiche',
+    failedToMarkAllAsRead: 'Impossibile segnare tutto come letto',
     
     // Tipi di notifica
     pushNotifications: 'Notifiche Push',

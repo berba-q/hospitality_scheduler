@@ -114,6 +114,8 @@ export const en = {
     retry: 'Retry',
     na: 'N/A',
     unknown: 'Unknown',
+    emergency: 'Emergency',
+    accepted: 'Accepted',
     
     // ============================================================================
     // GENERIC TERMS (reusable across domains)
@@ -145,6 +147,10 @@ export const en = {
     viewingAs: 'Viewing as',
     myShifts: 'my shifts',
     totalShifts: 'total shifts',
+    low: 'Low',
+    medium: 'Medium',
+    high: 'High',
+    urgent: 'Urgent',
       
     // Generic entities
     facility: 'Facility',
@@ -434,7 +440,8 @@ export const en = {
     // ============================================================================
     // SCHEDULE-SPECIFIC TERMS
     // ============================================================================
-    schecule: 'schedule',
+    schedule: 'Schedule',
+    schedules: 'Schedules',
     mySchedule: 'My Schedule',
     noSchedule: 'No Schedule',
     scheduleActive: 'Schedule Active',
@@ -1817,6 +1824,35 @@ export const en = {
     notifications: 'Notifications',
     notificationSettings: 'Notification Settings',
     notificationPreferences: 'Notification Preferences',
+    pushOn: 'Push On',
+    pushOff: 'Push Off', 
+    enablePushNotifications: 'Enable Push Notifications',
+    getNotifiedEvenWhenClosed: 'Get notified even when the app is closed',
+    enabling: 'Enabling...',
+    receivingNotificationsWhenClosed: 'Receiving notifications when app is closed',
+    enableToGetNotificationsWhenClosed: 'Enable to get notifications when app is closed',
+    connected: 'Connected',
+    setWhatsappNumberToReceive: 'Set WhatsApp number to receive notifications',
+    advancedSettings: 'Advanced Settings',
+    manageNotificationTypesAndPreferences: 'Manage notification types and preferences',
+
+    // Priority and status
+    allPriorities: 'All Priorities',
+    critical: 'Critical',
+
+    // Time expressions
+    justNow: 'Just now',
+    minutesAgo: 'm ago',
+    hoursAgo: 'h ago', 
+    daysAgo: 'd ago',
+
+    // States and counts
+    new: 'new',
+    newPlural: 'new',
+    youreAllCaughtUp: "You're all caught up!",
+    loadingNotifications: 'Loading notifications...',
+    failedToLoad: 'Failed to load notifications',
+    failedToMarkAllAsRead: 'Failed to mark all as read',
     
     // Notification types
     pushNotifications: 'Push Notifications',
