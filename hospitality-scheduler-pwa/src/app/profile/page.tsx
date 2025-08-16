@@ -1,4 +1,4 @@
-// src/app/profile/page.tsx - FIXED VERSION
+// src/app/profile/page.tsx - TRANSLATED VERSION
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
@@ -44,6 +44,7 @@ import { Separator } from '@/components/ui/separator'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useSettings } from '@/hooks/useSettings'
 import { useAuth } from '@/hooks/useApi'
+import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
 import Image from 'next/image'
 
@@ -52,47 +53,10 @@ const AVATAR_COLORS = [
   '#06B6D4', '#F97316', '#84CC16', '#EC4899', '#6366F1'
 ]
 
-const THEMES = [
-  { value: 'system', label: 'System', icon: Monitor },
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon }
-]
-
-const LANGUAGES = [
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Español' },
-  { value: 'fr', label: 'Français' },
-  { value: 'de', label: 'Deutsch' },
-  { value: 'it', label: 'Italiano' },
-  { value: 'pt', label: 'Português' }
-]
-
-const TIMEZONES = [
-  'UTC',
-  'America/New_York',
-  'America/Chicago', 
-  'America/Denver',
-  'America/Los_Angeles',
-  'Europe/London',
-  'Europe/Paris',
-  'Europe/Berlin',
-  'Asia/Tokyo',
-  'Asia/Shanghai',
-  'Australia/Sydney'
-]
-
-const CURRENCIES = [
-  { value: 'USD', label: 'USD - US Dollar' },
-  { value: 'EUR', label: 'EUR - Euro' },
-  { value: 'GBP', label: 'GBP - British Pound' },
-  { value: 'CAD', label: 'CAD - Canadian Dollar' },
-  { value: 'AUD', label: 'AUD - Australian Dollar' },
-  { value: 'JPY', label: 'JPY - Japanese Yen' }
-]
-
 export default function ProfilePage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { t } = useTranslations()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState('personal')
   const [dragOver, setDragOver] = useState(false)
@@ -109,27 +73,69 @@ export default function ProfilePage() {
     updateAvatarSettings
   } = useSettings()
 
+  // Theme options with translations
+  const THEMES = [
+    { value: 'system', label: t('profile.systemTheme'), icon: Monitor },
+    { value: 'light', label: t('profile.lightTheme'), icon: Sun },
+    { value: 'dark', label: t('profile.darkTheme'), icon: Moon }
+  ]
+
+  // Languages - keeping native names as is standard practice
+  const LANGUAGES = [
+    { value: 'en', label: 'English' },
+    { value: 'es', label: 'Español' },
+    { value: 'fr', label: 'Français' },
+    { value: 'de', label: 'Deutsch' },
+    { value: 'it', label: 'Italiano' },
+    { value: 'pt', label: 'Português' }
+  ]
+
+  // Standard timezone and currency lists
+  const TIMEZONES = [
+    'UTC',
+    'America/New_York',
+    'America/Chicago', 
+    'America/Denver',
+    'America/Los_Angeles',
+    'Europe/London',
+    'Europe/Paris',
+    'Europe/Berlin',
+    'Asia/Tokyo',
+    'Asia/Shanghai',
+    'Australia/Sydney'
+  ]
+
+  const CURRENCIES = [
+    { value: 'USD', label: 'USD - US Dollar' },
+    { value: 'EUR', label: 'EUR - Euro' },
+    { value: 'GBP', label: 'GBP - British Pound' },
+    { value: 'CAD', label: 'CAD - Canadian Dollar' },
+    { value: 'AUD', label: 'AUD - Australian Dollar' },
+    { value: 'JPY', label: 'JPY - Japanese Yen' }
+  ]
+
   const handleAvatarUpload = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      toast.error('Please select a valid image file')
+      toast.error(t('profile.pleaseSelectValidImageFile'))
       return
     }
 
     if (file.size > 5 * 1024 * 1024) { // 5MB limit
-      toast.error('File size must be less than 5MB')
+      toast.error(t('profile.fileSizeMustBeLessThan5mb'))
       return
     }
 
     setUploading(true)
     try {
       await uploadAvatar(file)
-      toast.success('Avatar uploaded successfully!')
+      toast.success(t('profile.avatarUploadedSuccessfully'))
     } catch (error) {
       console.error('Avatar upload failed:', error)
+      toast.error(t('profile.failedToUpdateProfile'))
     } finally {
       setUploading(false)
     }
-  }, [uploadAvatar])
+  }, [uploadAvatar, t])
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -151,10 +157,12 @@ export default function ProfilePage() {
   const handleAvatarTypeChange = useCallback(async (type: 'initials' | 'uploaded' | 'gravatar') => {
     try {
       await updateAvatarSettings({ avatar_type: type })
+      toast.success(t('profile.avatarSettingsUpdated'))
     } catch (error) {
       console.error('Failed to update avatar type:', error)
+      toast.error(t('profile.failedToUpdateAvatarSettings'))
     }
-  }, [updateAvatarSettings])
+  }, [updateAvatarSettings, t])
 
   const handleAvatarColorChange = useCallback(async (color: string) => {
     try {
@@ -162,23 +170,35 @@ export default function ProfilePage() {
         avatar_type: (userProfile?.avatar_type as 'initials' | 'uploaded' | 'gravatar') || 'initials',
         avatar_color: color 
       })
+      toast.success(t('profile.avatarSettingsUpdated'))
     } catch (error) {
       console.error('Failed to update avatar color:', error)
+      toast.error(t('profile.failedToUpdateAvatarSettings'))
     }
-  }, [updateAvatarSettings, userProfile?.avatar_type])
+  }, [updateAvatarSettings, userProfile?.avatar_type, t])
+
+  const handleSaveProfile = useCallback(async () => {
+    try {
+      await saveUserProfile()
+      toast.success(t('profile.profileUpdatedSuccessfully'))
+    } catch (error) {
+      console.error('Failed to save profile:', error)
+      toast.error(t('profile.failedToUpdateProfile'))
+    }
+  }, [saveUserProfile, t])
 
   const getAvatarDisplay = () => {
     if (userProfile?.avatar_type === 'uploaded' && userProfile?.avatar_url) {
       return (
         <Image 
             src={userProfile.avatar_url} 
-            alt="Profile" 
+            alt={t('profile.avatarPreview')}
             width={128}
             height={128}
             className="w-full h-full object-cover"
             unoptimized={true}
         />
-    )
+      )
     }
     
     if (userProfile?.avatar_type === 'gravatar') {
@@ -188,7 +208,7 @@ export default function ProfilePage() {
       return (
         <Image 
             src={gravatarUrl} 
-            alt="Gravatar" 
+            alt={t('profile.gravatar')}
             width={128}
             height={128}
             className="w-full h-full object-cover"
@@ -222,7 +242,7 @@ export default function ProfilePage() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-gray-600">Loading profile...</p>
+              <p className="text-gray-600">{t('profile.loadingProfile')}</p>
             </div>
           </div>
         </div>
@@ -242,16 +262,16 @@ export default function ProfilePage() {
               className="flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back
+              {t('common.back')}
             </Button>
             
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
                 <User className="w-8 h-8 text-blue-600" />
-                My Profile
+                {t('profile.myProfile')}
               </h1>
               <p className="text-gray-600 mt-2">
-                Manage your personal information, preferences, and account settings
+                {t('profile.managePersonalInformation')}
               </p>
             </div>
 
@@ -259,7 +279,7 @@ export default function ProfilePage() {
               {hasUnsavedChanges && (
                 <Badge variant="secondary" className="bg-orange-100 text-orange-800">
                   <AlertTriangle className="w-3 h-3 mr-1" />
-                  Unsaved Changes
+                  {t('common.unsavedChanges')}
                 </Badge>
               )}
               
@@ -269,7 +289,7 @@ export default function ProfilePage() {
                 className="flex items-center gap-2"
               >
                 <Settings className="w-4 h-4" />
-                System Settings
+                {t('settings.systemSettings')}
                 <ExternalLink className="w-3 h-3" />
               </Button>
             </div>
@@ -280,14 +300,14 @@ export default function ProfilePage() {
             <Alert className="mb-6">
               <AlertTriangle className="w-4 h-4" />
               <AlertDescription className="flex items-center justify-between">
-                <span>You have unsaved changes to your profile.</span>
+                <span>{t('common.unsavedChanges')}</span>
                 <Button 
-                  onClick={saveUserProfile} 
+                  onClick={handleSaveProfile} 
                   disabled={saving}
                   size="sm"
                   className="ml-4"
                 >
-                  {saving ? 'Saving...' : 'Save Changes'}
+                  {saving ? t('common.saving') : t('common.saveChanges')}
                 </Button>
               </AlertDescription>
             </Alert>
@@ -299,19 +319,19 @@ export default function ProfilePage() {
           <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4">
             <TabsTrigger value="personal" className="flex items-center gap-2">
               <User className="w-4 h-4" />
-              Personal
+              {t('profile.personalTab')}
             </TabsTrigger>
             <TabsTrigger value="avatar" className="flex items-center gap-2">
               <Camera className="w-4 h-4" />
-              Avatar
+              {t('profile.avatarTab')}
             </TabsTrigger>
             <TabsTrigger value="preferences" className="flex items-center gap-2">
               <Palette className="w-4 h-4" />
-              Preferences
+              {t('profile.preferencesTab')}
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="w-4 h-4" />
-              Notifications
+              {t('profile.notificationsTab')}
             </TabsTrigger>
           </TabsList>
 
@@ -323,48 +343,48 @@ export default function ProfilePage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <User className="w-5 h-5" />
-                    Basic Information
+                    {t('profile.basicInformation')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="display_name">Display Name</Label>
+                    <Label htmlFor="display_name">{t('profile.displayName')}</Label>
                     <Input
                       id="display_name"
                       value={userProfile?.display_name || ''}
                       onChange={(e) => updateUserProfile({ display_name: e.target.value })}
-                      placeholder="How you'd like to be called"
+                      placeholder={t('profile.displayNamePlaceholder')}
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="bio">Bio</Label>
+                    <Label htmlFor="bio">{t('profile.bio')}</Label>
                     <Textarea
                       id="bio"
                       value={userProfile?.bio || ''}
                       onChange={(e) => updateUserProfile({ bio: e.target.value })}
-                      placeholder="Tell us about yourself..."
+                      placeholder={t('profile.bioPlaceholder')}
                       rows={3}
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="title">Job Title</Label>
+                    <Label htmlFor="title">{t('profile.jobTitle')}</Label>
                     <Input
                       id="title"
                       value={userProfile?.title || ''}
                       onChange={(e) => updateUserProfile({ title: e.target.value })}
-                      placeholder="e.g., Front Desk Manager"
+                      placeholder={t('profile.jobTitlePlaceholder')}
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="department">Department</Label>
+                    <Label htmlFor="department">{t('profile.department')}</Label>
                     <Input
                       id="department"
                       value={userProfile?.department || ''}
                       onChange={(e) => updateUserProfile({ department: e.target.value })}
-                      placeholder="e.g., Guest Services"
+                      placeholder={t('profile.departmentPlaceholder')}
                     />
                   </div>
                 </CardContent>
@@ -375,12 +395,12 @@ export default function ProfilePage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Phone className="w-5 h-5" />
-                    Contact Information
+                    {t('profile.contactInformation')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="email">Email Address</Label>
+                    <Label htmlFor="email">{t('profile.emailAddress')}</Label>
                     <Input
                       id="email"
                       type="email"
@@ -389,18 +409,18 @@ export default function ProfilePage() {
                       className="bg-gray-50"
                     />
                     <p className="text-sm text-gray-500 mt-1">
-                      Email cannot be changed from this page
+                      {t('profile.emailCannotBeChanged')}
                     </p>
                   </div>
 
                   <div>
-                    <Label htmlFor="phone_number">Phone Number</Label>
+                    <Label htmlFor="phone_number">{t('profile.phoneNumber')}</Label>
                     <Input
                       id="phone_number"
                       type="tel"
                       value={userProfile?.phone_number || ''}
                       onChange={(e) => updateUserProfile({ phone_number: e.target.value })}
-                      placeholder="+1 (555) 123-4567"
+                      placeholder={t('profile.phoneNumberPlaceholder')}
                     />
                   </div>
                 </CardContent>
@@ -410,7 +430,7 @@ export default function ProfilePage() {
             {/* Save Button */}
             <div className="flex justify-end">
               <Button 
-                onClick={saveUserProfile} 
+                onClick={handleSaveProfile} 
                 disabled={saving || !hasUnsavedChanges}
                 className="flex items-center gap-2"
               >
@@ -419,7 +439,7 @@ export default function ProfilePage() {
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                Save Personal Information
+                {t('profile.savePersonalInformation')}
               </Button>
             </div>
           </TabsContent>
@@ -432,7 +452,7 @@ export default function ProfilePage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Camera className="w-5 h-5" />
-                    Avatar Preview
+                    {t('profile.avatarPreview')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -443,7 +463,7 @@ export default function ProfilePage() {
                     
                     <div className="text-center">
                       <p className="text-sm text-gray-600">
-                        Current avatar type: <strong>{userProfile?.avatar_type || 'initials'}</strong>
+                        {t('profile.currentAvatarType')} <strong>{userProfile?.avatar_type || 'initials'}</strong>
                       </p>
                     </div>
                   </div>
@@ -453,12 +473,12 @@ export default function ProfilePage() {
               {/* Avatar Options */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Avatar Options</CardTitle>
+                  <CardTitle>{t('profile.avatarOptions')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Avatar Type Selection */}
                   <div>
-                    <Label className="text-base font-medium">Avatar Type</Label>
+                    <Label className="text-base font-medium">{t('profile.avatarType')}</Label>
                     <div className="grid grid-cols-1 gap-3 mt-2">
                       <div 
                         className={`p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -473,8 +493,8 @@ export default function ProfilePage() {
                             AB
                           </div>
                           <div>
-                            <p className="font-medium">Initials</p>
-                            <p className="text-sm text-gray-500">Use your initials as avatar</p>
+                            <p className="font-medium">{t('profile.initials')}</p>
+                            <p className="text-sm text-gray-500">{t('profile.useInitialsAsAvatar')}</p>
                           </div>
                         </div>
                       </div>
@@ -490,8 +510,8 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-3">
                           <Globe className="w-8 h-8 text-gray-400" />
                           <div>
-                            <p className="font-medium">Gravatar</p>
-                            <p className="text-sm text-gray-500">Use your global Gravatar image</p>
+                            <p className="font-medium">{t('profile.gravatar')}</p>
+                            <p className="text-sm text-gray-500">{t('profile.useGlobalGravatarImage')}</p>
                           </div>
                         </div>
                       </div>
@@ -507,8 +527,8 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-3">
                           <Upload className="w-8 h-8 text-gray-400" />
                           <div>
-                            <p className="font-medium">Custom Image</p>
-                            <p className="text-sm text-gray-500">Upload your own photo</p>
+                            <p className="font-medium">{t('profile.customImage')}</p>
+                            <p className="text-sm text-gray-500">{t('profile.uploadYourOwnPhoto')}</p>
                           </div>
                         </div>
                       </div>
@@ -518,7 +538,7 @@ export default function ProfilePage() {
                   {/* Color Picker for Initials */}
                   {userProfile?.avatar_type === 'initials' && (
                     <div>
-                      <Label className="text-base font-medium">Avatar Color</Label>
+                      <Label className="text-base font-medium">{t('profile.avatarColor')}</Label>
                       <div className="grid grid-cols-5 gap-2 mt-2">
                         {AVATAR_COLORS.map((color) => (
                           <button
@@ -530,6 +550,7 @@ export default function ProfilePage() {
                             }`}
                             style={{ backgroundColor: color }}
                             onClick={() => handleAvatarColorChange(color)}
+                            aria-label={`Select color ${color}`}
                           />
                         ))}
                       </div>
@@ -539,7 +560,7 @@ export default function ProfilePage() {
                   {/* File Upload for Custom Image */}
                   {userProfile?.avatar_type === 'uploaded' && (
                     <div>
-                      <Label className="text-base font-medium">Upload Image</Label>
+                      <Label className="text-base font-medium">{t('profile.uploadImage')}</Label>
                       <div
                         className={`mt-2 border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                           dragOver 
@@ -561,7 +582,7 @@ export default function ProfilePage() {
                         {uploading ? (
                           <div className="flex flex-col items-center">
                             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-2" />
-                            <p>Uploading...</p>
+                            <p>{t('profile.uploading')}</p>
                           </div>
                         ) : (
                           <div className="flex flex-col items-center">
@@ -571,11 +592,11 @@ export default function ProfilePage() {
                                 onClick={() => fileInputRef.current?.click()}
                                 className="text-blue-600 hover:text-blue-800 underline"
                               >
-                                Click to upload
-                              </button> or drag and drop
+                                {t('profile.clickToUpload')}
+                              </button> {t('profile.orDragAndDrop')}
                             </p>
                             <p className="text-xs text-gray-500 mt-1">
-                              PNG, JPG, GIF up to 5MB
+                              {t('profile.pngJpgGifUpTo5mb')}
                             </p>
                           </div>
                         )}
@@ -595,12 +616,12 @@ export default function ProfilePage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Palette className="w-5 h-5" />
-                    Appearance
+                    {t('profile.appearance')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="theme">Theme</Label>
+                    <Label htmlFor="theme">{t('profile.theme')}</Label>
                     <Select 
                       value={userProfile?.theme || 'system'} 
                       onValueChange={(value) => updateUserProfile({ theme: value })}
@@ -622,7 +643,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="language">Language</Label>
+                    <Label htmlFor="language">{t('profile.language')}</Label>
                     <Select 
                       value={userProfile?.language || 'en'} 
                       onValueChange={(value) => updateUserProfile({ language: value })}
@@ -647,12 +668,12 @@ export default function ProfilePage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Globe className="w-5 h-5" />
-                    Regional Settings
+                    {t('profile.regionalSettings')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="timezone">Timezone</Label>
+                    <Label htmlFor="timezone">{t('profile.timezone')}</Label>
                     <Select 
                       value={userProfile?.timezone || 'UTC'} 
                       onValueChange={(value) => updateUserProfile({ timezone: value })}
@@ -671,7 +692,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="currency">Currency</Label>
+                    <Label htmlFor="currency">{t('profile.currency')}</Label>
                     <Select 
                       value={userProfile?.currency || 'USD'} 
                       onValueChange={(value) => updateUserProfile({ currency: value })}
@@ -690,7 +711,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="date_format">Date Format</Label>
+                    <Label htmlFor="date_format">{t('profile.dateFormat')}</Label>
                     <Select 
                       value={userProfile?.date_format || 'MM/dd/yyyy'} 
                       onValueChange={(value) => updateUserProfile({ date_format: value })}
@@ -699,15 +720,15 @@ export default function ProfilePage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="MM/dd/yyyy">MM/DD/YYYY (US)</SelectItem>
-                        <SelectItem value="dd/MM/yyyy">DD/MM/YYYY (EU)</SelectItem>
-                        <SelectItem value="yyyy-MM-dd">YYYY-MM-DD (ISO)</SelectItem>
+                        <SelectItem value="MM/dd/yyyy">{t('profile.dateFormatUS')}</SelectItem>
+                        <SelectItem value="dd/MM/yyyy">{t('profile.dateFormatEU')}</SelectItem>
+                        <SelectItem value="yyyy-MM-dd">{t('profile.dateFormatISO')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div>
-                    <Label htmlFor="time_format">Time Format</Label>
+                    <Label htmlFor="time_format">{t('profile.timeFormat')}</Label>
                     <Select 
                       value={userProfile?.time_format || '12h'} 
                       onValueChange={(value) => updateUserProfile({ time_format: value })}
@@ -716,8 +737,8 @@ export default function ProfilePage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="12h">12 Hour (AM/PM)</SelectItem>
-                        <SelectItem value="24h">24 Hour</SelectItem>
+                        <SelectItem value="12h">{t('profile.timeFormat12h')}</SelectItem>
+                        <SelectItem value="24h">{t('profile.timeFormat24h')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -728,7 +749,7 @@ export default function ProfilePage() {
             {/* Save Button */}
             <div className="flex justify-end">
               <Button 
-                onClick={saveUserProfile} 
+                onClick={handleSaveProfile} 
                 disabled={saving || !hasUnsavedChanges}
                 className="flex items-center gap-2"
               >
@@ -737,7 +758,7 @@ export default function ProfilePage() {
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                Save Preferences
+                {t('profile.savePreferences')}
               </Button>
             </div>
           </TabsContent>
@@ -748,14 +769,14 @@ export default function ProfilePage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="w-5 h-5" />
-                  Notification Preferences
+                  {t('profile.notificationPreferences')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="enable_desktop_notifications">Desktop Notifications</Label>
-                    <p className="text-sm text-gray-500">Show notifications in your browser</p>
+                    <Label htmlFor="enable_desktop_notifications">{t('profile.desktopNotifications')}</Label>
+                    <p className="text-sm text-gray-500">{t('profile.showNotificationsInBrowser')}</p>
                   </div>
                   <Switch
                     id="enable_desktop_notifications"
@@ -766,8 +787,8 @@ export default function ProfilePage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="enable_sound_notifications">Sound Notifications</Label>
-                    <p className="text-sm text-gray-500">Play sound for important notifications</p>
+                    <Label htmlFor="enable_sound_notifications">{t('profile.soundNotifications')}</Label>
+                    <p className="text-sm text-gray-500">{t('profile.playSoundForImportantNotifications')}</p>
                   </div>
                   <Switch
                     id="enable_sound_notifications"
@@ -780,8 +801,8 @@ export default function ProfilePage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="quiet_hours_enabled">Quiet Hours</Label>
-                    <p className="text-sm text-gray-500">Disable notifications during specific hours</p>
+                    <Label htmlFor="quiet_hours_enabled">{t('profile.quietHours')}</Label>
+                    <p className="text-sm text-gray-500">{t('profile.disableNotificationsDuringHours')}</p>
                   </div>
                   <Switch
                     id="quiet_hours_enabled"
@@ -793,7 +814,7 @@ export default function ProfilePage() {
                 {userProfile?.quiet_hours_enabled && (
                   <div className="grid grid-cols-2 gap-4 ml-6">
                     <div>
-                      <Label htmlFor="quiet_hours_start">Start Time</Label>
+                      <Label htmlFor="quiet_hours_start">{t('profile.startTime')}</Label>
                       <Input
                         id="quiet_hours_start"
                         type="time"
@@ -802,7 +823,7 @@ export default function ProfilePage() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="quiet_hours_end">End Time</Label>
+                      <Label htmlFor="quiet_hours_end">{t('profile.endTime')}</Label>
                       <Input
                         id="quiet_hours_end"
                         type="time"
@@ -815,8 +836,8 @@ export default function ProfilePage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="weekend_notifications">Weekend Notifications</Label>
-                    <p className="text-sm text-gray-500">Receive notifications on weekends</p>
+                    <Label htmlFor="weekend_notifications">{t('profile.weekendNotifications')}</Label>
+                    <p className="text-sm text-gray-500">{t('profile.receiveNotificationsOnWeekends')}</p>
                   </div>
                   <Switch
                     id="weekend_notifications"
@@ -830,7 +851,7 @@ export default function ProfilePage() {
             {/* Save Button */}
             <div className="flex justify-end">
               <Button 
-                onClick={saveUserProfile} 
+                onClick={handleSaveProfile} 
                 disabled={saving || !hasUnsavedChanges}
                 className="flex items-center gap-2"
               >
@@ -839,7 +860,7 @@ export default function ProfilePage() {
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                Save Notification Settings
+                {t('profile.saveNotificationSettings')}
               </Button>
             </div>
           </TabsContent>

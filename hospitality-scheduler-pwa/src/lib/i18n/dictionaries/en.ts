@@ -1876,6 +1876,241 @@ export const en = {
 
   },
 
+  settings: {
+    // ============================================================================
+    // SETTINGS & CONFIGURATION
+    // ============================================================================
+    
+    // Main sections
+    settings: 'Settings',
+    system: 'System',
+    systemSettings: 'System Settings',
+    notifications: 'Notifications',
+    security: 'Security',
+    
+    // Page headers and descriptions
+    manageSystemConfiguration: 'Manage your system configuration, notifications, and preferences',
+    unsavedChanges: 'Unsaved Changes',
+    resetToDefaults: 'Reset to Defaults',
+    resetToDefaultsConfirm: 'Are you sure you want to reset all settings to defaults? This cannot be undone.',
+    myProfile: 'My Profile',
+    
+    // Company & Localization
+    companyAndLocalization: 'Company & Localization',
+    companyName: 'Company Name',
+    companyNamePlaceholder: 'Enter your company name',
+    timezone: 'Timezone',
+    selectTimezone: 'Select timezone',
+    europeRome: 'Europe/Rome (GMT+1)',
+    europeLondon: 'Europe/London (GMT+0)',
+    americaNewYork: 'America/New_York (GMT-5)',
+    americaLosAngeles: 'America/Los_Angeles (GMT-8)',
+    currency: 'Currency',
+    selectCurrency: 'Select currency',
+    dateFormat: 'Date Format',
+    timeFormat: 'Time Format',
+    format24h: '24-hour format',
+    format12h: '12-hour format',
+    
+    // Time units
+    hours: '{{count}} hours',
+    hour: '{{count}} hour',
+    minutes: '{{count}} minutes',
+    days: '{{count}} days',
+    week: '{{count}} week',
+    year: '{{count}} year',
+    
+    // Scheduling Settings
+    schedulingSettings: 'Scheduling Settings',
+    defaultShiftDuration: 'Default Shift Duration',
+    defaultMaxWeeklyHours: 'Default Max Weekly Hours',
+    conflictDetection: 'Conflict Detection',
+    conflictDetectionDesc: 'Check for scheduling conflicts',
+    balanceWorkload: 'Balance Workload',
+    balanceWorkloadDesc: 'Distribute shifts evenly among staff',
+    allowOvertime: 'Allow Overtime',
+    allowOvertimeDesc: 'Permit overtime scheduling',
+    
+    // Email Settings
+    emailSettings: 'Email Settings',
+    sendEmailNotifications: 'Send Email Notifications',
+    sendEmailNotificationsDesc: 'Enable email notifications for staff',
+    sendEmailNotificationsWithPDF: 'Send Email Notifications with PDF',
+    sendEmailNotificationsWithPDFDesc: 'Include PDF attachments in email notifications',
+    smtpServer: 'SMTP Server',
+    smtpPort: 'SMTP Port',
+    smtpUsername: 'SMTP Username',
+    smtpUsernamePlaceholder: 'your-email@example.com',
+    smtpPassword: 'SMTP Password',
+    smtpPasswordPlaceholder: 'Your email password or app password',
+    fromEmail: 'From Email',
+    fromEmailPlaceholder: 'noreply@yourcompany.com',
+    testConnection: 'Test Connection',
+    
+    // WhatsApp Settings
+    whatsappSettings: 'WhatsApp Settings',
+    sendWhatsappMessages: 'Send WhatsApp Messages',
+    sendWhatsappMessagesDesc: 'Enable WhatsApp notifications via Twilio',
+    twilioAccountSid: 'Twilio Account SID',
+    twilioAuthToken: 'Twilio Auth Token',
+    twilioAuthTokenPlaceholder: 'Your Twilio auth token',
+    twilioWhatsappNumber: 'Twilio WhatsApp Number',
+    
+    // Push Notifications
+    pushNotifications: 'Push Notifications',
+    sendPushNotifications: 'Send Push Notifications',
+    sendPushNotificationsDesc: 'Enable browser push notifications',
+    firebaseServerKey: 'Firebase Server Key',
+    firebaseServerKeyPlaceholder: 'Your Firebase server key',
+    firebaseCredentialsRequired: 'Firebase credentials are required for push notifications. Contact your administrator to set up Firebase credentials.',
+    
+    // Default Notification Types
+    defaultNotificationTypes: 'Default Notification Types',
+    schedulePublished: 'Schedule Published',
+    schedulePublishedDesc: 'Notify when schedules are published',
+    swapRequests: 'Swap Requests',
+    swapRequestsDesc: 'Notify about shift swap requests',
+    urgentSwaps: 'Urgent Swaps',
+    urgentSwapsDesc: 'Notify about urgent swap requests',
+    shiftReminders: 'Shift Reminders',
+    shiftRemindersDesc: 'Send reminders before shifts start',
+    
+    // Security Settings
+    securityPolicies: 'Security Policies',
+    requireTwoFactor: 'Require Two-Factor Authentication',
+    requireTwoFactorDesc: 'Require 2FA for all user accounts',
+    sessionTimeout: 'Session Timeout',
+    minimumPasswordLength: 'Minimum Password Length',
+    requirePasswordComplexity: 'Require Password Complexity',
+    requirePasswordComplexityDesc: 'Require uppercase, lowercase, numbers, and special characters',
+    
+    // Audit & Logging
+    auditAndLogging: 'Audit & Logging',
+    enableAuditLogging: 'Enable Audit Logging',
+    enableAuditLoggingDesc: 'Track all user actions and system changes',
+    logRetentionDays: 'Log Retention Days',
+    logSensitiveData: 'Log Sensitive Data',
+    logSensitiveDataDesc: 'Include sensitive information in audit logs (not recommended)',
+  },
+
+  profile: {
+    // ============================================================================
+    // PROFILE PAGE SPECIFIC TERMS
+    // ============================================================================
+    
+    // Page header and navigation
+    myProfile: 'My Profile',
+    managePersonalInformation: 'Manage your personal information, preferences, and account settings',
+    systemSettings: 'System Settings',
+    backToProfile: 'Back to Profile',
+    
+    // Tab navigation
+    personalTab: 'Personal',
+    avatarTab: 'Avatar',
+    preferencesTab: 'Preferences',
+    notificationsTab: 'Notifications',
+    
+    // Personal Information section
+    basicInformation: 'Basic Information',
+    displayName: 'Display Name',
+    displayNamePlaceholder: 'How you\'d like to be called',
+    bio: 'Bio',
+    bioPlaceholder: 'Tell us about yourself...',
+    jobTitle: 'Job Title',
+    jobTitlePlaceholder: 'e.g., Front Desk Manager',
+    department: 'Department',
+    departmentPlaceholder: 'e.g., Guest Services',
+    contactInformation: 'Contact Information',
+    emailAddress: 'Email Address',
+    emailCannotBeChanged: 'Email cannot be changed from this page',
+    phoneNumber: 'Phone Number',
+    phoneNumberPlaceholder: '+1 (555) 123-4567',
+    savePersonalInformation: 'Save Personal Information',
+    
+    // Avatar section
+    avatarPreview: 'Avatar Preview',
+    currentAvatarType: 'Current avatar type:',
+    avatarOptions: 'Avatar Options',
+    avatarType: 'Avatar Type',
+    initials: 'Initials',
+    useInitialsAsAvatar: 'Use your initials as avatar',
+    gravatar: 'Gravatar',
+    useGlobalGravatarImage: 'Use your global Gravatar image',
+    customImage: 'Custom Image',
+    uploadYourOwnPhoto: 'Upload your own photo',
+    avatarColor: 'Avatar Color',
+    uploadImage: 'Upload Image',
+    clickToUpload: 'Click to upload',
+    orDragAndDrop: 'or drag and drop',
+    pngJpgGifUpTo5mb: 'PNG, JPG, GIF up to 5MB',
+    uploading: 'Uploading...',
+    
+    // Preferences section
+    appearance: 'Appearance',
+    theme: 'Theme',
+    language: 'Language',
+    regionalSettings: 'Regional Settings',
+    timezone: 'Timezone',
+    currency: 'Currency',
+    dateFormat: 'Date Format',
+    timeFormat: 'Time Format',
+    savePreferences: 'Save Preferences',
+    
+    // Theme options
+    systemTheme: 'System',
+    lightTheme: 'Light',
+    darkTheme: 'Dark',
+    
+    // Date format options
+    dateFormatUS: 'MM/DD/YYYY (US)',
+    dateFormatEU: 'DD/MM/YYYY (EU)',
+    dateFormatISO: 'YYYY-MM-DD (ISO)',
+    
+    // Time format options
+    timeFormat12h: '12 Hour (AM/PM)',
+    timeFormat24h: '24 Hour',
+    
+    // Notifications section
+    notificationPreferences: 'Notification Preferences',
+    desktopNotifications: 'Desktop Notifications',
+    showNotificationsInBrowser: 'Show notifications in your browser',
+    soundNotifications: 'Sound Notifications',
+    playSoundForImportantNotifications: 'Play sound for important notifications',
+    quietHours: 'Quiet Hours',
+    disableNotificationsDuringHours: 'Disable notifications during specific hours',
+    startTime: 'Start Time',
+    endTime: 'End Time',
+    weekendNotifications: 'Weekend Notifications',
+    receiveNotificationsOnWeekends: 'Receive notifications on weekends',
+    saveNotificationSettings: 'Save Notification Settings',
+    
+    // Loading and error states
+    loadingProfile: 'Loading profile...',
+    pleaseSelectValidImageFile: 'Please select a valid image file',
+    fileSizeMustBeLessThan5mb: 'File size must be less than 5MB',
+    avatarUploadedSuccessfully: 'Avatar uploaded successfully!',
+    
+    // General profile actions
+    profileUpdatedSuccessfully: 'Profile updated successfully!',
+    failedToUpdateProfile: 'Failed to update profile',
+    preferencesUpdatedSuccessfully: 'Preferences updated successfully!',
+    failedToUpdatePreferences: 'Failed to update preferences',
+    notificationSettingsUpdated: 'Notification settings updated successfully!',
+    failedToUpdateNotificationSettings: 'Failed to update notification settings',
+    
+    // Avatar specific messages
+    avatarSettingsUpdated: 'Avatar settings updated successfully!',
+    failedToUpdateAvatarSettings: 'Failed to update avatar settings',
+    avatarDeleted: 'Avatar deleted successfully!',
+    failedToDeleteAvatar: 'Failed to delete avatar',
+    
+    // Validation messages
+    displayNameTooLong: 'Display name must be less than 100 characters',
+    bioTooLong: 'Bio must be less than 500 characters',
+    invalidPhoneNumber: 'Please enter a valid phone number',
+    invalidTimeFormat: 'Please enter a valid time (HH:MM)',
+  },
+
   status: {
     // ============================================================================
     // STATUS TERMS (could be moved to common if reused)

@@ -1871,6 +1871,241 @@ export const it = {
     sendNotifications: 'Invia Notifiche',
   },
 
+  settings: {
+    // ============================================================================
+    // IMPOSTAZIONI E CONFIGURAZIONE
+    // ============================================================================
+    
+    // Sezioni principali
+    settings: 'Impostazioni',
+    system: 'Sistema',
+    systemSettings: 'Impostazioni della Sistema',
+    notifications: 'Notifiche',
+    security: 'Sicurezza',
+    
+    // Intestazioni pagina e descrizioni
+    manageSystemConfiguration: 'Gestisci la configurazione del sistema, le notifiche e le preferenze',
+    unsavedChanges: 'Modifiche Non Salvate',
+    resetToDefaults: 'Ripristina Valori Predefiniti',
+    resetToDefaultsConfirm: 'Sei sicuro di voler ripristinare tutte le impostazioni ai valori predefiniti? Questa azione non può essere annullata.',
+    myProfile: 'Il Mio Profilo',
+    
+    // Azienda e Localizzazione
+    companyAndLocalization: 'Azienda e Localizzazione',
+    companyName: 'Nome Azienda',
+    companyNamePlaceholder: 'Inserisci il nome della tua azienda',
+    timezone: 'Fuso Orario',
+    selectTimezone: 'Seleziona fuso orario',
+    europeRome: 'Europe/Rome (GMT+1)',
+    europeLondon: 'Europe/London (GMT+0)',
+    americaNewYork: 'America/New_York (GMT-5)',
+    americaLosAngeles: 'America/Los_Angeles (GMT-8)',
+    currency: 'Valuta',
+    selectCurrency: 'Seleziona valuta',
+    dateFormat: 'Formato Data',
+    timeFormat: 'Formato Ora',
+    format24h: 'Formato 24 ore',
+    format12h: 'Formato 12 ore',
+    
+    // Unità di tempo
+    hours: '{{count}} ore',
+    hour: '{{count}} ora',
+    minutes: '{{count}} minuti',
+    days: '{{count}} giorni',
+    week: '{{count}} settimana',
+    year: '{{count}} anno',
+    
+    // Impostazioni Pianificazione
+    schedulingSettings: 'Impostazioni Pianificazione',
+    defaultShiftDuration: 'Durata Turno Predefinita',
+    defaultMaxWeeklyHours: 'Ore Settimanali Massime Predefinite',
+    conflictDetection: 'Rilevamento Conflitti',
+    conflictDetectionDesc: 'Controlla i conflitti di pianificazione',
+    balanceWorkload: 'Bilancia Carico di Lavoro',
+    balanceWorkloadDesc: 'Distribuisci i turni equamente tra il personale',
+    allowOvertime: 'Permetti Straordinari',
+    allowOvertimeDesc: 'Consenti la pianificazione di straordinari',
+    
+    // Impostazioni Email
+    emailSettings: 'Impostazioni Email',
+    sendEmailNotifications: 'Invia Notifiche Email',
+    sendEmailNotificationsDesc: 'Abilita le notifiche email per il personale',
+    sendEmailNotificationsWithPDF: 'Invia Notifiche Email con PDF',
+    sendEmailNotificationsWithPDFDesc: 'Includi allegati PDF nelle notifiche email',
+    smtpServer: 'Server SMTP',
+    smtpPort: 'Porta SMTP',
+    smtpUsername: 'Username SMTP',
+    smtpUsernamePlaceholder: 'tua-email@esempio.com',
+    smtpPassword: 'Password SMTP',
+    smtpPasswordPlaceholder: 'La tua password email o password app',
+    fromEmail: 'Email Mittente',
+    fromEmailPlaceholder: 'noreply@tuaazienda.com',
+    testConnection: 'Testa Connessione',
+    
+    // Impostazioni WhatsApp
+    whatsappSettings: 'Impostazioni WhatsApp',
+    sendWhatsappMessages: 'Invia Messaggi WhatsApp',
+    sendWhatsappMessagesDesc: 'Abilita le notifiche WhatsApp tramite Twilio',
+    twilioAccountSid: 'Twilio Account SID',
+    twilioAuthToken: 'Twilio Auth Token',
+    twilioAuthTokenPlaceholder: 'Il tuo token di autenticazione Twilio',
+    twilioWhatsappNumber: 'Numero WhatsApp Twilio',
+    
+    // Notifiche Push
+    pushNotifications: 'Notifiche Push',
+    sendPushNotifications: 'Invia Notifiche Push',
+    sendPushNotificationsDesc: 'Abilita le notifiche push del browser',
+    firebaseServerKey: 'Chiave Server Firebase',
+    firebaseServerKeyPlaceholder: 'La tua chiave server Firebase',
+    firebaseCredentialsRequired: 'Le credenziali Firebase sono richieste per le notifiche push. Contatta il tuo amministratore per configurare le credenziali Firebase.',
+    
+    // Tipi di Notifica Predefiniti
+    defaultNotificationTypes: 'Tipi di Notifica Predefiniti',
+    schedulePublished: 'Pianificazione Pubblicata',
+    schedulePublishedDesc: 'Notifica quando le pianificazioni vengono pubblicate',
+    swapRequests: 'Richieste di Scambio',
+    swapRequestsDesc: 'Notifica riguardo alle richieste di scambio turni',
+    urgentSwaps: 'Scambi Urgenti',
+    urgentSwapsDesc: 'Notifica riguardo alle richieste di scambio urgenti',
+    shiftReminders: 'Promemoria Turni',
+    shiftRemindersDesc: 'Invia promemoria prima dell\'inizio dei turni',
+    
+    // Impostazioni Sicurezza
+    securityPolicies: 'Politiche di Sicurezza',
+    requireTwoFactor: 'Richiedi Autenticazione a Due Fattori',
+    requireTwoFactorDesc: 'Richiedi 2FA per tutti gli account utente',
+    sessionTimeout: 'Timeout Sessione',
+    minimumPasswordLength: 'Lunghezza Minima Password',
+    requirePasswordComplexity: 'Richiedi Complessità Password',
+    requirePasswordComplexityDesc: 'Richiedi maiuscole, minuscole, numeri e caratteri speciali',
+    
+    // Audit e Logging
+    auditAndLogging: 'Audit e Logging',
+    enableAuditLogging: 'Abilita Audit Logging',
+    enableAuditLoggingDesc: 'Traccia tutte le azioni utente e i cambiamenti di sistema',
+    logRetentionDays: 'Giorni di Conservazione Log',
+    logSensitiveData: 'Registra Dati Sensibili',
+    logSensitiveDataDesc: 'Includi informazioni sensibili nei log di audit (non raccomandato)',
+  },
+
+   profile: {
+    // ============================================================================
+    // TERMINI SPECIFICI PAGINA PROFILO
+    // ============================================================================
+    
+    // Intestazione pagina e navigazione
+    myProfile: 'Il Mio Profilo',
+    managePersonalInformation: 'Gestisci le tue informazioni personali, preferenze e impostazioni account',
+    systemSettings: 'Impostazioni Sistema',
+    backToProfile: 'Torna al Profilo',
+    
+    // Navigazione schede
+    personalTab: 'Personale',
+    avatarTab: 'Avatar',
+    preferencesTab: 'Preferenze',
+    notificationsTab: 'Notifiche',
+    
+    // Sezione informazioni personali
+    basicInformation: 'Informazioni di Base',
+    displayName: 'Nome Visualizzato',
+    displayNamePlaceholder: 'Come vorresti essere chiamato',
+    bio: 'Biografia',
+    bioPlaceholder: 'Raccontaci di te...',
+    jobTitle: 'Titolo di Lavoro',
+    jobTitlePlaceholder: 'es. Manager Reception',
+    department: 'Dipartimento',
+    departmentPlaceholder: 'es. Servizi Ospiti',
+    contactInformation: 'Informazioni di Contatto',
+    emailAddress: 'Indirizzo Email',
+    emailCannotBeChanged: 'L\'email non può essere modificata da questa pagina',
+    phoneNumber: 'Numero di Telefono',
+    phoneNumberPlaceholder: '+39 123 456 7890',
+    savePersonalInformation: 'Salva Informazioni Personali',
+    
+    // Sezione avatar
+    avatarPreview: 'Anteprima Avatar',
+    currentAvatarType: 'Tipo avatar attuale:',
+    avatarOptions: 'Opzioni Avatar',
+    avatarType: 'Tipo Avatar',
+    initials: 'Iniziali',
+    useInitialsAsAvatar: 'Usa le tue iniziali come avatar',
+    gravatar: 'Gravatar',
+    useGlobalGravatarImage: 'Usa la tua immagine Gravatar globale',
+    customImage: 'Immagine Personalizzata',
+    uploadYourOwnPhoto: 'Carica la tua foto',
+    avatarColor: 'Colore Avatar',
+    uploadImage: 'Carica Immagine',
+    clickToUpload: 'Clicca per caricare',
+    orDragAndDrop: 'o trascina e rilascia',
+    pngJpgGifUpTo5mb: 'PNG, JPG, GIF fino a 5MB',
+    uploading: 'Caricamento...',
+    
+    // Sezione preferenze
+    appearance: 'Aspetto',
+    theme: 'Tema',
+    language: 'Lingua',
+    regionalSettings: 'Impostazioni Regionali',
+    timezone: 'Fuso Orario',
+    currency: 'Valuta',
+    dateFormat: 'Formato Data',
+    timeFormat: 'Formato Ora',
+    savePreferences: 'Salva Preferenze',
+    
+    // Opzioni tema
+    systemTheme: 'Sistema',
+    lightTheme: 'Chiaro',
+    darkTheme: 'Scuro',
+    
+    // Opzioni formato data
+    dateFormatUS: 'MM/GG/AAAA (US)',
+    dateFormatEU: 'GG/MM/AAAA (EU)',
+    dateFormatISO: 'AAAA-MM-GG (ISO)',
+    
+    // Opzioni formato ora
+    timeFormat12h: '12 Ore (AM/PM)',
+    timeFormat24h: '24 Ore',
+    
+    // Sezione notifiche
+    notificationPreferences: 'Preferenze Notifiche',
+    desktopNotifications: 'Notifiche Desktop',
+    showNotificationsInBrowser: 'Mostra notifiche nel tuo browser',
+    soundNotifications: 'Notifiche Sonore',
+    playSoundForImportantNotifications: 'Riproduci suono per notifiche importanti',
+    quietHours: 'Ore Silenziose',
+    disableNotificationsDuringHours: 'Disabilita notifiche durante orari specifici',
+    startTime: 'Ora Inizio',
+    endTime: 'Ora Fine',
+    weekendNotifications: 'Notifiche Weekend',
+    receiveNotificationsOnWeekends: 'Ricevi notifiche nei weekend',
+    saveNotificationSettings: 'Salva Impostazioni Notifiche',
+    
+    // Stati di caricamento ed errore
+    loadingProfile: 'Caricamento profilo...',
+    pleaseSelectValidImageFile: 'Si prega di selezionare un file immagine valido',
+    fileSizeMustBeLessThan5mb: 'La dimensione del file deve essere inferiore a 5MB',
+    avatarUploadedSuccessfully: 'Avatar caricato con successo!',
+    
+    // Azioni generali profilo
+    profileUpdatedSuccessfully: 'Profilo aggiornato con successo!',
+    failedToUpdateProfile: 'Impossibile aggiornare il profilo',
+    preferencesUpdatedSuccessfully: 'Preferenze aggiornate con successo!',
+    failedToUpdatePreferences: 'Impossibile aggiornare le preferenze',
+    notificationSettingsUpdated: 'Impostazioni notifiche aggiornate con successo!',
+    failedToUpdateNotificationSettings: 'Impossibile aggiornare le impostazioni notifiche',
+    
+    // Messaggi specifici avatar
+    avatarSettingsUpdated: 'Impostazioni avatar aggiornate con successo!',
+    failedToUpdateAvatarSettings: 'Impossibile aggiornare le impostazioni avatar',
+    avatarDeleted: 'Avatar eliminato con successo!',
+    failedToDeleteAvatar: 'Impossibile eliminare l\'avatar',
+    
+    // Messaggi di validazione
+    displayNameTooLong: 'Il nome visualizzato deve essere inferiore a 100 caratteri',
+    bioTooLong: 'La biografia deve essere inferiore a 500 caratteri',
+    invalidPhoneNumber: 'Si prega di inserire un numero di telefono valido',
+    invalidTimeFormat: 'Si prega di inserire un orario valido (HH:MM)',
+  },
+
   status: {
     // ============================================================================
     // TERMINI DI STATO (potrebbero essere spostati in common se riutilizzati)

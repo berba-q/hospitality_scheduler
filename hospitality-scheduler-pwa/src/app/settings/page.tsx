@@ -32,16 +32,16 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useSettings } from '@/hooks/useSettings'
+import { useTranslations } from '@/hooks/useTranslations'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 
-// No need for TypeScript interfaces - they're in the useSettings hook
-
 export default function SettingsPage() {
   const router = useRouter()
+  const { t } = useTranslations()
   const [activeTab, setActiveTab] = useState('system')
   
   // Use the settings hook
@@ -67,7 +67,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-gray-600">Loading settings...</p>
+              <p className="text-gray-600">{t('common.loading')}...</p>
             </div>
           </div>
         </div>
@@ -84,10 +84,10 @@ export default function SettingsPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
                 <Settings className="w-8 h-8 text-blue-600" />
-                Settings
+                {t('navigation.settings')}
               </h1>
               <p className="text-gray-600 mt-2">
-                Manage your system configuration, notifications, and preferences
+                {t('settings.manageSystemConfiguration')}
               </p>
             </div>
             
@@ -95,21 +95,21 @@ export default function SettingsPage() {
               {hasUnsavedChanges && (
                 <Badge variant="secondary" className="bg-orange-100 text-orange-800">
                   <AlertTriangle className="w-3 h-3 mr-1" />
-                  Unsaved Changes
+                  {t('settings.unsavedChanges')}
                 </Badge>
               )}
               
               <Button
                 variant="outline"
                 onClick={() => {
-                  if (window.confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
+                  if (window.confirm(t('settings.resetToDefaultsConfirm'))) {
                     resetToDefaults()
                   }
                 }}
                 className="flex items-center gap-2"
               >
                 <RotateCcw className="w-4 h-4" />
-                Reset to Defaults
+                {t('settings.resetToDefaults')}
               </Button>
               
               <Button
@@ -118,7 +118,7 @@ export default function SettingsPage() {
                 className="flex items-center gap-2"
               >
                 <Users className="w-4 h-4" />
-                My Profile
+                {t('settings.myProfile')}
                 <ExternalLink className="w-3 h-3" />
               </Button>
             </div>
@@ -130,15 +130,15 @@ export default function SettingsPage() {
           <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-3">
             <TabsTrigger value="system" className="flex items-center gap-2">
               <Database className="w-4 h-4" />
-              System
+              {t('settings.system')}
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="w-4 h-4" />
-              Notifications
+              {t('settings.notifications')}
             </TabsTrigger>
             <TabsTrigger value="security" className="flex items-center gap-2">
               <Shield className="w-4 h-4" />
-              Security
+              {t('settings.security')}
             </TabsTrigger>
           </TabsList>
 
@@ -150,77 +150,87 @@ export default function SettingsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Globe className="w-5 h-5" />
-                    Company & Localization
+                    {t('settings.companyAndLocalization')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="company_name">Company Name</Label>
+                    <Label htmlFor="company_name">{t('settings.companyName')}</Label>
                     <Input
                       id="company_name"
                       value={systemSettings?.company_name || ''}
                       onChange={(e) => updateSystemSettings({ company_name: e.target.value })}
-                      placeholder="Enter your company name"
+                      placeholder={t('settings.companyNamePlaceholder')}
                     />
                   </div>
-                  
+
                   <div>
-                    <Label htmlFor="timezone">Timezone</Label>
-                    <Select
-                      value={systemSettings?.timezone || 'UTC'}
+                    <Label htmlFor="timezone">{t('settings.timezone')}</Label>
+                    <Select 
+                      value={systemSettings?.timezone || 'UTC'} 
                       onValueChange={(value) => updateSystemSettings({ timezone: value })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select timezone" />
+                        <SelectValue placeholder={t('settings.selectTimezone')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="UTC">UTC</SelectItem>
-                        <SelectItem value="America/New_York">Eastern Time</SelectItem>
-                        <SelectItem value="America/Chicago">Central Time</SelectItem>
-                        <SelectItem value="America/Denver">Mountain Time</SelectItem>
-                        <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
-                        <SelectItem value="Europe/London">London</SelectItem>
-                        <SelectItem value="Europe/Paris">Paris</SelectItem>
-                        <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
+                        <SelectItem value="Europe/Rome">{t('settings.europeRome')}</SelectItem>
+                        <SelectItem value="Europe/London">{t('settings.europeLondon')}</SelectItem>
+                        <SelectItem value="America/New_York">{t('settings.americaNewYork')}</SelectItem>
+                        <SelectItem value="America/Los_Angeles">{t('settings.americaLosAngeles')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="date_format">Date Format</Label>
-                      <Select
-                        value={systemSettings?.date_format || 'MM/dd/yyyy'}
-                        onValueChange={(value) => updateSystemSettings({ date_format: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="MM/dd/yyyy">MM/dd/yyyy</SelectItem>
-                          <SelectItem value="dd/MM/yyyy">dd/MM/yyyy</SelectItem>
-                          <SelectItem value="yyyy-MM-dd">yyyy-MM-dd</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="currency">Currency</Label>
-                      <Select
-                        value={systemSettings?.currency || 'USD'}
-                        onValueChange={(value) => updateSystemSettings({ currency: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="USD">USD ($)</SelectItem>
-                          <SelectItem value="EUR">EUR (€)</SelectItem>
-                          <SelectItem value="GBP">GBP (£)</SelectItem>
-                          <SelectItem value="CAD">CAD ($)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div>
+                    <Label htmlFor="currency">{t('settings.currency')}</Label>
+                    <Select 
+                      value={systemSettings?.currency || 'EUR'} 
+                      onValueChange={(value) => updateSystemSettings({ currency: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('settings.selectCurrency')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="date_format">{t('settings.dateFormat')}</Label>
+                    <Select 
+                      value={systemSettings?.date_format || 'DD/MM/YYYY'} 
+                      onValueChange={(value) => updateSystemSettings({ date_format: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+                        <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+                        <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="time_format">{t('settings.timeFormat')}</Label>
+                    <Select 
+                      value={systemSettings?.time_format || '24h'} 
+                      onValueChange={(value) => updateSystemSettings({ time_format: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="24h">{t('settings.format24h')}</SelectItem>
+                        <SelectItem value="12h">{t('settings.format12h')}</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CardContent>
               </Card>
@@ -230,26 +240,45 @@ export default function SettingsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="w-5 h-5" />
-                    Smart Scheduling
+                    {t('settings.schedulingSettings')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="smart_scheduling_enabled">Enable Smart Scheduling</Label>
-                      <p className="text-sm text-gray-500">Use AI to optimize schedule assignments</p>
-                    </div>
-                    <Switch
-                      id="smart_scheduling_enabled"
-                      checked={systemSettings?.smart_scheduling_enabled || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ smart_scheduling_enabled: checked })}
+                  <div>
+                    <Label htmlFor="default_shift_duration">{t('settings.defaultShiftDuration')}</Label>
+                    <Select 
+                      value={systemSettings?.default_shift_duration?.toString() || '8'} 
+                      onValueChange={(value) => updateSystemSettings({ default_shift_duration: parseInt(value) })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="4">{t('settings.hours', { count: 4 })}</SelectItem>
+                        <SelectItem value="6">{t('settings.hours', { count: 6 })}</SelectItem>
+                        <SelectItem value="8">{t('settings.hours', { count: 8 })}</SelectItem>
+                        <SelectItem value="10">{t('settings.hours', { count: 10 })}</SelectItem>
+                        <SelectItem value="12">{t('settings.hours', { count: 12 })}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="max_weekly_hours">{t('settings.defaultMaxWeeklyHours')}</Label>
+                    <Input
+                      id="max_weekly_hours"
+                      type="number"
+                      min="1"
+                      max="168"
+                      value={systemSettings?.max_weekly_hours || 40}
+                      onChange={(e) => updateSystemSettings({ max_weekly_hours: parseInt(e.target.value) || 40 })}
                     />
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="conflict_check_enabled">Conflict Detection</Label>
-                      <p className="text-sm text-gray-500">Check for scheduling conflicts</p>
+                      <Label htmlFor="conflict_check_enabled">{t('settings.conflictDetection')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.conflictDetectionDesc')}</p>
                     </div>
                     <Switch
                       id="conflict_check_enabled"
@@ -260,8 +289,8 @@ export default function SettingsPage() {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="balance_workload">Balance Workload</Label>
-                      <p className="text-sm text-gray-500">Distribute shifts evenly among staff</p>
+                      <Label htmlFor="balance_workload">{t('settings.balanceWorkload')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.balanceWorkloadDesc')}</p>
                     </div>
                     <Switch
                       id="balance_workload"
@@ -272,8 +301,8 @@ export default function SettingsPage() {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="allow_overtime">Allow Overtime</Label>
-                      <p className="text-sm text-gray-500">Permit overtime scheduling</p>
+                      <Label htmlFor="allow_overtime">{t('settings.allowOvertime')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.allowOvertimeDesc')}</p>
                     </div>
                     <Switch
                       id="allow_overtime"
@@ -292,16 +321,21 @@ export default function SettingsPage() {
                 className="flex items-center gap-2"
               >
                 {saving ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {t('common.saving')}...
+                  </>
                 ) : (
-                  <Save className="w-4 h-4" />
+                  <>
+                    <Save className="w-4 h-4" />
+                    {t('common.saveChanges')}
+                  </>
                 )}
-                Save System Settings
               </Button>
             </div>
           </TabsContent>
 
-          {/* Notifications Tab */}
+          {/* Notifications Settings Tab */}
           <TabsContent value="notifications" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Email Settings */}
@@ -309,26 +343,38 @@ export default function SettingsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Mail className="w-5 h-5" />
-                    Email Settings (SMTP)
+                    {t('settings.emailSettings')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="smtp_enabled">Enable Email Notifications</Label>
-                      <p className="text-sm text-gray-500">Send notifications via email</p>
+                      <Label htmlFor="email_enabled">{t('settings.sendEmailNotifications')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.sendEmailNotificationsDesc')}</p>
                     </div>
                     <Switch
-                      id="smtp_enabled"
-                      checked={notificationSettings?.smtp_enabled || false}
-                      onCheckedChange={(checked) => updateNotificationSettings({ smtp_enabled: checked })}
+                      id="email_enabled"
+                      checked={notificationSettings?.email_enabled || false}
+                      onCheckedChange={(checked) => updateNotificationSettings({ email_enabled: checked })}
                     />
                   </div>
 
-                  {notificationSettings?.smtp_enabled && (
-                    <div className="space-y-3 border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="email_pdf_attachment">{t('settings.sendEmailNotificationsWithPDF')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.sendEmailNotificationsWithPDFDesc')}</p>
+                    </div>
+                    <Switch
+                      id="email_pdf_attachment"
+                      checked={notificationSettings?.email_pdf_attachment || false}
+                      onCheckedChange={(checked) => updateNotificationSettings({ email_pdf_attachment: checked })}
+                    />
+                  </div>
+
+                  {notificationSettings?.email_enabled && (
+                    <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
                       <div>
-                        <Label htmlFor="smtp_server">SMTP Server</Label>
+                        <Label htmlFor="smtp_server">{t('settings.smtpServer')}</Label>
                         <Input
                           id="smtp_server"
                           value={notificationSettings?.smtp_server || ''}
@@ -336,72 +382,56 @@ export default function SettingsPage() {
                           placeholder="smtp.gmail.com"
                         />
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label htmlFor="smtp_port">Port</Label>
-                          <Input
-                            id="smtp_port"
-                            type="number"
-                            value={notificationSettings?.smtp_port || 587}
-                            onChange={(e) => updateNotificationSettings({ smtp_port: parseInt(e.target.value) })}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="smtp_username">Username</Label>
-                          <Input
-                            id="smtp_username"
-                            value={notificationSettings?.smtp_username || ''}
-                            onChange={(e) => updateNotificationSettings({ smtp_username: e.target.value })}
-                            placeholder="your-email@domain.com"
-                          />
-                        </div>
-                      </div>
-
                       <div>
-                        <Label htmlFor="smtp_password">Password</Label>
+                        <Label htmlFor="smtp_port">{t('settings.smtpPort')}</Label>
+                        <Input
+                          id="smtp_port"
+                          type="number"
+                          value={notificationSettings?.smtp_port || 587}
+                          onChange={(e) => updateNotificationSettings({ smtp_port: parseInt(e.target.value) || 587 })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="smtp_username">{t('settings.smtpUsername')}</Label>
+                        <Input
+                          id="smtp_username"
+                          value={notificationSettings?.smtp_username || ''}
+                          onChange={(e) => updateNotificationSettings({ smtp_username: e.target.value })}
+                          placeholder={t('settings.smtpUsernamePlaceholder')}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="smtp_password">{t('settings.smtpPassword')}</Label>
                         <Input
                           id="smtp_password"
                           type="password"
                           value={notificationSettings?.smtp_password || ''}
                           onChange={(e) => updateNotificationSettings({ smtp_password: e.target.value })}
-                          placeholder="App password or SMTP password"
+                          placeholder={t('settings.smtpPasswordPlaceholder')}
                         />
                       </div>
-
-                      <div className="flex gap-4">
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            id="smtp_use_tls"
-                            checked={notificationSettings?.smtp_use_tls || false}
-                            onCheckedChange={(checked) => updateNotificationSettings({ smtp_use_tls: checked })}
-                          />
-                          <Label htmlFor="smtp_use_tls">Use TLS</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            id="smtp_use_ssl"
-                            checked={notificationSettings?.smtp_use_ssl || false}
-                            onCheckedChange={(checked) => updateNotificationSettings({ smtp_use_ssl: checked })}
-                          />
-                          <Label htmlFor="smtp_use_ssl">Use SSL</Label>
-                        </div>
+                      <div>
+                        <Label htmlFor="smtp_from_email">{t('settings.fromEmail')}</Label>
+                        <Input
+                          id="smtp_from_email"
+                          type="email"
+                          value={notificationSettings?.smtp_from_email || ''}
+                          onChange={(e) => updateNotificationSettings({ smtp_from_email: e.target.value })}
+                          placeholder={t('settings.fromEmailPlaceholder')}
+                        />
                       </div>
-
-                      <Button 
-                        variant="outline" 
-                        onClick={() => testConnection('smtp')}
-                        className="w-full flex items-center gap-2"
+                      <Button
+                        variant="outline"
+                        onClick={() => testConnection('email')}
+                        className="flex items-center gap-2"
                       >
                         <TestTube2 className="w-4 h-4" />
-                        Test SMTP Connection
+                        {t('settings.testConnection')}
                       </Button>
-
-                      {testResults.smtp && (
-                        <Alert className={testResults.smtp.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
-                          <AlertDescription className={testResults.smtp.success ? 'text-green-800' : 'text-red-800'}>
-                            {testResults.smtp.success ? <CheckCircle className="w-4 h-4 inline mr-2" /> : <AlertTriangle className="w-4 h-4 inline mr-2" />}
-                            {testResults.smtp.message}
+                      {testResults?.email && (
+                        <Alert className={testResults.email.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
+                          <AlertDescription className={testResults.email.success ? "text-green-800" : "text-red-800"}>
+                            {testResults.email.message}
                           </AlertDescription>
                         </Alert>
                       )}
@@ -415,14 +445,14 @@ export default function SettingsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MessageSquare className="w-5 h-5" />
-                    WhatsApp Settings (Twilio)
+                    {t('settings.whatsappSettings')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="whatsapp_enabled">Enable WhatsApp Notifications</Label>
-                      <p className="text-sm text-gray-500">Send notifications via WhatsApp</p>
+                      <Label htmlFor="whatsapp_enabled">{t('settings.sendWhatsappMessages')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.sendWhatsappMessagesDesc')}</p>
                     </div>
                     <Switch
                       id="whatsapp_enabled"
@@ -432,52 +462,47 @@ export default function SettingsPage() {
                   </div>
 
                   {notificationSettings?.whatsapp_enabled && (
-                    <div className="space-y-3 border-t pt-4">
+                    <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
                       <div>
-                        <Label htmlFor="twilio_account_sid">Twilio Account SID</Label>
+                        <Label htmlFor="twilio_account_sid">{t('settings.twilioAccountSid')}</Label>
                         <Input
                           id="twilio_account_sid"
                           value={notificationSettings?.twilio_account_sid || ''}
                           onChange={(e) => updateNotificationSettings({ twilio_account_sid: e.target.value })}
-                          placeholder="AC..."
+                          placeholder="ACxxxxxxxxxx"
                         />
                       </div>
-                      
                       <div>
-                        <Label htmlFor="twilio_auth_token">Twilio Auth Token</Label>
+                        <Label htmlFor="twilio_auth_token">{t('settings.twilioAuthToken')}</Label>
                         <Input
                           id="twilio_auth_token"
                           type="password"
                           value={notificationSettings?.twilio_auth_token || ''}
                           onChange={(e) => updateNotificationSettings({ twilio_auth_token: e.target.value })}
-                          placeholder="Your Twilio auth token"
+                          placeholder={t('settings.twilioAuthTokenPlaceholder')}
                         />
                       </div>
-
                       <div>
-                        <Label htmlFor="twilio_whatsapp_number">WhatsApp Number</Label>
+                        <Label htmlFor="twilio_whatsapp_number">{t('settings.twilioWhatsappNumber')}</Label>
                         <Input
                           id="twilio_whatsapp_number"
                           value={notificationSettings?.twilio_whatsapp_number || ''}
                           onChange={(e) => updateNotificationSettings({ twilio_whatsapp_number: e.target.value })}
-                          placeholder="whatsapp:+1234567890"
+                          placeholder="+14155238886"
                         />
                       </div>
-
-                      <Button 
-                        variant="outline" 
-                        onClick={() => testConnection('twilio')}
-                        className="w-full flex items-center gap-2"
+                      <Button
+                        variant="outline"
+                        onClick={() => testConnection('whatsapp')}
+                        className="flex items-center gap-2"
                       >
                         <TestTube2 className="w-4 h-4" />
-                        Test WhatsApp Connection
+                        {t('settings.testConnection')}
                       </Button>
-
-                      {testResults.twilio && (
-                        <Alert className={testResults.twilio.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
-                          <AlertDescription className={testResults.twilio.success ? 'text-green-800' : 'text-red-800'}>
-                            {testResults.twilio.success ? <CheckCircle className="w-4 h-4 inline mr-2" /> : <AlertTriangle className="w-4 h-4 inline mr-2" />}
-                            {testResults.twilio.message}
+                      {testResults?.whatsapp && (
+                        <Alert className={testResults.whatsapp.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
+                          <AlertDescription className={testResults.whatsapp.success ? "text-green-800" : "text-red-800"}>
+                            {testResults.whatsapp.message}
                           </AlertDescription>
                         </Alert>
                       )}
@@ -491,14 +516,14 @@ export default function SettingsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Smartphone className="w-5 h-5" />
-                    Push Notifications
+                    {t('settings.pushNotifications')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="push_enabled">Enable Push Notifications</Label>
-                      <p className="text-sm text-gray-500">Send browser and mobile push notifications</p>
+                      <Label htmlFor="push_enabled">{t('settings.sendPushNotifications')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.sendPushNotificationsDesc')}</p>
                     </div>
                     <Switch
                       id="push_enabled"
@@ -508,12 +533,26 @@ export default function SettingsPage() {
                   </div>
 
                   {notificationSettings?.push_enabled && (
-                    <Alert>
-                      <AlertTriangle className="w-4 h-4" />
-                      <AlertDescription>
-                        Push notifications require Firebase configuration. Contact your administrator to set up Firebase credentials.
-                      </AlertDescription>
-                    </Alert>
+                    <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <Label htmlFor="firebase_server_key">{t('settings.firebaseServerKey')}</Label>
+                        <Input
+                          id="firebase_server_key"
+                          type="password"
+                          value={notificationSettings?.firebase_server_key || ''}
+                          onChange={(e) => updateNotificationSettings({ firebase_server_key: e.target.value })}
+                          placeholder={t('settings.firebaseServerKeyPlaceholder')}
+                        />
+                      </div>
+                      {!process.env.NEXT_PUBLIC_FIREBASE_API_KEY && (
+                        <Alert className="border-yellow-200 bg-yellow-50">
+                          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                          <AlertDescription className="text-yellow-800">
+                            {t('settings.firebaseCredentialsRequired')}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -523,14 +562,14 @@ export default function SettingsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Bell className="w-5 h-5" />
-                    Default Notification Types
+                    {t('settings.defaultNotificationTypes')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="schedule_published_notify">Schedule Published</Label>
-                      <p className="text-sm text-gray-500">Notify when schedules are published</p>
+                      <Label htmlFor="schedule_published_notify">{t('settings.schedulePublished')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.schedulePublishedDesc')}</p>
                     </div>
                     <Switch
                       id="schedule_published_notify"
@@ -541,8 +580,8 @@ export default function SettingsPage() {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="swap_request_notify">Swap Requests</Label>
-                      <p className="text-sm text-gray-500">Notify about shift swap requests</p>
+                      <Label htmlFor="swap_request_notify">{t('settings.swapRequests')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.swapRequestsDesc')}</p>
                     </div>
                     <Switch
                       id="swap_request_notify"
@@ -553,8 +592,8 @@ export default function SettingsPage() {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="urgent_swap_notify">Urgent Swaps</Label>
-                      <p className="text-sm text-gray-500">Notify about urgent swap requests</p>
+                      <Label htmlFor="urgent_swap_notify">{t('settings.urgentSwaps')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.urgentSwapsDesc')}</p>
                     </div>
                     <Switch
                       id="urgent_swap_notify"
@@ -565,13 +604,13 @@ export default function SettingsPage() {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="daily_reminder_notify">Daily Reminders</Label>
-                      <p className="text-sm text-gray-500">Send daily shift reminders</p>
+                      <Label htmlFor="shift_reminder_notify">{t('settings.shiftReminders')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.shiftRemindersDesc')}</p>
                     </div>
                     <Switch
-                      id="daily_reminder_notify"
-                      checked={systemSettings?.daily_reminder_notify || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ daily_reminder_notify: checked })}
+                      id="shift_reminder_notify"
+                      checked={systemSettings?.shift_reminder_notify || false}
+                      onCheckedChange={(checked) => updateSystemSettings({ shift_reminder_notify: checked })}
                     />
                   </div>
                 </CardContent>
@@ -585,145 +624,138 @@ export default function SettingsPage() {
                 className="flex items-center gap-2"
               >
                 {saving ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {t('common.saving')}...
+                  </>
                 ) : (
-                  <Save className="w-4 h-4" />
+                  <>
+                    <Save className="w-4 h-4" />
+                    {t('common.saveChanges')}
+                  </>
                 )}
-                Save Notification Settings
               </Button>
             </div>
           </TabsContent>
 
-          {/* Security Tab */}
+          {/* Security Settings Tab */}
           <TabsContent value="security" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
-              {/* Authentication */}
+              {/* Security Policies */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Lock className="w-5 h-5" />
-                    Authentication & Access
+                    {t('settings.securityPolicies')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="require_2fa">{t('settings.requireTwoFactor')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.requireTwoFactorDesc')}</p>
+                    </div>
+                    <Switch
+                      id="require_2fa"
+                      checked={systemSettings?.require_2fa || false}
+                      onCheckedChange={(checked) => updateSystemSettings({ require_2fa: checked })}
+                    />
+                  </div>
+
                   <div>
-                    <Label htmlFor="session_timeout_hours">Session Timeout (hours)</Label>
+                    <Label htmlFor="session_timeout">{t('settings.sessionTimeout')}</Label>
+                    <Select 
+                      value={systemSettings?.session_timeout?.toString() || '1440'} 
+                      onValueChange={(value) => updateSystemSettings({ session_timeout: parseInt(value) })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="30">{t('settings.minutes', { count: 30 })}</SelectItem>
+                        <SelectItem value="60">{t('settings.hour', { count: 1 })}</SelectItem>
+                        <SelectItem value="480">{t('settings.hours', { count: 8 })}</SelectItem>
+                        <SelectItem value="1440">{t('settings.hours', { count: 24 })}</SelectItem>
+                        <SelectItem value="10080">{t('settings.week', { count: 1 })}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="password_min_length">{t('settings.minimumPasswordLength')}</Label>
                     <Input
-                      id="session_timeout_hours"
+                      id="password_min_length"
                       type="number"
-                      min="1"
-                      max="168"
-                      value={systemSettings?.session_timeout_hours || 24}
-                      onChange={(e) => updateSystemSettings({ session_timeout_hours: parseInt(e.target.value) })}
-                    />
-                    <p className="text-sm text-gray-500 mt-1">How long users stay logged in (1-168 hours)</p>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="require_two_factor">Require Two-Factor Authentication</Label>
-                      <p className="text-sm text-gray-500">Require 2FA for all users</p>
-                    </div>
-                    <Switch
-                      id="require_two_factor"
-                      checked={systemSettings?.require_two_factor || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ require_two_factor: checked })}
+                      min="6"
+                      max="50"
+                      value={systemSettings?.password_min_length || 8}
+                      onChange={(e) => updateSystemSettings({ password_min_length: parseInt(e.target.value) || 8 })}
                     />
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="enforce_strong_passwords">Enforce Strong Passwords</Label>
-                      <p className="text-sm text-gray-500">Require complex passwords</p>
+                      <Label htmlFor="require_password_complexity">{t('settings.requirePasswordComplexity')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.requirePasswordComplexityDesc')}</p>
                     </div>
                     <Switch
-                      id="enforce_strong_passwords"
-                      checked={systemSettings?.enforce_strong_passwords || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ enforce_strong_passwords: checked })}
+                      id="require_password_complexity"
+                      checked={systemSettings?.require_password_complexity || false}
+                      onCheckedChange={(checked) => updateSystemSettings({ require_password_complexity: checked })}
                     />
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Social Login */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Social Authentication
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="allow_google_auth">Allow Google Sign-In</Label>
-                      <p className="text-sm text-gray-500">Enable Google OAuth login</p>
-                    </div>
-                    <Switch
-                      id="allow_google_auth"
-                      checked={systemSettings?.allow_google_auth || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ allow_google_auth: checked })}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="allow_apple_auth">Allow Apple Sign-In</Label>
-                      <p className="text-sm text-gray-500">Enable Apple OAuth login</p>
-                    </div>
-                    <Switch
-                      id="allow_apple_auth"
-                      checked={systemSettings?.allow_apple_auth || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ allow_apple_auth: checked })}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Analytics & Monitoring */}
+              {/* Audit & Logging */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Monitor className="w-5 h-5" />
-                    Analytics & Monitoring
+                    {t('settings.auditAndLogging')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="enable_usage_tracking">Enable Usage Analytics</Label>
-                      <p className="text-sm text-gray-500">Track feature usage and patterns</p>
+                      <Label htmlFor="audit_enabled">{t('settings.enableAuditLogging')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.enableAuditLoggingDesc')}</p>
                     </div>
                     <Switch
-                      id="enable_usage_tracking"
-                      checked={systemSettings?.enable_usage_tracking || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ enable_usage_tracking: checked })}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="enable_performance_monitoring">Performance Monitoring</Label>
-                      <p className="text-sm text-gray-500">Monitor system performance metrics</p>
-                    </div>
-                    <Switch
-                      id="enable_performance_monitoring"
-                      checked={systemSettings?.enable_performance_monitoring || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ enable_performance_monitoring: checked })}
+                      id="audit_enabled"
+                      checked={systemSettings?.audit_enabled || false}
+                      onCheckedChange={(checked) => updateSystemSettings({ audit_enabled: checked })}
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="analytics_cache_ttl">Analytics Cache Duration (seconds)</Label>
-                    <Input
-                      id="analytics_cache_ttl"
-                      type="number"
-                      min="300"
-                      max="86400"
-                      value={systemSettings?.analytics_cache_ttl || 3600}
-                      onChange={(e) => updateSystemSettings({ analytics_cache_ttl: parseInt(e.target.value) })}
+                    <Label htmlFor="log_retention_days">{t('settings.logRetentionDays')}</Label>
+                    <Select 
+                      value={systemSettings?.log_retention_days?.toString() || '90'} 
+                      onValueChange={(value) => updateSystemSettings({ log_retention_days: parseInt(value) })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="30">{t('settings.days', { count: 30 })}</SelectItem>
+                        <SelectItem value="90">{t('settings.days', { count: 90 })}</SelectItem>
+                        <SelectItem value="180">{t('settings.days', { count: 180 })}</SelectItem>
+                        <SelectItem value="365">{t('settings.year', { count: 1 })}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="log_sensitive_data">{t('settings.logSensitiveData')}</Label>
+                      <p className="text-sm text-gray-500">{t('settings.logSensitiveDataDesc')}</p>
+                    </div>
+                    <Switch
+                      id="log_sensitive_data"
+                      checked={systemSettings?.log_sensitive_data || false}
+                      onCheckedChange={(checked) => updateSystemSettings({ log_sensitive_data: checked })}
                     />
-                    <p className="text-sm text-gray-500 mt-1">How long to cache analytics data (5 min - 24 hours)</p>
                   </div>
                 </CardContent>
               </Card>
@@ -736,11 +768,16 @@ export default function SettingsPage() {
                 className="flex items-center gap-2"
               >
                 {saving ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {t('common.saving')}...
+                  </>
                 ) : (
-                  <Save className="w-4 h-4" />
+                  <>
+                    <Save className="w-4 h-4" />
+                    {t('common.saveChanges')}
+                  </>
                 )}
-                Save Security Settings
               </Button>
             </div>
           </TabsContent>
