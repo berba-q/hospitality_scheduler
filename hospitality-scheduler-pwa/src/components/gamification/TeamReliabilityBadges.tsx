@@ -15,6 +15,7 @@ import {
   //TrendingUp,
   //CheckCircle2
 } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface ReliabilityStats {
   acceptanceRate: number
@@ -30,58 +31,60 @@ interface TeamReliabilityBadgesProps {
   className?: string
 }
 
-const BADGES = [
-  {
-    id: 'reliable_responder',
-    name: 'Reliable Responder',
-    description: 'Responds to requests within 2 hours',
-    icon: Clock,
-    requirement: (stats: ReliabilityStats) => stats.avgResponseTime.includes('hour') && parseFloat(stats.avgResponseTime) <= 2,
-    color: 'bg-blue-100 text-blue-800 border-blue-200'
-  },
-  {
-    id: 'team_player',
-    name: 'Team Player',
-    description: 'Accepts 80%+ of swap requests',
-    icon: Users,
-    requirement: (stats: ReliabilityStats) => stats.acceptanceRate >= 80,
-    color: 'bg-green-100 text-green-800 border-green-200'
-  },
-  {
-    id: 'helping_hand',
-    name: 'Helping Hand',
-    description: 'Helped colleagues 5+ times',
-    icon: Heart,
-    requirement: (stats: ReliabilityStats) => stats.totalHelped >= 5,
-    color: 'bg-pink-100 text-pink-800 border-pink-200'
-  },
-  {
-    id: 'streak_master',
-    name: 'Streak Master',
-    description: 'Current helping streak of 5+',
-    icon: Zap,
-    requirement: (stats: ReliabilityStats) => stats.currentStreak >= 5,
-    color: 'bg-yellow-100 text-yellow-800 border-yellow-200'
-  },
-  {
-    id: 'always_there',
-    name: 'Always There',
-    description: 'Accepts 100% of requests',
-    icon: Shield,
-    requirement: (stats: ReliabilityStats) => stats.acceptanceRate === 100 && stats.totalHelped >= 3,
-    color: 'bg-purple-100 text-purple-800 border-purple-200'
-  },
-  {
-    id: 'team_hero',
-    name: 'Team Hero',
-    description: 'Exceptional team support (90+ rating)',
-    icon: Award,
-    requirement: (stats: ReliabilityStats) => stats.teamRating >= 90,
-    color: 'bg-amber-100 text-amber-800 border-amber-200'
-  }
-]
-
 export function TeamReliabilityBadges({ stats, className = '' }: TeamReliabilityBadgesProps) {
+  const { t } = useTranslations()
+
+  const BADGES = [
+    {
+      id: 'reliable_responder',
+      name: t('gamification.reliableResponder'),
+      description: t('gamification.reliableResponderDesc'),
+      icon: Clock,
+      requirement: (stats: ReliabilityStats) => stats.avgResponseTime.includes('hour') && parseFloat(stats.avgResponseTime) <= 2,
+      color: 'bg-blue-100 text-blue-800 border-blue-200'
+    },
+    {
+      id: 'team_player',
+      name: t('gamification.teamPlayer'),
+      description: t('gamification.teamPlayerDesc'),
+      icon: Users,
+      requirement: (stats: ReliabilityStats) => stats.acceptanceRate >= 80,
+      color: 'bg-green-100 text-green-800 border-green-200'
+    },
+    {
+      id: 'helping_hand',
+      name: t('gamification.helpingHand'),
+      description: t('gamification.helpingHandDesc'),
+      icon: Heart,
+      requirement: (stats: ReliabilityStats) => stats.totalHelped >= 5,
+      color: 'bg-pink-100 text-pink-800 border-pink-200'
+    },
+    {
+      id: 'streak_master',
+      name: t('gamification.streakMaster'),
+      description: t('gamification.streakMasterDesc'),
+      icon: Zap,
+      requirement: (stats: ReliabilityStats) => stats.currentStreak >= 5,
+      color: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+    },
+    {
+      id: 'always_there',
+      name: t('gamification.alwaysThere'),
+      description: t('gamification.alwaysThereDesc'),
+      icon: Shield,
+      requirement: (stats: ReliabilityStats) => stats.acceptanceRate === 100 && stats.totalHelped >= 3,
+      color: 'bg-purple-100 text-purple-800 border-purple-200'
+    },
+    {
+      id: 'team_hero',
+      name: t('gamification.teamHero'),
+      description: t('gamification.teamHeroDesc'),
+      icon: Award,
+      requirement: (stats: ReliabilityStats) => stats.teamRating >= 90,
+      color: 'bg-amber-100 text-amber-800 border-amber-200'
+    }
+  ]
+
   const earnedBadges = BADGES.filter(badge => badge.requirement(stats))
   const availableBadges = BADGES.filter(badge => !badge.requirement(stats))
 
@@ -94,14 +97,14 @@ export function TeamReliabilityBadges({ stats, className = '' }: TeamReliability
       <CardContent className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <Star className="w-4 h-4 text-amber-500" />
-          <h3 className="font-medium text-sm">Team Reliability Recognition</h3>
+          <h3 className="font-medium text-sm">{t('gamification.teamReliabilityRecognition')}</h3>
         </div>
         
         <div className="space-y-3">
           {/* Earned Badges */}
           {earnedBadges.length > 0 && (
             <div>
-              <p className="text-xs text-gray-600 mb-2">Your earned recognition:</p>
+              <p className="text-xs text-gray-600 mb-2">{t('gamification.yourEarnedRecognition')}</p>
               <div className="flex flex-wrap gap-2">
                 {earnedBadges.map((badge) => {
                   const Icon = badge.icon
@@ -123,7 +126,7 @@ export function TeamReliabilityBadges({ stats, className = '' }: TeamReliability
           {/* Next Badge to Earn */}
           {availableBadges.length > 0 && (
             <div>
-              <p className="text-xs text-gray-600 mb-2">Next recognition to earn:</p>
+              <p className="text-xs text-gray-600 mb-2">{t('gamification.nextRecognitionToEarn')}</p>
               <div className="p-2 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">

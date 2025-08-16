@@ -12,6 +12,7 @@ import {
   CheckCircle2
   //AlertCircle
 } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface ReliabilityProgressCardProps {
   stats: {
@@ -25,6 +26,8 @@ interface ReliabilityProgressCardProps {
 }
 
 export function ReliabilityProgressCard({ stats }: ReliabilityProgressCardProps) {
+  const { t } = useTranslations()
+
   // Calculate overall reliability score
   const reliabilityScore = Math.round(
     (stats.acceptanceRate * 0.4) + 
@@ -40,10 +43,10 @@ export function ReliabilityProgressCard({ stats }: ReliabilityProgressCardProps)
   }
 
   const getScoreBadge = (score: number) => {
-    if (score >= 90) return { label: 'Exceptional', color: 'bg-green-100 text-green-800' }
-    if (score >= 80) return { label: 'Reliable', color: 'bg-blue-100 text-blue-800' }
-    if (score >= 60) return { label: 'Developing', color: 'bg-yellow-100 text-yellow-800' }
-    return { label: 'Building', color: 'bg-gray-100 text-gray-800' }
+    if (score >= 90) return { label: t('gamification.exceptional'), color: 'bg-green-100 text-green-800' }
+    if (score >= 80) return { label: t('gamification.reliable'), color: 'bg-blue-100 text-blue-800' }
+    if (score >= 60) return { label: t('gamification.developing'), color: 'bg-yellow-100 text-yellow-800' }
+    return { label: t('gamification.building'), color: 'bg-gray-100 text-gray-800' }
   }
 
   const scoreBadge = getScoreBadge(reliabilityScore)
@@ -54,7 +57,7 @@ export function ReliabilityProgressCard({ stats }: ReliabilityProgressCardProps)
         <CardTitle className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4" />
-            Team Reliability
+            {t('gamification.teamReliability')}
           </div>
           <Badge className={scoreBadge.color} variant="outline">
             {scoreBadge.label}
@@ -67,7 +70,7 @@ export function ReliabilityProgressCard({ stats }: ReliabilityProgressCardProps)
           <div className={`text-2xl font-bold ${getScoreColor(reliabilityScore)}`}>
             {reliabilityScore}
           </div>
-          <p className="text-xs text-gray-600">Reliability Score</p>
+          <p className="text-xs text-gray-600">{t('staff.reliabilityScore')}</p>
           <Progress value={reliabilityScore} className="mt-2" />
         </div>
 
@@ -76,7 +79,7 @@ export function ReliabilityProgressCard({ stats }: ReliabilityProgressCardProps)
           <div className="p-2 bg-blue-50 rounded-lg">
             <div className="flex items-center justify-center gap-1 mb-1">
               <CheckCircle2 className="w-3 h-3 text-blue-600" />
-              <span className="text-xs font-medium text-blue-800">Response Rate</span>
+              <span className="text-xs font-medium text-blue-800">{t('swaps.responseRate')}</span>
             </div>
             <div className="text-lg font-bold text-blue-900">{stats.acceptanceRate}%</div>
           </div>
@@ -84,7 +87,7 @@ export function ReliabilityProgressCard({ stats }: ReliabilityProgressCardProps)
           <div className="p-2 bg-green-50 rounded-lg">
             <div className="flex items-center justify-center gap-1 mb-1">
               <Heart className="w-3 h-3 text-green-600" />
-              <span className="text-xs font-medium text-green-800">Times Helped</span>
+              <span className="text-xs font-medium text-green-800">{t('gamification.timesHelped')}</span>
             </div>
             <div className="text-lg font-bold text-green-900">{stats.totalHelped}</div>
           </div>
@@ -98,8 +101,8 @@ export function ReliabilityProgressCard({ stats }: ReliabilityProgressCardProps)
                 <span className="text-xs font-bold text-amber-700">🔥</span>
               </div>
               <div className="text-center">
-                <p className="text-xs font-medium text-amber-800">Current Streak</p>
-                <p className="text-sm font-bold text-amber-900">{stats.currentStreak} in a row</p>
+                <p className="text-xs font-medium text-amber-800">{t('staff.currentStreak')}</p>
+                <p className="text-sm font-bold text-amber-900">{stats.currentStreak} {t('gamification.inARow')}</p>
               </div>
             </div>
           </div>
@@ -109,15 +112,15 @@ export function ReliabilityProgressCard({ stats }: ReliabilityProgressCardProps)
         <div className="text-center">
           {reliabilityScore >= 80 ? (
             <p className="text-xs text-green-700">
-              🌟 You&apos;re a valued team member!
+              {t('gamification.valuedTeamMember')}
             </p>
           ) : reliabilityScore >= 60 ? (
             <p className="text-xs text-blue-700">
-              💪 Building strong team relationships
+              {t('gamification.buildingRelationships')}
             </p>
           ) : (
             <p className="text-xs text-gray-600">
-              🤝 Every bit of help matters to the team
+              {t('gamification.everyHelpMatters')}
             </p>
           )}
         </div>

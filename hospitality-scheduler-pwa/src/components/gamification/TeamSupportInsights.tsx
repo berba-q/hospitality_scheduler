@@ -10,6 +10,7 @@ import {
   //Calendar,
   //AlertTriangle
 } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface TeamSupportInsightsProps {
   insights: {
@@ -22,12 +23,14 @@ interface TeamSupportInsightsProps {
 }
 
 export function TeamSupportInsights({ insights }: TeamSupportInsightsProps) {
+  const { t } = useTranslations()
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Users className="w-4 h-4" />
-          Team Support Insights
+          {t('staff.teamInsights')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -38,7 +41,7 @@ export function TeamSupportInsights({ insights }: TeamSupportInsightsProps) {
               insights.teamCoverage >= 80 ? 'bg-green-500' :
               insights.teamCoverage >= 60 ? 'bg-yellow-500' : 'bg-red-500'
             }`} />
-            <span className="text-xs font-medium">Team Coverage</span>
+            <span className="text-xs font-medium">{t('staff.teamCoverage')}</span>
           </div>
           <span className="text-sm font-bold">{insights.teamCoverage}%</span>
         </div>
@@ -46,7 +49,7 @@ export function TeamSupportInsights({ insights }: TeamSupportInsightsProps) {
         {/* High-Need Periods */}
         {insights.busyDays.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-gray-700 mb-1">Days that often need help:</p>
+            <p className="text-xs font-medium text-gray-700 mb-1">{t('gamification.daysNeedHelp')}</p>
             <div className="flex flex-wrap gap-1">
               {insights.busyDays.map((day) => (
                 <Badge key={day} variant="outline" className="text-xs bg-orange-50 text-orange-700">
@@ -60,7 +63,7 @@ export function TeamSupportInsights({ insights }: TeamSupportInsightsProps) {
         {/* Shift Insights */}
         {insights.needyShifts.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-gray-700 mb-1">Shifts that need more support:</p>
+            <p className="text-xs font-medium text-gray-700 mb-1">{t('gamification.shiftsNeedSupport')}</p>
             <div className="flex flex-wrap gap-1">
               {insights.needyShifts.map((shift) => (
                 <Badge key={shift} variant="outline" className="text-xs bg-blue-50 text-blue-700">
@@ -74,11 +77,11 @@ export function TeamSupportInsights({ insights }: TeamSupportInsightsProps) {
         {/* Your Contribution */}
         <div className="p-2 bg-green-50 rounded-lg border border-green-200">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-green-800">Your Contribution</span>
+            <span className="text-xs font-medium text-green-800">{t('staff.yourContribution')}</span>
             <span className="text-sm font-bold text-green-900">{insights.yourContribution}%</span>
           </div>
           <p className="text-xs text-green-700 mt-1">
-            of team swap coverage this month
+            {t('swaps.teamSwapCoverage')}
           </p>
         </div>
 

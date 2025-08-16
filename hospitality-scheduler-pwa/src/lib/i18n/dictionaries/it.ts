@@ -862,6 +862,7 @@ export const it = {
     helpful: 'utile',
     opportunities: 'opportunità',
     leadsTeamInHelping: '{{name}} guida il team nell\'aiutare i colleghi con la copertura degli scambi.',
+    reliabilityScore: 'Punteggio di Affidabilità',
     
     // Messaggi specifici personale
     manageYourTeam: 'Gestisci il tuo team e le strutture',
@@ -2208,6 +2209,90 @@ export const it = {
     alert: 'Avviso',
     highAlert: 'Avviso Elevato',
     criticalPriorityNotice: 'Avviso di Priorità Critica',
+  },
+
+  gamification: {
+    // Main UI Text
+    teamReliabilityRecognition: 'Riconoscimento Affidabilità del Team',
+    yourEarnedRecognition: 'I tuoi riconoscimenti ottenuti:',
+    nextRecognitionToEarn: 'Prossimo riconoscimento da ottenere:',
+    
+    // Badge Names
+    reliableResponder: 'Risponditore Affidabile',
+    teamPlayer: 'Giocatore di Squadra',
+    helpingHand: 'Mano che Aiuta',
+    streakMaster: 'Maestro delle Serie',
+    alwaysThere: 'Sempre Presente',
+    teamHero: 'Eroe del Team',
+    
+    // Badge Descriptions
+    reliableResponderDesc: 'Risponde alle richieste entro 2 ore',
+    teamPlayerDesc: 'Accetta l\'80%+ delle richieste di scambio',
+    helpingHandDesc: 'Ha aiutato i colleghi 5+ volte',
+    streakMasterDesc: 'Serie di aiuti attuale di 5+',
+    alwaysThereDesc: 'Accetta il 100% delle richieste',
+    teamHeroDesc: 'Supporto eccezionale al team (valutazione 90+)',
+    daysNeedHelp: 'Giorni che spesso hanno bisogno di aiuto:',
+    shiftsNeedSupport: 'Turni che necessitano più supporto:',
+    teamReliability: 'Affidabilità del Team',
+    timesHelped: 'Volte Aiutato',
+    inARow: 'di fila',
+    
+    // Performance Level Badges
+    exceptional: 'Eccezionale',
+    reliable: 'Affidabile',
+    developing: 'In Sviluppo',
+    building: 'In Costruzione',
+    
+    // Encouragement Messages
+    valuedTeamMember: '🌟 Sei un membro prezioso del team!',
+    buildingRelationships: '💪 Costruendo solide relazioni di squadra',
+    everyHelpMatters: '🤝 Ogni aiuto è importante per il team',
+  },
+
+  availability: {
+    // Modal Title
+    requestTimeOff: 'Richiedi Permesso',
+    
+    // Request Type
+    requestType: 'Tipo di Richiesta',
+    singleDate: 'Singola Data',
+    consecutiveDays: 'Più giorni consecutivi',
+    selectDate: 'Seleziona Data',
+    
+    // Time Patterns
+    timePeriod: 'Periodo di Tempo',
+    morningShiftTime: '6:00 - 14:00',
+    afternoonShiftTime: '14:00 - 22:00',
+    eveningShiftTime: '22:00 - 6:00',
+    entireDay: 'Intero periodo di 24 ore',
+    setTimeRange: 'Imposta intervallo di tempo specifico',
+    
+    // Recurring Option
+    recurringUnavailability: 'Rendila una indisponibilità ricorrente (stesso orario ogni settimana)',
+    
+    // Reason Section
+    reasonOptional: 'Motivazione (Opzionale)',
+    reasonPlaceholder: 'Opzionale: Fai sapere al tuo manager perché hai bisogno di questo permesso...',
+    
+    // Info Notes
+    infoNote1: 'Le richieste di permesso influenzano la programmazione futura',
+    infoNote2: 'Il tuo manager sarà notificato di questa richiesta',
+    infoNote3: 'Questo non annulla automaticamente i turni esistenti',
+    infoNote4: 'Per i turni esistenti, usa invece il sistema di scambi',
+    
+    // Buttons
+    submitRequest: 'Invia Richiesta',
+    submitting: 'Invio in corso...',
+    
+    // Error Messages
+    selectDateError: 'Si prega di selezionare una data',
+    selectDatesError: 'Si prega di selezionare le date di inizio e fine',
+    endTimeAfterStartError: 'L\'orario di fine deve essere successivo a quello di inizio',
+    
+    // Success Messages
+    requestSubmittedSuccess: 'Richiesta di permesso inviata con successo!',
+    requestSubmitError: 'Impossibile inviare la richiesta di permesso',
   },
 
   test: {

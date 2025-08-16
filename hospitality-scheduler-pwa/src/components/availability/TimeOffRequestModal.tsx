@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface TimeOffRequestModalProps {
   isOpen: boolean
@@ -37,36 +38,36 @@ interface TimeOffRequestModalProps {
 const QUICK_PATTERNS = [
   {
     id: 'morning',
-    name: 'Morning Shift',
-    description: '6:00 AM - 2:00 PM',
+    name: 'swaps.morningShift', // Reusing existing key
+    description: 'availability.morningShiftTime', // New key needed
     icon: Sun,
     color: 'bg-yellow-100 text-yellow-800'
   },
   {
     id: 'afternoon', 
-    name: 'Afternoon Shift',
-    description: '2:00 PM - 10:00 PM',
+    name: 'swaps.afternoonShift', // Reusing existing key
+    description: 'availability.afternoonShiftTime', // New key needed
     icon: Sunset,
     color: 'bg-orange-100 text-orange-800'
   },
   {
     id: 'evening',
-    name: 'Evening Shift', 
-    description: '10:00 PM - 6:00 AM',
+    name: 'swaps.eveningShift', // Reusing existing key
+    description: 'availability.eveningShiftTime', // New key needed
     icon: Moon,
     color: 'bg-blue-100 text-blue-800'
   },
   {
     id: 'fullday',
-    name: 'Full Day',
-    description: 'Entire 24-hour period',
+    name: 'swaps.fullDay', // Reusing existing key
+    description: 'availability.entireDay', // New key needed
     icon: Clock12,
     color: 'bg-gray-100 text-gray-800'
   },
   {
     id: 'custom',
-    name: 'Custom Hours',
-    description: 'Set specific time range',
+    name: 'swaps.customHours', // Reusing existing key
+    description: 'availability.setTimeRange', // New key needed
     icon: Clock,
     color: 'bg-purple-100 text-purple-800'
   }
@@ -78,6 +79,8 @@ export function TimeOffRequestModal({
   onSubmit, 
   userStaffId 
 }: TimeOffRequestModalProps) {
+  const { t } = useTranslations()
+  
   const [requestType, setRequestType] = useState<'single' | 'range'>('single')
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [startDate, setStartDate] = useState<Date>()
@@ -91,17 +94,17 @@ export function TimeOffRequestModal({
 
   const handleSubmit = async () => {
     if (requestType === 'single' && !selectedDate) {
-      toast.error('Please select a date')
+      toast.error(t('availability.selectDateError'))
       return
     }
     
     if (requestType === 'range' && (!startDate || !endDate)) {
-      toast.error('Please select start and end dates')
+      toast.error(t('availability.selectDatesError'))
       return
     }
 
     if (selectedPattern === 'custom' && customStartHour >= customEndHour) {
-      toast.error('End time must be after start time')
+      toast.error(t('availability.endTimeAfterStartError'))
       return
     }
 
@@ -143,11 +146,11 @@ export function TimeOffRequestModal({
         }
       }
       
-      toast.success('Time off request submitted successfully!')
+      toast.success(t('availability.requestSubmittedSuccess'))
       handleClose()
     } catch (error) {
       console.error('Failed to submit request:', error)
-      toast.error('Failed to submit time off request')
+      toast.error(t('availability.requestSubmitError'))
     } finally {
       setIsSubmitting(false)
     }
@@ -174,14 +177,14 @@ export function TimeOffRequestModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarIcon className="h-5 w-5" />
-            Request Time Off
+            {t('availability.requestTimeOff')}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Request Type */}
           <div className="space-y-3">
-            <Label>Request Type</Label>
+            <Label>{t('availability.requestType')}</Label>
             <div className="grid grid-cols-2 gap-3">
               <Button
                 variant={requestType === 'single' ? 'default' : 'outline'}
@@ -190,8 +193,8 @@ export function TimeOffRequestModal({
               >
                 <CalendarIcon className="w-5 h-5" />
                 <div className="text-center">
-                  <p className="font-medium">Single Date</p>
-                  <p className="text-xs opacity-70">One specific day</p>
+                  <p className="font-medium">{t('availability.singleDate')}</p>
+                  <p className="text-xs opacity-70">{t('swaps.oneSpecificDay')}</p>
                 </div>
               </Button>
               
@@ -202,8 +205,8 @@ export function TimeOffRequestModal({
               >
                 <Clock className="w-5 h-5" />
                 <div className="text-center">
-                  <p className="font-medium">Date Range</p>
-                  <p className="text-xs opacity-70">Multiple consecutive days</p>
+                  <p className="font-medium">{t('swaps.dateRange')}</p>
+                  <p className="text-xs opacity-70">{t('availability.consecutiveDays')}</p>
                 </div>
               </Button>
             </div>
@@ -212,12 +215,12 @@ export function TimeOffRequestModal({
           {/* Date Selection */}
           {requestType === 'single' ? (
             <div className="space-y-2">
-              <Label>Select Date</Label>
+              <Label>{t('availability.selectDate')}</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, 'PPP') : 'Pick a date'}
+                    {selectedDate ? format(selectedDate, 'PPP') : t('swaps.pickDate')}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -234,12 +237,12 @@ export function TimeOffRequestModal({
           ) : (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Start Date</Label>
+                <Label>{t('swaps.startDate')}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start">
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDate ? format(startDate, 'PPP') : 'Start date'}
+                      {startDate ? format(startDate, 'PPP') : t('swaps.startDate')}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
@@ -255,12 +258,12 @@ export function TimeOffRequestModal({
               </div>
               
               <div className="space-y-2">
-                <Label>End Date</Label>
+                <Label>{t('swaps.endDate')}</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start">
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, 'PPP') : 'End date'}
+                      {endDate ? format(endDate, 'PPP') : t('swaps.endDate')}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
@@ -279,7 +282,7 @@ export function TimeOffRequestModal({
 
           {/* Time Pattern Selection */}
           <div className="space-y-3">
-            <Label>Time Period</Label>
+            <Label>{t('availability.timePeriod')}</Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {QUICK_PATTERNS.map((pattern) => {
                 const Icon = pattern.icon
@@ -292,8 +295,8 @@ export function TimeOffRequestModal({
                   >
                     <Icon className="w-4 h-4" />
                     <div className="text-center">
-                      <p className="font-medium text-xs">{pattern.name}</p>
-                      <p className="text-xs opacity-70">{pattern.description}</p>
+                      <p className="font-medium text-xs">{t(pattern.name)}</p>
+                      <p className="text-xs opacity-70">{t(pattern.description)}</p>
                     </div>
                   </Button>
                 )
@@ -305,7 +308,7 @@ export function TimeOffRequestModal({
           {selectedPattern === 'custom' && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Start Hour</Label>
+                <Label>{t('swaps.startHour')}</Label>
                 <Select value={customStartHour.toString()} onValueChange={(value) => setCustomStartHour(parseInt(value))}>
                   <SelectTrigger>
                     <SelectValue />
@@ -321,7 +324,7 @@ export function TimeOffRequestModal({
               </div>
               
               <div className="space-y-2">
-                <Label>End Hour</Label>
+                <Label>{t('swaps.endHour')}</Label>
                 <Select value={customEndHour.toString()} onValueChange={(value) => setCustomEndHour(parseInt(value))}>
                   <SelectTrigger>
                     <SelectValue />
@@ -347,18 +350,18 @@ export function TimeOffRequestModal({
                 onCheckedChange={setIsRecurring}
               />
               <Label htmlFor="recurring" className="text-sm">
-                Make this a recurring unavailability (same time every week)
+                {t('availability.recurringUnavailability')}
               </Label>
             </div>
           )}
 
           {/* Reason */}
           <div className="space-y-2">
-            <Label>Reason (Optional)</Label>
+            <Label>{t('availability.reasonOptional')}</Label>
             <Textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Optional: Let your manager know why you need this time off..."
+              placeholder={t('availability.reasonPlaceholder')}
               rows={3}
               className="resize-none"
             />
@@ -369,12 +372,12 @@ export function TimeOffRequestModal({
             <div className="flex items-start gap-2">
               <Info className="w-4 h-4 text-blue-600 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-blue-900">Important Notes</p>
+                <p className="text-sm font-medium text-blue-900">{t('swaps.importantNotes')}</p>
                 <ul className="text-xs text-blue-700 mt-1 space-y-1">
-                  <li>• Time off requests affect future scheduling</li>
-                  <li>• Your manager will be notified of this request</li>
-                  <li>• This does not automatically cancel existing shifts</li>
-                  <li>• For existing shifts, use the swap system instead</li>
+                  <li>• {t('availability.infoNote1')}</li>
+                  <li>• {t('availability.infoNote2')}</li>
+                  <li>• {t('availability.infoNote3')}</li>
+                  <li>• {t('availability.infoNote4')}</li>
                 </ul>
               </div>
             </div>
@@ -383,10 +386,10 @@ export function TimeOffRequestModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting...' : 'Submit Request'}
+            {isSubmitting ? t('availability.submitting') : t('availability.submitRequest')}
           </Button>
         </DialogFooter>
       </DialogContent>

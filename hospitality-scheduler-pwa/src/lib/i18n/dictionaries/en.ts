@@ -818,6 +818,7 @@ export const en = {
     teamPlayer: 'Team Player',
     topPerformer: 'Top performer',
     coverageHeroes: 'Coverage Heroes',
+    reliabilityScore: 'Reliability Score',
     
     // Staff-specific messages
     manageYourTeam: 'Manage your team and facilities',
@@ -2213,6 +2214,91 @@ export const en = {
     alert: 'Alert',
     highAlert: 'High Alert',
     criticalPriorityNotice: 'Critical Priority Notice',
+  },
+
+  gamification: {
+    // Main UI Text
+    teamReliabilityRecognition: 'Team Reliability Recognition',
+    yourEarnedRecognition: 'Your earned recognition:',
+    nextRecognitionToEarn: 'Next recognition to earn:',
+    
+    // Badge Names
+    reliableResponder: 'Reliable Responder',
+    teamPlayer: 'Team Player',
+    helpingHand: 'Helping Hand',
+    streakMaster: 'Streak Master',
+    alwaysThere: 'Always There',
+    teamHero: 'Team Hero',
+    
+    // Badge Descriptions
+    reliableResponderDesc: 'Responds to requests within 2 hours',
+    teamPlayerDesc: 'Accepts 80%+ of swap requests',
+    helpingHandDesc: 'Helped colleagues 5+ times',
+    streakMasterDesc: 'Current helping streak of 5+',
+    alwaysThereDesc: 'Accepts 100% of requests',
+    teamHeroDesc: 'Exceptional team support (90+ rating)',
+    daysNeedHelp: 'Days that often need help:',
+    shiftsNeedSupport: 'Shifts that need more support:',
+
+    teamReliability: 'Team Reliability',
+    timesHelped: 'Times Helped',
+    inARow: 'in a row',
+    
+    // Performance Level Badges
+    exceptional: 'Exceptional',
+    reliable: 'Reliable',
+    developing: 'Developing',
+    building: 'Building',
+    
+    // Encouragement Messages
+    valuedTeamMember: '🌟 You\'re a valued team member!',
+    buildingRelationships: '💪 Building strong team relationships',
+    everyHelpMatters: '🤝 Every bit of help matters to the team',
+  },
+
+  availability: {
+    // Modal Title
+    requestTimeOff: 'Request Time Off',
+    
+    // Request Type
+    requestType: 'Request Type',
+    singleDate: 'Single Date',
+    consecutiveDays: 'Multiple consecutive days',
+    selectDate: 'Select Date',
+    
+    // Time Patterns
+    timePeriod: 'Time Period',
+    morningShiftTime: '6:00 AM - 2:00 PM',
+    afternoonShiftTime: '2:00 PM - 10:00 PM', 
+    eveningShiftTime: '10:00 PM - 6:00 AM',
+    entireDay: 'Entire 24-hour period',
+    setTimeRange: 'Set specific time range',
+    
+    // Recurring Option
+    recurringUnavailability: 'Make this a recurring unavailability (same time every week)',
+    
+    // Reason Section
+    reasonOptional: 'Reason (Optional)',
+    reasonPlaceholder: 'Optional: Let your manager know why you need this time off...',
+    
+    // Info Notes
+    infoNote1: 'Time off requests affect future scheduling',
+    infoNote2: 'Your manager will be notified of this request',
+    infoNote3: 'This does not automatically cancel existing shifts',
+    infoNote4: 'For existing shifts, use the swap system instead',
+    
+    // Buttons
+    submitRequest: 'Submit Request',
+    submitting: 'Submitting...',
+    
+    // Error Messages
+    selectDateError: 'Please select a date',
+    selectDatesError: 'Please select start and end dates',
+    endTimeAfterStartError: 'End time must be after start time',
+    
+    // Success Messages
+    requestSubmittedSuccess: 'Time off request submitted successfully!',
+    requestSubmitError: 'Failed to submit time off request',
   },
 
   test: {
