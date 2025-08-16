@@ -1,5 +1,5 @@
 'use client'
-
+// Login page
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import { useTranslations } from '@/hooks/useTranslations'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [credentials, setCredentials] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const { data: session, status } = useSession()
+  const { t } = useTranslations()
 
   // Check if user is already logged in
   useEffect(() => {
@@ -52,12 +54,12 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError('Invalid email or password')
+        setError(t('auth.invalidCredentials'))
       } else {
         router.push('/dashboard')
       }
     } catch (error) {
-      setError('Login failed. Please try again.')
+      setError(t('auth.loginFailed'))
     } finally {
       setIsLoading(false)
     }
@@ -68,7 +70,7 @@ export default function LoginPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{t('common.loading')}</p>
         </div>
       </div>
     )
@@ -83,10 +85,10 @@ export default function LoginPage() {
           </div>
           
           <CardTitle className="text-2xl font-bold text-gray-900">
-            Welcome Back
+            {t('auth.welcomeBack')}
           </CardTitle>
           <CardDescription className="text-gray-600">
-            Sign in to manage your hospitality schedule
+            {t('auth.signInToManage')}
           </CardDescription>
         </CardHeader>
 
@@ -124,7 +126,7 @@ export default function LoginPage() {
                     </svg>
                   )}
                   <span className="font-medium">
-                    {isLoading ? 'Signing in...' : 'Continue with Google'}
+                    {isLoading ? t('auth.signing') : t('auth.continueWithGoogle')}
                   </span>
                 </div>
               </Button>
@@ -135,7 +137,7 @@ export default function LoginPage() {
                   <div className="w-full border-t border-gray-200" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-3 bg-white text-gray-500">or</span>
+                  <span className="px-3 bg-white text-gray-500">{t('common.or')}</span>
                 </div>
               </div>
 
@@ -145,7 +147,7 @@ export default function LoginPage() {
                 className="w-full text-gray-600 hover:text-gray-900"
                 onClick={() => setShowCredentials(true)}
               >
-                Sign in with FastAPI credentials
+                {t('auth.signWithCredentials')}
               </Button>
             </>
           ) : (
@@ -153,7 +155,7 @@ export default function LoginPage() {
               {/* Credentials Form */}
               <form onSubmit={handleCredentialsLogin} className="space-y-4">
                 <div>
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t('auth.email')}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -165,7 +167,7 @@ export default function LoginPage() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">{t('auth.password')}</Label>
                   <Input
                     id="password"
                     type="password"
@@ -185,21 +187,21 @@ export default function LoginPage() {
                   className="w-full" 
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Signing in...' : 'Sign In'}
+                  {isLoading ? t('auth.signing') : t('auth.sign')}
                 </Button>
               </form>
 
               <Button 
                 variant="ghost" 
-                className="w-full text-gray-600 hover:text"
+                className="w-full text-gray-600 hover:text-gray-900"
                 onClick={() => setShowCredentials(false)}
              >
-               ← Back to Google Sign In
+               {t('auth.backToGoogle')}
              </Button>
 
              {/* Demo credentials hint */}
              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
-               <p className="text-blue-800 text-xs font-medium">Demo Credentials:</p>
+               <p className="text-blue-800 text-xs font-medium">{t('auth.demoCredentials')}</p>
                <p className="text-blue-700 text-xs">manager@example.com / changeme</p>
                <p className="text-blue-700 text-xs">supervisor@example.com / changeme</p>
              </div>
@@ -209,7 +211,7 @@ export default function LoginPage() {
          {/* Footer */}
          <div className="pt-4 text-center">
            <p className="text-xs text-gray-500">
-             By signing in, you agree to our Terms of Service and Privacy Policy
+             {t('auth.signingYouAgree')}
            </p>
          </div>
        </CardContent>

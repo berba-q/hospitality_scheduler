@@ -22,6 +22,13 @@ export const en = {
     signingYouAgree: 'By signing in, you agree to our Terms of Service and Privacy Policy',
     signing: 'Signing in...',
     notSigned: 'Not signed in',
+    welcomeBack: 'Welcome Back',
+    signInToManage: 'Sign in to manage your hospitality schedule',
+    signWithCredentials: 'Sign in with your credentials',
+    invalidCredentials: 'Invalid email or password',
+    loginFailed: 'Login failed. Please try again.',
+    backToGoogle: '← Back to Google Sign In',
+    demoCredentials: 'Demo Credentials:',
   },
 
   common: {
@@ -73,6 +80,7 @@ export const en = {
     by: 'by',
     day: 'Day',
     enable: 'Enable',
+    or: 'or',
     // Show/Hide actions
     show: 'Show',
     hide: 'Hide',

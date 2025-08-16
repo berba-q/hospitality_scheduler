@@ -21,6 +21,13 @@ export const it = {
     signingYouAgree: 'Accedendo, accetti i nostri Termini di Servizio e Informativa sulla Privacy',
     signing: 'Accesso in corso...',
     notSigned: 'Non autenticato',
+    welcomeBack: 'Bentornato',
+    signInToManage: 'Accedi per gestire la tua pianificazione ospitalità',
+    signWithCredentials: 'Accedi con le tue credenziali',
+    invalidCredentials: 'Email o password non validi',
+    loginFailed: 'Accesso fallito. Riprova.',
+    backToGoogle: '← Torna all\'Accesso Google',
+    demoCredentials: 'Credenziali Demo:',
   },
 
   common: {
@@ -70,6 +77,7 @@ export const it = {
     conflicts: 'Conflitti',
     records: 'Registri',
     enable: 'Abilita',
+    or: 'o',
     
     // Azioni mostra/nascondi
     show: 'Mostra',
