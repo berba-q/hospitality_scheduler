@@ -19,6 +19,7 @@ import {
   Filter
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface ScheduleListModalProps {
   open: boolean
@@ -39,6 +40,7 @@ export function ScheduleListModal({
   onScheduleDelete,
   isManager
 }: ScheduleListModalProps) {
+  const { t } = useTranslations()
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'empty' | 'partial' | 'complete'>('all')
@@ -65,21 +67,21 @@ export function ScheduleListModal({
     
     if (assignmentCount === 0) {
       return { 
-        label: 'Empty', 
+        label: t('schedule.empty'), 
         color: 'bg-gray-100 text-gray-600 border-gray-200', 
         icon: AlertTriangle,
         key: 'empty'
       }
     } else if (assignmentCount < 10) {
       return { 
-        label: 'Partial', 
+        label: t('schedule.partial'), 
         color: 'bg-yellow-100 text-yellow-700 border-yellow-200', 
         icon: Clock,
         key: 'partial'
       }
     } else {
       return { 
-        label: 'Complete', 
+        label: t('schedule.complete'), 
         color: 'bg-green-100 text-green-700 border-green-200', 
         icon: CheckCircle,
         key: 'complete'
@@ -92,8 +94,10 @@ export function ScheduleListModal({
     const weekDate = formatDate(schedule.week_start)
     
     const confirmed = window.confirm(
-      `Are you sure you want to delete the schedule for the week of ${weekDate}?\n\n` +
-      `This will permanently remove ${assignmentCount} assignments and cannot be undone.`
+      t('schedule.deleteScheduleConfirmation', { 
+        weekDate, 
+        assignmentCount 
+      })
     )
     
     if (confirmed) {
@@ -105,10 +109,10 @@ export function ScheduleListModal({
     setDeletingId(scheduleId)
     try {
       await onScheduleDelete(scheduleId)
-      toast.success('Schedule deleted successfully')
+      toast.success(t('schedule.scheduleDeletedSuccessfully'))
     } catch (error) {
       console.error('Failed to delete schedule:', error)
-      toast.error('Failed to delete schedule')
+      toast.error(t('schedule.failedDeleteSchedule'))
     } finally {
       setDeletingId(null)
     }
@@ -146,9 +150,9 @@ export function ScheduleListModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Manage Schedules
+            {t('schedule.manageSchedules')}
             <Badge variant="secondary" className="ml-2">
-              {schedules.length} total
+              {schedules.length} {t('common.total')}
             </Badge>
           </DialogTitle>
         </DialogHeader>
@@ -158,7 +162,7 @@ export function ScheduleListModal({
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <Input
-              placeholder="Search schedules by date..."
+              placeholder={t('schedule.searchSchedules')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -172,10 +176,10 @@ export function ScheduleListModal({
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm"
             >
-              <option value="all">All Status</option>
-              <option value="empty">Empty</option>
-              <option value="partial">Partial</option>
-              <option value="complete">Complete</option>
+              <option value="all">{t('schedule.allStatus')}</option>
+              <option value="empty">{t('schedule.empty')}</option>
+              <option value="partial">{t('schedule.partial')}</option>
+              <option value="complete">{t('schedule.complete')}</option>
             </select>
           </div>
         </div>
@@ -185,9 +189,9 @@ export function ScheduleListModal({
           {sortedSchedules.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Calendar className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p>No schedules found</p>
+              <p>{t('schedule.noSchedulesFound')}</p>
               {searchQuery && (
-                <p className="text-sm">Try adjusting your search or filters</p>
+                <p className="text-sm">{t('schedule.tryAdjustingFilters')}</p>
               )}
             </div>
           ) : (
@@ -211,11 +215,11 @@ export function ScheduleListModal({
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="font-medium text-gray-900">
-                          Week of {formatDate(schedule.week_start)}
+                          {t('common.weekOf')} {formatDate(schedule.week_start)}
                         </h3>
                         {isCurrent && (
                           <Badge variant="default" className="text-xs">
-                            Current
+                            {t('common.current')}
                           </Badge>
                         )}
                         <Badge className={`text-xs border ${status.color}`}>
@@ -231,11 +235,11 @@ export function ScheduleListModal({
                       <div className="flex items-center gap-4 text-xs text-gray-500">
                         <span className="flex items-center gap-1">
                           <Users className="w-3 h-3" />
-                          {assignmentCount} assignments
+                          {assignmentCount} {t('common.assignments')}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {schedule.created_at ? formatDate(schedule.created_at) : 'Unknown date'}
+                          {schedule.created_at ? formatDate(schedule.created_at) : t('schedule.unknownDate')}
                         </span>
                       </div>
                     </div>
@@ -252,13 +256,13 @@ export function ScheduleListModal({
                           className="text-xs"
                         >
                           <Eye className="w-3 h-3 mr-1" />
-                          View
+                          {t('common.view')}
                         </Button>
                       )}
                       
                       {isCurrent && (
                         <Badge variant="default" className="text-xs">
-                          Current
+                          {t('common.current')}
                         </Badge>
                       )}
                       
@@ -287,10 +291,10 @@ export function ScheduleListModal({
         {/* Footer */}
         <div className="flex items-center justify-between pt-4 border-t">
           <p className="text-sm text-gray-500">
-            {sortedSchedules.length} of {schedules.length} schedules shown
+            {sortedSchedules.length} {t('common.of')} {schedules.length} {t('common.schedulesShown')}
           </p>
           <Button variant="outline" onClick={onClose}>
-            Close
+            {t('common.close')}
           </Button>
         </div>
       </DialogContent>

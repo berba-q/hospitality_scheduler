@@ -77,9 +77,11 @@ export const en = {
     hide: 'Hide',
     showAll: 'Show All',
     hideAll: 'Hide All',
+    saving: 'Saving...',
     
     // Selection actions
     select: 'Select',
+    selected: 'Selected',
     selectAll: 'Select All',
     selectNone: 'Select None',
     clearAll: 'Clear All',
@@ -156,6 +158,7 @@ export const en = {
     shifts: 'Shifts',
     zone: 'Zone',
     zones: 'Zones',
+    roles: 'Roles',
     
     // ============================================================================
     // COMMON UI ELEMENTS
@@ -248,6 +251,9 @@ export const en = {
     nextMonth: 'Next Month',
     thisPeriod: 'This Period',
     times: 'Times',
+    weekOf: 'Week of',
+    schedulesShown: 'schedules shown',
+    of: 'of',
     
     // Time units
     hours: 'hours',
@@ -428,6 +434,7 @@ export const en = {
     // ============================================================================
     // SCHEDULE-SPECIFIC TERMS
     // ============================================================================
+    schecule: 'schedule',
     mySchedule: 'My Schedule',
     noSchedule: 'No Schedule',
     scheduleActive: 'Schedule Active',
@@ -449,6 +456,7 @@ export const en = {
     dailySchedule: 'Daily Schedule',
     weeklySchedule: 'Weekly Schedule',
     monthlyOverview: 'Monthly Overview',
+    mineOnly: 'MINE ONLY',
     currentWeek: 'Current Week',
     previousWeek: 'Previous Week',
     showMyShiftsOnly: 'Show My Shifts Only',
@@ -459,6 +467,83 @@ export const en = {
     generateSmartSchedule: 'Generate Smart Schedule',
     generatingSmartSchedule: 'Generating Smart Schedule...',
     smartGeneration: 'Smart Generation',
+    
+    // Generation specific
+    zoneSetup: 'Zone Setup',
+    aiOptimization: 'AI Optimization',
+    previewAndGenerate: 'Preview & Generate',
+    zoneBasedStaffAssignment: 'Zone-Based Staff Assignment',
+    aiOptimizationSettings: 'AI Optimization Settings',
+    generationPreview: 'Generation Preview',
+    aiPoweredGeneration: 'AI-Powered Generation',
+    
+    // Smart constraints
+    useSmartConstraints: 'Use Smart Constraints',
+    applyBusinessRules: 'Apply business rules and regulations',
+    requireManagerPerShift: 'Require Manager per Shift',
+    ensureManagerialOversight: 'Ensure managerial oversight',
+    distributeHoursEvenly: 'Distribute hours evenly',
+    allowOvertime: 'Allow Overtime',
+    permitOvertimeScheduling: 'Permit overtime scheduling',
+    
+    // Coverage and optimization
+    coveragePriority: 'Coverage Priority',
+    minimalCoverage: 'Minimal Coverage',
+    balancedCoverage: 'Balanced Coverage',
+    maximumCoverage: 'Maximum Coverage',
+    shiftPreferenceMultipliers: 'Shift Preference Multipliers',
+    higherValuesIncrease: 'Higher values increase staffing preference for that shift',
+    prioritizeSkillMatching: 'Prioritize Skill Matching',
+    matchStaffSkillsToZone: 'Match staff skills to zone requirements',
+    
+    // Zone configuration
+    coverage: 'Coverage',
+    requiredRoles: 'Required Roles',
+    allRolesAccepted: 'All roles accepted',
+    
+    // Preview and feasibility
+    totalAssignmentsNeeded: 'Total Assignments Needed',
+    feasibility: 'Feasibility',
+    optimal: 'Optimal',
+    challenging: 'Challenging',
+    zoneCoverageSummary: 'Zone Coverage Summary',
+    
+    // AI description
+    aiScheduleDescription: 'The system will automatically assign staff to zones based on roles, skills, and your configured constraints. Staff will be optimally distributed across {periodType} periods with intelligent workload balancing.',
+
+    // Configuration modal specific
+    timeHoursConstraints: 'Time & Hours Constraints',
+    staffingRequirements: 'Staffing Requirements',
+    shiftSpecificRequirements: 'Shift-Specific Requirements',
+    configurationValid: 'Configuration Valid',
+    resetToDefaults: 'Reset to Defaults',
+    noChanges: 'No Changes',
+    
+    // Field labels
+    minimumRestHours: 'Minimum Rest Hours',
+    hoursBetweenShifts: 'Hours between shifts',
+    maxConsecutiveDays: 'Max Consecutive Days',
+    workingDaysInRow: 'Working days in a row',
+    defaultMaxWeeklyHours: 'Default Max Weekly Hours',
+    whenStaffMaxHoursNotSet: 'When staff max hours not set',
+    requireManagerOnEveryShift: 'Require manager on every shift',
+    
+    // Shift requirements
+    minimumSkillLevel: 'Minimum Skill Level',
+    clickRolesToRequire: 'Click roles to require them for this shift',
+    
+    // Shift names and times
+    morningShift: 'Morning Shift',
+    afternoonShift: 'Afternoon Shift',
+    eveningShift: 'Evening Shift',
+    morningTime: '6:00 AM - 2:00 PM',
+    afternoonTime: '2:00 PM - 10:00 PM',
+    eveningTime: '10:00 PM - 6:00 AM',
+    
+    // Status messages
+    configurationDescription: 'All constraints are properly configured and will be applied during schedule generation',
+    
+    
     
     // Schedule Status
     empty: 'Empty',
@@ -535,6 +620,7 @@ export const en = {
     viewYourWorkSchedule: 'View your work schedule and request shift swaps',
     chooseFacilityFromDropdown: 'Choose a facility from the dropdown above to view and manage schedules',
     loadingScheduleData: 'Loading schedule data...',
+    deleteScheduleConfirmation: 'Are you sure you want to delete the schedule for the week of {weekDate}?\n\nThis will permanently remove {assignmentCount} assignments and cannot be undone.',
     
     // Swap integration (schedule context)
     requestSwap: 'Request Swap',
@@ -568,20 +654,16 @@ export const en = {
     autoAssignByZone: 'Auto-assign by Zone',
     balanceWorkload: 'Balance Workload',
     prioritizeSkillMatch: 'Prioritize Skill Match',
-    coveragePriority: 'Coverage Priority',
     minimal: 'Minimal',
     balanced: 'Balanced',
     maximum: 'Maximum',
     shiftPreferences: 'Shift Preferences',
-    higherValuesIncrease: 'Higher values increase staffing preference for that shift',
     morningMultiplier: 'Morning Multiplier',
     afternoonMultiplier: 'Afternoon Multiplier',
     eveningMultiplier: 'Evening Multiplier',
     allConstraintsAre: 'All constraints are properly configured and will be applied during schedule generation',
     
     // Zone Management
-    zoneSetup: 'Zone Setup',
-    requiredRoles: 'Required Roles',
     requiresManager: 'Requires Manager',
     
     // Additional Actions
@@ -601,7 +683,6 @@ export const en = {
 
     // Business Rules
     allowOvertimeScheduling: 'Allow overtime scheduling',
-    applyBusinessRules: 'Apply business rules and regulations',
     applyWeekendRestrictions: 'Apply weekend restrictions',
     
     // Swap Integration
@@ -693,6 +774,11 @@ export const en = {
     chooseDifferentFile: 'Choose a different file',
     importStaffMembers: 'Import staff record(s)',
     missingStaff: 'No staff available',
+    availableStaff: 'Available Staff',
+    filterByRole: 'Filter by Role',
+    allRoles: 'All Roles',
+    dragDropAssignment: 'Drag & Drop Assignment',
+    dragStaffToCalendar: 'Drag staff members from this panel and drop them onto calendar slots to create assignments',
     
     // Staff roles
     manager: 'Manager',

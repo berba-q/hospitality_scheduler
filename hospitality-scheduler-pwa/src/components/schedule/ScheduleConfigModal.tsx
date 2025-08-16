@@ -19,6 +19,7 @@ import {
   Star
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface ScheduleConfigModalProps {
   open: boolean
@@ -48,22 +49,24 @@ const COMMON_ROLES = [
   'Security', 'Waiter', 'Waitress', 'Bartender', 'Host/Hostess'
 ]
 
-const SHIFTS = [
-  { id: "0", name: 'Morning', time: '6:00 AM - 2:00 PM' },
-  { id: "1", name: 'Afternoon', time: '2:00 PM - 10:00 PM' },
-  { id: "2", name: 'Evening', time: '10:00 PM - 6:00 AM' }
-]
-
 export function ScheduleConfigModal({
   open,
   onClose,
   facility
 }: ScheduleConfigModalProps) {
+  const { t } = useTranslations()
   const [config, setConfig] = useState(DEFAULT_CONFIG)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [originalConfig, setOriginalConfig] = useState(DEFAULT_CONFIG)
+
+  // Define shifts with translations
+  const SHIFTS = [
+    { id: "0", name: t('schedule.morningShift'), time: t('schedule.morningTime') },
+    { id: "1", name: t('schedule.afternoonShift'), time: t('schedule.afternoonTime') },
+    { id: "2", name: t('schedule.eveningShift'), time: t('schedule.eveningTime') }
+  ]
 
   // Load existing config when modal opens
   useEffect(() => {
@@ -83,7 +86,7 @@ export function ScheduleConfigModal({
       setHasChanges(false)
     } catch (error) {
       console.error('Failed to load config:', error)
-      toast.error('Failed to load configuration')
+      toast.error(t('schedule.failedLoadConfiguration'))
     } finally {
       setLoading(false)
     }
@@ -94,13 +97,13 @@ export function ScheduleConfigModal({
     try {
       // In a real implementation, save to API
       // await apiClient.saveScheduleConfig(facility.id, config)
-      toast.success('Configuration saved successfully!')
+      toast.success(t('schedule.configurationSavedSuccessfully'))
       setOriginalConfig(config)
       setHasChanges(false)
       onClose()
     } catch (error) {
       console.error('Failed to save config:', error)
-      toast.error('Failed to save configuration')
+      toast.error(t('schedule.failedSaveConfiguration'))
     } finally {
       setSaving(false)
     }
@@ -147,7 +150,7 @@ export function ScheduleConfigModal({
             <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
               <Settings className="w-4 h-4 text-white" />
             </div>
-            Schedule Configuration - {facility.name}
+            {t('schedule.scheduleConfiguration')} - {facility.name}
           </DialogTitle>
         </DialogHeader>
 
@@ -155,7 +158,7 @@ export function ScheduleConfigModal({
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-gray-600">Loading configuration...</p>
+              <p className="text-gray-600">{t('schedule.loadingConfiguration')}</p>
             </div>
           </div>
         ) : (
@@ -165,12 +168,12 @@ export function ScheduleConfigModal({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="w-5 h-5" />
-                  Time & Hours Constraints
+                  {t('schedule.timeHoursConstraints')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="min_rest_hours">Minimum Rest Hours</Label>
+                  <Label htmlFor="min_rest_hours">{t('schedule.minimumRestHours')}</Label>
                   <Input
                     id="min_rest_hours"
                     type="number"
@@ -180,11 +183,11 @@ export function ScheduleConfigModal({
                     onChange={(e) => updateConfig({ min_rest_hours: parseInt(e.target.value) })}
                     className="mt-1"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Hours between shifts</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('schedule.hoursBetweenShifts')}</p>
                 </div>
 
                 <div>
-                  <Label htmlFor="max_consecutive_days">Max Consecutive Days</Label>
+                  <Label htmlFor="max_consecutive_days">{t('schedule.maxConsecutiveDays')}</Label>
                   <Input
                     id="max_consecutive_days"
                     type="number"
@@ -194,11 +197,11 @@ export function ScheduleConfigModal({
                     onChange={(e) => updateConfig({ max_consecutive_days: parseInt(e.target.value) })}
                     className="mt-1"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Working days in a row</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('schedule.workingDaysInRow')}</p>
                 </div>
 
                 <div>
-                  <Label htmlFor="max_weekly_hours">Default Max Weekly Hours</Label>
+                  <Label htmlFor="max_weekly_hours">{t('schedule.defaultMaxWeeklyHours')}</Label>
                   <Input
                     id="max_weekly_hours"
                     type="number"
@@ -208,7 +211,7 @@ export function ScheduleConfigModal({
                     onChange={(e) => updateConfig({ max_weekly_hours: parseInt(e.target.value) })}
                     className="mt-1"
                   />
-                  <p className="text-xs text-gray-500 mt-1">When staff max hours not set</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('schedule.whenStaffMaxHoursNotSet')}</p>
                 </div>
 
                 <div className="flex items-center gap-2 pt-6">
@@ -219,7 +222,7 @@ export function ScheduleConfigModal({
                     onChange={(e) => updateConfig({ allow_overtime: e.target.checked })}
                     className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
                   />
-                  <Label htmlFor="allow_overtime">Allow overtime scheduling</Label>
+                  <Label htmlFor="allow_overtime">{t('schedule.allowOvertimeScheduling')}</Label>
                 </div>
               </CardContent>
             </Card>
@@ -229,12 +232,12 @@ export function ScheduleConfigModal({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  Staffing Requirements
+                  {t('schedule.staffingRequirements')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="min_staff_per_shift">Min Staff per Shift</Label>
+                  <Label htmlFor="min_staff_per_shift">{t('schedule.minStaffPer')}</Label>
                   <Input
                     id="min_staff_per_shift"
                     type="number"
@@ -247,7 +250,7 @@ export function ScheduleConfigModal({
                 </div>
 
                 <div>
-                  <Label htmlFor="max_staff_per_shift">Max Staff per Shift</Label>
+                  <Label htmlFor="max_staff_per_shift">{t('schedule.maxStaffPer')}</Label>
                   <Input
                     id="max_staff_per_shift"
                     type="number"
@@ -267,7 +270,7 @@ export function ScheduleConfigModal({
                     onChange={(e) => updateConfig({ require_manager_per_shift: e.target.checked })}
                     className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
                   />
-                  <Label htmlFor="require_manager_per_shift">Require manager on every shift</Label>
+                  <Label htmlFor="require_manager_per_shift">{t('schedule.requireManagerOnEveryShift')}</Label>
                 </div>
 
                 <div className="flex items-center gap-2 pt-2">
@@ -278,7 +281,7 @@ export function ScheduleConfigModal({
                     onChange={(e) => updateConfig({ weekend_restrictions: e.target.checked })}
                     className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
                   />
-                  <Label htmlFor="weekend_restrictions">Apply weekend restrictions</Label>
+                  <Label htmlFor="weekend_restrictions">{t('schedule.applyWeekendRestrictions')}</Label>
                 </div>
               </CardContent>
             </Card>
@@ -288,7 +291,7 @@ export function ScheduleConfigModal({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="w-5 h-5" />
-                  Shift-Specific Requirements
+                  {t('schedule.shiftSpecificRequirements')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -299,16 +302,16 @@ export function ScheduleConfigModal({
                     <div key={shift.id} className="p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <h4 className="font-medium">{shift.name} Shift</h4>
+                          <h4 className="font-medium">{shift.name}</h4>
                           <p className="text-sm text-gray-600">{shift.time}</p>
                         </div>
-                        <Badge variant="outline">{shift.name}</Badge>
+                        <Badge variant="outline">{shift.name.split(' ')[0]}</Badge>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Required Roles */}
                         <div>
-                          <Label className="text-sm font-medium mb-2 block">Required Roles</Label>
+                          <Label className="text-sm font-medium mb-2 block">{t('schedule.requiredRoles')}</Label>
                           <div className="flex flex-wrap gap-2">
                             {COMMON_ROLES.map((role) => (
                               <Badge
@@ -326,14 +329,14 @@ export function ScheduleConfigModal({
                             ))}
                           </div>
                           <p className="text-xs text-gray-500 mt-2">
-                            Click roles to require them for this shift
+                            {t('schedule.clickRolesToRequire')}
                           </p>
                         </div>
 
                         {/* Minimum Skill Level */}
                         <div>
                           <Label className="text-sm font-medium mb-2 block">
-                            Minimum Skill Level
+                            {t('schedule.minimumSkillLevel')}
                           </Label>
                           <div className="flex items-center gap-2">
                             {[1, 2, 3, 4, 5].map((level) => (
@@ -353,7 +356,7 @@ export function ScheduleConfigModal({
                               </button>
                             ))}
                             <span className="ml-2 text-sm text-gray-600">
-                              Level {shiftReq.min_skill_level || 1}
+                              {t('staff.levelNumber', { level: shiftReq.min_skill_level || 1 })}
                             </span>
                           </div>
                         </div>
@@ -370,9 +373,9 @@ export function ScheduleConfigModal({
                 <div className="flex items-center gap-3">
                   <CheckCircle className="w-6 h-6 text-green-600" />
                   <div>
-                    <p className="font-medium text-green-900">Configuration Valid</p>
+                    <p className="font-medium text-green-900">{t('schedule.configurationValid')}</p>
                     <p className="text-sm text-green-700">
-                      All constraints are properly configured and will be applied during schedule generation
+                      {t('schedule.configurationDescription')}
                     </p>
                   </div>
                 </div>
@@ -384,7 +387,7 @@ export function ScheduleConfigModal({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <div className="flex items-center gap-2 text-blue-800">
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium">You have unsaved changes</span>
+                  <span className="text-sm font-medium">{t('common.unsavedChanges')}</span>
                 </div>
               </div>
             )}
@@ -398,7 +401,7 @@ export function ScheduleConfigModal({
                 disabled={saving}
               >
                 <RotateCcw className="w-4 h-4" />
-                Reset to Defaults
+                {t('schedule.resetToDefaults')}
               </Button>
               
               <div className="flex-1" />
@@ -408,7 +411,7 @@ export function ScheduleConfigModal({
                 onClick={onClose}
                 disabled={saving}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               
               <Button
@@ -423,12 +426,12 @@ export function ScheduleConfigModal({
                 {saving ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Saving...
+                    {t('common.saving')}
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
                     <Save className="w-4 h-4" />
-                    {hasChanges ? 'Save Configuration' : 'No Changes'}
+                    {hasChanges ? t('schedule.saveConfiguration') : t('schedule.noChanges')}
                   </div>
                 )}
               </Button>

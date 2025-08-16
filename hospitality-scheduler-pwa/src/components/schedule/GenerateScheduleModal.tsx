@@ -23,6 +23,7 @@ import {
   Target,
   Layers
 } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface SmartGenerateModalProps {
   open: boolean
@@ -47,6 +48,7 @@ export function SmartGenerateModal({
   periodType,
   onGenerate
 }: SmartGenerateModalProps) {
+  const { t } = useTranslations()
   const [generating, setGenerating] = useState(false)
   const [activeTab, setActiveTab] = useState('zones')
   const [config, setConfig] = useState({
@@ -217,6 +219,12 @@ export function SmartGenerateModal({
     }
   })
 
+  // Helper function to get translated period type with proper capitalization
+  const getPeriodTypeLabel = (type: string) => {
+    const key = `schedule.${type}` as const
+    return t(key).charAt(0).toUpperCase() + t(key).slice(1)
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -225,7 +233,7 @@ export function SmartGenerateModal({
             <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
               <Brain className="w-4 h-4 text-white" />
             </div>
-            Smart Schedule Generation
+            {t('schedule.smartScheduleGeneration')}
           </DialogTitle>
         </DialogHeader>
 
@@ -240,7 +248,7 @@ export function SmartGenerateModal({
                   </div>
                   <div>
                     <p className="font-medium text-purple-900">{facility?.name}</p>
-                    <p className="text-sm text-purple-700">Facility</p>
+                    <p className="text-sm text-purple-700">{t('common.facility')}</p>
                   </div>
                 </div>
                 
@@ -250,7 +258,7 @@ export function SmartGenerateModal({
                   </div>
                   <div>
                     <p className="font-medium text-blue-900">{formatPeriodDisplay(periodStart, periodType)}</p>
-                    <p className="text-sm text-blue-700">{periodType.charAt(0).toUpperCase() + periodType.slice(1)} Schedule</p>
+                    <p className="text-sm text-blue-700">{getPeriodTypeLabel(periodType)} {t('schedule.schedule')}</p>
                   </div>
                 </div>
                 
@@ -259,8 +267,8 @@ export function SmartGenerateModal({
                     <Users className="w-5 h-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-green-900">{staff.filter(s => s.is_active).length} Staff</p>
-                    <p className="text-sm text-green-700">Available</p>
+                    <p className="font-medium text-green-900">{staff.filter(s => s.is_active).length} {t('common.staff')}</p>
+                    <p className="text-sm text-green-700">{t('common.available')}</p>
                   </div>
                 </div>
                 
@@ -269,8 +277,8 @@ export function SmartGenerateModal({
                     <Layers className="w-5 h-5 text-orange-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-orange-900">{selectedZones.length} Zones</p>
-                    <p className="text-sm text-orange-700">Selected</p>
+                    <p className="font-medium text-orange-900">{selectedZones.length} {t('common.zones')}</p>
+                    <p className="text-sm text-orange-700">{t('common.selected')}</p>
                   </div>
                 </div>
               </div>
@@ -280,10 +288,10 @@ export function SmartGenerateModal({
           {/* Configuration Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="zones">Zone Setup</TabsTrigger>
-              <TabsTrigger value="constraints">Constraints</TabsTrigger>
-              <TabsTrigger value="optimization">AI Optimization</TabsTrigger>
-              <TabsTrigger value="preview">Preview & Generate</TabsTrigger>
+              <TabsTrigger value="zones">{t('schedule.zoneSetup')}</TabsTrigger>
+              <TabsTrigger value="constraints">{t('schedule.constraints')}</TabsTrigger>
+              <TabsTrigger value="optimization">{t('schedule.aiOptimization')}</TabsTrigger>
+              <TabsTrigger value="preview">{t('schedule.previewAndGenerate')}</TabsTrigger>
             </TabsList>
 
             {/* Zone Configuration */}
@@ -292,7 +300,7 @@ export function SmartGenerateModal({
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <MapPin className="w-5 h-5" />
-                    Zone-Based Staff Assignment
+                    {t('schedule.zoneBasedStaffAssignment')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -307,21 +315,21 @@ export function SmartGenerateModal({
                           <div>
                             <h4 className="font-medium text-lg">{zone.name}</h4>
                             <p className="text-sm text-gray-600">
-                              {zoneStaff.length} available staff • Priority: {getZonePriority(zone)}
+                              {zoneStaff.length} {t('schedule.availableStaff')} • {t('common.priority')}: {getZonePriority(zone)}
                             </p>
                           </div>
                           <Badge variant="outline" className="text-xs">
-                            {zone.roles?.length || 0} roles
+                            {zone.roles?.length || 0} {t('common.roles')}
                           </Badge>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {/* Staff Requirements */}
                           <div>
-                            <Label className="text-sm font-medium mb-2 block">Staff per Shift</Label>
+                            <Label className="text-sm font-medium mb-2 block">{t('schedule.staffPerShift')}</Label>
                             <div className="flex gap-2">
                               <div>
-                                <label className="text-xs text-gray-500">Min</label>
+                                <label className="text-xs text-gray-500">{t('common.minStaff')}</label>
                                 <Input
                                   type="number"
                                   min="0"
@@ -335,7 +343,7 @@ export function SmartGenerateModal({
                                 />
                               </div>
                               <div>
-                                <label className="text-xs text-gray-500">Max</label>
+                                <label className="text-xs text-gray-500">{t('common.maxStaff')}</label>
                                 <Input
                                   type="number"
                                   min="1"
@@ -353,7 +361,7 @@ export function SmartGenerateModal({
 
                           {/* Coverage Hours */}
                           <div>
-                            <Label className="text-sm font-medium mb-2 block">Coverage</Label>
+                            <Label className="text-sm font-medium mb-2 block">{t('schedule.coverage')}</Label>
                             <div className="space-y-1">
                               {['morning', 'afternoon', 'evening'].map(shift => (
                                 <div key={shift} className="flex items-center gap-2">
@@ -366,7 +374,7 @@ export function SmartGenerateModal({
                                     })}
                                     className="w-3 h-3 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500"
                                   />
-                                  <span className="text-sm capitalize">{shift}</span>
+                                  <span className="text-sm capitalize">{t(`common.${shift}`)}</span>
                                 </div>
                               ))}
                             </div>
@@ -375,7 +383,7 @@ export function SmartGenerateModal({
                           {/* Assigned Staff */}
                           <div>
                             <Label className="text-sm font-medium mb-2 block">
-                              Available Staff ({zoneStaff.length})
+                              {t('schedule.availableStaff')} ({zoneStaff.length})
                             </Label>
                             <div className="max-h-24 overflow-y-auto space-y-1">
                               {zoneStaff.slice(0, 5).map(member => (
@@ -390,7 +398,7 @@ export function SmartGenerateModal({
                                 </div>
                               ))}
                               {zoneStaff.length > 5 && (
-                                <p className="text-xs text-gray-500">+{zoneStaff.length - 5} more</p>
+                                <p className="text-xs text-gray-500">+{zoneStaff.length - 5} {t('common.more')}</p>
                               )}
                             </div>
                           </div>
@@ -398,14 +406,14 @@ export function SmartGenerateModal({
 
                         {/* Role Assignment */}
                         <div className="mt-4">
-                          <Label className="text-sm font-medium mb-2 block">Required Roles</Label>
+                          <Label className="text-sm font-medium mb-2 block">{t('schedule.requiredRoles')}</Label>
                           <div className="flex flex-wrap gap-2">
                             {zone.roles?.map(role => (
                               <Badge key={role} variant="default" className="text-xs">
                                 {role}
                               </Badge>
                             )) || (
-                              <Badge variant="outline" className="text-xs">All roles accepted</Badge>
+                              <Badge variant="outline" className="text-xs">{t('schedule.allRolesAccepted')}</Badge>
                             )}
                           </div>
                         </div>
@@ -422,15 +430,15 @@ export function SmartGenerateModal({
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Shield className="w-5 h-5" />
-                    Scheduling Constraints
+                    {t('schedule.schedulingConstraints')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
-                        <p className="font-medium">Use Smart Constraints</p>
-                        <p className="text-sm text-gray-600">Apply business rules and regulations</p>
+                        <p className="font-medium">{t('schedule.useSmartConstraints')}</p>
+                        <p className="text-sm text-gray-600">{t('schedule.applyBusinessRules')}</p>
                       </div>
                       <input
                         type="checkbox"
@@ -442,8 +450,8 @@ export function SmartGenerateModal({
 
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
-                        <p className="font-medium">Require Manager per Shift</p>
-                        <p className="text-sm text-gray-600">Ensure managerial oversight</p>
+                        <p className="font-medium">{t('schedule.requireManagerPerShift')}</p>
+                        <p className="text-sm text-gray-600">{t('schedule.ensureManagerialOversight')}</p>
                       </div>
                       <input
                         type="checkbox"
@@ -455,8 +463,8 @@ export function SmartGenerateModal({
 
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
-                        <p className="font-medium">Balance Workload</p>
-                        <p className="text-sm text-gray-600">Distribute hours evenly</p>
+                        <p className="font-medium">{t('schedule.balanceWorkload')}</p>
+                        <p className="text-sm text-gray-600">{t('schedule.distributeHoursEvenly')}</p>
                       </div>
                       <input
                         type="checkbox"
@@ -468,8 +476,8 @@ export function SmartGenerateModal({
 
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
-                        <p className="font-medium">Allow Overtime</p>
-                        <p className="text-sm text-gray-600">Permit overtime scheduling</p>
+                        <p className="font-medium">{t('schedule.allowOvertime')}</p>
+                        <p className="text-sm text-gray-600">{t('schedule.permitOvertimeScheduling')}</p>
                       </div>
                       <input
                         type="checkbox"
@@ -489,28 +497,28 @@ export function SmartGenerateModal({
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Brain className="w-5 h-5" />
-                    AI Optimization Settings
+                    {t('schedule.aiOptimizationSettings')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Coverage Priority</Label>
+                    <Label className="text-sm font-medium mb-2 block">{t('schedule.coveragePriority')}</Label>
                     <select
                       value={config.coverage_priority}
                       onChange={(e) => setConfig(prev => ({ ...prev, coverage_priority: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                     >
-                      <option value="minimal">Minimal Coverage</option>
-                      <option value="balanced">Balanced Coverage</option>
-                      <option value="maximum">Maximum Coverage</option>
+                      <option value="minimal">{t('schedule.minimalCoverage')}</option>
+                      <option value="balanced">{t('schedule.balancedCoverage')}</option>
+                      <option value="maximum">{t('schedule.maximumCoverage')}</option>
                     </select>
                   </div>
 
                   <div>
-                    <Label className="text-sm font-medium mb-2 block">Shift Preference Multipliers</Label>
+                    <Label className="text-sm font-medium mb-2 block">{t('schedule.shiftPreferenceMultipliers')}</Label>
                     <div className="grid grid-cols-3 gap-4">
                       <div>
-                        <label className="text-xs text-gray-500">Morning</label>
+                        <label className="text-xs text-gray-500">{t('common.morning')}</label>
                         <Input
                           type="number"
                           step="0.1"
@@ -528,7 +536,7 @@ export function SmartGenerateModal({
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500">Afternoon</label>
+                        <label className="text-xs text-gray-500">{t('common.afternoon')}</label>
                         <Input
                           type="number"
                           step="0.1"
@@ -546,7 +554,7 @@ export function SmartGenerateModal({
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500">Evening</label>
+                        <label className="text-xs text-gray-500">{t('common.evening')}</label>
                         <Input
                           type="number"
                           step="0.1"
@@ -565,14 +573,14 @@ export function SmartGenerateModal({
                       </div>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Higher values increase staffing preference for that shift
+                      {t('schedule.higherValuesIncrease')}
                     </p>
                   </div>
 
                   <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                     <div>
-                      <p className="font-medium text-blue-900">Prioritize Skill Matching</p>
-                      <p className="text-sm text-blue-700">Match staff skills to zone requirements</p>
+                      <p className="font-medium text-blue-900">{t('schedule.prioritizeSkillMatching')}</p>
+                      <p className="text-sm text-blue-700">{t('schedule.matchStaffSkillsToZone')}</p>
                     </div>
                     <input
                       type="checkbox"
@@ -591,7 +599,7 @@ export function SmartGenerateModal({
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Target className="w-5 h-5" />
-                    Generation Preview
+                    {t('schedule.generationPreview')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -599,23 +607,23 @@ export function SmartGenerateModal({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 bg-blue-50 rounded-lg">
                       <div className="text-2xl font-bold text-blue-600">{totalStaffNeeded}</div>
-                      <div className="text-sm text-blue-700">Total Assignments Needed</div>
+                      <div className="text-sm text-blue-700">{t('schedule.totalAssignmentsNeeded')}</div>
                     </div>
                     <div className="text-center p-4 bg-green-50 rounded-lg">
                       <div className="text-2xl font-bold text-green-600">{availableStaff}</div>
-                      <div className="text-sm text-green-700">Available Staff</div>
+                      <div className="text-sm text-green-700">{t('common.available')} {t('common.staff')}</div>
                     </div>
                     <div className="text-center p-4 bg-purple-50 rounded-lg">
                       <Badge variant={feasibility === 'high' ? 'default' : 'secondary'} className="text-lg px-3 py-1">
-                        {feasibility === 'high' ? 'Optimal' : 'Challenging'}
+                        {feasibility === 'high' ? t('schedule.optimal') : t('schedule.challenging')}
                       </Badge>
-                      <div className="text-sm text-purple-700 mt-1">Feasibility</div>
+                      <div className="text-sm text-purple-700 mt-1">{t('schedule.feasibility')}</div>
                     </div>
                   </div>
 
                   {/* Zone Summary */}
                   <div>
-                    <h4 className="font-medium mb-3">Zone Coverage Summary</h4>
+                    <h4 className="font-medium mb-3">{t('schedule.zoneCoverageSummary')}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {selectedZones.map(zoneId => {
                         const zone = zones.find(z => z.id === zoneId)
@@ -627,11 +635,11 @@ export function SmartGenerateModal({
                             <div className="flex items-center justify-between mb-2">
                               <span className="font-medium">{zone.name}</span>
                               <Badge variant="outline" className="text-xs">
-                                {assignment.required_staff?.min || 1}-{assignment.required_staff?.max || 3} staff
+                                {assignment.required_staff?.min || 1}-{assignment.required_staff?.max || 3} {t('common.staff')}
                               </Badge>
                             </div>
                             <div className="text-sm text-gray-600">
-                              {zoneStaff.length} available • {zone.roles?.length || 0} roles
+                              {zoneStaff.length} {t('common.available')} • {zone.roles?.length || 0} {t('common.roles')}
                             </div>
                             <div className="flex gap-1 mt-2">
                               {['morning', 'afternoon', 'evening'].map(shift => (
@@ -640,7 +648,7 @@ export function SmartGenerateModal({
                                   variant={assignment.coverage_hours?.[shift] ? 'default' : 'outline'}
                                   className="text-xs"
                                 >
-                                  {shift.charAt(0).toUpperCase()}
+                                  {t(`common.${shift}`).charAt(0).toUpperCase()}
                                 </Badge>
                               ))}
                             </div>
@@ -655,10 +663,9 @@ export function SmartGenerateModal({
                     <div className="flex items-start gap-3">
                       <Brain className="w-6 h-6 text-purple-600 mt-0.5" />
                       <div>
-                        <p className="font-medium text-purple-900">AI-Powered Generation</p>
+                        <p className="font-medium text-purple-900">{t('schedule.aiPoweredGeneration')}</p>
                         <p className="text-purple-700 text-sm mt-1">
-                          The system will automatically assign staff to zones based on roles, skills, and your configured constraints. 
-                          Staff will be optimally distributed across {periodType} periods with intelligent workload balancing.
+                          {t('schedule.aiScheduleDescription', { periodType: getPeriodTypeLabel(periodType).toLowerCase() })}
                         </p>
                       </div>
                     </div>
@@ -676,7 +683,7 @@ export function SmartGenerateModal({
               className="flex-1"
               disabled={generating}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={handleGenerate}
@@ -686,12 +693,12 @@ export function SmartGenerateModal({
               {generating ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Generating Smart Schedule...
+                  {t('schedule.generatingSmartSchedule')}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4" />
-                  Generate {periodType.charAt(0).toUpperCase() + periodType.slice(1)} Schedule
+                  {t('schedule.generateSchedule')} {getPeriodTypeLabel(periodType)}
                 </div>
               )}
             </Button>

@@ -29,6 +29,7 @@ export const it = {
     // ============================================================================
     save: 'Salva',
     saved: 'Salvato',
+    saving: 'Salvataggio...',
     saveChanges: 'Salva Modifiche',
     unsavedChanges: 'Hai modifiche non salvate',
     cancel: 'Annulla',
@@ -77,6 +78,7 @@ export const it = {
     
     // Azioni di selezione
     select: 'Seleziona',
+    selected: 'Selezionata',
     selectAll: 'Seleziona Tutto',
     selectNone: 'Seleziona Nessuno',
     clearAll: 'Cancella Tutto',
@@ -109,6 +111,9 @@ export const it = {
     last90Days: 'Ultimi 90 Giorni',
     retry: 'Riprova',
     na: 'N/D',
+    weekOf: 'Settimana del',
+    schedulesShown: 'pianificazioni mostrate',
+    of: 'di',
     
     // ============================================================================
     // TERMINI GENERICI (riutilizzabili tra domini)
@@ -151,6 +156,7 @@ export const it = {
     shifts: 'Turni',
     zone: 'Zona',
     zones: 'Zone',
+    roles: 'Ruoli',
     
     // ============================================================================
     // ELEMENTI UI COMUNI
@@ -427,6 +433,7 @@ export const it = {
     // ============================================================================
     // TERMINI SPECIFICI PIANIFICAZIONE (non riutilizzabili altrove)
     // ============================================================================
+    schedule: 'programma',
     mySchedule: 'La Mia Pianificazione',
     noSchedule: 'Nessuna Pianificazione',
     scheduleActive: 'Pianificazione Attiva',
@@ -451,6 +458,7 @@ export const it = {
     dailySchedule: 'Pianificazione Giornaliera',
     weeklySchedule: 'Pianificazione Settimanale',
     monthlyOverview: 'Panoramica Mensile',
+    mineOnly: 'SOLO I MIEI',
     currentWeek: 'Settimana Corrente',
     previousWeek: 'Settimana Scorsa',
     showMyShiftsOnly: 'Mostra Solo i Miei Turni',
@@ -461,6 +469,88 @@ export const it = {
     generateSmartSchedule: 'Genera Pianificazione Intelligente',
     generatingSmartSchedule: 'Generazione Pianificazione Intelligente...',
     smartGeneration: 'Generazione Intelligente',
+
+    // Smart Generation specific
+    smartScheduleGeneration: 'Generazione Pianificazione Intelligente',
+    zoneSetup: 'Configurazione Zone',
+    aiOptimization: 'Ottimizzazione AI',
+    previewAndGenerate: 'Anteprima e Genera',
+    zoneBasedStaffAssignment: 'Assegnazione Personale Basata su Zone',
+    schedulingConstraints: 'Vincoli di Pianificazione',
+    aiOptimizationSettings: 'Impostazioni Ottimizzazione AI',
+    generationPreview: 'Anteprima Generazione',
+    aiPoweredGeneration: 'Generazione Basata su AI',
+    generateSchedule: 'Genera Pianificazione',
+    
+    // Smart constraints
+    useSmartConstraints: 'Usa Vincoli Intelligenti',
+    applyBusinessRules: 'Applica regole aziendali e normative',
+    requireManagerPerShift: 'Richiedi Manager per Turno',
+    ensureManagerialOversight: 'Assicura supervisione manageriale',
+    balanceWorkload: 'Bilancia Carico di Lavoro',
+    distributeHoursEvenly: 'Distribuisci ore uniformemente',
+    allowOvertime: 'Permetti Straordinari',
+    permitOvertimeScheduling: 'Permetti pianificazione straordinari',
+    
+    // Coverage and optimization
+    coveragePriority: 'Priorità Copertura',
+    minimalCoverage: 'Copertura Minima',
+    balancedCoverage: 'Copertura Bilanciata',
+    maximumCoverage: 'Copertura Massima',
+    shiftPreferenceMultipliers: 'Moltiplicatori Preferenza Turno',
+    higherValuesIncrease: 'Valori più alti aumentano la preferenza di personale per quel turno',
+    prioritizeSkillMatching: 'Priorità Corrispondenza Competenze',
+    matchStaffSkillsToZone: 'Abbina competenze del personale ai requisiti delle zone',
+    
+    // Zone configuration
+    staffPerShift: 'Personale per Turno',
+    coverage: 'Copertura',
+    availableStaff: 'Personale Disponibile',
+    requiredRoles: 'Ruoli Richiesti',
+    allRolesAccepted: 'Tutti i ruoli accettati',
+    
+    // Preview and feasibility
+    totalAssignmentsNeeded: 'Assegnazioni Totali Necessarie',
+    feasibility: 'Fattibilità',
+    optimal: 'Ottimale',
+    challenging: 'Impegnativo',
+    zoneCoverageSummary: 'Riepilogo Copertura Zone',
+    
+    // AI description
+    aiScheduleDescription: 'Il sistema assegnerà automaticamente il personale alle zone basandosi su ruoli, competenze e i vincoli configurati. Il personale sarà distribuito ottimalmente nei periodi {periodType} con bilanciamento intelligente del carico di lavoro.',
+    
+    // Configuration modal specific
+    timeHoursConstraints: 'Vincoli di Tempo e Ore',
+    staffingRequirements: 'Requisiti del Personale',
+    shiftSpecificRequirements: 'Requisiti Specifici del Turno',
+    configurationValid: 'Configurazione Valida',
+    resetToDefaults: 'Ripristina Predefiniti',
+    noChanges: 'Nessuna Modifica',
+    
+    // Field labels
+    minimumRestHours: 'Ore di Riposo Minime',
+    hoursBetweenShifts: 'Ore tra i turni',
+    maxConsecutiveDays: 'Giorni Consecutivi Massimi',
+    workingDaysInRow: 'Giorni di lavoro consecutivi',
+    defaultMaxWeeklyHours: 'Ore Settimanali Massime Predefinite',
+    whenStaffMaxHoursNotSet: 'Quando le ore massime del personale non sono impostate',
+    requireManagerOnEveryShift: 'Richiedi manager in ogni turno',
+    
+    // Shift requirements
+    minimumSkillLevel: 'Livello Minimo di Competenza',
+    clickRolesToRequire: 'Clicca sui ruoli per richiederli per questo turno',
+    
+    // Shift names and times
+    morningShift: 'Turno del Mattino',
+    afternoonShift: 'Turno del Pomeriggio',
+    eveningShift: 'Turno della Sera',
+    morningTime: '6:00 - 14:00',
+    afternoonTime: '14:00 - 22:00',
+    eveningTime: '22:00 - 6:00',
+    
+    // Status messages
+    configurationDescription: 'Tutti i vincoli sono configurati correttamente e verranno applicati durante la generazione della pianificazione',
+    
     
     // Schedule Status
     empty: 'Vuoto',
@@ -485,7 +575,6 @@ export const it = {
     createSchedule: 'Crea Pianificazione',
     publishSchedule: 'Pubblica Pianificazione',
     publishChanges: 'Pubblica Modifiche',
-    generateSchedule: 'Genera Pianificazione',
     smartGenerate: 'Generazione Intelligente',
     
     // Stati pianificazione
@@ -495,7 +584,6 @@ export const it = {
     
     // Specifico AI/Automazione
     aiPoweredScheduling: 'Pianificazione basata su AI con ottimizzazione per zone',
-    smartScheduleGeneration: 'Generazione Pianificazione Intelligente',
     poweredGeneration: 'Generazione Basata su AI',
     
     // Strutture/zone specifiche pianificazione
@@ -505,11 +593,9 @@ export const it = {
     
     // Assegnazione personale (contesto pianificazione)
     assignStaff: 'Assegna personale',
-    staffPerShift: 'Personale per Turno',
     maxStaff: 'Personale Massimo',
     minStaff: 'Personale Minimo',
     dropStaffHere: 'Trascina personale qui o clicca per assegnare',
-    availableStaff: 'Personale Disponibile',
     affectedStaff: 'Personale Interessato',
     staffInvolved: 'Personale Coinvolto',
     staffRange: 'Range Personale',
@@ -528,7 +614,6 @@ export const it = {
     
     // Configurazione
     scheduleConfiguration: 'Configurazione Pianificazione',
-    schedulingConstraints: 'Vincoli di Pianificazione',
     configuration: 'Configurazione',
     saveConfiguration: 'Salva Configurazione',
     loadingConfiguration: 'Caricamento configurazione...',
@@ -556,22 +641,17 @@ export const it = {
     // Smart Generation Options
     useConstraints: 'Usa Vincoli',
     autoAssignByZone: 'Assegnazione Automatica per Zona',
-    balanceWorkload: 'Bilancia Carico di Lavoro',
     prioritizeSkillMatch: 'Priorità Competenze',
-    coveragePriority: 'Priorità Copertura',
     minimal: 'Minima',
     balanced: 'Bilanciata',
     maximum: 'Massima',
     shiftPreferences: 'Preferenze Turno',
-    higherValuesIncrease: 'Valori più alti aumentano la preferenza per quel turno',
     morningMultiplier: 'Moltiplicatore Mattina',
     afternoonMultiplier: 'Moltiplicatore Pomeriggio',
     eveningMultiplier: 'Moltiplicatore Sera',
     allConstraintsAre: 'Tutti i vincoli sono configurati correttamente e verranno applicati durante la generazione della pianificazione',
     
     // Zone Management
-    zoneSetup: 'Configurazione Zone',
-    requiredRoles: 'Ruoli Richiesti',
     requiresManager: 'Richiede Manager',
     
     // Additional Actions
@@ -594,6 +674,7 @@ export const it = {
     viewYourWorkSchedule: 'Visualizza la tua pianificazione di lavoro e richiedi scambi di turno',
     chooseFacilityFromDropdown: 'Scegli una struttura dal menu a tendina sopra per visualizzare e gestire le pianificazioni',
     loadingScheduleData: 'Caricamento dati pianificazione...',
+    deleteScheduleConfirmation: 'Sei sicuro di voler eliminare la pianificazione per la settimana del {weekDate}?\n\nQuesto rimuoverà permanentemente {assignmentCount} assegnazioni e non può essere annullato.',
     
     // Integrazione scambi (contesto pianificazione)
     requestSwap: 'Richiedi Scambio',
@@ -611,7 +692,6 @@ export const it = {
     
     // Business Rules
     allowOvertimeScheduling: 'Permetti pianificazione straordinari',
-    applyBusinessRules: 'Applica regole aziendali e normative',
     applyWeekendRestrictions: 'Applica restrizioni weekend',
     
     // Swap Integration
@@ -696,7 +776,13 @@ export const it = {
     errors: 'Errori',
     importErrorMessage: 'Controlla il formato del file e riprova. Assicurati che tutte le colonne richieste siano presenti.',
     missingStaff: 'Personale Mancante',
+    availableStaff: 'Personale Disponibile',
+    filterByRole: 'Filtra per Ruolo',
+    allRoles: 'Tutti i Ruoli',
+    dragDropAssignment: 'Assegnazione Trascina e Rilascia',
+    dragStaffToCalendar: 'Trascina i membri del personale da questo pannello e rilasciali sugli slot del calendario per creare assegnazioni',
     
+      
     // File import specific
     expectedExcelFormat: 'Formato Excel Previsto:',
     columnNamesFlexible: 'I nomi delle colonne sono flessibili - rileveremo automaticamente le varianti comuni',
