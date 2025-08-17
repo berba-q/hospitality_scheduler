@@ -6,6 +6,7 @@ from hashlib import sha256
 from sqlmodel import SQLModel, Field, Relationship, Index, JSON, select, Session, update
 from sqlalchemy import Column as SAColumn, DateTime, Enum as SQLEnum, update as sa_update
 from sqlalchemy.sql import Executable
+from sqlalchemy.sql.elements import ColumnElement
 import secrets
 
 
@@ -761,7 +762,7 @@ class PasswordResetToken(SQLModel, table=True):
             'uq_active_reset_token_per_user',
             'user_id',
             unique=True,
-            postgresql_where="used = false AND expires_at > now()"
+            postgresql_where="used = false"
         ),
     )
 
@@ -774,12 +775,12 @@ class PasswordResetToken(SQLModel, table=True):
 
         # Atomic transaction: invalidate existing + insert new
         with db.begin():
-            stmt = sa_update(cls).where(
-                cls.user_id == user_id,
-                cls.used.is_(False),
-                cls.expires_at > datetime.now(timezone.utc)
-            ).values(used=True)
-            db.exec(cast(Executable, stmt))
+            cond: ColumnElement[bool] = cast(
+                ColumnElement[bool],
+                (cls.user_id == user_id) & (cls.used.is_(False)) & (cls.expires_at > datetime.now(timezone.utc)) # type: ignore
+            )
+            stmt = sa_update(cls).where(cond).values(used=True)
+            db.exec(cast(Executable, stmt)) # type: ignore
 
             new_reset_token = cls(
                 user_id=user_id,
@@ -795,13 +796,11 @@ class PasswordResetToken(SQLModel, table=True):
         """Verify token by hash, mark as used if valid, and return the record."""
         token_hash = sha256(token.encode()).hexdigest()
         now = datetime.now(timezone.utc)
-        rec = db.exec(
-            select(cls).where(
-                cls.token_hash == token_hash,
-                cls.used.is_(False),
-                cls.expires_at > now
-            )
-        ).first()
+        cond_verify: ColumnElement[bool] = cast(
+            ColumnElement[bool],
+            (cls.token_hash == token_hash) & (cls.used.is_(False)) & (cls.expires_at > now) # type: ignore
+        )
+        rec = db.exec(select(cls).where(cond_verify)).first()
         if rec:
             rec.used = True
             db.commit()
