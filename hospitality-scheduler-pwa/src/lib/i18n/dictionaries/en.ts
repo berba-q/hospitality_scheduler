@@ -29,6 +29,78 @@ export const en = {
     loginFailed: 'Login failed. Please try again.',
     backToGoogle: '← Back to Google Sign In',
     demoCredentials: 'Demo Credentials:',
+
+    // Forgot password
+    "forgotPassword": "Forgot Password?",
+    "forgotPasswordTitle": "Forgot Password",
+    "forgotPasswordDescription": "Enter your email address and we'll send you a link to reset your password.",
+    "sendResetLink": "Send Reset Link",
+    "sendingResetLink": "Sending...",
+    "checkYourEmail": "Check Your Email",
+    "resetLinkSent": "Password reset link has been sent to your email address.",
+    "resetLinkInstructions": "Check your email for a password reset link. The link will expire in 24 hours.",
+    "resetLinkFailed": "Failed to send reset link. Please try again.",
+    "backToLogin": "Back to Login",
+    "sendAnotherLink": "Send Another Link",
+    
+    // Reset Password
+    "resetPassword": "Reset Password",
+    "resetPasswordDescription": "Enter your new password below.",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password", 
+    "newPasswordPlaceholder": "Enter new password",
+    "confirmPasswordPlaceholder": "Confirm new password",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 8 characters long",
+    "passwordStrength": "Password Strength",
+    "resettingPassword": "Resetting Password...",
+    "passwordResetSuccess": "Password Reset Successfully",
+    "passwordResetSuccessDescription": "Your password has been reset. You can now sign in with your new password.",
+    "signInWithNewPassword": "Sign In with New Password",
+    "passwordResetFailed": "Failed to reset password. Please try again.",
+    
+    // Token Validation
+    "invalidResetLink": "Invalid Reset Link",
+    "invalidResetLinkDescription": "This password reset link is invalid or has expired. Please request a new one.",
+    "invalidOrExpiredToken": "Invalid or expired reset token",
+    "missingResetToken": "No reset token provided",
+    "tokenVerificationFailed": "Failed to verify reset token",
+    "verifyingResetLink": "Verifying reset link...",
+    "requestNewResetLink": "Request New Reset Link",
+    
+    // Sign Up
+    "signUp": "Sign Up",
+    "signUpTitle": "Create Your Account",
+    "signUpDescription": "Join thousands of businesses managing their staff schedules efficiently.",
+    "createAccount": "Create Account",
+    "creatingAccount": "Creating Account...",
+    "organizationName": "Organization Name",
+    "organizationNamePlaceholder": "Enter your business name",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "Enter your full name",
+    "agreeToTerms": "I agree to the Terms of Service and Privacy Policy",
+    "alreadyHaveAccount": "Already have an account?",
+    "signUpWithGoogle": "Sign up with Google",
+    "signUpWithCredentials": "Sign up with Email",
+    "orSignUpWith": "Or sign up with",
+    "accountCreated": "Account created successfully! Please check your email to verify your account.",
+    "emailVerificationRequired": "Email verification required",
+    "checkEmailVerification": "Please check your email and click the verification link to activate your account.",
+    "resendVerification": "Resend Verification Email",
+    
+    // Account Linking
+    "accountLinking": "Account Linking",
+    "accountsLinked": "Accounts successfully linked",
+    "linkAccounts": "Link Accounts",
+    "linkAccountsDescription": "We found an existing account with this email. Would you like to link your Google account?",
+    "linkGoogleAccount": "Link Google Account",
+    "createSeparateAccount": "Create Separate Account",
+    "accountLinkingFailed": "Failed to link accounts",
+    
+    // General
+    "networkError": "Network error. Please check your connection and try again.",
+    "emailPlaceholder": "Enter your email address",
+    "passwordPlaceholder": "Enter your password"
   },
 
   common: {

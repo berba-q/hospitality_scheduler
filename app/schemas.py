@@ -2269,3 +2269,34 @@ class UserEngagementMetrics(BaseModel):
     notification_opt_out_rate: float
     avatar_upload_rate: float
 
+# ================= Forgot password schema =============================
+class ForgotPasswordRequest(BaseModel):
+    email: str
+    
+    @field_validator('email')
+    def validate_email(cls, v):
+        if not v or '@' not in v:
+            raise ValueError('Valid email address required')
+        return v.lower().strip()
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+    confirm_password: str
+    
+    @field_validator('new_password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        return v
+    
+    @field_validator('confirm_password')
+    def passwords_match(cls, v, values):
+        if 'new_password' in values.data and v != values.data['new_password']:
+            raise ValueError('Passwords do not match')
+        return v
+
+class PasswordResetResponse(BaseModel):
+    message: str
+    success: bool
+

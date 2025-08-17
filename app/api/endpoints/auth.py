@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlmodel import Session, select
 from fastapi.security import OAuth2PasswordRequestForm
 
+from ...core.config import get_settings
+
 from ...deps import get_current_user, get_db
-from ...models import Facility, Staff, User, Tenant
-from ...schemas import Token, UserCreate, UserRead
+from ...models import Facility, PasswordResetToken, Staff, User, Tenant
+from ...schemas import ForgotPasswordRequest, PasswordResetResponse, ResetPasswordRequest, Token, UserCreate, UserRead
 from ...core.security import verify_password, hash_password, create_access_token
+from ...services.notification_service import NotificationService, NotificationType
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -108,3 +112,91 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         "token_type": "bearer",
         "user": user_data
     }
+
+# ======================= Forgot password endpoints =========================
+@router.post("/forgot-password", response_model=PasswordResetResponse)
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Send password reset email using existing notification system"""
+    user = db.exec(
+        select(User).where(User.email == request.email)
+    ).first()
+    
+    # Always return success message for security (don't reveal if email exists)
+    response = PasswordResetResponse(
+        message="If an account with this email exists, you will receive a password reset link.",
+        success=True
+    )
+    
+    if not user:
+        return response
+    
+    # Generate reset token
+    token = PasswordResetToken.generate_token(user.id, db)
+    
+    notification_service = NotificationService(db)
+    
+    settings = get_settings()
+    
+    # Send reset email using your notification system
+    await notification_service.send_notification(
+        notification_type=NotificationType.PASSWORD_RESET,  
+        recipient_user_id=user.id,
+        template_data={
+            "user_name": user.email.split('@')[0],
+            "reset_url": f"{settings.FRONTEND_URL}/reset-password?token={token}",
+            "expires_in": "24 hours"
+        },
+        channels=["EMAIL"],
+        background_tasks=background_tasks
+    )
+    
+    return response
+
+@router.post("/reset-password", response_model=PasswordResetResponse)
+def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    """Reset password using token"""
+    # Verify token
+    reset_token = PasswordResetToken.verify_token(request.token, db)
+    if not reset_token:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired reset token"
+        )
+    
+    # Get user
+    user = db.get(User, reset_token.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update password
+    user.hashed_password = hash_password(request.new_password)
+    
+    # Mark token as used
+    reset_token.used = True
+    
+    db.commit()
+    
+    return PasswordResetResponse(
+        message="Password reset successfully. You can now log in with your new password.",
+        success=True
+    )
+
+@router.post("/verify-reset-token")
+def verify_reset_token(token: str, db: Session = Depends(get_db)):
+    """Verify if reset token is valid (for frontend validation)"""
+    reset_token = PasswordResetToken.verify_token(token, db)
+    
+    if not reset_token:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired reset token"
+        )
+    
+    return {"valid": True, "message": "Token is valid"}

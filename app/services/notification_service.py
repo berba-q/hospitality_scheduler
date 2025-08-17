@@ -257,13 +257,14 @@ class NotificationService:
             NotificationType.EMERGENCY_COVERAGE: "Urgent coverage needed",
             NotificationType.SHIFT_REMINDER: "Shift reminder",
             NotificationType.SCHEDULE_CHANGE: "Schedule has been updated",
-            NotificationType.SWAP_ASSIGNMENT: "You have been assigned to cover a shift"  # ✅ NEW
+            NotificationType.SWAP_ASSIGNMENT: "You have been assigned to cover a shift",  # ✅ NEW
+            NotificationType.PASSWORD_RESET: "A password reset instruction has been sent to your email"
         }
         
         title = f"{notification_type.value.replace('_', ' ').title()}"
         message = basic_messages.get(notification_type, "You have a new notification")
         
-        # ✅ NEW: Add PDF attachment to data if provided
+        # Add PDF attachment to data if provided
         notification_data = template_data.copy()
         if pdf_attachment_url:
             notification_data["pdf_attachment_url"] = pdf_attachment_url

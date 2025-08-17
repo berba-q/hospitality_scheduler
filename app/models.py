@@ -1,9 +1,11 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from enum import Enum
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, cast
 import uuid
-from sqlmodel import  SQLModel, Field, Relationship, Index, Column, JSON
-from sqlalchemy import Column, DateTime, Enum as SQLEnum
+from sqlmodel import SQLModel, Field, Relationship, Index, JSON, select, Session, update
+from sqlalchemy import Column as SAColumn, DateTime, Enum as SQLEnum, update as sa_update
+from sqlalchemy.sql import Executable
+import secrets
 
 
 class Tenant(SQLModel, table=True):
@@ -24,7 +26,7 @@ class Facility(SQLModel, table=True):
     phone: Optional[str] = None
     email: Optional[str] = None
     description: Optional[str] = None
-    settings: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    settings: Optional[Dict[str, Any]] = Field(default=None, sa_column=SAColumn(JSON))
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
@@ -91,8 +93,8 @@ class FacilityZone(SQLModel, table=True):
     description: Optional[str] = None
     
     # Role requirements for this zone
-    required_roles: Optional[List[str]] = Field(default_factory=list, sa_column=Column(JSON))
-    preferred_roles: Optional[List[str]] = Field(default_factory=list, sa_column=Column(JSON))
+    required_roles: Optional[List[str]] = Field(default_factory=list, sa_column=SAColumn(JSON))
+    preferred_roles: Optional[List[str]] = Field(default_factory=list, sa_column=SAColumn(JSON))
     
     # Staffing requirements
     min_staff_per_shift: int = Field(default=1, ge=1, le=20)
@@ -131,6 +133,10 @@ class NotificationType(str, Enum):
     SHIFT_REMINDER = "SHIFT_REMINDER"
     EMERGENCY_COVERAGE = "EMERGENCY_COVERAGE"
     SWAP_ASSIGNMENT = "SWAP_ASSIGNMENT"
+    PASSWORD_RESET = "PASSWORD_RESET"
+    EMAIL_VERIFICATION = "EMAIL_VERIFICATION"
+    STAFF_INVITATION = "STAFF_INVITATION"
+    ACCOUNT_LINKED = "ACCOUNT_LINKED"
 
 class NotificationChannel(str, Enum):
     IN_APP = "IN_APP"
@@ -198,7 +204,7 @@ class Schedule(SQLModel, table=True):
     is_published: bool = Field(default=False, nullable=False)
     published_at: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime(timezone=True), nullable=True)
+        sa_column=SAColumn(DateTime(timezone=True), nullable=True)
     )
     published_by_id: Optional[uuid.UUID] = Field(default=None, foreign_key="user.id")
 
@@ -232,8 +238,8 @@ class ScheduleConfig(SQLModel, table=True):
     
     # Role and skill constraints stored as JSON
     shift_role_requirements: Dict[str, Any] = Field(
-        default_factory=dict, 
-        sa_column=Column(JSON)
+        default_factory=dict,
+        sa_column=SAColumn(JSON)
     )
     
     # Business rules
@@ -288,7 +294,7 @@ class SwapRequest(SQLModel, table=True):
     # Status tracking
     status: str = Field(
         default="pending",  # Use string default instead of enum
-        sa_column=Column(
+        sa_column=SAColumn(
             SQLEnum(
                 "pending", "manager_approved", "potential_assignment", 
                 "staff_accepted", "manager_final_approval", "executed",
@@ -389,8 +395,8 @@ class ScheduleTemplate(SQLModel, table=True):
     facility_id: uuid.UUID = Field(foreign_key="facility.id")
     name: str
     description: Optional[str] = None
-    template_data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
-    tags: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    template_data: Dict[str, Any] = Field(default_factory=dict, sa_column=SAColumn(JSON))
+    tags: List[str] = Field(default_factory=list, sa_column=SAColumn(JSON))
     is_public: bool = Field(default=False)
     created_by: uuid.UUID = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -404,8 +410,8 @@ class ScheduleOptimization(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     schedule_id: uuid.UUID = Field(foreign_key="schedule.id")
     optimization_type: str  # 'smart', 'balanced', 'minimal', 'maximum'
-    parameters: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
-    results: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    parameters: Dict[str, Any] = Field(default_factory=dict, sa_column=SAColumn(JSON))
+    results: Dict[str, Any] = Field(default_factory=dict, sa_column=SAColumn(JSON))
     status: str = Field(default="pending")  # pending, completed, failed
     created_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = None
@@ -432,13 +438,13 @@ class Notification(SQLModel, table=True):
     priority: NotificationPriority = NotificationPriority.MEDIUM
     
     # Rich content and actions
-    data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    data: Dict[str, Any] = Field(default_factory=dict, sa_column=SAColumn(JSON))
     action_url: Optional[str] = None
     action_text: Optional[str] = None
     
     # Delivery tracking
-    channels: List[str] = Field(default_factory=list, sa_column=Column(JSON))
-    delivery_status: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    channels: List[str] = Field(default_factory=list, sa_column=SAColumn(JSON))
+    delivery_status: Dict[str, Any] = Field(default_factory=dict, sa_column=SAColumn(JSON))
     
     # State management
     is_read: bool = False
@@ -467,7 +473,7 @@ class NotificationTemplate(SQLModel, table=True):
     whatsapp_template: Optional[str] = None
     
     # Channel configuration
-    default_channels: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    default_channels: List[str] = Field(default_factory=list, sa_column=SAColumn(JSON))
     priority: NotificationPriority = NotificationPriority.MEDIUM
     
     # Business rules
@@ -538,7 +544,7 @@ class SystemSettings(SQLModel, table=True):
     # Integration Settings - Stored as JSON for flexibility
     integrations: Dict[str, Any] = Field(
         default_factory=dict,
-        sa_column=Column(JSON),
+        sa_column=SAColumn(JSON),
         description="External integration settings (Twilio, SMTP, etc.)"
     )
     
@@ -550,7 +556,7 @@ class SystemSettings(SQLModel, table=True):
     # Advanced Settings - JSON field for extensibility
     advanced_settings: Dict[str, Any] = Field(
         default_factory=dict,
-        sa_column=Column(JSON),
+        sa_column=SAColumn(JSON),
         description="Advanced and custom settings"
     )
     
@@ -588,11 +594,11 @@ class NotificationGlobalSettings(SQLModel, table=True):
     # Global notification templates - JSON field
     email_templates: Dict[str, Any] = Field(
         default_factory=dict,
-        sa_column=Column(JSON)
+        sa_column=SAColumn(JSON)
     )
     whatsapp_templates: Dict[str, Any] = Field(
         default_factory=dict,
-        sa_column=Column(JSON)
+        sa_column=SAColumn(JSON)
     )
     
     # Rate limiting and delivery settings
@@ -618,7 +624,7 @@ class AuditLog(SQLModel, table=True):
     # Changes stored as JSON
     changes: Dict[str, Any] = Field(
         default_factory=dict,
-        sa_column=Column(JSON),
+        sa_column=SAColumn(JSON),
         description="What changed: {'field': {'old': value, 'new': value}}"
     )
     
@@ -656,7 +662,7 @@ class UserProfile(SQLModel, table=True):
     # Dashboard & Layout Preferences
     dashboard_layout: Dict[str, Any] = Field(
         default_factory=dict,
-        sa_column=Column(JSON),
+        sa_column=SAColumn(JSON),
         description="Dashboard widget layout and preferences"
     )
     sidebar_collapsed: bool = Field(default=False)
@@ -666,7 +672,7 @@ class UserProfile(SQLModel, table=True):
     # Notification Preferences (Individual Overrides)
     notification_preferences: Dict[str, Any] = Field(
         default_factory=dict,
-        sa_column=Column(JSON),
+        sa_column=SAColumn(JSON),
         description="Individual notification preferences overriding global settings"
     )
     quiet_hours_enabled: bool = Field(default=False)
@@ -683,13 +689,13 @@ class UserProfile(SQLModel, table=True):
     # Schedule & Work Preferences
     preferred_shifts: List[str] = Field(
         default_factory=list,
-        sa_column=Column(JSON),
+        sa_column=SAColumn(JSON),
         description="User's preferred shift types"
     )
     max_consecutive_days: Optional[int] = None  # Personal override
     preferred_days_off: List[int] = Field(
         default_factory=list,
-        sa_column=Column(JSON),
+        sa_column=SAColumn(JSON),
         description="Preferred days off (0=Sunday, 6=Saturday)"
     )
     
@@ -730,6 +736,63 @@ class ProfilePictureUpload(SQLModel, table=True):
     image_height: Optional[int] = None
     thumbnails: Dict[str, str] = Field(
         default_factory=dict,
-        sa_column=Column(JSON),
+        sa_column=SAColumn(JSON),
         description="Generated thumbnail URLs"
     )
+
+# ===================== FORGOT PASSWORD MODELS ========================
+class PasswordResetToken(SQLModel, table=True):
+    """Password reset tokens for secure password recovery"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    token: str = Field(unique=True, index=True)
+    expires_at: datetime
+    used: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Relationships
+    user: User = Relationship()
+    
+    @classmethod
+    def generate_token(cls, user_id: uuid.UUID, db: Session) -> str:
+        """Generate a secure reset token"""
+        
+        # Step 1: Find existing valid tokens
+        existing_tokens = db.exec(
+            select(cls).where(
+                cls.user_id == user_id,
+                cls.used == False,
+                cls.expires_at > datetime.utcnow()
+            )
+        ).all()
+        
+        # Step 2: Mark them as used (modify objects directly)
+        for existing_token in existing_tokens:
+            existing_token.used = True
+        
+        # Step 3: Create new token
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+        
+        new_reset_token = cls(
+            user_id=user_id,
+            token=token,
+            expires_at=expires_at
+        )
+        
+        # Step 4: Save everything
+        db.add(new_reset_token)
+        db.commit()
+        
+        return token
+    
+    @classmethod
+    def verify_token(cls, token: str, db: Session) -> Optional['PasswordResetToken']:
+        """Verify and return token if valid"""
+        return db.exec(
+            select(cls).where(
+                cls.token == token,
+                cls.used == False,
+                cls.expires_at > datetime.utcnow()
+            )
+        ).first()

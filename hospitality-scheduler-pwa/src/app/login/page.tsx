@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { useTranslations } from '@/hooks/useTranslations'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -189,6 +190,16 @@ export default function LoginPage() {
                 >
                   {isLoading ? t('auth.signing') : t('auth.sign')}
                 </Button>
+
+                             {/* Forgotten password */}
+             <div className="text-center">
+              <Link 
+                href="/forgot-password" 
+                className="text-sm text-blue-600 hover:text-blue-500"
+              >
+                {t('auth.forgotPassword')}
+              </Link>
+            </div>
               </form>
 
               <Button 
