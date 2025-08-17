@@ -1,7 +1,8 @@
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from enum import Enum
 from typing import Optional, List, Dict, Any, cast
 import uuid
+from hashlib import sha256
 from sqlmodel import SQLModel, Field, Relationship, Index, JSON, select, Session, update
 from sqlalchemy import Column as SAColumn, DateTime, Enum as SQLEnum, update as sa_update
 from sqlalchemy.sql import Executable
@@ -28,7 +29,7 @@ class Facility(SQLModel, table=True):
     description: Optional[str] = None
     settings: Optional[Dict[str, Any]] = Field(default=None, sa_column=SAColumn(JSON))
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
     
     shifts: List["FacilityShift"] = Relationship(back_populates="facility", cascade_delete=True)
@@ -54,7 +55,7 @@ class FacilityShift(SQLModel, table=True):
     is_active: bool = Field(default=True)
     color: Optional[str] = Field(default="blue")  # For UI color coding
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
     
     # Relationships
@@ -76,7 +77,7 @@ class FacilityRole(SQLModel, table=True):
     hourly_rate_max: Optional[float] = None
     
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
     
     # Relationships
@@ -102,7 +103,7 @@ class FacilityZone(SQLModel, table=True):
     
     is_active: bool = Field(default=True)
     display_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
     
     # Relationships
@@ -118,7 +119,7 @@ class ShiftRoleRequirement(SQLModel, table=True):
     max_allowed: Optional[int] = Field(default=None, ge=1, le=50)  # Maximum allowed (None = unlimited)
     is_required: bool = Field(default=True)  # Is this role absolutely required for the shift?
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     
     # Relationships
     shift: FacilityShift = Relationship(back_populates="rolerequirements")
@@ -176,7 +177,7 @@ class Staff(SQLModel, table=True):
     weekly_hours_max: int | None = Field(default=40)
     phone: Optional[str] = None
     is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
     unavailability: List["StaffUnavailability"] = Relationship(back_populates="staff")
     facility: Facility = Relationship(back_populates="staff")
@@ -189,7 +190,7 @@ class StaffUnavailability(SQLModel, table=True):
     end: datetime
     reason: Optional[str] = None
     is_recurring: bool = Field(default=False)  # For weekly recurring unavailability
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     
     # Add relationship back to staff
     staff: Optional["Staff"] = Relationship(back_populates="unavailability")
@@ -199,7 +200,7 @@ class Schedule(SQLModel, table=True):
     id: uuid.UUID | None = Field(default_factory=uuid.uuid4, primary_key=True)
     facility_id: uuid.UUID = Field(foreign_key="facility.id")
     week_start: date
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
     is_published: bool = Field(default=False, nullable=False)
     published_at: Optional[datetime] = Field(
@@ -246,7 +247,7 @@ class ScheduleConfig(SQLModel, table=True):
     allow_overtime: bool = Field(default=False)
     weekend_restrictions: bool = Field(default=False)
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     
 # ==================== SWAP STATUS ENUM ====================
 
@@ -328,7 +329,7 @@ class SwapRequest(SQLModel, table=True):
     
     
     # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     manager_approved_at: Optional[datetime] = None  # Track approval timing
     staff_responded_at: Optional[datetime] = None   # Track response timing
     manager_final_approved_at: Optional[datetime] = None # NEW: Track final approval
@@ -371,7 +372,7 @@ class SwapHistory(SQLModel, table=True):
     actor_staff_id: Optional[uuid.UUID] = Field(default=None, foreign_key="staff.id")
     actor_user_id: Optional[uuid.UUID] = Field(default=None, foreign_key="user.id")
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     
 # Schedule managment models
 class ZoneAssignment(SQLModel, table=True):
@@ -383,7 +384,7 @@ class ZoneAssignment(SQLModel, table=True):
     day: int  # Day of the week (0-6)
     shift: int  # Shift number (0-2)
     priority: int = Field(default=1)  # Assignment priority
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     
     # Relationships
     schedule: "Schedule" = Relationship()
@@ -399,7 +400,7 @@ class ScheduleTemplate(SQLModel, table=True):
     tags: List[str] = Field(default_factory=list, sa_column=SAColumn(JSON))
     is_public: bool = Field(default=False)
     created_by: uuid.UUID = Field(foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     used_count: int = Field(default=0)
     
     # Relationships
@@ -413,7 +414,7 @@ class ScheduleOptimization(SQLModel, table=True):
     parameters: Dict[str, Any] = Field(default_factory=dict, sa_column=SAColumn(JSON))
     results: Dict[str, Any] = Field(default_factory=dict, sa_column=SAColumn(JSON))
     status: str = Field(default="pending")  # pending, completed, failed
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     completed_at: Optional[datetime] = None
     
     # Relationships
@@ -454,7 +455,7 @@ class Notification(SQLModel, table=True):
     expires_at: Optional[datetime] = None
     
     # Metadata
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
     
     # Relationships
@@ -480,7 +481,7 @@ class NotificationTemplate(SQLModel, table=True):
     enabled: bool = True
     tenant_id: Optional[uuid.UUID] = Field(foreign_key="tenant.id", default=None)  # null = global template
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
 
 class NotificationPreference(SQLModel, table=True):
     """User notification preferences"""
@@ -500,7 +501,7 @@ class NotificationPreference(SQLModel, table=True):
     quiet_hours_end: Optional[str] = None    # "08:00"
     timezone: str = "UTC"
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
 
 #==================== SETTINGS MODEL =============================================
@@ -561,7 +562,7 @@ class SystemSettings(SQLModel, table=True):
     )
     
     # Audit fields
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
     updated_by: Optional[uuid.UUID] = Field(foreign_key="user.id", default=None)
 
@@ -607,7 +608,7 @@ class NotificationGlobalSettings(SQLModel, table=True):
     retry_failed_notifications: bool = Field(default=True)
     max_retry_attempts: int = Field(default=3)
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
 
 
@@ -631,7 +632,7 @@ class AuditLog(SQLModel, table=True):
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
     
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     
 #==================== USER PROFILE MODEL =============================================
 class UserProfile(SQLModel, table=True):
@@ -712,7 +713,8 @@ class UserProfile(SQLModel, table=True):
     feature_hints_enabled: bool = Field(default=True)
     
     # Audit fields
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), 
+                                 sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
     last_active: Optional[datetime] = None
     
@@ -729,7 +731,8 @@ class ProfilePictureUpload(SQLModel, table=True):
     mime_type: str
     storage_path: str  # Local path or cloud storage URL
     is_active: bool = Field(default=True)
-    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+    uploaded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), 
+                                  sa_column=SAColumn(DateTime(timezone=True)))
     
     # Metadata
     image_width: Optional[int] = None
@@ -745,54 +748,61 @@ class PasswordResetToken(SQLModel, table=True):
     """Password reset tokens for secure password recovery"""
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
-    token: str = Field(unique=True, index=True)
-    expires_at: datetime
+    token_hash: str = Field(unique=True, index=True)
+    expires_at: datetime = Field(sa_column=SAColumn(DateTime(timezone=True)))
     used: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), 
+                                 sa_column=SAColumn(DateTime(timezone=True)))
     
     # Relationships
     user: User = Relationship()
-    
+    __table_args__ = (
+        Index(
+            'uq_active_reset_token_per_user',
+            'user_id',
+            unique=True,
+            postgresql_where="used = false AND expires_at > now()"
+        ),
+    )
+
     @classmethod
     def generate_token(cls, user_id: uuid.UUID, db: Session) -> str:
-        """Generate a secure reset token"""
-        
-        # Step 1: Find existing valid tokens
-        existing_tokens = db.exec(
-            select(cls).where(
+        """Generate a secure reset token (hashed at rest)"""
+        raw = secrets.token_urlsafe(32)
+        token_hash = sha256(raw.encode()).hexdigest()
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+
+        # Atomic transaction: invalidate existing + insert new
+        with db.begin():
+            stmt = sa_update(cls).where(
                 cls.user_id == user_id,
-                cls.used == False,
-                cls.expires_at > datetime.utcnow()
+                cls.used.is_(False),
+                cls.expires_at > datetime.now(timezone.utc)
+            ).values(used=True)
+            db.exec(cast(Executable, stmt))
+
+            new_reset_token = cls(
+                user_id=user_id,
+                token_hash=token_hash,
+                expires_at=expires_at,
             )
-        ).all()
-        
-        # Step 2: Mark them as used (modify objects directly)
-        for existing_token in existing_tokens:
-            existing_token.used = True
-        
-        # Step 3: Create new token
-        token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(hours=24)
-        
-        new_reset_token = cls(
-            user_id=user_id,
-            token=token,
-            expires_at=expires_at
-        )
-        
-        # Step 4: Save everything
-        db.add(new_reset_token)
-        db.commit()
-        
-        return token
-    
+            db.add(new_reset_token)
+
+        return raw
+
     @classmethod
     def verify_token(cls, token: str, db: Session) -> Optional['PasswordResetToken']:
-        """Verify and return token if valid"""
-        return db.exec(
+        """Verify token by hash, mark as used if valid, and return the record."""
+        token_hash = sha256(token.encode()).hexdigest()
+        now = datetime.now(timezone.utc)
+        rec = db.exec(
             select(cls).where(
-                cls.token == token,
-                cls.used == False,
-                cls.expires_at > datetime.utcnow()
+                cls.token_hash == token_hash,
+                cls.used.is_(False),
+                cls.expires_at > now
             )
         ).first()
+        if rec:
+            rec.used = True
+            db.commit()
+        return rec
