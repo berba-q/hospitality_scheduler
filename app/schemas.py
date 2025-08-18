@@ -5,7 +5,7 @@ import uuid
 
 from .models import NotificationType, NotificationChannel, NotificationPriority
 from .models import SwapStatus
-from pydantic import BaseModel, EmailStr, ConfigDict, Field, validator
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 from pydantic import field_validator
 
 # ==================== DUPLICATE CHECKING SCHEMAS ====================
@@ -2300,3 +2300,70 @@ class PasswordResetResponse(BaseModel):
     message: str
     success: bool
 
+# ================== Invite new users ===========================
+class InvitationCreate(BaseModel):
+    staff_id: uuid.UUID
+    custom_message: Optional[str] = None
+    expires_in_hours: int = Field(default=168, ge=1, le=720)  # Default 7 days, max 30 days
+
+class InvitationRead(BaseModel):
+    id: uuid.UUID
+    staff_id: uuid.UUID
+    email: str
+    status: str
+    sent_at: Optional[datetime]
+    accepted_at: Optional[datetime]
+    expires_at: datetime
+    custom_message: Optional[str]
+    
+    # Related data
+    staff_name: str
+    facility_name: str
+    invited_by_name: str
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class BulkInvitationRequest(BaseModel):
+    staff_ids: List[uuid.UUID]
+    custom_message: Optional[str] = None
+    expires_in_hours: int = Field(default=168, ge=1, le=720)
+
+class InvitationAcceptRequest(BaseModel):
+    token: str
+    signup_method: str = Field(..., pattern=r"^(google|credentials)$")
+    
+    # For credentials signup
+    password: Optional[str] = None
+    confirm_password: Optional[str] = None
+    
+    @field_validator('password')
+    def validate_password(cls, v, values):
+        if values.data.get('signup_method') == 'credentials':
+            if not v or len(v) < 8:
+                raise ValueError('Password must be at least 8 characters long')
+        return v
+
+class InvitationStatsResponse(BaseModel):
+    total_sent: int
+    pending: int
+    accepted: int
+    expired: int
+    cancelled: int
+    acceptance_rate: float
+    
+# Enhanced staff import with invitations
+class StaffImportWithInvitationsRequest(BaseModel):
+    send_invitations: bool = True
+    invitation_message: Optional[str] = None
+    invitation_expires_hours: int = Field(default=168, ge=1, le=720)
+
+class StaffImportResult(BaseModel):
+    total_processed: int
+    successful_imports: int
+    skipped_duplicates: int
+    errors: int
+    
+    # Invitation results
+    invitations_sent: int
+    invitation_errors: int
+    invitation_details: List[dict] = []

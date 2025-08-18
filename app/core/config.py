@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: Optional[str] = None
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_WHATSAPP_NUMBER: Optional[str] = None
+    DEFAULT_COUNTRY_CODE: Optional[str]="+39"
     
     # Optional: Email settings
     SMTP_HOST: Optional[str] = None

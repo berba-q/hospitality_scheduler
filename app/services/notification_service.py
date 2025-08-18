@@ -234,6 +234,38 @@ class NotificationService:
             await self._deliver_notification(str(notification.id), template_data)
         
         return notification
+
+    async def send_email_to_address(
+        self,
+        notification_type: NotificationType,
+        to_email: str,
+        template_data: Dict[str, Any],
+        tenant_id: uuid.UUID,
+        priority: Optional[NotificationPriority] = None,
+        action_url: Optional[str] = None,
+        action_text: Optional[str] = None,
+        pdf_attachment_url: Optional[str] = None,
+        background_tasks: Optional[BackgroundTasks] = None,
+    ) -> Dict[str, Any]:
+        """Render and send an email to a raw address (no user/notification row)."""
+        # Get template (tenant-specific or global)
+        template = self._get_template(notification_type, tenant_id)
+        title = self._render_template(template.title_template, template_data) if template else notification_type.value.replace('_', ' ').title()
+        message = self._render_template(template.message_template, template_data) if template else template_data.get('message', 'You have a new message')
+
+        # Simulate email send (plug real provider here)
+        print(f"📧 EMAIL: Would send to {to_email}")
+        print(f"📧 Subject: {title}")
+        print(f"📧 Body: {message}")
+        if pdf_attachment_url:
+            print(f"📎 PDF Attachment: {pdf_attachment_url}")
+
+        # Optionally, schedule async delivery hook (no DB row to fetch)
+        return {
+            "status": "queued" if background_tasks else "sent",
+            "to": to_email,
+            "notification_type": notification_type.value,
+        }
     
     async def _create_basic_notification(
         self,
@@ -337,6 +369,22 @@ class NotificationService:
                         }
                         print(f"{'Done' if success else 'Err'} Push notification {'delivered' if success else 'failed'}")
                     
+                    elif channel == "EMAIL":
+                        success = await self._send_email_notification(notification, template, template_data)
+                        delivery_status[channel] = {
+                            "status": "delivered" if success else "failed",
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                        print(f"{'Done' if success else 'Err'} Email {'sent' if success else 'failed'}")
+
+                    elif channel == "WHATSAPP":
+                        success = await self._send_whatsapp_message(notification, template, template_data)
+                        delivery_status[channel] = {
+                            "status": "delivered" if success else "failed",
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                        print(f"{'Done' if success else 'Err'} WhatsApp {'sent' if success else 'failed'}")
+                    
                 except Exception as e:
                     delivery_status[channel] = {
                         "status": "error",
@@ -432,7 +480,8 @@ class NotificationService:
         # Ensure phone number has country code
         phone_number = user.whatsapp_number
         if not phone_number.startswith('+'):
-            phone_number = f"+1{phone_number}"  # Default to US if no country code
+            default_cc = getattr(settings, 'DEFAULT_COUNTRY_CODE', '+39')  # Fallback to Italy if not configured
+            phone_number = f"{default_cc}{phone_number}"
         
         # Twilio API payload
         payload = {
@@ -449,16 +498,30 @@ class NotificationService:
                     data=payload
                 )
                 
-                if response.status_code == 201:
+                if response.status_code // 100 == 2:
                     result = response.json()
-                    print(f"WhatsApp sent successfully to {user.email} (SID: {result.get('sid')})")
+                    logger.info(
+                        "whatsapp_sent",
+                        extra={
+                            "to": user.email,
+                            "sid": result.get('sid'),
+                            "status_code": response.status_code,
+                        }
+                    )
                     return True
                 else:
-                    print(f"WhatsApp failed {response.status_code}: {response.text}")
+                    logger.error(
+                        "whatsapp_failed",
+                        extra={
+                            "to": user.email if user else 'unknown',
+                            "status_code": response.status_code,
+                            "response": response.text[:500],
+                        }
+                    )
                     return False
                     
         except Exception as e:
-            print(f" WhatsApp error: {e}")
+            logger.error("whatsapp_exception", extra={"error": str(e)})
             return False
     
     # ✅ FIXED: Auto-assignment notification method

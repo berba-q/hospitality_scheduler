@@ -805,3 +805,61 @@ class PasswordResetToken(SQLModel, table=True):
             rec.used = True
             db.commit()
         return rec
+
+# ====================== Invite users ================================
+class StaffInvitation(SQLModel, table=True):
+    """Staff invitation tokens for new user onboarding"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    staff_id: uuid.UUID = Field(foreign_key="staff.id", index=True)
+    email: str = Field(index=True)
+    token: str = Field(unique=True, index=True)
+    
+    # Invitation details
+    invited_by: uuid.UUID = Field(foreign_key="user.id")
+    tenant_id: uuid.UUID = Field(foreign_key="tenant.id", index=True)
+    facility_id: uuid.UUID = Field(foreign_key="facility.id")
+    
+    # Status tracking
+    expires_at: datetime
+    sent_at: Optional[datetime] = None
+    accepted_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    
+    # Custom invitation message
+    custom_message: Optional[str] = None
+    
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), 
+                                  sa_column=SAColumn(DateTime(timezone=True)))
+    
+    # Relationships
+    staff: Staff = Relationship()
+    invited_by_user: User = Relationship(sa_relationship_kwargs={"foreign_keys": "StaffInvitation.invited_by"})
+    tenant: Tenant = Relationship()
+    facility: Facility = Relationship()
+    
+    @property
+    def status(self) -> str:
+        """Get current invitation status"""
+        if self.cancelled_at:
+            return "cancelled"
+        elif self.accepted_at:
+            return "accepted"
+        elif self.expires_at < datetime.now(timezone.utc):
+            return "expired"
+        elif self.sent_at:
+            return "sent"
+        else:
+            return "pending"
+    
+    @classmethod
+    def generate_token(cls) -> str:
+        """Generate a secure invitation token"""
+        return secrets.token_urlsafe(32)
+    
+    def is_valid(self) -> bool:
+        """Check if invitation is still valid"""
+        return (
+            not self.accepted_at and 
+            not self.cancelled_at and 
+            self.expires_at > datetime.now(timezone.utc)
+        )
