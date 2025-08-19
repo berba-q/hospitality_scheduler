@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session, or_, select, func
 from typing import List, Optional
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from uuid import UUID
 
 from ...deps import get_db, get_current_user
@@ -16,6 +16,40 @@ from ...models import (
 from ...schemas import StaffCreate, StaffDuplicateCheck, StaffRead, StaffUpdate
 
 router = APIRouter(prefix="/staff", tags=["staff"])
+
+# Add timezone utility functions similar to swap endpoint
+def ensure_timezone_aware(dt):
+    """Ensure datetime is timezone-aware, assuming UTC for naive datetimes"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+def get_current_utc_datetime():
+    """Get current UTC datetime - replaces datetime.utcnow()"""
+    return datetime.now(timezone.utc)
+
+def get_current_utc_date():
+    """Get current UTC date"""
+    return datetime.now(timezone.utc).date()
+
+def parse_date_input(date_str: str, user_timezone: str = "UTC") -> date:
+    """Parse date string with timezone awareness"""
+    try:
+        # Parse the ISO date string
+        parsed_dt = datetime.fromisoformat(date_str)
+        
+        # If no timezone info, assume user's timezone (default UTC)
+        if parsed_dt.tzinfo is None:
+            # For date-only inputs, we typically want to use the user's timezone
+            # You might want to get this from user preferences
+            parsed_dt = parsed_dt.replace(tzinfo=timezone.utc)
+        
+        return parsed_dt.date()
+    except ValueError:
+        # Fallback for simple date formats
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
 
 def check_for_duplicates(
     db: Session, 
@@ -72,7 +106,7 @@ def check_for_duplicates(
                 Staff.is_active == True,
                 # Check for names that contain similar parts
                 or_(
-                    *[Staff.full_name.ilike(f"%{part}%") for part in name_parts if len(part) > 2]
+                    *[Staff.full_name.ilike(f"%{part}%") for part in name_parts if len(part) > 2] # type: ignore
                 )
             )
         ).all()
@@ -98,7 +132,7 @@ def check_for_duplicates(
         if len(normalized_phone) >= 10:  # Only check substantial phone numbers
             phone_matches = db.exec(
                 select(Staff).join(Facility).where(
-                    Staff.phone.like(f"%{normalized_phone[-10:]}%"),  # Check last 10 digits
+                    Staff.phone.like(f"%{normalized_phone[-10:]}%"),  # Check last 10 digits # type: ignore
                     Facility.tenant_id == current_user.tenant_id,
                     Staff.is_active == True
                 )
@@ -170,7 +204,7 @@ def create_staff(
     # Include duplicate warnings in response if any were found
     response_data = staff.model_dump()
     if not skip_duplicate_check and 'duplicates' in locals():
-        response_data["_duplicate_warnings"] = duplicates if duplicates["has_any_duplicates"] else None
+        response_data["_duplicate_warnings"] = duplicates if duplicates["has_any_duplicates"] else None # type: ignore
     
     return staff
 
@@ -225,7 +259,6 @@ def list_staff(db: Session = Depends(get_db), current_user = Depends(get_current
         .join(Facility)
         .where(Facility.tenant_id == current_user.tenant_id)
     )
-    #staff_list = db.exec(statement).all()
     return db.exec(statement).all()
 
 @router.put("/{staff_id}", response_model=StaffRead)
@@ -270,12 +303,14 @@ def update_staff(
     for field, value in update_data.items():
         setattr(staff, field, value)
     
+    # Set updated_at timestamp
+    staff.updated_at = get_current_utc_datetime()
+    
     db.add(staff)
     db.commit()
     db.refresh(staff)
     return staff
 
-# This endpoint allows deletion of a staff member by ID
 @router.delete("/{staff_id}", status_code=204)
 def delete_staff(
     staff_id: str,
@@ -310,7 +345,6 @@ def delete_staff(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete staff member: {str(e)}")
 
-# Enhanced duplicate checking endpoint
 @router.post("/check-duplicate")
 def check_staff_duplicate(
     check_data: StaffDuplicateCheck,
@@ -321,7 +355,7 @@ def check_staff_duplicate(
     
     existing = db.exec(
         select(Staff).join(Facility).where(
-            Staff.full_name.ilike(f"%{check_data.full_name}%"),
+            Staff.full_name.ilike(f"%{check_data.full_name}%"), # type: ignore
             Staff.facility_id == check_data.facility_id,
             Facility.tenant_id == current_user.tenant_id,
             Staff.is_active == True
@@ -383,8 +417,9 @@ def get_my_schedule(
     if not staff:
         raise HTTPException(status_code=404, detail="Staff profile not found")
     
-    start = datetime.fromisoformat(start_date).date()
-    end = datetime.fromisoformat(end_date).date()
+    # Parse dates with timezone awareness
+    start = parse_date_input(start_date)
+    end = parse_date_input(end_date)
     
     # Get all schedules for this facility in date range
     schedules = db.exec(
@@ -445,10 +480,13 @@ def get_my_dashboard_stats(
     if not staff:
         raise HTTPException(status_code=404, detail="Staff profile not found")
     
-    # Get current week boundaries
-    today = date.today()
-    days_since_monday = today.weekday()
-    week_start = today - timedelta(days=days_since_monday)
+    # Get current UTC time and date
+    now_utc = get_current_utc_datetime()
+    today_utc = get_current_utc_date()
+    
+    # Get current week boundaries (in UTC)
+    days_since_monday = today_utc.weekday()
+    week_start = today_utc - timedelta(days=days_since_monday)
     week_end = week_start + timedelta(days=6)
     
     # Get next week
@@ -459,7 +497,7 @@ def get_my_dashboard_stats(
     schedules = db.exec(
         select(Schedule).where(
             Schedule.facility_id == staff.facility_id,
-            Schedule.week_start.in_([week_start, next_week_start])
+            Schedule.week_start.in_([week_start, next_week_start]) # type: ignore
         )
     ).all()
     
@@ -488,7 +526,7 @@ def get_my_dashboard_stats(
                 next_week_hours += shift_hours
             
             # Add to upcoming shifts if within next 7 days
-            if assignment_date >= today and assignment_date <= (today + timedelta(days=7)):
+            if assignment_date >= today_utc and assignment_date <= (today_utc + timedelta(days=7)):
                 shift_names = ["Morning", "Afternoon", "Evening"]
                 shift_times = ["6:00 AM - 2:00 PM", "2:00 PM - 10:00 PM", "10:00 PM - 6:00 AM"]
                 day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -500,8 +538,8 @@ def get_my_dashboard_stats(
                     "day_name": day_names[assignment.day] if assignment.day < 7 else "Unknown",
                     "shift_name": shift_names[assignment.shift] if assignment.shift < 3 else "Unknown",
                     "shift_time": shift_times[assignment.shift] if assignment.shift < 3 else "Unknown",
-                    "is_today": assignment_date == today,
-                    "is_tomorrow": assignment_date == (today + timedelta(days=1)),
+                    "is_today": assignment_date == today_utc,
+                    "is_tomorrow": assignment_date == (today_utc + timedelta(days=1)),
                     "assignment_id": str(assignment.id),
                     "schedule_id": str(schedule.id)
                 })
@@ -517,8 +555,8 @@ def get_my_dashboard_stats(
         )
     ).all()
     
-    # Get recent swap activity for gamification stats
-    recent_date = datetime.utcnow() - timedelta(days=30)
+    # Get recent swap activity for gamification stats (last 30 days)
+    recent_date = now_utc - timedelta(days=30)
     
     # Requests where I was the target
     requests_for_me = db.exec(
@@ -533,7 +571,7 @@ def get_my_dashboard_stats(
         select(SwapRequest).where(
             SwapRequest.assigned_staff_id == staff.id,
             SwapRequest.created_at >= recent_date,
-            SwapRequest.status.in_([SwapStatus.EXECUTED, SwapStatus.STAFF_ACCEPTED])
+            SwapRequest.status.in_([SwapStatus.EXECUTED, SwapStatus.STAFF_ACCEPTED]) # type: ignore
         )
     ).all()
     
@@ -561,23 +599,27 @@ def get_my_dashboard_stats(
         elif request.target_staff_accepted == False:
             break
     
-    # Calculate average response time
+    # Calculate average response time with timezone awareness
     responded_requests = [r for r in requests_for_me if r.target_staff_accepted is not None and r.updated_at]
     avg_response_time = "N/A"
     
     if responded_requests:
-        total_response_time = sum([
-            (r.updated_at - r.created_at).total_seconds() / 3600 
-            for r in responded_requests
-        ])
-        avg_hours = total_response_time / len(responded_requests)
+        total_response_time = 0
+        for request in responded_requests:
+            created_at = ensure_timezone_aware(request.created_at)
+            updated_at = ensure_timezone_aware(request.updated_at)
+            if created_at and updated_at:
+                total_response_time += (updated_at - created_at).total_seconds() / 3600
         
-        if avg_hours < 1:
-            avg_response_time = f"{int(avg_hours * 60)} minutes"
-        elif avg_hours < 24:
-            avg_response_time = f"{avg_hours:.1f} hours"
-        else:
-            avg_response_time = f"{int(avg_hours / 24)} days"
+        if total_response_time > 0:
+            avg_hours = total_response_time / len(responded_requests)
+            
+            if avg_hours < 1:
+                avg_response_time = f"{int(avg_hours * 60)} minutes"
+            elif avg_hours < 24:
+                avg_response_time = f"{avg_hours:.1f} hours"
+            else:
+                avg_response_time = f"{int(avg_hours / 24)} days"
     
     return {
         "staff_id": str(staff.id),
@@ -600,7 +642,7 @@ def get_my_swap_requests(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Get swap requests for current staff member - FIXED VERSION"""
+    """Get swap requests for current staff member"""
     if current_user.is_manager:
         raise HTTPException(status_code=403, detail="This endpoint is for staff only")
     
@@ -618,7 +660,7 @@ def get_my_swap_requests(
     # Properly specify the join condition between SwapRequest and Schedule
     query = select(SwapRequest).join(
         Schedule, 
-        SwapRequest.schedule_id == Schedule.id  # 
+        SwapRequest.schedule_id == Schedule.id
     ).where(
         Schedule.facility_id == staff.facility_id,
         or_(
@@ -650,11 +692,11 @@ def get_my_swap_requests(
             user_role = "assigned"
         
         result.append({
-            **swap.dict(),
+            **swap.model_dump(),
             "user_role": user_role,
-            "requesting_staff": requesting_staff.dict() if requesting_staff else None,
-            "target_staff": target_staff.dict() if target_staff else None,
-            "assigned_staff": assigned_staff.dict() if assigned_staff else None,
+            "requesting_staff": requesting_staff.model_dump() if requesting_staff else None,
+            "target_staff": target_staff.model_dump() if target_staff else None,
+            "assigned_staff": assigned_staff.model_dump() if assigned_staff else None,
             "can_respond": user_role in ["target", "assigned"] and swap.status == SwapStatus.POTENTIAL_ASSIGNMENT
         })
     
