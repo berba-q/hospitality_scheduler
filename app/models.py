@@ -330,12 +330,30 @@ class SwapRequest(SQLModel, table=True):
     
     
     # Timestamps
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
-    manager_approved_at: Optional[datetime] = None  # Track approval timing
-    staff_responded_at: Optional[datetime] = None   # Track response timing
-    manager_final_approved_at: Optional[datetime] = None # NEW: Track final approval
-    expires_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), 
+        sa_column=SAColumn(DateTime(timezone=True))
+    )
+    manager_approved_at: Optional[datetime] = Field(
+        default=None, 
+        sa_column=SAColumn(DateTime(timezone=True))
+    )
+    staff_responded_at: Optional[datetime] = Field(
+        default=None, 
+        sa_column=SAColumn(DateTime(timezone=True))
+    )
+    manager_final_approved_at: Optional[datetime] = Field(
+        default=None, 
+        sa_column=SAColumn(DateTime(timezone=True))
+    )
+    expires_at: Optional[datetime] = Field(
+        default=None, 
+        sa_column=SAColumn(DateTime(timezone=True))
+    )
+    completed_at: Optional[datetime] = Field(
+        default=None, 
+        sa_column=SAColumn(DateTime(timezone=True))
+    )
     
     # ==================== DATABASE CONSTRAINTS ====================
     __table_args__ = (
@@ -820,10 +838,10 @@ class StaffInvitation(SQLModel, table=True):
     facility_id: uuid.UUID = Field(foreign_key="facility.id")
     
     # Status tracking
-    expires_at: datetime
-    sent_at: Optional[datetime] = None
-    accepted_at: Optional[datetime] = None
-    cancelled_at: Optional[datetime] = None
+    expires_at: datetime = Field(sa_column=SAColumn(DateTime(timezone=True)))
+    sent_at: Optional[datetime] = Field(default=None, sa_column=SAColumn(DateTime(timezone=True)))
+    accepted_at: Optional[datetime] = Field(default=None, sa_column=SAColumn(DateTime(timezone=True)))
+    cancelled_at: Optional[datetime] = Field(default=None, sa_column=SAColumn(DateTime(timezone=True)))
     
     # Custom invitation message
     custom_message: Optional[str] = None

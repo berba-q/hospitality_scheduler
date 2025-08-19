@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Query
 from sqlmodel import Session, select
 from typing import List, Optional, Literal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from collections import Counter, defaultdict
 from typing import Dict, Any
@@ -26,6 +26,52 @@ from ...schemas import (
     SwapValidationResult, SwapAnalytics, BulkSwapApproval, BulkSwapResult
 )
 from ...services.swap_service import assign_swap_coverage, get_swap_workflow_status
+
+def ensure_timezone_aware(dt):
+    """Ensure datetime is timezone-aware, assuming UTC for naive datetimes"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+def safe_datetime_compare(dt, comparison_dt, operator='>='):
+    """Safely compare datetime with None checks"""
+    if dt is None or comparison_dt is None:
+        return False
+    
+    dt_aware = ensure_timezone_aware(dt)
+    comparison_aware = ensure_timezone_aware(comparison_dt)
+    
+    if dt_aware is None or comparison_aware is None:
+        return False
+    
+    if operator == '>=':
+        return dt_aware >= comparison_aware
+    elif operator == '<=':
+        return dt_aware <= comparison_aware
+    elif operator == '>':
+        return dt_aware > comparison_aware
+    elif operator == '<':
+        return dt_aware < comparison_aware
+    else:
+        return False
+
+
+def safe_datetime_subtract(end_dt, start_dt):
+    """Safely subtract datetime objects, handling timezone awareness"""
+    if end_dt is None or start_dt is None:
+        return None
+    
+    # Ensure both are timezone-aware
+    end_aware = ensure_timezone_aware(end_dt)
+    start_aware = ensure_timezone_aware(start_dt)
+    
+    # Add explicit None checks to satisfy type checker
+    if end_aware is None or start_aware is None:
+        return None
+    
+    return (end_aware - start_aware).total_seconds()
 
 router = APIRouter(prefix="/swaps", tags=["emergency-swaps"])
 
@@ -443,8 +489,13 @@ def get_facilities_swap_summary(
         potential_assignments = len([s for s in facility_swaps if s.status == SwapStatus.POTENTIAL_ASSIGNMENT])
         awaiting_final_approval = len([s for s in facility_swaps if s.status == SwapStatus.MANAGER_FINAL_APPROVAL])
         
-        recent_completions = len([s for s in facility_swaps if s.status == SwapStatus.EXECUTED and s.completed_at and s.completed_at >= datetime.utcnow() - timedelta(days=7)])
-        
+        now_utc = datetime.now(timezone.utc)
+        week_ago = now_utc - timedelta(days=7)
+        recent_completions = len([s for s in facility_swaps 
+                         if s.status == SwapStatus.EXECUTED 
+                         and s.completed_at is not None
+                         and safe_datetime_compare(s.completed_at, week_ago, '>=')])
+
         # Role statistics
         role_overrides = len([s for s in facility_swaps if s.role_match_override])
         role_compatible = len([s for s in facility_swaps if not s.role_match_override and s.status == SwapStatus.EXECUTED])
@@ -519,7 +570,7 @@ async def swap_service_health_check(
         
         health_status = {
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "database_connected": True,
             "total_swaps_in_system": total_swaps,
             "pending_swaps": pending_swaps,
@@ -538,7 +589,7 @@ async def swap_service_health_check(
     except Exception as e:
         return {
             "status": "unhealthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "error": str(e),
             "database_connected": False
         }
@@ -641,7 +692,7 @@ async def create_specific_swap_request(
         status=SwapStatus.PENDING,
         requires_manager_final_approval=getattr(swap_in, 'requires_manager_final_approval', True),
         role_verification_required=getattr(swap_in, 'role_verification_required', True),
-        expires_at=swap_in.expires_at or (datetime.utcnow() + timedelta(days=3))
+        expires_at=swap_in.expires_at or (datetime.now(timezone.utc) + timedelta(days=3))
     )
     
     db.add(swap_request)
@@ -744,7 +795,7 @@ async def create_auto_swap_request(
         status=SwapStatus.PENDING,
         requires_manager_final_approval=getattr(swap_in, 'requires_manager_final_approval', True),
         role_verification_required=getattr(swap_in, 'role_verification_required', True),
-        expires_at=swap_in.expires_at or (datetime.utcnow() + timedelta(days=2))
+        expires_at=swap_in.expires_at or (datetime.now(timezone.utc) + timedelta(days=2))
     )
     
     db.add(swap_request)
@@ -1436,8 +1487,8 @@ async def update_swap_request(
     action="updated",
     actor_staff_id=current_user.id if not current_user.is_manager else None,
     actor_user_id=current_user.id,  # ← ADD THIS LINE
-    notes=f"Swap request updated: {', '.join(update_dict.keys())}",
-    system_action=False
+    notes=f"Swap request updated: {', '.join(update_dict.keys())}"
+    #system_action=False
     )
     
     db.add(swap_request)
@@ -1477,8 +1528,8 @@ async def cancel_swap_request(
     action="cancelled",
     actor_staff_id=current_user.id if not current_user.is_manager else None,
     actor_user_id=current_user.id,  # ← ADD THIS LINE
-    notes=reason or "Swap request cancelled",
-    system_action=False
+    notes=reason or "Swap request cancelled"
+    #system_action=False
     )
     
     db.add(swap_request)
@@ -1521,7 +1572,7 @@ async def manager_swap_decision(
     # Update manager decision
     swap_request.manager_approved = decision.approved
     swap_request.manager_notes = decision.notes
-    swap_request.manager_approved_at = datetime.utcnow()
+    swap_request.manager_approved_at = datetime.now(timezone.utc)
     
     if decision.approved:
         swap_request.status = SwapStatus.MANAGER_APPROVED
@@ -1559,8 +1610,8 @@ async def manager_swap_decision(
         action=action,
         actor_staff_id=None,
         actor_user_id=current_user.id,
-        notes=decision.notes,
-        system_action=False
+        notes=decision.notes
+        #system_action=False
     )
     
     db.add(swap_request)
@@ -1641,7 +1692,7 @@ async def manager_final_approval(
     
     # Process final approval
     swap_request.manager_final_approved = decision.approved
-    swap_request.manager_final_approved_at = datetime.utcnow()
+    swap_request.manager_final_approved_at = datetime.now(timezone.utc)
     
     # Update or append to manager notes
     if decision.notes:
@@ -1658,7 +1709,7 @@ async def manager_final_approval(
     if decision.approved:
         # Execute the swap - update schedule
         swap_request.status = SwapStatus.EXECUTED
-        swap_request.completed_at = datetime.utcnow()
+        swap_request.completed_at = datetime.now(timezone.utc)
         
         print(f"✅ Swap {swap_id} executed successfully by manager {current_user.email}")
         
@@ -1703,8 +1754,8 @@ async def manager_final_approval(
         action=action,
         actor_staff_id=None,  # Manager action
         actor_user_id=current_user.id,
-        notes=history_notes,
-        system_action=False
+        notes=history_notes
+        #system_action=False
     )
     
     db.add(swap_request)
@@ -1802,7 +1853,7 @@ async def respond_to_swap_request(
             swap_request.status = SwapStatus.ASSIGNMENT_DECLINED
     
     # Set response timestamp
-    swap_request.staff_responded_at = datetime.utcnow()
+    swap_request.staff_responded_at = datetime.now(timezone.utc)
     
     # Create history entry
     action = "staff_accepted" if response.accepted else "staff_declined"
@@ -1811,8 +1862,8 @@ async def respond_to_swap_request(
         action=action,
         actor_staff_id=current_staff.id,
         actor_user_id=current_user.id,
-        notes=response.notes or ("Assignment accepted" if response.accepted else "Assignment declined"),
-        system_action=False
+        notes=response.notes or ("Assignment accepted" if response.accepted else "Assignment declined")
+        #system_action=False
     )
     
     db.add(swap_request)
@@ -1885,7 +1936,7 @@ async def respond_to_potential_assignment(
     
     # Update response
     swap_request.assigned_staff_accepted = response.accepted
-    swap_request.staff_responded_at = datetime.utcnow()
+    swap_request.staff_responded_at = datetime.now(timezone.utc)
     
     # ✅ FIXED: Proper status transition for potential assignments
     if response.accepted:
@@ -1908,8 +1959,8 @@ async def respond_to_potential_assignment(
         action=action,
         actor_staff_id=current_staff.id,
         actor_user_id=current_user.id,
-        notes=response.notes or ("Potential assignment accepted" if response.accepted else "Potential assignment declined"),
-        system_action=False
+        notes=response.notes or ("Potential assignment accepted" if response.accepted else "Potential assignment declined")
+        #system_action=False
     )
     
     db.add(swap_request)
@@ -1983,27 +2034,46 @@ def get_swap_summary(
     auto_swaps_needing_assignment = len([s for s in all_swaps if s.status == SwapStatus.MANAGER_APPROVED and s.swap_type == "auto"])
     specific_swaps_awaiting_response = len([s for s in all_swaps if s.status == SwapStatus.MANAGER_APPROVED and s.swap_type == "specific"])
     
-    recent_completions = len([s for s in all_swaps if s.status == SwapStatus.EXECUTED and s.completed_at and s.completed_at >= datetime.utcnow() - timedelta(days=7)])
+    now_utc = datetime.now(timezone.utc)  
+    week_ago = now_utc - timedelta(days=7)
+    recent_completions = len([s for s in all_swaps 
+                             if s.status == SwapStatus.EXECUTED 
+                             and s.completed_at is not None
+                             and safe_datetime_compare(s.completed_at, week_ago, '>=')])
     
     # Role verification stats
     role_compatible_assignments = len([s for s in all_swaps if not s.role_match_override])
     role_override_assignments = len([s for s in all_swaps if s.role_match_override])
     failed_role_verifications = len([s for s in all_swaps if s.status == SwapStatus.ASSIGNMENT_FAILED])
     
-    # Timing metrics
+    # FIXED: Timing metrics with safe datetime arithmetic
     completed_swaps = [s for s in all_swaps if s.completed_at and s.manager_approved_at]
     avg_approval_time = None
     if completed_swaps:
-        approval_times = [(s.manager_approved_at - s.created_at).total_seconds() / 3600 for s in completed_swaps if s.manager_approved_at]
+        approval_times = []
+        for s in completed_swaps:
+            if s.manager_approved_at:
+                diff = safe_datetime_subtract(s.manager_approved_at, s.created_at)
+                if diff is not None:
+                    approval_times.append(diff / 3600)  # Convert to hours
         avg_approval_time = sum(approval_times) / len(approval_times) if approval_times else None
-    
+
     staff_responded_swaps = [s for s in all_swaps if s.staff_responded_at]
     avg_staff_response_time = None
     if staff_responded_swaps:
-        response_times = [(s.staff_responded_at - s.created_at).total_seconds() / 3600 for s in staff_responded_swaps]
-        avg_staff_response_time = sum(response_times) / len(response_times)
-    
-    pending_over_24h = len([s for s in all_swaps if s.status == SwapStatus.PENDING and s.created_at <= datetime.utcnow() - timedelta(hours=24)])
+        response_times = []
+        for s in staff_responded_swaps:
+            diff = safe_datetime_subtract(s.staff_responded_at, s.created_at)
+            if diff is not None:
+                response_times.append(diff / 3600)  # Convert to hours
+        avg_staff_response_time = sum(response_times) / len(response_times) if response_times else None
+
+    # FIX: Use the same now_utc variable
+    day_ago = now_utc - timedelta(hours=24)
+    pending_over_24h = len([s for s in all_swaps 
+                           if s.status == SwapStatus.PENDING
+                           and s.created_at is not None
+                           and safe_datetime_compare(s.created_at, day_ago, '<=')])
     
     return SwapSummary(
         facility_id=facility_id,
@@ -2129,16 +2199,20 @@ async def check_swap_conflicts(db: Session, swap_request: SwapRequest, original_
     requesting_staff_unavailable = db.exec(
         select(StaffUnavailability).where(
             StaffUnavailability.staff_id == swap_request.requesting_staff_id,
-            StaffUnavailability.start <= datetime.utcnow(),  # Simplified check
-            StaffUnavailability.end >= datetime.utcnow()
+            StaffUnavailability.start != None,
+            StaffUnavailability.end != None,
+            StaffUnavailability.start <= datetime.now(timezone.utc),  
+            StaffUnavailability.end >= datetime.now(timezone.utc)
         )
     ).first()
     
     target_staff_unavailable = db.exec(
         select(StaffUnavailability).where(
             StaffUnavailability.staff_id == swap_request.target_staff_id,
-            StaffUnavailability.start <= datetime.utcnow(),  # Simplified check  
-            StaffUnavailability.end >= datetime.utcnow()
+            StaffUnavailability.start != None,
+            StaffUnavailability.end != None,
+            StaffUnavailability.start <= datetime.now(timezone.utc),   
+            StaffUnavailability.end >= datetime.now(timezone.utc)
         )
     ).first()
     
@@ -2189,8 +2263,10 @@ async def check_auto_swap_conflicts(db: Session, swap_request: SwapRequest, orig
     assigned_staff_unavailable = db.exec(
         select(StaffUnavailability).where(
             StaffUnavailability.staff_id == swap_request.assigned_staff_id,
-            StaffUnavailability.start <= datetime.utcnow(),  # Simplified check
-            StaffUnavailability.end >= datetime.utcnow()
+            StaffUnavailability.start != None,
+            StaffUnavailability.end != None,
+            StaffUnavailability.start <= datetime.now(timezone.utc),  # Simplified check
+            StaffUnavailability.end >= datetime.now(timezone.utc)
         )
     ).first()
     

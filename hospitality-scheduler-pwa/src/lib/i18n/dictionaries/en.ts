@@ -653,6 +653,9 @@ export const en = {
     publishChanges: 'Publish Changes',
     generateSchedule: 'Generate Schedule',
     smartGenerate: 'Smart Generate',
+    noScheduleForThisWeek: 'No schedule available for this week',
+    noScheduleCreatedYet: 'No schedule created for this week',
+    generateNewScheduleOrAssign: 'Generate a new schedule automatically or manually create assignments.',
     
     // Schedule states
     fullyStaffed: 'Fully Staffed',
