@@ -159,6 +159,7 @@ class User(SQLModel, table=True):
     email: str
     hashed_password: str
     is_manager: bool = False
+    is_super_admin: bool = Field(default=False)
     is_active: bool = True
     tenant: Tenant = Relationship(back_populates="managers")
     # Notification settings

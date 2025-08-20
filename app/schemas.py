@@ -1796,6 +1796,42 @@ class UserProfileRead(UserProfileBase):
     
     model_config = ConfigDict(from_attributes=True)
 
+# =================== ADMIN USERS ==============================
+class AdminUserRead(BaseModel):
+    id: uuid.UUID
+    email: str
+    is_active: bool
+    is_manager: bool
+    is_super_admin: bool
+    tenant_id: uuid.UUID
+    tenant_name: str
+    created_at: datetime
+    last_login: Optional[datetime]
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class AdminTenantRead(BaseModel):
+    id: uuid.UUID
+    name: str
+    user_count: int
+    facility_count: int
+    created_at: datetime
+    is_active: bool
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    active_users: int
+    total_tenants: int
+    total_facilities: int
+    total_schedules: int
+    total_swap_requests: int
+    system_health: Dict[str, str]
+
+class UserRoleChangeRequest(BaseModel):
+    role: str = Field(..., pattern="^(manager|staff)$")
+
 # ==================== LINK USER PROFILES ========================
 class UserProviderRead(BaseModel):
     id: uuid.UUID
