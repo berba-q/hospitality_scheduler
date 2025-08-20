@@ -2,6 +2,12 @@
 """
 Migration script to update existing notification templates to use i18n keys
 Run this once to convert your existing templates
+
+NOTE: This script only uses the fields available in the NotificationTemplate model:
+- title_template
+- message_template  
+- whatsapp_template
+Email-specific templates (subject, html, text) are handled separately in the email service.
 """
 
 from sqlmodel import Session, select
@@ -57,17 +63,11 @@ def migrate_templates_to_i18n():
             "title_template": "notifications.templates.password_reset.title",
             "message_template": "notifications.templates.password_reset.message",
             "whatsapp_template": "notifications.templates.password_reset.whatsapp",
-            "email_subject_template": "notifications.templates.password_reset.subject",
-            "email_html_template": "notifications.templates.password_reset.html",
-            "email_text_template": "notifications.templates.password_reset.text",
         },
         NotificationType.EMAIL_VERIFICATION: {
             "title_template": "notifications.templates.email_verification.title",
             "message_template": "notifications.templates.email_verification.message",
             "whatsapp_template": "notifications.templates.email_verification.whatsapp",
-            "email_subject_template": "notifications.templates.email_verification.subject",
-            "email_html_template": "notifications.templates.email_verification.html",
-            "email_text_template": "notifications.templates.email_verification.text",
         },
         # Add more as needed...
     }
@@ -97,14 +97,6 @@ def migrate_templates_to_i18n():
                     if "whatsapp_template" in key_mapping:
                         template.whatsapp_template = key_mapping["whatsapp_template"]
                     
-                    # Update email templates if they exist
-                    if hasattr(template, 'email_subject_template') and "email_subject_template" in key_mapping:
-                        template.email_subject_template = key_mapping["email_subject_template"]
-                    if hasattr(template, 'email_html_template') and "email_html_template" in key_mapping:
-                        template.email_html_template = key_mapping["email_html_template"]
-                    if hasattr(template, 'email_text_template') and "email_text_template" in key_mapping:
-                        template.email_text_template = key_mapping["email_text_template"]
-                    
                     session.add(template)
                     updated_count += 1
             else:
@@ -122,14 +114,6 @@ def migrate_templates_to_i18n():
                     enabled=True,
                     tenant_id=None  # Global template
                 )
-                
-                # Add email templates if available
-                if "email_subject_template" in key_mapping:
-                    new_template.email_subject_template = key_mapping["email_subject_template"]
-                if "email_html_template" in key_mapping:
-                    new_template.email_html_template = key_mapping["email_html_template"]
-                if "email_text_template" in key_mapping:
-                    new_template.email_text_template = key_mapping["email_text_template"]
                 
                 session.add(new_template)
                 updated_count += 1
@@ -161,9 +145,6 @@ def create_missing_password_reset_templates():
                 title_template="notifications.templates.password_reset.title",
                 message_template="notifications.templates.password_reset.message",
                 whatsapp_template="notifications.templates.password_reset.whatsapp",
-                email_subject_template="notifications.templates.password_reset.subject",
-                email_html_template="notifications.templates.password_reset.html",
-                email_text_template="notifications.templates.password_reset.text",
                 default_channels=["EMAIL", "IN_APP"],
                 priority=NotificationPriority.HIGH,
                 enabled=True,
