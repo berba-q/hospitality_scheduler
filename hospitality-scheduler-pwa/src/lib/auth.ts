@@ -1,4 +1,4 @@
-//Authentication
+// Authentication
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
@@ -11,6 +11,43 @@ function decodeJWT(token: string) {
   } catch (error) {
     console.error('Failed to decode JWT:', error)
     return null
+  }
+}
+
+// Helper function to check for account linking suggestions
+async function checkAccountLinking(provider: string, email: string) {
+  try {
+    const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/account/suggest-linking`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, provider_email: email }),
+    })
+    
+    if (response.ok) {
+      return await response.json()
+    }
+  } catch (error) {
+    console.error('Account linking check failed:', error)
+  }
+  return null
+}
+
+// Helper function to link accounts
+async function linkAccount(userId: string, linkRequest: any, accessToken: string) {
+  try {
+    const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/account/link-provider`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(linkRequest),
+    })
+    
+    return response.ok
+  } catch (error) {
+    console.error('Account linking failed:', error)
+    return false
   }
 }
 
@@ -29,7 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         try {
-          console.log(' AUTH DEBUG: Attempting login for:', credentials.email)
+          console.log('AUTH DEBUG: Attempting login for:', credentials.email)
           
           const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/auth/login`, {
             method: 'POST',
@@ -42,90 +79,125 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           if (response.ok) {
             const data = await response.json()
-            console.log(' AUTH DEBUG: Login response:', data)
+            console.log('AUTH DEBUG: Login response:', data)
             
-            // Use the user object from the API response instead of trying to decode JWT
+            // Use the user object from the API response
             let userInfo = null
             
             if (data.user) {
-              // The backend already gives us properly formatted user data!
-              userInfo = {
-                id: data.user.id,
-                email: data.user.email,
-                name: data.user.name,
-                isManager: data.user.is_manager,  // 
-                tenantId: data.user.tenant_id,   // 
-                facilityId: data.user.facility_id,
-                staffId: data.user.staff_id,
-              }
+              userInfo = data.user
+            } else if (data.access_token) {
+              userInfo = decodeJWT(data.access_token)
             }
-            
-            console.log('🔍 AUTH DEBUG: Final user info:', userInfo)
-            
-            // Only return user if we have valid data
-            if (userInfo?.id) {
+
+            if (userInfo) {
               return {
-                id: userInfo.id,
+                id: userInfo.sub || userInfo.user_id,
                 email: userInfo.email,
-                name: userInfo.name,
+                name: userInfo.full_name || userInfo.name,
+                isManager: userInfo.is_manager,
+                tenantId: userInfo.tenant_id,
                 accessToken: data.access_token,
-                isManager: userInfo.isManager,     
-                tenantId: userInfo.tenantId,
-                facilityId: userInfo.facilityId,
-                staffId: userInfo.staffId,
+                provider: 'fastapi'
               }
-            } else {
-              console.error('❌ AUTH ERROR: No valid user data in response')
-              return null
             }
           }
           
-          console.error('FastAPI login failed:', response.status, response.statusText)
           return null
         } catch (error) {
-          console.error('Auth error:', error)
+          console.error('Authentication error:', error)
           return null
         }
       }
     })
   ],
+  
   callbacks: {
-    async jwt({ token, user, account }) {
-      if (user) {
-        console.log('🔍 JWT DEBUG: Setting token for user:', user)
-        token.accessToken = (user as any).accessToken
-        token.isManager = (user as any).isManager      // 
-        token.tenantId = (user as any).tenantId
-        token.facilityId = (user as any).facilityId
-        token.staffId = (user as any).staffId
-        token.provider = account?.provider
+    async signIn({ user, account, profile }) {
+      console.log('SIGNIN CALLBACK:', { user, account, profile })
+      
+      // Handle OAuth providers (Google, etc.)
+      if (account?.provider === 'google' && profile?.email) {
+        try {
+          // Check if account linking is suggested
+          const linkingSuggestion = await checkAccountLinking('google', profile.email)
+          
+          if (linkingSuggestion?.link_suggestion) {
+            // Store linking suggestion in URL params for frontend to handle
+            const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+            const params = new URLSearchParams({
+              action: 'link_accounts',
+              provider: 'google',
+              email: profile.email,
+              existing_user_id: linkingSuggestion.user_id,
+              existing_providers: JSON.stringify(linkingSuggestion.existing_providers)
+            })
+            
+            // Redirect to account linking page
+            throw new Error(`${baseUrl}/auth/link-accounts?${params.toString()}`)
+          }
+          
+          // If no existing account, proceed with normal OAuth flow
+          return true
+        } catch (error) {
+          // If error message contains URL, it's a redirect
+          if (error.message.includes('http')) {
+            return error.message
+          }
+          console.error('SignIn callback error:', error)
+          return false
+        }
       }
-      console.log('🔍 JWT DEBUG: Final token:', token)
+      
+      return true
+    },
+
+    async jwt({ token, user, account }) {
+      // Initial sign in
+      if (user) {
+        token.accessToken = user.accessToken
+        token.isManager = user.isManager
+        token.tenantId = user.tenantId
+        token.provider = user.provider || account?.provider
+      }
+      
       return token
     },
+
     async session({ session, token }) {
-      console.log('🔍 SESSION DEBUG: Creating session:', { token, session })
+      // Send properties to the client
+      session.user.id = token.sub
+      session.user.isManager = token.isManager
+      session.user.tenantId = token.tenantId
+      session.accessToken = token.accessToken
+      session.provider = token.provider
       
-      // Copy the user ID from token.sub to session.user.id
-      if (token.sub) {
-        (session.user as any).id = token.sub 
-      }
-      
-      // Copy other fields from token to session
-      ;(session as any).accessToken = token.accessToken
-      ;(session.user as any).isManager = token.isManager    // 
-      ;(session.user as any).tenantId = token.tenantId
-      ;(session.user as any).facilityId = token.facilityId
-      ;(session.user as any).staffId = token.staffId
-      ;(session as any).provider = token.provider
-      
-      console.log('🔍 SESSION DEBUG: Final session.user:', session.user)
-      console.log('🔍 SESSION DEBUG: session.user.isManager:', (session.user as any).isManager)
       return session
-    },
+    }
   },
+
   pages: {
     signIn: '/login',
+    signUp: '/signup',
+    error: '/auth/error',
   },
-  debug: process.env.NODE_ENV === 'development',
+
+  session: {
+    strategy: 'jwt',
+    maxAge: 24 * 60 * 60, // 24 hours
+  },
+
+  events: {
+    async linkAccount({ user, account, profile }) {
+      console.log('LINK ACCOUNT EVENT:', { user, account, profile })
+      
+      // This fires when an account is successfully linked
+      // You could send notifications, audit logs, etc.
+    },
+    
+    async createUser({ user }) {
+      console.log('CREATE USER EVENT:', user)
+      // Handle new user creation
+    }
+  }
 })
