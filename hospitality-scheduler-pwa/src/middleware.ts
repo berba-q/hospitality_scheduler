@@ -10,6 +10,7 @@ export const config = {
     '/dashboard/:path*',
     '/schedule/:path*', 
     '/staff/:path*',
-    '/facilities/:path*'
+    '/facilities/:path*',
+    '/((?!auth/link-accounts|api|_next/static|_next/image|favicon.ico).*)'
   ]
 }

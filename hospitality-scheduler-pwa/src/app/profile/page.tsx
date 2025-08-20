@@ -24,10 +24,6 @@ import {
   Settings,
   CheckCircle,
   AlertTriangle,
-  Eye,
-  EyeOff,
-  Trash2,
-  RotateCcw,
   ExternalLink
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -44,6 +40,7 @@ import { Separator } from '@/components/ui/separator'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useSettings } from '@/hooks/useSettings'
 import { useAuth } from '@/hooks/useApi'
+import AccountLinking from '@/components/auth/account-linking'
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
 import Image from 'next/image'
@@ -316,7 +313,7 @@ export default function ProfilePage() {
 
         {/* Profile Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-5">
             <TabsTrigger value="personal" className="flex items-center gap-2">
               <User className="w-4 h-4" />
               {t('profile.personalTab')}
@@ -332,6 +329,10 @@ export default function ProfilePage() {
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="w-4 h-4" />
               {t('profile.notificationsTab')}
+            </TabsTrigger>
+            <TabsTrigger value="linked-accounts" className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              {t('profile.linkAccounts')}
             </TabsTrigger>
           </TabsList>
 
@@ -863,6 +864,11 @@ export default function ProfilePage() {
                 {t('profile.saveNotificationSettings')}
               </Button>
             </div>
+          </TabsContent>
+
+          {/* Linked Accounts Tab */}
+          <TabsContent value="linked-accounts" className="space-y-6">
+            <AccountLinking mode="management" />
           </TabsContent>
         </Tabs>
       </div>
