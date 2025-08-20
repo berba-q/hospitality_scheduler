@@ -2127,7 +2127,269 @@ export const it = {
     channelTypes: 'Tipi di Canale:',
     inApp: 'In-App',
     push: 'Push',
-    setWhatsappNumberToEnable: '* Imposta il tuo numero WhatsApp sopra per abilitare le notifiche WhatsApp'
+    setWhatsappNumberToEnable: '* Imposta il tuo numero WhatsApp sopra per abilitare le notifiche WhatsApp',
+
+    // =================================================================
+    //.                   NOTIFICATION TEMPLATES
+    // ==================================================================
+    templates: {
+      schedule_published: {
+        title: "Nuovo Turno Pubblicato",
+        message: "Ciao $staff_name! Il tuo turno per la settimana del $week_start è ora disponibile.",
+        whatsapp: "*Avviso Turno*\n\nCiao $staff_name! Il tuo turno per la settimana del $week_start è pronto.\n\n🏢 $facility_name\n\nVedi turno: $action_url",
+      },
+      
+      swap_request: {
+        title: "🔄 Richiesta Scambio Turno",
+        message: "$requester_name vuole scambiare il suo turno di $original_day $original_shift con te.",
+        whatsapp: "*Richiesta Scambio*\n\n$requester_name vorrebbe scambiare turni con te:\n\n📅 $original_day\n⏰ $original_shift\n📝 Motivo: $reason\n\nRispondi qui: $action_url",
+      },
+      
+      swap_approved: {
+        title: "✅ Richiesta Scambio Approvata",
+        message: "Ottime notizie! La tua richiesta di scambio per $original_day $original_shift è stata approvata da $approver_name.",
+        whatsapp: "✅ *Scambio Approvato!*\n\nIl tuo scambio turno è stato approvato:\n\n📅 $original_day\n⏰ $original_shift\n👤 Approvato da: $approver_name\n\nVedi orario aggiornato: $action_url",
+      },
+      
+      swap_assignment: {
+        title: "🎯 Assegnazione Turno",
+        message: "Ti è stato assegnato di coprire il turno di $requester_name di $original_day $original_shift presso $facility_name. Motivo: $reason",
+        whatsapp: "🎯 *Assegnazione Turno*\n\nCiao $assigned_staff_name!\n\nTi è stato assegnato di coprire un turno:\n\n👤 Originariamente: $requester_name\n📅 $original_day\n⏰ $original_shift\n🏢 $facility_name\n📝 Motivo: $reason\n\nAccetta o rifiuta: $action_url",
+      },
+      
+      emergency_coverage: {
+        title: "🚨 Copertura Urgente Necessaria",
+        message: "$requester_name presso $facility_name ha bisogno di copertura urgente per $original_day $original_shift. Motivo: $reason",
+        whatsapp: "🚨 *URGENTE: Copertura Necessaria*\n\n🏢 $facility_name\n👤 $requester_name\n📅 $original_day\n⏰ $original_shift\n📝 Motivo: $reason\n\nEsamina richiesta: $action_url",
+      },
+      
+      email_verification: {
+        title: "Verifica Email Richiesta",
+        message: "Verifica il tuo indirizzo email utilizzando il codice che ti è stato inviato.",
+        subject: "Verifica la Tua Email per il Collegamento Account",
+        html: `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifica Email</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+        .header { color: #333; text-align: center; margin-bottom: 30px; }
+        .content { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .verification-code { 
+            background-color: #007bff; color: white; padding: 15px 30px; 
+            border-radius: 5px; font-size: 24px; font-weight: bold; 
+            letter-spacing: 3px; display: inline-block; margin: 20px 0;
+        }
+        .important { background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0; }
+        .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2 class="header">Verifica Email Richiesta</h2>
+    <div class="content">
+        <p>Ciao $user_name,</p>
+        <p>Hai richiesto di collegare il tuo account $provider_name ($provider_email) al tuo account esistente.</p>
+        <p>Per completare questo processo di collegamento, verifica di avere accesso a $target_email inserendo il codice di verifica qui sotto:</p>
+        
+        <div style="text-align: center;">
+            <p><strong>Il tuo codice di verifica:</strong></p>
+            <div class="verification-code">$verification_code</div>
+        </div>
+        
+        <div class="important">
+            <p><strong>Importante:</strong></p>
+            <ul>
+                <li>Questo codice scadrà tra $expires_in</li>
+                <li>Non condividere questo codice con nessuno</li>
+                <li>Se non hai richiesto questa verifica, ignora questa email</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Questa email è stata inviata a $target_email come parte del processo di collegamento account.</p>
+        <p>Se hai domande, contatta il nostro team di supporto.</p>
+    </div>
+</body>
+</html>`,
+        text: `Verifica Email Richiesta
+
+Ciao $user_name,
+
+Hai richiesto di collegare il tuo account $provider_name ($provider_email) al tuo account esistente.
+
+Per completare questo processo di collegamento, verifica di avere accesso a $target_email inserendo il codice di verifica qui sotto:
+
+Codice di Verifica: $verification_code
+
+Importante:
+- Questo codice scadrà tra $expires_in
+- Non condividere questo codice con nessuno
+- Se non hai richiesto questa verifica, ignora questa email
+
+Questa email è stata inviata a $target_email come parte del processo di collegamento account.
+Se hai domande, contatta il nostro team di supporto.`,
+        whatsapp: "🔐 *Verifica Collegamento Account*\n\nCiao $user_name!\n\nIl tuo codice di verifica per collegare l'account $provider_name è: *$verification_code*\n\nQuesto codice scade tra $expires_in.\n\nNon condividere questo codice con nessuno.",
+      },
+      
+      password_reset: {
+        title: "Richiesta Reimpostazione Password",
+        message: "È stata richiesta una reimpostazione password per il tuo account. Clicca il link nell'email per reimpostare la password.",
+        subject: "Reimposta la Tua Password",
+        html: `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reimpostazione Password</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+        .header { color: #333; text-align: center; margin-bottom: 30px; }
+        .content { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .reset-button { 
+            background-color: #007bff; color: white; padding: 12px 30px; 
+            border-radius: 5px; text-decoration: none; display: inline-block; 
+            font-weight: bold; margin: 20px 0;
+        }
+        .reset-button:hover { background-color: #0056b3; }
+        .important { background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0; }
+        .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2 class="header">🔐 Richiesta Reimpostazione Password</h2>
+    <div class="content">
+        <p>Ciao $user_name,</p>
+        <p>Abbiamo ricevuto una richiesta per reimpostare la password del tuo account. Se hai fatto questa richiesta, clicca il pulsante qui sotto per reimpostare la password:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="$reset_url" class="reset-button">Reimposta la Password</a>
+        </div>
+        
+        <p>Oppure copia e incolla questo link nel tuo browser:</p>
+        <p style="word-break: break-all; background-color: #f1f1f1; padding: 10px; border-radius: 4px; font-family: monospace;">
+            $reset_url
+        </p>
+        
+        <div class="important">
+            <p><strong>Informazioni Importanti per la Sicurezza:</strong></p>
+            <ul>
+                <li>Questo link scadrà tra $expires_in</li>
+                <li>Se non hai richiesto questa reimpostazione password, ignora questa email</li>
+                <li>La tua password non cambierà finché non accedi al link sopra e ne crei una nuova</li>
+                <li>Per sicurezza, questo link può essere usato solo una volta</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Questa email è stata inviata perché è stata richiesta una reimpostazione password per il tuo account.</p>
+        <p>Se hai domande, contatta il nostro team di supporto.</p>
+    </div>
+</body>
+</html>`,
+        text: `Richiesta Reimpostazione Password
+
+Ciao $user_name,
+
+Abbiamo ricevuto una richiesta per reimpostare la password del tuo account. Se hai fatto questa richiesta, clicca il link qui sotto per reimpostare la password:
+
+$reset_url
+
+Informazioni Importanti per la Sicurezza:
+- Questo link scadrà tra $expires_in
+- Se non hai richiesto questa reimpostazione password, ignora questa email
+- La tua password non cambierà finché non accedi al link sopra e ne crei una nuova
+- Per sicurezza, questo link può essere usato solo una volta
+
+Questa email è stata inviata perché è stata richiesta una reimpostazione password per il tuo account.
+Se hai domande, contatta il nostro team di supporto.`,
+        whatsapp: "🔐 *Reimpostazione Password*\n\nCiao $user_name!\n\nQualcuno ha richiesto una reimpostazione password per il tuo account. Se sei stato tu, usa questo link per reimpostare la password:\n\n$reset_url\n\n⚠️ Questo link scade tra $expires_in.\n\nSe non hai fatto questa richiesta, ignora questo messaggio.",
+      },
+      
+      staff_invitation: {
+        title: "Sei Invitato a Unirti a $organization_name",
+        message: "Sei stato invitato a unirti a $organization_name come $role presso $facility_name.",
+        subject: "Invito a Unirti a $organization_name",
+        html: `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invito Staff</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+        .header { color: #333; text-align: center; margin-bottom: 30px; }
+        .content { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .accept-button { 
+            background-color: #28a745; color: white; padding: 12px 30px; 
+            border-radius: 5px; text-decoration: none; display: inline-block; 
+            font-weight: bold; margin: 20px 0;
+        }
+        .accept-button:hover { background-color: #218838; }
+        .details-box { background-color: #fff; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #007bff; }
+        .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2 class="header">🎉 Benvenuto nel Team!</h2>
+    <div class="content">
+        <p>Ciao $staff_name,</p>
+        <p>Ottime notizie! $invited_by_name ti ha invitato a unirti a <strong>$organization_name</strong> come parte del nostro team.</p>
+        
+        <div class="details-box">
+            <h3>Dettagli Posizione:</h3>
+            <p><strong>Ruolo:</strong> $role</p>
+            <p><strong>Struttura:</strong> $facility_name</p>
+            <p><strong>Organizzazione:</strong> $organization_name</p>
+        </div>
+        
+        <p>Per iniziare, accetta questo invito e crea il tuo account:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="$accept_url" class="accept-button">Accetta Invito e Crea Account</a>
+        </div>
+        
+        <p><strong>Messaggio Personalizzato da $invited_by_name:</strong></p>
+        <div style="background-color: #f1f1f1; padding: 15px; border-radius: 4px; font-style: italic;">
+            $custom_message
+        </div>
+        
+        <p><small><strong>Importante:</strong> Questo invito scade il $expires_at. Accettalo prima di allora per unirti al team.</small></p>
+    </div>
+    
+    <div class="footer">
+        <p>Questo invito è stato inviato a $recipient_email da $invited_by_name.</p>
+        <p>Se hai domande, contatta il nostro team di supporto.</p>
+    </div>
+</body>
+</html>`,
+        text: `Benvenuto nel Team!
+
+Ciao $staff_name,
+
+Ottime notizie! $invited_by_name ti ha invitato a unirti a $organization_name come parte del nostro team.
+
+Dettagli Posizione:
+- Ruolo: $role
+- Struttura: $facility_name
+- Organizzazione: $organization_name
+
+Per iniziare, accetta questo invito e crea il tuo account:
+$accept_url
+
+Messaggio Personalizzato da $invited_by_name:
+$custom_message
+
+Importante: Questo invito scade il $expires_at. Accettalo prima di allora per unirti al team.
+
+Questo invito è stato inviato a $recipient_email da $invited_by_name.
+Se hai domande, contatta il nostro team di supporto.`,
+        whatsapp: "🎉 *Benvenuto nel Team!*\n\nCiao $staff_name!\n\n$invited_by_name ti ha invitato a unirti a $organization_name come $role presso $facility_name.\n\nAccetta il tuo invito qui: $accept_url\n\n📅 Scade: $expires_at\n\n💬 Messaggio: $custom_message",
+      },
+    },
   },
 
   settings: {

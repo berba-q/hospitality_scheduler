@@ -1813,6 +1813,61 @@ class AccountLinkRequest(BaseModel):
     provider_email: str
     provider_data: Optional[Dict[str, Any]] = None
 
+class AccountVerificationRequest(BaseModel):
+    """Request to verify email for account linking"""
+    email: str = Field(description="Email address to verify for linking")
+    provider: str = Field(description="Provider to link (e.g., 'google')")
+    provider_id: str = Field(description="Provider's user ID")
+    provider_email: str = Field(description="Provider's email address")
+    provider_data: Optional[Dict[str, Any]] = None
+    
+    @field_validator('email')
+    def validate_email(cls, v):
+        if not v or '@' not in v:
+            raise ValueError('Valid email address required')
+        return v.lower().strip()
+
+class VerificationCodeRequest(BaseModel):
+    """Request to verify a verification code"""
+    email: str = Field(description="Email address that received the code")
+    code: str = Field(description="6-digit verification code")
+    
+    @field_validator('code')
+    def validate_code(cls, v):
+        if not v or len(v) != 6 or not v.isdigit():
+            raise ValueError('Code must be 6 digits')
+        return v
+    
+    @field_validator('email')
+    def validate_email(cls, v):
+        if not v or '@' not in v:
+            raise ValueError('Valid email address required')
+        return v.lower().strip()
+
+class AccountVerificationResponse(BaseModel):
+    """Response for verification requests"""
+    success: bool
+    message: str
+    requires_verification: Optional[bool] = None  # For linking suggestions
+    verification_email: Optional[str] = None  # Email where code was sent
+
+class VerificationCodeResponse(BaseModel):
+    """Response for code verification"""
+    success: bool
+    message: str
+    link_request_data: Optional[Dict[str, Any]] = None  # Data to complete linking
+
+# Enhanced linking suggestion response
+class AccountLinkingSuggestion(BaseModel):
+    """Enhanced account linking suggestion with verification support"""
+    link_suggestion: bool
+    user_id: Optional[str] = None
+    email: Optional[str] = None
+    existing_providers: Optional[List[str]] = None
+    suggested_action: Optional[str] = None
+    requires_verification: bool = False
+    verification_email: Optional[str] = None  # Different email that needs verification
+
 class AccountUnlinkRequest(BaseModel):
     provider: str
 

@@ -2130,10 +2130,273 @@ export const en = {
     channelTypes: 'Channel Types:',
     inApp: 'In-App',
     push: 'Push',
-    setWhatsappNumberToEnable: '* Set your WhatsApp number above to enable WhatsApp notifications'
-  },
+    setWhatsappNumberToEnable: '* Set your WhatsApp number above to enable WhatsApp notifications',
 
-  settings: {
+    // ================================================================================
+    // NOTIFICATION TEMPLATES
+    // ================================================================================
+    // Notification Templates
+    templates: {
+      schedule_published: {
+        title: "New Schedule Published",
+        message: "Hi $staff_name! Your schedule for the week of $week_start is now available.",
+        whatsapp: "*Schedule Alert*\n\nHi $staff_name! Your schedule for the week of $week_start is ready.\n\n🏢 $facility_name\n\nView schedule: $action_url",
+      },
+      
+      swap_request: {
+        title: "🔄 Shift Swap Request",
+        message: "$requester_name wants to swap their $original_day $original_shift shift with you.",
+        whatsapp: "*Swap Request*\n\n$requester_name would like to swap shifts with you:\n\n📅 $original_day\n⏰ $original_shift\n📝 Reason: $reason\n\nRespond here: $action_url",
+      },
+      
+      swap_approved: {
+        title: "✅ Swap Request Approved",
+        message: "Great news! Your swap request for $original_day $original_shift has been approved by $approver_name.",
+        whatsapp: "✅ *Swap Approved!*\n\nYour shift swap has been approved:\n\n📅 $original_day\n⏰ $original_shift\n👤 Approved by: $approver_name\n\nView updated schedule: $action_url",
+      },
+      
+      swap_assignment: {
+        title: "🎯 Shift Assignment",
+        message: "You've been assigned to cover $requester_name's $original_day $original_shift shift at $facility_name. Reason: $reason",
+        whatsapp: "🎯 *Shift Assignment*\n\nHi $assigned_staff_name!\n\nYou've been assigned to cover a shift:\n\n👤 Originally: $requester_name\n📅 $original_day\n⏰ $original_shift\n🏢 $facility_name\n📝 Reason: $reason\n\nPlease accept or decline: $action_url",
+      },
+      
+      emergency_coverage: {
+        title: "🚨 Urgent Coverage Needed",
+        message: "$requester_name at $facility_name needs urgent coverage for $original_day $original_shift. Reason: $reason",
+        whatsapp: "🚨 *URGENT: Coverage Needed*\n\n🏢 $facility_name\n👤 $requester_name\n📅 $original_day\n⏰ $original_shift\n📝 Reason: $reason\n\nReview request: $action_url",
+      },
+      
+      email_verification: {
+        title: "Email Verification Required",
+        message: "Please verify your email address using the code sent to you.",
+        subject: "Verify Your Email for Account Linking",
+        html: `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+        .header { color: #333; text-align: center; margin-bottom: 30px; }
+        .content { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .verification-code { 
+            background-color: #007bff; color: white; padding: 15px 30px; 
+            border-radius: 5px; font-size: 24px; font-weight: bold; 
+            letter-spacing: 3px; display: inline-block; margin: 20px 0;
+        }
+        .important { background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0; }
+        .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2 class="header">Email Verification Required</h2>
+    <div class="content">
+        <p>Hello $user_name,</p>
+        <p>You've requested to link your $provider_name account ($provider_email) to your existing account.</p>
+        <p>To complete this linking process, please verify that you have access to $target_email by entering the verification code below:</p>
+        
+        <div style="text-align: center;">
+            <p><strong>Your verification code:</strong></p>
+            <div class="verification-code">$verification_code</div>
+        </div>
+        
+        <div class="important">
+            <p><strong>Important:</strong></p>
+            <ul>
+                <li>This code will expire in $expires_in</li>
+                <li>Do not share this code with anyone</li>
+                <li>If you didn't request this verification, please ignore this email</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent to $target_email as part of the account linking process.</p>
+        <p>If you have any questions, please contact our support team.</p>
+    </div>
+</body>
+</html>`,
+        text: `Email Verification Required
+
+Hello $user_name,
+
+You've requested to link your $provider_name account ($provider_email) to your existing account.
+
+To complete this linking process, please verify that you have access to $target_email by entering the verification code below:
+
+Verification Code: $verification_code
+
+Important:
+- This code will expire in $expires_in
+- Do not share this code with anyone
+- If you didn't request this verification, please ignore this email
+
+This email was sent to $target_email as part of the account linking process.
+If you have any questions, please contact our support team.`,
+        whatsapp: "🔐 *Account Linking Verification*\n\nHi $user_name!\n\nYour verification code to link your $provider_name account is: *$verification_code*\n\nThis code expires in $expires_in.\n\nDo not share this code with anyone.",
+      },
+      
+      password_reset: {
+        title: "Password Reset Request",
+        message: "A password reset has been requested for your account. Click the link in the email to reset your password.",
+        subject: "Reset Your Password",
+        html: `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Reset</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+        .header { color: #333; text-align: center; margin-bottom: 30px; }
+        .content { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .reset-button { 
+            background-color: #007bff; color: white; padding: 12px 30px; 
+            border-radius: 5px; text-decoration: none; display: inline-block; 
+            font-weight: bold; margin: 20px 0;
+        }
+        .reset-button:hover { background-color: #0056b3; }
+        .important { background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0; }
+        .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2 class="header">🔐 Password Reset Request</h2>
+    <div class="content">
+        <p>Hello $user_name,</p>
+        <p>We received a request to reset the password for your account. If you made this request, click the button below to reset your password:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="$reset_url" class="reset-button">Reset Your Password</a>
+        </div>
+        
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; background-color: #f1f1f1; padding: 10px; border-radius: 4px; font-family: monospace;">
+            $reset_url
+        </p>
+        
+        <div class="important">
+            <p><strong>Important Security Information:</strong></p>
+            <ul>
+                <li>This link will expire in $expires_in</li>
+                <li>If you didn't request this password reset, please ignore this email</li>
+                <li>Your password won't change until you access the link above and create a new one</li>
+                <li>For security, this link can only be used once</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent because a password reset was requested for your account.</p>
+        <p>If you have any questions, please contact our support team.</p>
+    </div>
+</body>
+</html>`,
+        text: `Password Reset Request
+
+Hello $user_name,
+
+We received a request to reset the password for your account. If you made this request, click the link below to reset your password:
+
+$reset_url
+
+Important Security Information:
+- This link will expire in $expires_in
+- If you didn't request this password reset, please ignore this email
+- Your password won't change until you access the link above and create a new one
+- For security, this link can only be used once
+
+This email was sent because a password reset was requested for your account.
+If you have any questions, please contact our support team.`,
+        whatsapp: "🔐 *Password Reset*\n\nHi $user_name!\n\nSomeone requested a password reset for your account. If this was you, use this link to reset your password:\n\n$reset_url\n\n⚠️ This link expires in $expires_in.\n\nIf you didn't request this, please ignore this message.",
+      },
+      
+      staff_invitation: {
+        title: "You're Invited to Join $organization_name",
+        message: "You've been invited to join $organization_name as a $role at $facility_name.",
+        subject: "Invitation to Join $organization_name",
+        html: `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Invitation</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+        .header { color: #333; text-align: center; margin-bottom: 30px; }
+        .content { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .accept-button { 
+            background-color: #28a745; color: white; padding: 12px 30px; 
+            border-radius: 5px; text-decoration: none; display: inline-block; 
+            font-weight: bold; margin: 20px 0;
+        }
+        .accept-button:hover { background-color: #218838; }
+        .details-box { background-color: #fff; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #007bff; }
+        .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2 class="header">🎉 Welcome to the Team!</h2>
+    <div class="content">
+        <p>Hi $staff_name,</p>
+        <p>Great news! $invited_by_name has invited you to join <strong>$organization_name</strong> as part of our team.</p>
+        
+        <div class="details-box">
+            <h3>Position Details:</h3>
+            <p><strong>Role:</strong> $role</p>
+            <p><strong>Facility:</strong> $facility_name</p>
+            <p><strong>Organization:</strong> $organization_name</p>
+        </div>
+        
+        <p>To get started, please accept this invitation and create your account:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="$accept_url" class="accept-button">Accept Invitation & Create Account</a>
+        </div>
+        
+        <p><strong>Custom Message from $invited_by_name:</strong></p>
+        <div style="background-color: #f1f1f1; padding: 15px; border-radius: 4px; font-style: italic;">
+            $custom_message
+        </div>
+        
+        <p><small><strong>Important:</strong> This invitation expires on $expires_at. Please accept it before then to join the team.</small></p>
+    </div>
+    
+    <div class="footer">
+        <p>This invitation was sent to $recipient_email by $invited_by_name.</p>
+        <p>If you have any questions, please contact our support team.</p>
+    </div>
+</body>
+</html>`,
+        text: `Welcome to the Team!
+
+Hi $staff_name,
+
+Great news! $invited_by_name has invited you to join $organization_name as part of our team.
+
+Position Details:
+- Role: $role
+- Facility: $facility_name
+- Organization: $organization_name
+
+To get started, please accept this invitation and create your account:
+$accept_url
+
+Custom Message from $invited_by_name:
+$custom_message
+
+Important: This invitation expires on $expires_at. Please accept it before then to join the team.
+
+This invitation was sent to $recipient_email by $invited_by_name.
+If you have any questions, please contact our support team.`,
+        whatsapp: "🎉 *Welcome to the Team!*\n\nHi $staff_name!\n\n$invited_by_name has invited you to join $organization_name as a $role at $facility_name.\n\nAccept your invitation here: $accept_url\n\n📅 Expires: $expires_at\n\n💬 Message: $custom_message",
+      },
+    },
+    },
+  
+    settings: {
     // ============================================================================
     // SETTINGS & CONFIGURATION
     // ============================================================================

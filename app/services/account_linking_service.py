@@ -3,8 +3,8 @@ from sqlmodel import Session, select
 from typing import Optional, Dict, Any, List
 from fastapi import HTTPException
 
-from ..models import User, UserProvider
-from ..schemas import AccountLinkRequest, UserProviderRead
+from ..models import AccountVerificationToken, User, UserProvider
+from ..schemas import AccountLinkRequest, AccountVerificationRequest, UserProviderRead, VerificationCodeRequest
 
 class AccountLinkingService:
     def __init__(self, db: Session):
@@ -167,29 +167,130 @@ class AccountLinkingService:
         self, 
         provider: str, 
         provider_email: str
-    ) -> Optional[Dict[str, Any]]:
-        """Suggest account linking if email matches existing user"""
+    ) -> Dict[str, Any]:
+        """Enhanced account linking suggestion with email verification support"""
         
+        # First try exact email match (existing logic)
         existing_user = self.find_user_by_provider_email(provider, provider_email)
         
-        if not existing_user:
-            return None
+        if existing_user:
+            # Check if provider already linked
+            existing_provider = self.db.exec(
+                select(UserProvider).where(
+                    UserProvider.user_id == existing_user.id,
+                    UserProvider.provider == provider,
+                    UserProvider.is_active == True
+                )
+            ).first()
+            
+            if existing_provider:
+                return {"link_suggestion": False}  # Already linked
+            
+            # Email matches exactly - traditional flow
+            return {
+                "link_suggestion": True,
+                "user_id": str(existing_user.id),
+                "email": existing_user.email,
+                "existing_providers": [p.provider for p in existing_user.providers if p.is_active],
+                "suggested_action": "link_accounts",
+                "requires_verification": False
+            }
         
-        # Check if provider already linked
+        # No exact match - check if any user might want to link this email
+        # For example, find users with similar domain or allow manual verification
+        # This is where we introduce the verification flow
+        return {
+            "link_suggestion": True,
+            "suggested_action": "verify_email_for_linking",
+            "requires_verification": True,
+            "verification_email": provider_email  # The email that needs verification
+        }
+def request_email_verification(
+        self,
+        user_id: uuid.UUID,
+        verification_request: AccountVerificationRequest
+    ) -> str:
+        """Start email verification process for account linking"""
+        
+        # Verify user exists
+        user = self.db.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Check if provider is already linked to this user
         existing_provider = self.db.exec(
             select(UserProvider).where(
-                UserProvider.user_id == existing_user.id,
-                UserProvider.provider == provider,
+                UserProvider.user_id == user_id,
+                UserProvider.provider == verification_request.provider,
                 UserProvider.is_active == True
             )
         ).first()
         
         if existing_provider:
-            return None  # Already linked
+            raise HTTPException(
+                status_code=400, 
+                detail=f"{verification_request.provider} account already linked"
+            )
         
-        return {
-            "user_id": str(existing_user.id),
-            "email": existing_user.email,
-            "existing_providers": [p.provider for p in existing_user.providers if p.is_active],
-            "suggested_action": "link_accounts"
-        }
+        # Check if this provider is linked to another user
+        existing_provider_other = self.db.exec(
+            select(UserProvider).where(
+                UserProvider.provider == verification_request.provider,
+                UserProvider.provider_id == verification_request.provider_id,
+                UserProvider.is_active == True
+            )
+        ).first()
+        
+        if existing_provider_other and existing_provider_other.user_id != user_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"This {verification_request.provider} account is already linked to another user"
+            )
+        
+        # Generate verification code
+        code = AccountVerificationToken.generate_code(
+            user_id=user_id,
+            email=verification_request.email,
+            provider=verification_request.provider,
+            provider_id=verification_request.provider_id,
+            provider_email=verification_request.provider_email,
+            provider_data=verification_request.provider_data or {},
+            db=self.db
+        )
+        
+        return code
+    
+def verify_code_and_complete_linking(
+        self,
+        verification_request: VerificationCodeRequest
+    ) -> UserProvider:
+        """Verify code and complete account linking"""
+        
+        # Verify the code
+        token = AccountVerificationToken.verify_code(
+            email=verification_request.email,
+            code=verification_request.code,
+            db=self.db
+        )
+        
+        if not token:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid or expired verification code"
+            )
+        
+        # Mark token as used
+        token.used = True
+        
+        # Create the account link
+        link_request = AccountLinkRequest(
+            provider=token.provider,
+            provider_id=token.provider_id,
+            provider_email=token.provider_email,
+            provider_data=token.provider_data
+        )
+        
+        provider_link = self.link_provider(token.user_id, link_request)
+        
+        self.db.commit()
+        return provider_link

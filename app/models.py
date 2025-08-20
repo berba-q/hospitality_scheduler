@@ -1,6 +1,7 @@
 from datetime import date, datetime, time, timedelta, timezone
 from enum import Enum
-from typing import Optional, List, Dict, Any, cast
+import hashlib
+from typing import ClassVar, Optional, List, Dict, Any, cast
 import uuid
 from hashlib import sha256
 from sqlmodel import Column, SQLModel, Field, Relationship, Index, JSON, select, Session, update
@@ -200,6 +201,88 @@ class UserProvider(SQLModel, table=True):
     
     # Relationships
     user: User = Relationship(back_populates="providers")
+
+class AccountVerificationToken(SQLModel, table=True):
+    """Account linking email verification tokens"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    email: str = Field(index=True)  # Email to be verified for linking
+    user_id: uuid.UUID = Field(foreign_key="user.id", index=True)  # User requesting the link
+    provider: str = Field()  # Provider to be linked (e.g., "google")
+    provider_id: str = Field()  # Provider's user ID
+    provider_email: str = Field()  # Provider's email address
+    provider_data: Dict[str, Any] = Field(default_factory=dict, sa_column=SAColumn(JSON))  # Additional provider data
+    code_hash: str = Field(index=True)  # Hashed verification code
+    expires_at: datetime = Field()
+    used: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    # Class configuration
+    TOKEN_EXPIRY_HOURS: ClassVar[int] = 24
+    CODE_LENGTH: ClassVar[int] = 6
+    
+    @classmethod
+    def generate_code(
+        cls, 
+        user_id: uuid.UUID, 
+        email: str,
+        provider: str,
+        provider_id: str,
+        provider_email: str,
+        provider_data: Dict[str, Any],
+        db: Session
+    ) -> str:
+        """Generate a new verification code for account linking"""
+        
+        # Invalidate any existing unused tokens for this user/email/provider combination
+        existing_tokens = db.exec(
+            select(cls).where(
+                cls.user_id == user_id,
+                cls.email == email,
+                cls.provider == provider,
+                cls.used == False
+            )
+        ).all()
+        
+        for token in existing_tokens:
+            token.used = True
+        
+        # Generate 6-digit verification code
+        code = ''.join([str(secrets.randbelow(10)) for _ in range(cls.CODE_LENGTH)])
+        code_hash = hashlib.sha256(code.encode()).hexdigest()
+        
+        # Create new token
+        token = cls(
+            user_id=user_id,
+            email=email,
+            provider=provider,
+            provider_id=provider_id,
+            provider_email=provider_email,
+            provider_data=provider_data,
+            code_hash=code_hash,
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=cls.TOKEN_EXPIRY_HOURS)
+        )
+        
+        db.add(token)
+        db.commit()
+        db.refresh(token)
+        
+        return code
+    
+    @classmethod
+    def verify_code(cls, email: str, code: str, db: Session) -> Optional["AccountVerificationToken"]:
+        """Verify a verification code"""
+        code_hash = hashlib.sha256(code.encode()).hexdigest()
+        
+        token = db.exec(
+            select(cls).where(
+                cls.email == email,
+                cls.code_hash == code_hash,
+                cls.used == False,
+                cls.expires_at > datetime.now(timezone.utc)
+            )
+        ).first()
+        
+        return token
 
 class Staff(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)

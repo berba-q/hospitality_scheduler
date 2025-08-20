@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from fastapi import BackgroundTasks
 import httpx
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 import string
 import asyncio, logging
 
@@ -117,18 +117,18 @@ class NotificationService:
                     delivery_status = {
                         "PUSH": {
                             "status": "delivered" if success_count > 0 else "failed",
-                            "timestamp": datetime.utcnow().isoformat(),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
                             "method": "multicast"
                         },
                         "IN_APP": {
                             "status": "delivered",
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.now(timezone.utc).isoformat()
                         }
                     }
                     
                     notification.delivery_status = delivery_status
                     notification.is_delivered = True
-                    notification.delivered_at = datetime.utcnow()
+                    notification.delivered_at = datetime.now(timezone.utc)
             
             self.db.commit()
             
@@ -161,7 +161,8 @@ class NotificationService:
         action_url: Optional[str] = None,
         action_text: Optional[str] = None,
         background_tasks: Optional[BackgroundTasks] = None,
-        pdf_attachment_url: Optional[str] = None
+        pdf_attachment_url: Optional[str] = None,
+         override_recipient_email: Optional[str] = None
     ) -> Notification:
         """Send a notification through multiple channels"""
         
@@ -357,7 +358,7 @@ class NotificationService:
                         # In-app notifications are already stored in DB
                         delivery_status[channel] = {
                             "status": "delivered", 
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.now(timezone.utc).isoformat()
                         }
                         print(f"In-app notification delivered")
                     
@@ -365,7 +366,7 @@ class NotificationService:
                         success = await self._send_push_notification(notification, session)
                         delivery_status[channel] = {
                             "status": "delivered" if success else "failed",
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.now(timezone.utc).isoformat()
                         }
                         print(f"{'Done' if success else 'Err'} Push notification {'delivered' if success else 'failed'}")
                     
@@ -373,7 +374,7 @@ class NotificationService:
                         success = await self._send_email_notification(notification, template, template_data)
                         delivery_status[channel] = {
                             "status": "delivered" if success else "failed",
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.now(timezone.utc).isoformat()
                         }
                         print(f"{'Done' if success else 'Err'} Email {'sent' if success else 'failed'}")
 
@@ -381,7 +382,7 @@ class NotificationService:
                         success = await self._send_whatsapp_message(notification, template, template_data)
                         delivery_status[channel] = {
                             "status": "delivered" if success else "failed",
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.now(timezone.utc).isoformat()
                         }
                         print(f"{'Done' if success else 'Err'} WhatsApp {'sent' if success else 'failed'}")
                     
@@ -389,7 +390,7 @@ class NotificationService:
                     delivery_status[channel] = {
                         "status": "error",
                         "error": str(e),
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     }
                     print(f"Error delivering via {channel}: {e}")
             
@@ -400,7 +401,7 @@ class NotificationService:
                 for status in delivery_status.values()
             )
             if notification.is_delivered:
-                notification.delivered_at = datetime.utcnow()
+                notification.delivered_at = datetime.now(timezone.utc)
             
             session.add(notification)
             session.commit()
