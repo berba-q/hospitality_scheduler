@@ -242,6 +242,10 @@ export const it = {
     viewingAs: 'Visualizzando come',
     myShifts: 'i miei turni',
     totalShifts: 'turni totali',
+    recommended: "Consigliato",
+    processing: "Elaborazione...",
+    yes: 'Si',
+    no: 'No',
     
     // Entità generiche
     facility: 'Struttura',
@@ -496,6 +500,7 @@ export const it = {
     staffDashboard: 'Dashboard Personale',
     manageTeamAndFacilities: 'Gestisci il tuo team e le strutture',
     scheduleAndTeamOverview: 'Ecco la panoramica della tua pianificazione e attività del team',
+    loading: 'Caricamento in corso...',
     
     // Sezioni dashboard
     recentActivity: 'Attività Recente',
@@ -1006,6 +1011,77 @@ export const it = {
     // Status and actions
     updating: 'Aggiornamento...',
     noChanges: 'Nessuna Modifica',
+
+    // Delete confirmation
+    removeFromActiveStaff: 'Rimuovi dal Personale Attivo',
+    deactivateDescription: 'Disattiva {name} ma mantiene tutta la cronologia per i report',
+    deactivateStaffMember: 'Disattiva Membro del Personale',
+    removeAndClearSchedule: 'Rimuovi e Cancella Pianificazione',
+    permanentlyDelete: 'Elimina Permanentemente',
+    deactivatedSuccessfully: '{name} è stato disattivato con successo',
+    removedWithSchedulesCleared: '{name} è stato rimosso e {count} pianificazioni cancellate',
+
+    // Delete validation and errors
+    deleteError: {
+      hasAssignments: "Impossibile rimuovere il membro del personale. Ha assegnazioni attive che devono essere gestite prima.",
+      tryRemoveAndClear: "Prova a usare l'opzione 'Rimuovi e Cancella Pianificazione' invece.",
+    },
+    failedToValidateDeletion: 'Impossibile validare l\'eliminazione',
+    unableToValidateDeletion: 'Impossibile validare l\'eliminazione',
+    chooseAction: 'Scegli Azione', 
+    removesAssignmentsAndDeactivates: 'Rimuove {{count}} assegnazioni future e disattiva il personale',
+    historyPreservedShiftsCleared: 'Cronologia preservata • Turni futuri cancellati • ⚠️ I turni saranno non assegnati',
+    advancedOptions: 'Opzioni Avanzate',
+    completeRemoval: 'Rimozione Completa',
+    adminOnly: 'Solo Admin',
+    permanentlyDeletesAllData: 'Elimina permanentemente tutti i dati - non può essere annullato',
+    dataEntryErrorsOnly: '⚠️ Solo per errori di inserimento dati o richieste di privacy',
+    wontAppearInScheduling: 'Non apparirà nella programmazione futura • ✓ Tutti i dati passati preservati • ⚠️ I turni futuri necessiteranno copertura',
+
+    // Invitation related
+    sendInvitations: 'Invia Inviti',
+    sendInvitationsQuestion: 'Inviare Inviti al Nuovo Personale?',
+    invitationConfirmMessage: 'Importati con successo {{count}} membri del personale. Vuoi inviare loro gli inviti per entrare nel sistema?',
+    invitationConfirmSubtitle: 'Il personale con indirizzi email riceverà un invito per creare i propri account e accedere al sistema di programmazione.',
+    sendInvitationsButton: 'Invia {{count}} Inviti',
+    skipInvitations: 'Salta per Ora',
+    customizeInvitationMessage: 'Personalizza Messaggio di Invito (Opzionale)',
+    invitationMessagePlaceholder: 'Benvenuto nel nostro team! Utilizza questo invito per accedere al nostro sistema di programmazione...',
+    invitationExpiry: 'Validità Invito',
+    invitationExpiryOptions: {
+      '24': '24 ore',
+      '72': '3 giorni', 
+      '168': '1 settimana (raccomandato)',
+      '336': '2 settimane',
+      '720': '30 giorni'
+    },
+    
+    // Invitation sending progress/results
+    sendingInvitations: 'Invio Inviti...',
+    invitationsSentSuccessfully: 'Inviti inviati con successo!',
+    invitationsSentPartial: 'Inviati {{sent}} di {{total}} inviti con successo',
+    invitationsSentComplete: '{{count}} inviti inviati con successo!',
+    invitationsFailedToSend: 'Impossibile inviare alcuni inviti',
+    invitationSendError: 'Errore nell\'invio degli inviti: {{error}}',
+    
+    // Staff without email handling
+    staffWithoutEmail: 'Personale Senza Email',
+    staffWithoutEmailCount: '{{count}} membri del personale non hanno indirizzi email e non riceveranno inviti',
+    staffWithoutEmailList: 'Personale senza email: {{names}}',
+    
+    // Invitation status messages
+    invitationAlreadyExists: 'Alcuni membri del personale hanno già inviti in sospeso',
+    invitationDuplicateWarning: 'Saltati {{count}} membri del personale che hanno già inviti attivi',
+    
+    // Invitation management
+    manageInvitations: 'Gestisci Inviti',
+    viewInvitationStatus: 'Visualizza Stato Invito',
+    resendInvitation: 'Reinvia Invito',
+    cancelInvitation: 'Annulla Invito',
+    
+    // Import with invitations combined
+    importAndInvite: 'Importa e Invita Personale',
+    importCompleteNextStep: 'Importazione Completata - Prossimo: Invia Inviti',
     
     // Success/Error messages with templates
     fillRequiredFields: 'Si prega di compilare tutti i campi obbligatori',

@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import Session, or_, select, func
 from typing import List, Optional
@@ -10,10 +11,12 @@ from ...models import (
     Facility,
     Schedule,
     ShiftAssignment,
+    StaffUnavailability,
     SwapRequest,
-    SwapStatus,        
+    SwapStatus,
+    ZoneAssignment,        
 )
-from ...schemas import StaffCreate, StaffDuplicateCheck, StaffRead, StaffUpdate
+from ...schemas import StaffCreate, StaffDeleteResponse, StaffDeleteValidation, StaffDuplicateCheck, StaffRead, StaffUpdate
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 
@@ -310,20 +313,19 @@ def update_staff(
     db.commit()
     db.refresh(staff)
     return staff
-
-@router.delete("/{staff_id}", status_code=204)
-def delete_staff(
+#============== Delete staff ====================================
+@router.delete("/{staff_id}/validate", response_model=StaffDeleteValidation)
+def validate_staff_deletion(
     staff_id: str,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
-    """Delete a staff member"""
+    """Validate if a staff member can be deleted and show impact"""
     if not current_user.is_manager:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager access required")
     
     # Convert string ID to UUID
     try:
-        import uuid
         staff_uuid = uuid.UUID(staff_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid staff ID format")
@@ -337,13 +339,278 @@ def delete_staff(
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
+    errors = []
+    warnings = []
+    blocking_entities = []
+    today = date.today()
+    now = datetime.now()
+    
+    # Check for future shift assignments
+    today = date.today()
+    future_assignments_count = db.exec(
+        select(func.count(ShiftAssignment.id))
+        .join(Schedule, ShiftAssignment.schedule_id == Schedule.id)
+        .where(ShiftAssignment.staff_id == staff_uuid)
+        .where(Schedule.week_start >= today)
+    ).first() or 0
+    
+    if future_assignments_count > 0:
+        errors.append(f"Staff member has {future_assignments_count} future shift assignments")
+        
+        # Get specific schedules for blocking entities
+        future_schedules = db.exec(
+            select(Schedule)
+            .join(ShiftAssignment, ShiftAssignment.schedule_id == Schedule.id)
+            .where(ShiftAssignment.staff_id == staff_uuid)
+            .where(Schedule.week_start >= today)
+            .distinct()
+        ).all()
+        
+        for schedule in future_schedules:
+            blocking_entities.append({
+                "type": "schedule",
+                "id": str(schedule.id),
+                "name": f"Schedule for week {schedule.week_start}",
+                "facility_id": str(schedule.facility_id)
+            })
+    
+    # Check for pending swap requests (both as requester and target)
+    pending_swap_requests_count = db.exec(
+        select(func.count(SwapRequest.id))
+        .where(
+            or_(
+                SwapRequest.requesting_staff_id == staff_uuid,
+                SwapRequest.target_staff_id == staff_uuid,
+                SwapRequest.assigned_staff_id == staff_uuid
+            )
+        )
+        .where(SwapRequest.status.in_([
+            SwapStatus.PENDING,
+            SwapStatus.MANAGER_APPROVED, 
+            SwapStatus.POTENTIAL_ASSIGNMENT,
+            SwapStatus.STAFF_ACCEPTED,
+            SwapStatus.MANAGER_FINAL_APPROVAL
+        ]))
+    ).first() or 0
+    
+    if pending_swap_requests_count > 0:
+        warnings.append(f"Staff member has {pending_swap_requests_count} pending swap requests")
+    
+    # Check if staff is a manager (assuming role indicates manager status)
+    is_manager = staff.role and ('manager' in staff.role.lower() or 'supervisor' in staff.role.lower())
+    
+    if is_manager:
+        # Check if this is the only manager in the facility
+        other_managers_count = db.exec(
+            select(func.count(Staff.id))
+            .where(Staff.facility_id == staff.facility_id)
+            .where(Staff.is_active == True)
+            .where(Staff.id != staff_uuid)
+            .where(
+                or_(
+                    Staff.role.contains('manager'),
+                    Staff.role.contains('supervisor')
+                )
+            )
+        ).first() or 0
+        
+        if other_managers_count == 0:
+            warnings.append("This is the only manager/supervisor for this facility")
+    
+    # Check for unique role/skill combination
+    has_unique_skills = False
+    
+    # Check if this is the only person with this specific role
+    other_staff_with_role = db.exec(
+        select(func.count(Staff.id))
+        .where(Staff.facility_id == staff.facility_id)
+        .where(Staff.is_active == True)
+        .where(Staff.id != staff_uuid)
+        .where(Staff.role == staff.role)
+    ).first() or 0
+    
+    if other_staff_with_role == 0:
+        has_unique_skills = True
+        warnings.append(f"Staff member is the only one with role: {staff.role}")
+    
+    # Check if this is the only person with this role AND skill level combination
+    other_staff_with_role_skill = db.exec(
+        select(func.count(Staff.id))
+        .where(Staff.facility_id == staff.facility_id)
+        .where(Staff.is_active == True)
+        .where(Staff.id != staff_uuid)
+        .where(Staff.role == staff.role)
+        .where(Staff.skill_level == staff.skill_level)
+    ).first() or 0
+    
+    if other_staff_with_role_skill == 0 and staff.skill_level and staff.skill_level > 3:
+        warnings.append(f"Staff member is the only {staff.role} with skill level {staff.skill_level}")
+    
+    # Check for upcoming unavailability records
+    upcoming_unavailability = db.exec(
+        select(func.count(StaffUnavailability.id))
+        .where(StaffUnavailability.staff_id == staff_uuid)
+        .where(StaffUnavailability.end >= datetime.now())
+    ).first() or 0
+    
+    if upcoming_unavailability > 0:
+        warnings.append(f"Staff member has {upcoming_unavailability} future unavailability records")
+    
+    # Check for zone assignments
+    zone_assignments = db.exec(
+        select(func.count(ZoneAssignment.id))
+        .where(ZoneAssignment.staff_id == staff_uuid)
+    ).first() or 0
+    
+    if zone_assignments > 0:
+        warnings.append(f"Staff member has {zone_assignments} zone assignments")
+    
+    return StaffDeleteValidation(
+        can_delete=len(errors) == 0,
+        future_assignments_count=future_assignments_count,
+        pending_swap_requests_count=pending_swap_requests_count,
+        is_manager=is_manager,
+        has_unique_skills=has_unique_skills,
+        errors=errors,
+        warnings=warnings,
+        blocking_entities=blocking_entities
+    )
+
+
+@router.delete("/{staff_id}", response_model=StaffDeleteResponse)
+def delete_staff(
+    staff_id: str,
+    force: bool = Query(False, description="Force delete even with dependencies"),
+    soft_delete: bool = Query(True, description="Soft delete (deactivate) instead of hard delete"),
+    cascade_assignments: bool = Query(False, description="Also delete related assignments"),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """Delete a staff member with proper dependency handling"""
+    if not current_user.is_manager:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager access required")
+    
+    # Convert string ID to UUID
     try:
-        db.delete(staff)
-        db.commit()
-        return  # Return nothing for 204 status
+        staff_uuid = uuid.UUID(staff_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid staff ID format")
+    
+    staff = db.get(Staff, staff_uuid)
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    
+    # Verify staff belongs to user's tenant
+    facility = db.get(Facility, staff.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Validate deletion unless forced
+    if not force:
+        validation = validate_staff_deletion(staff_id, db, current_user)
+        if not validation.can_delete:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot delete staff member: {'; '.join(validation.errors)}. Use force=true to override or handle dependencies first."
+            )
+    
+    # Count what will be affected for response
+    reassigned_schedules_count = 0
+    cancelled_swaps_count = 0
+    
+    try:
+        # Handle dependencies based on options
+        if cascade_assignments or force:
+            # Cancel pending swap requests
+            pending_swaps = db.exec(
+                select(SwapRequest)
+                .where(
+                    or_(
+                        SwapRequest.requesting_staff_id == staff_uuid,
+                        SwapRequest.target_staff_id == staff_uuid,
+                        SwapRequest.assigned_staff_id == staff_uuid
+                    )
+                )
+                .where(SwapRequest.status.in_([
+                    SwapStatus.PENDING,
+                    SwapStatus.MANAGER_APPROVED, 
+                    SwapStatus.POTENTIAL_ASSIGNMENT,
+                    SwapStatus.STAFF_ACCEPTED,
+                    SwapStatus.MANAGER_FINAL_APPROVAL
+                ]))
+            ).all()
+            
+            for swap in pending_swaps:
+                swap.status = SwapStatus.CANCELLED
+                swap.manager_notes = f"Cancelled due to staff deletion by {current_user.email}"
+                cancelled_swaps_count += 1
+            
+            if cascade_assignments:
+                # Remove future shift assignments
+                future_assignments = db.exec(
+                    select(ShiftAssignment)
+                    .join(Schedule, ShiftAssignment.schedule_id == Schedule.id)
+                    .where(ShiftAssignment.staff_id == staff_uuid)
+                    .where(Schedule.week_start >= date.today())
+                ).all()
+                
+                schedules_affected = set()
+                for assignment in future_assignments:
+                    schedules_affected.add(assignment.schedule_id)
+                    db.delete(assignment)
+                
+                reassigned_schedules_count = len(schedules_affected)
+            
+            # Clean up other dependencies
+            # Remove zone assignments
+            zone_assignments = db.exec(
+                select(ZoneAssignment)
+                .where(ZoneAssignment.staff_id == staff_uuid)
+            ).all()
+            for assignment in zone_assignments:
+                db.delete(assignment)
+            
+            # Remove future unavailability records
+            future_unavailability = db.exec(
+                select(StaffUnavailability)
+                .where(StaffUnavailability.staff_id == staff_uuid)
+                .where(StaffUnavailability.end >= datetime.now())
+            ).all()
+            for unavail in future_unavailability:
+                db.delete(unavail)
+        
+        # Delete or deactivate the staff member
+        if soft_delete:
+            # Soft delete - mark as inactive
+            staff.is_active = False
+            staff.updated_at = datetime.now()
+            db.commit()
+            message = f"Staff member '{staff.full_name}' deactivated successfully"
+        else:
+            # Hard delete
+            db.delete(staff)
+            db.commit()
+            message = f"Staff member '{staff.full_name}' deleted successfully"
+        
+        return StaffDeleteResponse(
+            success=True,
+            message=message,
+            deleted_id=staff_uuid,
+            entity_type="staff",
+            reassigned_schedules_count=reassigned_schedules_count,
+            cancelled_swaps_count=cancelled_swaps_count
+        )
+        
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to delete staff member: {str(e)}")
+        # Handle the specific foreign key constraint error
+        if "ForeignKeyViolation" in str(e) or "violates foreign key constraint" in str(e):
+            raise HTTPException(
+                status_code=400, 
+                detail="Cannot delete staff member due to existing assignments. Use cascade_assignments=true or soft_delete=true to handle dependencies, or remove assignments manually first."
+            )
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to delete staff member: {str(e)}")
 
 @router.post("/check-duplicate")
 def check_staff_duplicate(

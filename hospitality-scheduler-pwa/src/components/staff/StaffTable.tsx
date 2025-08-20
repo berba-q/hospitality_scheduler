@@ -54,26 +54,72 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
     ))
   }
 
-  const handleDelete = async () => {
+  const handleDelete = async (action: string, options?: any) => {
     if (!deletingStaff) return
 
     setDeleteLoading(true)
     try {
-      await apiClient.deleteStaff(deletingStaff.id)
-      toast.success(t('staff.staffDeletedSuccess', { name: deletingStaff.full_name }))
+      if (!apiClient) {
+        throw new Error('API client is not initialized');
+      }
+      const result = await apiClient.deleteStaff(deletingStaff.id, {
+        removal_type: action,
+        ...options
+      })
+
+      // Show detailed success message based on what actually happened
+      const successMessage = getSuccessMessage(action, result)
+      toast.success(successMessage)
+      
       onRefresh()
       setDeletingStaff(null)
-    } catch (error) {
-      toast.error(t('staff.failedDeleteStaff'))
-      console.error(error)
+    } catch (error: any) {
+      console.error('Delete failed:', error)
+      
+      // Show more specific error messages
+      if (error.message.includes('Cannot delete staff member due to existing assignments')) {
+        toast.error(
+          'Cannot remove staff member. They have active assignments that need to be handled first.',
+          {
+            description: 'Try using "Remove and Clear Schedule" option instead.'
+          }
+        )
+      } else if (error.message.includes('foreign key constraint')) {
+        toast.error(
+          'Cannot remove staff member due to schedule dependencies.',
+          {
+            description: 'Please clear their assignments first or use cascade options.'
+          }
+        )
+      } else {
+        toast.error('Failed to remove staff member', {
+          description: error.message || 'An unexpected error occurred.'
+        })
+      }
     } finally {
       setDeleteLoading(false)
+    }
+  }
+
+  const getSuccessMessage = (action: string, result: any) => {
+    const name = deletingStaff?.full_name || 'Staff member'
+    
+    switch (action) {
+      case 'deactivate':
+        return `${name} has been deactivated successfully`
+      case 'transfer_and_deactivate':
+        return `${name} has been removed and ${result.reassigned_schedules_count} schedules cleared`
+      case 'permanent':
+        return `${name} has been permanently deleted`
+      default:
+        return `${name} has been removed successfully`
     }
   }
 
   if (staff.length === 0) {
     return null
   }
+
 
   return (
     <>

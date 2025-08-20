@@ -15,6 +15,7 @@ import { AddStaffModal } from '@/components/staff/AddStaffModal'
 import { ImportProgressModal } from '@/components/staff/ImportProgressModal'
 import { ImportStaffModal } from '@/components/staff/ImportStaffModal'
 import { GlobalDropZone } from '@/components/staff/GlobalDropZone'
+import { InvitationConfirmationModal } from '@/components/staff/InvitationConfirmationModal'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
@@ -27,6 +28,13 @@ interface ParsedStaffMember {
   facility_id?: string
   weekly_hours_max?: number
   is_active?: boolean
+}
+
+interface ImportedStaffMember {
+  id: string
+  full_name: string
+  email?: string
+  facility_name?: string
 }
 
 export default function StaffPage() {
@@ -47,6 +55,8 @@ export default function StaffPage() {
   const [importStatus, setImportStatus] = useState<'uploading' | 'processing' | 'importing' | 'complete' | 'error'>('uploading')
   const [importResults, setImportResults] = useState({ added: 0, errors: 0 })
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
+  const [showInvitationConfirmation, setShowInvitationConfirmation] = useState(false)
+  const [importedStaffForInvitation, setImportedStaffForInvitation] = useState<ImportedStaffMember[]>([])
 
   // Check if user is manager - redirect if not
   useEffect(() => {
@@ -81,6 +91,11 @@ export default function StaffPage() {
     }
   }
 
+  const handleInvitationConfirmationClose = () => {
+    setShowInvitationConfirmation(false)
+    setImportedStaffForInvitation([])
+  }
+
   // Drag & drop with preview
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
@@ -110,11 +125,13 @@ export default function StaffPage() {
       let added = 0
       let errors = 0
       
+      // track successful imports
+      const newlyImportedStaffWithEmails: ImportedStaffMember[] = []
       // Import with progress tracking
       for (let i = 0; i < validStaff.length; i++) {
         try {
           // Use the enhanced existing createStaff method
-          await apiClient.createStaff({
+          const newStaff = await apiClient.createStaff({
             full_name: validStaff[i].full_name,
             email: validStaff[i].email || undefined,
             role: validStaff[i].role,
@@ -126,6 +143,15 @@ export default function StaffPage() {
             force_create: validStaff[i].force_create || false, // NEW: Pass force_create flag
             skip_duplicate_check: false
           })
+
+          if (newStaff?.id && validStaff[i].email) {
+            newlyImportedStaffWithEmails.push({
+              id: newStaff.id,
+              full_name: newStaff.full_name,
+              email: newStaff.email,
+              facility_name: facilities.find(f => f.id === validStaff[i].facility_id)?.name || 'Unknown'
+            })
+          }
           
           added++
           setImportResults({ added, errors })
@@ -150,6 +176,10 @@ export default function StaffPage() {
 
       setTimeout(() => {
         setShowImportProgress(false)
+        if (newlyImportedStaffWithEmails.length > 0) {
+          setImportedStaffForInvitation(newlyImportedStaffWithEmails)
+          setShowInvitationConfirmation(true)
+        }
       }, 2000)
 
     } catch (error) {
@@ -438,6 +468,12 @@ export default function StaffPage() {
           progress={importProgress}
           status={importStatus}
           results={importResults}
+        />
+        {/* invite staff modal */}
+        <InvitationConfirmationModal
+          open={showInvitationConfirmation}
+          onClose={handleInvitationConfirmationClose}
+          importedStaff={importedStaffForInvitation}
         />
       </div>
     </AppLayout>

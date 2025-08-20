@@ -694,8 +694,64 @@ export class ApiClient {
     })
   }
 
-  async deleteStaff(staffId: string) {
-    return this.request<any>(`/v1/staff/${staffId}`, {
+  // Staff deletion validation
+  async validateStaffDeletion(staffId: string) {
+    return this.request<{
+      can_delete: boolean
+      future_assignments_count: number
+      pending_swap_requests_count: number
+      is_manager: boolean
+      has_unique_skills: boolean
+      errors: string[]
+      warnings: string[]
+      blocking_entities: Array<{
+        type: string
+        id: string
+        name: string
+        facility_id: string
+      }>
+    }>(`/v1/staff/${staffId}/validate`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Enhanced staff deletion with options
+  async deleteStaff(staffId: string, options: {
+    removal_type?: 'deactivate' | 'transfer_and_deactivate' | 'permanent'
+    transfer_assignments_to?: string
+    force?: boolean
+    soft_delete?: boolean
+    cascade_assignments?: boolean
+  } = {}) {
+    const params = new URLSearchParams()
+    
+    // Map user-friendly options to backend parameters
+    if (options.removal_type === 'deactivate' || !options.removal_type) {
+      params.append('soft_delete', 'true')
+      params.append('cascade_assignments', 'false')
+    } else if (options.removal_type === 'transfer_and_deactivate') {
+      params.append('soft_delete', 'true')
+      params.append('cascade_assignments', 'true')
+    } else if (options.removal_type === 'permanent') {
+      params.append('soft_delete', 'false')
+      params.append('cascade_assignments', 'true')
+    }
+    
+    // Override with explicit options if provided
+    if (options.force) params.append('force', 'true')
+    if (options.soft_delete !== undefined) params.set('soft_delete', options.soft_delete.toString())
+    if (options.cascade_assignments !== undefined) params.set('cascade_assignments', options.cascade_assignments.toString())
+    
+    const queryString = params.toString()
+    
+    return this.request<{
+      success: boolean
+      message: string
+      deleted_id: string
+      entity_type: string
+      reassigned_schedules_count: number
+      cancelled_swaps_count: number
+    }>(`/v1/staff/${staffId}${queryString ? `?${queryString}` : ''}`, {
       method: 'DELETE',
     })
   }
@@ -2271,6 +2327,62 @@ async updateNotificationSettings(settings: {
     body: JSON.stringify(settings),
   })
 }
+
+// ==================== INVITATIONS ====================
+
+  async createBulkInvitations(data: {
+    staff_ids: string[]
+    custom_message?: string
+    expires_in_hours?: number
+  }) {
+    return this.request<{
+      successful: { staff_id: string; invitation_id: string; email: string }[]
+      failed: { staff_id: string; error: string }[]
+      already_exists: string[]
+      no_email: string[]
+    }>('/v1/invitations/bulk', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async createSingleInvitation(data: {
+    staff_id: string
+    custom_message?: string
+    expires_in_hours?: number
+  }) {
+    return this.request<{
+      id: string
+      staff_id: string
+      email: string
+      status: string
+      sent_at?: string
+      expires_at: string
+      custom_message?: string
+      staff_name: string
+      facility_name: string
+      invited_by_name: string
+    }>('/v1/invitations/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getInvitations(status?: 'pending' | 'sent' | 'accepted' | 'expired' | 'cancelled') {
+    const params = status ? `?status=${status}` : ''
+    return this.request<any[]>(`/v1/invitations/${params}`)
+  }
+
+  async getInvitationStats() {
+    return this.request<{
+      total_sent: number
+      pending: number
+      accepted: number
+      expired: number
+      cancelled: number
+      acceptance_rate: number
+    }>('/v1/invitations/stats')
+  }
 
 // Profile Settings
 async getMyProfile() {

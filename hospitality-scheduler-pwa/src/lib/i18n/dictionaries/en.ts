@@ -232,6 +232,10 @@ export const en = {
     medium: 'Medium',
     high: 'High',
     urgent: 'Urgent',
+    recommended: "Recommended",
+    processing: "Processing...",
+    yes: 'Yes',
+    no: 'No',
       
     // Generic entities
     facility: 'Facility',
@@ -485,6 +489,7 @@ export const en = {
     staffDashboard: 'Staff Dashboard',
     manageTeamAndFacilities: 'Manage your team and facilities',
     scheduleAndTeamOverview: "Here's your schedule and team activity overview",
+    loading: 'Loading ...',
     
     // Dashboard sections
     recentActivity: 'Recent Activity',
@@ -998,6 +1003,85 @@ export const en = {
     // Status and actions
     updating: 'Updating...',
     noChanges: 'No Changes',
+
+    // Invition related
+    sendInvitations: 'Send Invitations',
+    sendInvitationsQuestion: 'Send Invitations to New Staff?',
+    invitationConfirmMessage: 'Successfully imported {{count}} staff members. Would you like to send them invitations to join the system?',
+    invitationConfirmSubtitle: 'Staff with email addresses will receive an invitation to create their accounts and access the scheduling system.',
+    sendInvitationsButton: 'Send {{count}} Invitations',
+    skipInvitations: 'Skip for Now',
+    customizeInvitationMessage: 'Customize Invitation Message (Optional)',
+    invitationMessagePlaceholder: 'Welcome to our team! Please use this invitation to access our scheduling system...',
+    invitationExpiry: 'Invitation Validity',
+    invitationExpiryOptions: {
+      '24': '24 hours',
+      '72': '3 days', 
+      '168': '1 week (recommended)',
+      '336': '2 weeks',
+      '720': '30 days'
+    },
+
+    // Delete confirmation
+    removeStaffMember: "Remove {name}",
+    chooseRemovalMethod: "Choose how to handle this staff member's removal",
+    checkingImpact: "Checking impact...",
+    impactAssessment: "Impact Assessment",
+    issuesFound: "Issues found:",
+    consider: "Consider:",
+    futureShifts: "Future Shifts",
+    pendingSwaps: "Pending Swaps", 
+    managerRole: "Manager Role",
+    uniqueSkills: "Unique Skills",
+    removeFromActiveStaff: "Remove from Active Staff",
+    deactivateDescription: "Deactivates {name} but keeps all history for reporting",
+    deactivateStaffMember: "Deactivate Staff Member",
+    removeAndClearSchedule: "Remove and Clear Schedule",
+    permanentlyDelete: "Permanently Delete",
+    deactivatedSuccessfully: "{name} has been deactivated successfully",
+    removedWithSchedulesCleared: "{name} has been removed and {count} schedules cleared",
+    deleteError: {
+      hasAssignments: "Cannot remove staff member. They have active assignments that need to be handled first.",
+      tryRemoveAndClear: "Try using 'Remove and Clear Schedule' option instead.",
+      },
+    failedToValidateDeletion: 'Failed to validate deletion',
+    unableToValidateDeletion: 'Unable to validate deletion', 
+    chooseAction: 'Choose Action',
+    removesAssignmentsAndDeactivates: 'Removes {{count}} future assignments and deactivates staff',
+    historyPreservedShiftsCleared: 'History preserved • Future shifts cleared • ⚠️ Shifts will be unassigned',
+    advancedOptions: 'Advanced Options', 
+    completeRemoval: 'Complete Removal',
+    adminOnly: 'Admin Only',
+    permanentlyDeletesAllData: 'Permanently deletes all data - cannot be undone',
+    dataEntryErrorsOnly: '⚠️ For data entry errors or privacy requests only',
+    wontAppearInScheduling: "Won't appear in future scheduling • ✓ All past data preserved • ⚠️ Future shifts will need coverage",
+    
+    // Invitation sending progress/results
+    sendingInvitations: 'Sending Invitations...',
+    invitationsSentSuccessfully: 'Invitations sent successfully!',
+    invitationsSentPartial: 'Sent {{sent}} of {{total}} invitations successfully',
+    invitationsSentComplete: '{{count}} invitations sent successfully!',
+    invitationsFailedToSend: 'Failed to send some invitations',
+    invitationSendError: 'Error sending invitations: {{error}}',
+    
+    // Staff without email handling
+    staffWithoutEmail: 'Staff Without Email',
+    staffWithoutEmailCount: '{{count}} staff members don\'t have email addresses and won\'t receive invitations',
+    staffWithoutEmailList: 'Staff without email: {{names}}',
+    
+    // Invitation status messages
+    invitationAlreadyExists: 'Some staff already have pending invitations',
+    invitationDuplicateWarning: 'Skipped {{count}} staff members who already have active invitations',
+    
+    // Invitation management
+    manageInvitations: 'Manage Invitations',
+    viewInvitationStatus: 'View Invitation Status',
+    resendInvitation: 'Resend Invitation',
+    cancelInvitation: 'Cancel Invitation',
+    
+    // Import with invitations combined
+    importAndInvite: 'Import & Invite Staff',
+    importCompleteNextStep: 'Import Complete - Next: Send Invitations',
     
     // Success/Error messages with templates
     fillRequiredFields: 'Please fill in all required fields',
