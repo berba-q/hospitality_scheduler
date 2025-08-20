@@ -113,7 +113,17 @@ export const en = {
     // General
     networkError: "Network error. Please check your connection and try again.",
     emailPlaceholder: "Enter your email address",
-    passwordPlaceholder: "Enter your password"
+    passwordPlaceholder: "Enter your password",
+
+    // Error messages
+    featureNotAvailable: "Account linking feature is not yet available. Please contact your administrator.",
+    unableToUnlinkAccount: "Unable to unlink account. Please try again later.",
+    emailMismatchError: "Cannot link accounts: Email mismatch. Your Google account ({{email}}) doesn't match your system account. Please contact your administrator.",
+    unableToLinkAccounts: "Unable to link accounts. Please try again later.",
+    
+    // Development notes
+    developmentNote: "Development Note",
+    emailMatchRequirement: "Account linking requires your Gmail email to match your system account ({{systemEmail}}). If emails don't match, linking will fail and you'll need to contact your administrator.",
   },
 
   common: {

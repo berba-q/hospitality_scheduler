@@ -124,7 +124,17 @@ export const it = {
     termsOfService: "Termini di servizio",
     privacyPolicy: "Privacy Policy",
     and: "e",
-    backToHome: "Torna alla home"
+    backToHome: "Torna alla home",
+
+    // Error messages  
+    featureNotAvailable: "La funzionalità di collegamento account non è ancora disponibile. Contatta il tuo amministratore.",
+    unableToUnlinkAccount: "Impossibile scollegare l'account. Riprova più tardi.",
+    emailMismatchError: "Impossibile collegare gli account: Email non corrispondente. Il tuo account Google ({{email}}) non corrisponde al tuo account di sistema. Contatta il tuo amministratore.",
+    unableToLinkAccounts: "Impossibile collegare gli account. Riprova più tardi.",
+    
+    // Development notes
+    developmentNote: "Nota di Sviluppo",
+    emailMatchRequirement: "Il collegamento account richiede che la tua email Gmail corrisponda al tuo account di sistema ({{systemEmail}}). Se le email non corrispondono, il collegamento fallirà e dovrai contattare il tuo amministratore.",
   },
 
   common: {

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { FaGoogle } from 'react-icons/fa'
 import { useTranslations } from '@/hooks/useTranslations'
+import { toast } from 'sonner'
 
 interface LinkedProvider {
   id: string
@@ -69,9 +70,18 @@ export default function AccountLinking({ mode = 'management', className = '' }: 
       if (response.ok) {
         const providers = await response.json()
         setLinkedProviders(providers)
+      } else if (response.status === 404) {
+        // API endpoint doesn't exist yet - this is expected during development
+        console.log('Account linking API not implemented yet')
+        setLinkedProviders([])
+      } else {
+        console.error('Failed to fetch providers:', response.status)
+        setError('Unable to load linked accounts. Please try again later.')
       }
     } catch (error) {
       console.error('Failed to fetch linked providers:', error)
+      // Don't show error to user if API is not implemented yet
+      setLinkedProviders([])
     }
   }
 
@@ -114,12 +124,14 @@ export default function AccountLinking({ mode = 'management', className = '' }: 
       if (response.ok) {
         setSuccess(t('auth.accountUnlinkedSuccessfully', { provider: providerName }))
         fetchLinkedProviders()
+      } else if (response.status === 404) {
+        setError(t('auth.featureNotAvailable'))
       } else {
         const data = await response.json()
         setError(data.detail || t('auth.failedToUnlinkAccount'))
       }
     } catch (error) {
-      setError(t('auth.failedToUnlinkAccount'))
+      setError(t('auth.unableToUnlinkAccount'))
     } finally {
       setIsLoading(false)
     }
@@ -150,12 +162,21 @@ export default function AccountLinking({ mode = 'management', className = '' }: 
       if (response.ok) {
         setSuccess(t('auth.accountsLinked'))
         router.push('/dashboard')
+      } else if (response.status === 404) {
+        setError(t('auth.featureNotAvailable'))
+      } else if (response.status === 400) {
+        const data = await response.json()
+        if (data.detail?.includes('email')) {
+          setError(t('auth.emailMismatchError', { email }))
+        } else {
+          setError(data.detail || t('auth.accountLinkingFailed'))
+        }
       } else {
         const data = await response.json()
         setError(data.detail || t('auth.accountLinkingFailed'))
       }
     } catch (error) {
-      setError(t('auth.accountLinkingFailed'))
+      setError(t('auth.unableToLinkAccounts'))
     } finally {
       setIsLoading(false)
     }
@@ -296,6 +317,19 @@ export default function AccountLinking({ mode = 'management', className = '' }: 
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-gray-700">{t('auth.currentlyLinked')}</h4>
           
+          {/* Debug Information */}
+          <Alert className="border-gray-200 bg-gray-50">
+            <AlertCircle className="w-4 h-4 text-gray-600" />
+            <AlertDescription className="text-gray-700">
+              <strong>Debug Info:</strong>
+              <div className="mt-1 font-mono text-xs">
+                <div>Session Email: {session?.user?.email || 'Not available'}</div>
+                <div>Session Provider: {session?.provider || 'Unknown'}</div>
+                <div>Session Status: {session ? 'Active' : 'None'}</div>
+              </div>
+            </AlertDescription>
+          </Alert>
+          
           {linkedProviders.length === 0 ? (
             <p className="text-sm text-gray-500">{t('auth.noLinkedAccountsFound')}</p>
           ) : (
@@ -337,17 +371,37 @@ export default function AccountLinking({ mode = 'management', className = '' }: 
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-gray-700">{t('auth.linkAdditionalAccounts')}</h4>
           
+          {/* Development Notice */}
+          <Alert className="mb-3 border-blue-200 bg-blue-50">
+            <AlertCircle className="w-4 h-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              <strong>Development Status:</strong> Account linking APIs are not yet implemented. 
+              You need to create the API routes first before this feature will work.
+            </AlertDescription>
+          </Alert>
+          
           <div className="space-y-2">
             {!linkedProviders.some(p => p.provider === 'google') && (
-              <Button
-                variant="outline"
-                onClick={() => handleLinkProvider('google')}
-                disabled={isLoading}
-                className="w-full justify-start"
-              >
-                <FaGoogle className="w-4 h-4 mr-2" />
-                {t('auth.linkGoogleAccount')}
-              </Button>
+              <>
+                <Alert className="mb-3 border-amber-200 bg-amber-50">
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800">
+                    <strong>Email Requirement:</strong> Your Google account email must match your system email (manager@seaside.com) for linking to work.
+                    <br />Current session: <code>{session?.user?.email || 'Not available'}</code>
+                  </AlertDescription>
+                </Alert>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    toast.error('Account linking APIs are not yet implemented. Please create the API routes first.')
+                  }}
+                  disabled={false}
+                  className="w-full justify-start"
+                >
+                  <FaGoogle className="w-4 h-4 mr-2" />
+                  {t('auth.linkGoogleAccount')} (Development Mode)
+                </Button>
+              </>
             )}
           </div>
           
