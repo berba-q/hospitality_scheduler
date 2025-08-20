@@ -1796,6 +1796,37 @@ class UserProfileRead(UserProfileBase):
     
     model_config = ConfigDict(from_attributes=True)
 
+# ==================== LINK USER PROFILES ========================
+class UserProviderRead(BaseModel):
+    id: uuid.UUID
+    provider: str
+    provider_email: str
+    linked_at: datetime
+    is_primary: bool
+    is_active: bool
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class AccountLinkRequest(BaseModel):
+    provider: str
+    provider_id: str
+    provider_email: str
+    provider_data: Optional[Dict[str, Any]] = None
+
+class AccountUnlinkRequest(BaseModel):
+    provider: str
+
+class UserProfileWithProviders(BaseModel):
+    id: uuid.UUID
+    email: str
+    is_active: bool
+    is_manager: bool
+    tenant_id: uuid.UUID
+    created_at: datetime
+    providers: List[UserProviderRead]
+    
+    model_config = ConfigDict(from_attributes=True)
+
 # ==================== SYSTEM SETTINGS SCHEMAS ====================
 
 class SystemSettingsBase(BaseModel):

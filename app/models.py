@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional, List, Dict, Any, cast
 import uuid
 from hashlib import sha256
-from sqlmodel import SQLModel, Field, Relationship, Index, JSON, select, Session, update
+from sqlmodel import Column, SQLModel, Field, Relationship, Index, JSON, select, Session, update
 from sqlalchemy import Column as SAColumn, DateTime, Enum as SQLEnum, update as sa_update
 from sqlalchemy.sql import Executable
 from sqlalchemy.sql.elements import ColumnElement
@@ -164,9 +164,42 @@ class User(SQLModel, table=True):
     push_token: Optional[str] = None
     whatsapp_number: Optional[str] = None
     
+    providers: List["UserProvider"] = Relationship(back_populates="user", cascade_delete=True)
+    
+    @property
+    def linked_providers(self) -> List[str]:
+        """Get list of linked provider names"""
+        return [p.provider for p in self.providers if p.is_active]
+    
+    @property 
+    def primary_provider(self) -> Optional["UserProvider"]:
+        """Get primary authentication provider"""
+        return next((p for p in self.providers if p.is_primary), None)
+    
     # Relationships
     profile: Optional["UserProfile"] = Relationship(back_populates="user")
     notifications: List["Notification"] = Relationship(back_populates="recipient")
+
+# ====== LINK ACCOUNTS ===============
+class UserProvider(SQLModel, table=True):
+    """Track authentication providers linked to user accounts"""
+    
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    provider: str = Field(index=True)  # "google", "fastapi", "apple", etc.
+    provider_id: str = Field(index=True)  # Provider's unique ID for user
+    provider_email: str = Field(index=True)  # Email from provider
+    
+    # Provider-specific data
+    provider_data: Optional[Dict[str, Any]] = Field(default_factory=dict, sa_column=Column(JSON))
+    
+    # Status tracking
+    linked_at: datetime =  Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
+    is_primary: bool = Field(default=False)  # Primary login method
+    is_active: bool = Field(default=True)
+    
+    # Relationships
+    user: User = Relationship(back_populates="providers")
 
 class Staff(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
