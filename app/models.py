@@ -183,6 +183,14 @@ class User(SQLModel, table=True):
     # Relationships
     profile: Optional["UserProfile"] = Relationship(back_populates="user")
     notifications: List["Notification"] = Relationship(back_populates="recipient")
+    sessions: List["UserSession"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"foreign_keys": "UserSession.user_id"}
+    )
+    revoked_sessions: List["UserSession"] = Relationship(
+        back_populates="revoker",
+        sa_relationship_kwargs={"foreign_keys": "UserSession.revoked_by"}
+    )
 
 # ====== LINK ACCOUNTS ===============
 class UserProvider(SQLModel, table=True):
@@ -438,8 +446,15 @@ class UserSession(SQLModel, table=True):
     revocation_reason: Optional[str] = None
     
     # Relationships
-    user: User = Relationship()
-    
+    user: "User" = Relationship(
+        back_populates="sessions",
+        sa_relationship_kwargs={"foreign_keys": "UserSession.user_id"}
+    )
+    revoker: Optional["User"] = Relationship(
+        back_populates="revoked_sessions",
+        sa_relationship_kwargs={"foreign_keys": "UserSession.revoked_by"}
+    )
+
     @property
     def is_expired(self) -> bool:
         """Check if session is expired"""
