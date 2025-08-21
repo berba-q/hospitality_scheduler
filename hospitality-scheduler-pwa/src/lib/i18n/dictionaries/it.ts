@@ -2389,6 +2389,65 @@ Questo invito è stato inviato a $recipient_email da $invited_by_name.
 Se hai domande, contatta il nostro team di supporto.`,
         whatsapp: "🎉 *Benvenuto nel Team!*\n\nCiao $staff_name!\n\n$invited_by_name ti ha invitato a unirti a $organization_name come $role presso $facility_name.\n\nAccetta il tuo invito qui: $accept_url\n\n📅 Scade: $expires_at\n\n💬 Messaggio: $custom_message",
       },
+      welcome_email: {
+        title: "🎉 Benvenuto in $organization_name!",
+        message: "Il tuo account è stato creato con successo. Ora puoi accedere alla tua dashboard di gestione ospitalità.",
+        subject: "Benvenuto in $organization_name - Inizia Subito!",
+        html: `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benvenuto in $organization_name</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+        .header { color: #333; text-align: center; margin-bottom: 30px; }
+        .content { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .welcome-button { 
+            background-color: #28a745; color: white; padding: 12px 30px; 
+            border-radius: 5px; text-decoration: none; display: inline-block; 
+            font-weight: bold; margin: 20px 0;
+        }
+        .welcome-button:hover { background-color: #218838; }
+        .features-box { background-color: #fff; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #007bff; }
+        .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2 class="header">🎉 Benvenuto in $organization_name!</h2>
+    <div class="content">
+        <p>Ciao $user_name,</p>
+        <p>Congratulazioni! Il tuo account è stato creato con successo e ora sei pronto per iniziare a gestire le tue operazioni di ospitalità con facilità.</p>
+        
+        <div class="features-box">
+            <h3>🚀 Cosa puoi fare ora:</h3>
+            <ul>
+                <li>📅 Creare e gestire i turni del personale</li>
+                <li>👥 Invitare e gestire i membri del tuo team</li>
+                <li>🔄 Gestire cambio turni e richieste</li>
+                <li>📊 Monitorare prestazioni e analisi</li>
+                <li>⚙️ Configurare le impostazioni della struttura</li>
+            </ul>
+        </div>
+        
+        <p>Pronto per iniziare? Accedi alla tua dashboard qui sotto:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="$login_url" class="welcome-button">Accedi alla Tua Dashboard</a>
+        </div>
+        
+        <p>Benvenuto a bordo!<br>
+        Il Team di $organization_name</p>
+    </div>
+    
+    <div class="footer">
+        <p>Questa email è stata inviata a $user_email come parte della creazione del tuo account.</p>
+        <p>Se hai domande, contatta il nostro team di supporto.</p>
+    </div>
+</body>
+</html>`,
+        whatsapp: "🎉 *Benvenuto in $organization_name!*\n\nCiao $user_name!\n\nIl tuo account di gestione ospitalità è pronto! 🚀\n\nAccedi alla dashboard: $login_url\n\nOra puoi:\n📅 Gestire turni\n👥 Invitare membri del team\n🔄 Gestire cambio turni\n📊 Monitorare prestazioni\n\nBenvenuto nel team! 🎊",
+      },
     },
   },
 

@@ -5,6 +5,9 @@ from pydantic import Field
 
 
 class Settings(BaseSettings):
+    # Add debug mode
+    DEBUG: bool = Field(default=False, description="Enable debug mode")
+    
     # ✅ Required fields - no Field() needed for simple cases
     API_V1_STR: str = "/v1"
     SECRET_KEY: str
@@ -55,8 +58,18 @@ class Settings(BaseSettings):
     AUDIT_LOG_ENABLED: bool = True
     AUDIT_LOG_RETENTION_DAYS: int = 365
     ENCRYPTION_RATE_LIMIT: int = 100  # per hour
+    
+    # Password security
+    ARGON2_ROUNDS: int = Field(default=4)  # Dev: 4, Prod: 8-12
+    ARGON2_MEMORY_COST: int = Field(default=65536)  # 64MB
+    ARGON2_PARALLELISM: int = Field(default=1)
+    
+    # Enhanced security
+    ENABLE_SESSION_TRACKING: bool = True
+    MAX_FAILED_LOGIN_ATTEMPTS: int = 5
+    ACCOUNT_LOCKOUT_DURATION: int = 30  # minutes
 
-    # ✅ Pydantic v2 model configuration
+    # Pydantic v2 model configuration
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
@@ -77,6 +90,7 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get application settings. Required env vars: SECRET_KEY, POSTGRES_PASSWORD, DATABASE_URL"""
     try:
+        
         return Settings() # type: ignore
     except Exception as e:
         raise RuntimeError(

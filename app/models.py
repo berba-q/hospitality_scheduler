@@ -1,11 +1,12 @@
 from datetime import date, datetime, time, timedelta, timezone
 from enum import Enum
+import enum
 import hashlib
 from typing import ClassVar, Optional, List, Dict, Any, cast
 import uuid
 from hashlib import sha256
 from sqlmodel import Column, SQLModel, Field, Relationship, Index, JSON, select, Session, update
-from sqlalchemy import Column as SAColumn, DateTime, Enum as SQLEnum, update as sa_update
+from sqlalchemy import Column as SAColumn, DateTime, Enum as SQLEnum, String, update as sa_update
 from sqlalchemy.sql import Executable
 from sqlalchemy.sql.elements import ColumnElement
 import secrets
@@ -140,6 +141,7 @@ class NotificationType(str, Enum):
     EMAIL_VERIFICATION = "EMAIL_VERIFICATION"
     STAFF_INVITATION = "STAFF_INVITATION"
     ACCOUNT_LINKED = "ACCOUNT_LINKED"
+    WELCOME_EMAIL = "WELCOME_EMAIL"
 
 class NotificationChannel(str, Enum):
     IN_APP = "IN_APP"
@@ -284,6 +286,238 @@ class AccountVerificationToken(SQLModel, table=True):
         ).first()
         
         return token
+
+# ======================= ACCOUNT LOCKOUT MODELS =======================
+class LoginAttempt(SQLModel, table=True):
+    """Track failed login attempts for account lockout"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    email: str = Field(index=True)
+    ip_address: str = Field(index=True)
+    user_agent: Optional[str] = None
+    success: bool = Field(default=False)
+    failure_reason: Optional[str] = None
+    attempted_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), index=True)
+    )
+    
+    # Add composite index for performance
+    __table_args__ = (
+        Index('idx_email_attempted_at', 'email', 'attempted_at'),
+        Index('idx_ip_attempted_at', 'ip_address', 'attempted_at'),
+    )
+
+class AccountLockout(SQLModel, table=True):
+    """Track account lockout status"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    email: str = Field(unique=True, index=True)
+    locked_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True))
+    )
+    locked_until: datetime = Field(sa_column=Column(DateTime(timezone=True)))
+    failed_attempts: int = Field(default=0)
+    lockout_reason: str = Field(default="too_many_failed_attempts")
+    is_active: bool = Field(default=True)
+    
+    @property
+    def is_locked(self) -> bool:
+        """Check if account is currently locked"""
+        if not self.is_active:
+            return False
+        return datetime.now(timezone.utc) < self.locked_until
+
+# ======================= AUDIT LOGGING MODELS =======================
+class AuditEvent(str, enum.Enum):
+    """Audit event types"""
+    # Authentication events
+    LOGIN_SUCCESS = "login_success"
+    LOGIN_FAILED = "login_failed"
+    LOGIN_FAILED_LOCKED = "login_failed_locked"
+    LOGOUT = "logout"
+    
+    # Registration events
+    SIGNUP_SUCCESS = "signup_success"
+    SIGNUP_FAILED = "signup_failed"
+    
+    # Password events
+    PASSWORD_CHANGED = "password_changed"
+    PASSWORD_RESET_REQUESTED = "password_reset_requested"
+    PASSWORD_RESET_SUCCESS = "password_reset_success"
+    PASSWORD_RESET_FAILED = "password_reset_failed"
+    
+    # Account management events
+    ACCOUNT_LOCKED = "account_locked"
+    ACCOUNT_UNLOCKED = "account_unlocked"
+    ACCOUNT_DEACTIVATED = "account_deactivated"
+    ACCOUNT_REACTIVATED = "account_reactivated"
+    
+    # Session events
+    SESSION_CREATED = "session_created"
+    SESSION_REVOKED = "session_revoked"
+    ALL_SESSIONS_REVOKED = "all_sessions_revoked"
+    SESSION_EXPIRED = "session_expired"
+    
+    # Permission events
+    PERMISSION_GRANTED = "permission_granted"
+    PERMISSION_REVOKED = "permission_revoked"
+    ROLE_CHANGED = "role_changed"
+    
+    # Data access events
+    SENSITIVE_DATA_ACCESSED = "sensitive_data_accessed"
+    BULK_DATA_EXPORT = "bulk_data_export"
+    
+    # Security events
+    SUSPICIOUS_ACTIVITY = "suspicious_activity"
+    RATE_LIMIT_EXCEEDED = "rate_limit_exceeded"
+    
+    # System events (add these)
+    SYSTEM_STARTUP = "system_startup"
+    SYSTEM_SHUTDOWN = "system_shutdown"
+    SYSTEM_ERROR = "system_error"
+    SYSTEM_MAINTENANCE = "system_maintenance"
+    
+    #  Additional security events
+    UNAUTHORIZED_ACCESS = "unauthorized_access"
+    SECURITY_POLICY_VIOLATION = "security_policy_violation"
+    BRUTE_FORCE_DETECTED = "brute_force_detected"
+    IP_BLOCKED = "ip_blocked"
+    
+    # Admin actions
+    ADMIN_LOGIN = "admin_login"
+    ADMIN_ACTION = "admin_action"
+    USER_IMPERSONATION = "user_impersonation"
+    BULK_USER_ACTION = "bulk_user_action"
+    
+    # API and integration events
+    API_KEY_CREATED = "api_key_created"
+    API_KEY_REVOKED = "api_key_revoked"
+    API_RATE_LIMITED = "api_rate_limited"
+    WEBHOOK_FAILED = "webhook_failed"
+    
+    # Data events
+    DATA_EXPORTED = "data_exported"
+    DATA_IMPORTED = "data_imported"
+    DATA_DELETED = "data_deleted"
+    BACKUP_CREATED = "backup_created"
+    
+    #  Compliance events
+    GDPR_REQUEST = "gdpr_request"
+    DATA_RETENTION_APPLIED = "data_retention_applied"
+    AUDIT_LOG_EXPORTED = "audit_log_exported"
+    COMPLIANCE_REPORT_GENERATED = "compliance_report_generated"
+
+# ======================= SESSION MANAGEMENT MODELS =======================
+class UserSession(SQLModel, table=True):
+    """Track active user sessions for revocation"""
+    
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    session_token_hash: str = Field(unique=True, index=True)  # Hashed JWT token
+    
+    # Session metadata
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True))
+    )
+    last_used: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), index=True)
+    )
+    expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), index=True))
+    
+    # Device/client information
+    ip_address: str
+    user_agent: Optional[str] = None
+    device_fingerprint: Optional[str] = None
+    
+    # Session status
+    is_active: bool = Field(default=True, index=True)
+    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    revoked_by: Optional[uuid.UUID] = Field(default=None, foreign_key="user.id")  # Admin who revoked
+    revocation_reason: Optional[str] = None
+    
+    # Relationships
+    user: User = Relationship()
+    
+    @property
+    def is_expired(self) -> bool:
+        """Check if session is expired"""
+        return datetime.now(timezone.utc) > self.expires_at
+    
+    @property
+    def is_valid(self) -> bool:
+        """Check if session is valid (active and not expired)"""
+        return self.is_active and not self.is_expired
+
+# ======================= SECURITY SETTINGS MODELS =======================
+class SecuritySettings(SQLModel, table=True):
+    """Tenant-specific security configuration"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    tenant_id: uuid.UUID = Field(foreign_key="tenant.id", unique=True, index=True)
+    
+    # Account lockout settings
+    max_failed_attempts: int = Field(default=5)
+    lockout_duration_minutes: int = Field(default=30)
+    failed_attempts_window_minutes: int = Field(default=15)
+    
+    # Password policy
+    min_password_length: int = Field(default=8)
+    require_uppercase: bool = Field(default=True)
+    require_lowercase: bool = Field(default=True)
+    require_numbers: bool = Field(default=True)
+    require_special_chars: bool = Field(default=True)
+    password_history_count: int = Field(default=5)  # Remember last N passwords
+    password_expiry_days: Optional[int] = Field(default=None)  # None = no expiry
+    
+    # Session settings
+    session_timeout_minutes: int = Field(default=480)  # 8 hours
+    max_concurrent_sessions: int = Field(default=5)
+    require_2fa: bool = Field(default=False)
+    
+    # Rate limiting (per IP)
+    login_rate_limit_per_hour: int = Field(default=20)
+    signup_rate_limit_per_hour: int = Field(default=5)
+    password_reset_rate_limit_per_hour: int = Field(default=3)
+    
+    # Audit settings
+    audit_login_attempts: bool = Field(default=True)
+    audit_data_access: bool = Field(default=True)
+    audit_retention_days: int = Field(default=90)
+    
+    # Additional security features
+    ip_whitelist: Optional[list] = Field(default=None, sa_column=Column(JSON))
+    force_https: bool = Field(default=True)
+    
+    # Timestamps
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True))
+    )
+    updated_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    updated_by: Optional[uuid.UUID] = Field(default=None, foreign_key="user.id")
+    
+    # Relationships
+    tenant: "Tenant" = Relationship()
+
+# ======================= PASSWORD HISTORY MODEL =======================
+class PasswordHistory(SQLModel, table=True):
+    """Track password history to prevent reuse"""
+    
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    password_hash: str
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), index=True)
+    )
+    
+    # Relationships
+    user: User = Relationship()
+    
+    __table_args__ = (
+        Index('idx_passwordhistory_user_created_at', 'user_id', 'created_at'),
+    )
 
 class Staff(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -751,8 +985,8 @@ class NotificationGlobalSettings(SQLModel, table=True):
 class AuditLog(SQLModel, table=True):
     """Audit log for system settings changes"""
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    tenant_id: uuid.UUID = Field(foreign_key="tenant.id")
-    user_id: uuid.UUID = Field(foreign_key="user.id")
+    tenant_id: uuid.UUID = Field(foreign_key="tenant.id", index=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
     
     action: str  # 'UPDATE_SETTINGS', 'CREATE_SETTINGS', 'DELETE_SETTINGS'
     resource_type: str  # 'SystemSettings', 'NotificationSettings', etc.
@@ -765,10 +999,45 @@ class AuditLog(SQLModel, table=True):
         description="What changed: {'field': {'old': value, 'new': value}}"
     )
     
-    ip_address: Optional[str] = None
+    ip_address: Optional[str] = Field(index=True)
     user_agent: Optional[str] = None
     
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), 
+        sa_column=SAColumn(DateTime(timezone=True), index=True)
+    )
+    
+    event_type: AuditEvent = Field(
+    sa_column=SAColumn(
+        SQLEnum(
+            AuditEvent,
+            name="auditevent",
+            create_constraint=True,
+            native_enum=True,
+            validate_strings=True,
+        ),
+        index=True,
+        nullable=False,
+        )
+    )
+    event_description: Optional[str] = None
+    severity: str = Field(default="info")  # info, warning, error, critical
+    request_id: Optional[str] = Field(default=None, index=True)  # For request tracing
+    
+    details: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, 
+        sa_column=SAColumn(JSON),
+        description="Additional context beyond field changes"
+    )
+    
+    # Performance indexes
+    __table_args__ = (
+        Index('idx_auditlog_user_created_at', 'user_id', 'created_at'),
+        Index('idx_action_created_at', 'action', 'created_at'),
+        Index('idx_event_created_at', 'event_type', 'created_at'),
+        Index('idx_tenant_created_at', 'tenant_id', 'created_at'),
+        Index('idx_severity_created_at', 'severity', 'created_at'),
+    )
     
 #==================== USER PROFILE MODEL =============================================
 class UserProfile(SQLModel, table=True):

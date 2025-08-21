@@ -1918,6 +1918,224 @@ class UserProfileWithProviders(BaseModel):
     
     model_config = ConfigDict(from_attributes=True)
 
+# ======================================================================
+# SECURITY ADMIN SCHEMAS
+# ======================================================================
+
+class SecuritySummaryResponse(BaseModel):
+    """Security dashboard summary"""
+    summary: Dict[str, int]
+    status: str
+
+class AccountUnlockRequest(BaseModel):
+    """Request to unlock an account"""
+    email: str
+    
+    @field_validator('email')
+    def validate_email(cls, v):
+        if not v or '@' not in v:
+            raise ValueError('Valid email address required')
+        return v.lower().strip()
+
+class AccountUnlockResponse(BaseModel):
+    """Response from account unlock"""
+    message: str
+    success: bool = True
+
+class AuditLogResponse(BaseModel):
+    """Audit log entry response"""
+    id: str
+    event_type: str
+    event_description: str
+    user_id: Optional[str]
+    ip_address: Optional[str]
+    user_agent: Optional[str]
+    created_at: str
+    severity: str
+    details: Dict[str, Any]
+
+class AuditLogsListResponse(BaseModel):
+    """Paginated audit logs response"""
+    logs: List[AuditLogResponse]
+    pagination: Dict[str, int]
+
+class SessionInfo(BaseModel):
+    """User session information"""
+    id: uuid.UUID
+    created_at: datetime
+    last_used: datetime
+    ip_address: str
+    user_agent: Optional[str]
+    expires_at: datetime
+    is_current: bool = False
+
+class SessionListResponse(BaseModel):
+    """List of user sessions"""
+    sessions: List[SessionInfo]
+    total_count: int
+
+class SessionRevokeResponse(BaseModel):
+    """Session revocation response"""
+    message: str
+    sessions_revoked: int
+
+class SecurityEventResponse(BaseModel):
+    """Security event information"""
+    id: str
+    event_type: str
+    description: str
+    severity: str
+    ip_address: Optional[str]
+    user_agent: Optional[str]
+    created_at: str
+    details: Dict[str, Any]
+
+class SecurityEventsListResponse(BaseModel):
+    """List of security events"""
+    events: List[SecurityEventResponse]
+    total_events: int
+    time_range_hours: int
+
+class SecuritySettingsResponse(BaseModel):
+    """Security settings for a tenant"""
+    max_failed_attempts: int
+    lockout_duration_minutes: int
+    session_timeout_minutes: int
+    require_2fa: bool
+    audit_retention_days: int
+
+class UserSecurityInfo(BaseModel):
+    """User security information"""
+    id: uuid.UUID
+    email: str
+    is_active: bool
+    last_login: Optional[datetime]
+    failed_login_attempts: int = 0
+    is_locked: bool = False
+    locked_until: Optional[datetime] = None
+    active_sessions: int = 0
+
+class TenantSecurityStats(BaseModel):
+    """Security statistics for a tenant"""
+    total_users: int
+    active_users: int
+    locked_accounts: int
+    failed_logins_24h: int
+    active_sessions: int
+    security_events_24h: int
+
+# ======================================================================
+# AUTHENTICATION ENHANCED SCHEMAS
+# ======================================================================
+
+class EnhancedTokenResponse(BaseModel):
+    """Enhanced token response with security info"""
+    access_token: str
+    token_type: str
+    expires_in: int
+    user: Dict[str, Any]
+    security_info: Dict[str, Any]
+
+class LoginAttemptInfo(BaseModel):
+    """Login attempt information"""
+    email: str
+    ip_address: str
+    success: bool
+    attempted_at: datetime
+    failure_reason: Optional[str] = None
+
+class AccountLockoutInfo(BaseModel):
+    """Account lockout information"""
+    email: str
+    locked_at: datetime
+    locked_until: datetime
+    failed_attempts: int
+    is_active: bool
+
+# ======================================================================
+# SYSTEM HEALTH AND MONITORING
+# ======================================================================
+
+class SystemHealthResponse(BaseModel):
+    """System health check response"""
+    status: str
+    timestamp: str
+    version: str
+    services: Dict[str, str]
+    features: List[str]
+
+class SecurityStatusResponse(BaseModel):
+    """Security monitoring status"""
+    timestamp: str
+    security_events_24h: int
+    high_severity_events: int
+    rate_limit_violations: int
+    failed_logins: int
+    status: str
+
+# ======================================================================
+# ERROR RESPONSES
+# ======================================================================
+
+class SecurityErrorResponse(BaseModel):
+    """Security-related error response"""
+    detail: str
+    type: str
+    retry_after: Optional[int] = None
+    suggestions: Optional[List[str]] = None
+
+class RateLimitErrorResponse(BaseModel):
+    """Rate limit error response"""
+    detail: str
+    type: str = "rate_limit_exceeded"
+    retry_after: int
+    limit_reset: str
+
+# ======================================================================
+# AUDIT AND COMPLIANCE
+# ======================================================================
+
+class ComplianceReportRequest(BaseModel):
+    """Request for compliance report"""
+    start_date: datetime
+    end_date: datetime
+    include_user_data: bool = False
+    include_ip_addresses: bool = False
+    format: str = Field(default="json", pattern="^(json|csv|pdf)$")
+
+class ComplianceReportResponse(BaseModel):
+    """Compliance report response"""
+    report_id: str
+    generated_at: datetime
+    period_start: datetime
+    period_end: datetime
+    total_events: int
+    security_events: int
+    user_count: int
+    download_url: Optional[str] = None
+
+# ======================================================================
+# NOTIFICATION PREFERENCES FOR SECURITY
+# ======================================================================
+
+class SecurityNotificationSettings(BaseModel):
+    """Security notification preferences"""
+    failed_login_alerts: bool = True
+    account_lockout_alerts: bool = True
+    suspicious_activity_alerts: bool = True
+    new_device_alerts: bool = True
+    password_change_alerts: bool = True
+    admin_action_alerts: bool = True
+
+class UserSecurityPreferences(BaseModel):
+    """User security preferences"""
+    email_security_alerts: bool = True
+    sms_security_alerts: bool = False
+    push_security_alerts: bool = True
+    security_email: Optional[str] = None
+    security_phone: Optional[str] = None
+
+
 # ==================== SYSTEM SETTINGS SCHEMAS ====================
 
 class SystemSettingsBase(BaseModel):

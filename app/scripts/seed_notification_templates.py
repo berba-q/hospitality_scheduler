@@ -14,9 +14,19 @@ def seed_notification_templates():
     # ✅ FIXED: Removed "locale" field - we use i18n keys instead
     templates = [
         {
+            "template_name": "welcome_email_default",
+            "notification_type": NotificationType.WELCOME_EMAIL,
+            "title_template": "notifications.templates.welcome_email.title",
+            "message_template": "notifications.templates.welcome_email.message",
+            "whatsapp_template": "notifications.templates.welcome_email.whatsapp",
+            "default_channels": ["EMAIL", "IN_APP"],
+            "priority": NotificationPriority.MEDIUM,
+            "enabled": True,
+            "tenant_id": None  # Global template
+        },
+        {
             "template_name": "email_verification_default",
             "notification_type": NotificationType.EMAIL_VERIFICATION,
-            # ✅ These are i18n keys that will be resolved at runtime
             "title_template": "notifications.templates.email_verification.title",
             "message_template": "notifications.templates.email_verification.message",
             "whatsapp_template": "notifications.templates.email_verification.whatsapp",

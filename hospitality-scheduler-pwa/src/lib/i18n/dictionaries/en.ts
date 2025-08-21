@@ -2393,6 +2393,77 @@ This invitation was sent to $recipient_email by $invited_by_name.
 If you have any questions, please contact our support team.`,
         whatsapp: "🎉 *Welcome to the Team!*\n\nHi $staff_name!\n\n$invited_by_name has invited you to join $organization_name as a $role at $facility_name.\n\nAccept your invitation here: $accept_url\n\n📅 Expires: $expires_at\n\n💬 Message: $custom_message",
       },
+      welcome_email: {
+        title: "🎉 Welcome to $organization_name!",
+        message: "Your account has been created successfully. You can now access your hospitality management dashboard.",
+        subject: "Welcome to $organization_name - Get Started!",
+        html: `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to $organization_name</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }
+        .header { color: #333; text-align: center; margin-bottom: 30px; }
+        .content { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .welcome-button { 
+            background-color: #28a745; color: white; padding: 12px 30px; 
+            border-radius: 5px; text-decoration: none; display: inline-block; 
+            font-weight: bold; margin: 20px 0;
+        }
+        .welcome-button:hover { background-color: #218838; }
+        .features-box { background-color: #fff; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #007bff; }
+        .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2 class="header">🎉 Welcome to $organization_name!</h2>
+    <div class="content">
+        <p>Hi $user_name,</p>
+        <p>Congratulations! Your account has been successfully created and you're now ready to start managing your hospitality operations with ease.</p>
+        
+        <div class="features-box">
+            <h3>🚀 What you can do now:</h3>
+            <ul>
+                <li>📅 Create and manage staff schedules</li>
+                <li>👥 Invite and manage your team members</li>
+                <li>🔄 Handle shift swaps and requests</li>
+                <li>📊 Track performance and analytics</li>
+                <li>⚙️ Configure your facility settings</li>
+            </ul>
+        </div>
+        
+        <p>Ready to get started? Access your dashboard below:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="$login_url" class="welcome-button">Access Your Dashboard</a>
+        </div>
+        
+        <div class="features-box">
+            <h3>💡 Quick Start Tips:</h3>
+            <ol>
+                <li>Set up your facility details and operating hours</li>
+                <li>Create staff roles and invite your team</li>
+                <li>Configure notification preferences</li>
+                <li>Publish your first schedule</li>
+            </ol>
+        </div>
+        
+        <p>If you have any questions or need assistance, our support team is here to help!</p>
+        
+        <p>Welcome aboard!<br>
+        The $organization_name Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent to $user_email as part of your account creation.</p>
+        <p>If you have any questions, please contact our support team.</p>
+    </div>
+</body>
+</html>`,
+        whatsapp: "🎉 *Welcome to $organization_name!*\n\nHi $user_name!\n\nYour hospitality management account is ready! 🚀\n\nAccess your dashboard: $login_url\n\nYou can now:\n📅 Manage schedules\n👥 Invite team members\n🔄 Handle shift swaps\n📊 Track performance\n\nWelcome to the team! 🎊",
+      },
     },
     },
   
