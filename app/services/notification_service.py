@@ -740,7 +740,7 @@ class NotificationService:
             print(f"⚠️ SMTP not configured in environment variables")
             print("💡 Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD in your .env file")
             return False
-        # Create SMTP client session
+        
         try:
             # Create message
             msg = MIMEMultipart()
@@ -751,52 +751,52 @@ class NotificationService:
             msg['To'] = user.email
             msg['Subject'] = notification.title
             
-            # Create HTML body
-            html_body = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>{notification.title}</title>
-                <style>
-                    body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }}
-                    .header {{ color: #333; text-align: center; margin-bottom: 30px; }}
-                    .content {{ background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }}
-                    .footer {{ border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }}
-                    .button {{ 
-                        display: inline-block; 
-                        background-color: #007bff; 
-                        color: white; 
-                        padding: 12px 24px; 
-                        text-decoration: none; 
-                        border-radius: 5px; 
-                        margin: 20px 0; 
-                    }}
-                </style>
-            </head>
-            <body>
-                <h2 class="header">{notification.title}</h2>
-                <div class="content">
-                    {notification.message.replace('\n', '<br>')}
-            """
+            # ✅ FIX: Pre-process the message content outside f-string
+            html_message = notification.message.replace('\n', '<br>')
+            action_button_html = ""
             
-            # Add action button if provided
+            # ✅ FIX: Pre-build action button HTML if needed
             if notification.action_url and notification.action_text:
-                html_body += f"""
+                action_button_html = f"""
                     <div style="text-align: center; margin: 20px 0;">
                         <a href="{notification.action_url}" class="button">{notification.action_text}</a>
                     </div>
                 """
             
-            html_body += """
-                </div>
-                <div class="footer">
-                    <p>This email was sent by Hospitality Scheduler.</p>
-                </div>
-            </body>
-            </html>
-            """
+            # ✅ FIX: Build HTML body with pre-processed content
+            html_body = f"""<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{notification.title}</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }}
+            .header {{ color: #333; text-align: center; margin-bottom: 30px; }}
+            .content {{ background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+            .footer {{ border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }}
+            .button {{ 
+                display: inline-block; 
+                background-color: #007bff; 
+                color: white; 
+                padding: 12px 24px; 
+                text-decoration: none; 
+                border-radius: 5px; 
+                margin: 20px 0; 
+            }}
+        </style>
+    </head>
+    <body>
+        <h2 class="header">{notification.title}</h2>
+        <div class="content">
+            {html_message}
+            {action_button_html}
+        </div>
+        <div class="footer">
+            <p>This email was sent by Hospitality Scheduler.</p>
+        </div>
+    </body>
+    </html>"""
             
             # Attach HTML and plain text
             msg.attach(MIMEText(html_body, 'html'))
