@@ -249,6 +249,7 @@ async def login_access_token(
         await audit_service.log_event(
             AuditEvent.LOGIN_FAILED,
             user_id=user.id if user else None,
+            tenant_id=user.tenant_id if user else None,
             ip_address=client_ip,
             user_agent=user_agent,
             details={"email": form_data.username, "reason": "invalid_credentials"}
@@ -264,6 +265,7 @@ async def login_access_token(
         await audit_service.log_event(
             AuditEvent.LOGIN_FAILED,
             user_id=user.id,
+            tenant_id=user.tenant_id,
             ip_address=client_ip,
             user_agent=user_agent,
             details={"email": form_data.username, "reason": "account_inactive"}
@@ -277,13 +279,16 @@ async def login_access_token(
     token = create_access_token(subject=str(user.id))
     
     # Update last login
-    user.last_login = datetime.now(timezone.utc)
+    if hasattr(user, "last_login"):
+        user.last_login = datetime.now(timezone.utc)
+
     db.commit()
     
     # Log successful login
     await audit_service.log_event(
         AuditEvent.LOGIN_SUCCESS,
         user_id=user.id,
+        tenant_id=user.tenant_id,
         ip_address=client_ip,
         user_agent=user_agent,
         details={"email": user.email}
@@ -373,6 +378,7 @@ async def forgot_password(
         await audit_service.log_event(
             AuditEvent.PASSWORD_RESET_REQUESTED,
             user_id=user.id,
+            tenant_id=user.tenant_id,
             ip_address=client_ip,
             user_agent=user_agent,
             details={"email": user.email}
@@ -433,6 +439,7 @@ async def reset_password(
     await audit_service.log_event(
         AuditEvent.PASSWORD_RESET_SUCCESS,
         user_id=user.id,
+        tenant_id=user.tenant_id,
         ip_address=client_ip,
         user_agent=user_agent,
         details={"email": user.email}
@@ -477,6 +484,7 @@ async def revoke_session(
     await audit_service.log_event(
         AuditEvent.SESSION_REVOKED,
         user_id=current_user.id,
+        tenant_id=current_user.tenant_id,
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent", ""),
         details={"email": current_user.email}
@@ -501,6 +509,7 @@ async def revoke_all_sessions(
     await audit_service.log_event(
         AuditEvent.ALL_SESSIONS_REVOKED,
         user_id=current_user.id,
+        tenant_id=current_user.tenant_id,
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent", ""),
         details={"email": current_user.email, "sessions_revoked": revoked_count}

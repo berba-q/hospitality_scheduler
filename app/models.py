@@ -1029,6 +1029,7 @@ class AuditLog(SQLModel, table=True):
             name="auditevent",
             create_constraint=True,
             native_enum=True,
+            values_callable=lambda E: [m.value for m in E],
             validate_strings=True,
         ),
         index=True,
