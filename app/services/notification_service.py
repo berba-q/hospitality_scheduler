@@ -10,6 +10,14 @@ from datetime import datetime, timezone
 import string
 import asyncio, logging
 
+# Mailing
+import smtplib
+import ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+
 from app.services.user_staff_mapping import UserStaffMappingService
 from app.services.i18n_service import i18n_service  # ✅ NEW: Import i18n service
 
@@ -707,7 +715,7 @@ class NotificationService:
         shifts = ["Morning", "Afternoon", "Evening"]
         return shifts[shift] if 0 <= shift < 3 else f"Shift {shift}"
     
-    # ✅ UPDATED: Email notification with i18n support
+    # Email notification with i18n support
     async def _send_email_notification(
         self, 
         notification: Notification, 
@@ -724,15 +732,124 @@ class NotificationService:
         print(f"📧 Subject: {notification.title}")
         print(f"📧 Body: {notification.message}")
         
-        # ✅ Handle PDF attachment in email
-        if notification.data.get("pdf_attachment_url"):
-            pdf_url = notification.data["pdf_attachment_url"]
-            print(f"📧 PDF Attachment: {pdf_url}")
-            # TODO: Implement actual email sending with PDF attachment
-        
-        # For now, return True to simulate successful sending
-        return True
+        # Get SMTP settings from environment variables
+        settings = get_settings()
+
+        # Check if SMTP is configured in environment
+        if not all([settings.SMTP_HOST, settings.SMTP_USERNAME, settings.SMTP_PASSWORD]):
+            print(f"⚠️ SMTP not configured in environment variables")
+            print("💡 Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD in your .env file")
+            return False
+        # Create SMTP client session
+        try:
+            # Create message
+            msg = MIMEMultipart()
+            from_name = "Hospitality Scheduler"
+            from_email = settings.SMTP_USERNAME  # Use SMTP username as from email
+            
+            msg['From'] = f"{from_name} <{from_email}>"
+            msg['To'] = user.email
+            msg['Subject'] = notification.title
+            
+            # Create HTML body
+            html_body = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>{notification.title}</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }}
+                    .header {{ color: #333; text-align: center; margin-bottom: 30px; }}
+                    .content {{ background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+                    .footer {{ border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }}
+                    .button {{ 
+                        display: inline-block; 
+                        background-color: #007bff; 
+                        color: white; 
+                        padding: 12px 24px; 
+                        text-decoration: none; 
+                        border-radius: 5px; 
+                        margin: 20px 0; 
+                    }}
+                </style>
+            </head>
+            <body>
+                <h2 class="header">{notification.title}</h2>
+                <div class="content">
+                    {notification.message.replace('\n', '<br>')}
+            """
+            
+            # Add action button if provided
+            if notification.action_url and notification.action_text:
+                html_body += f"""
+                    <div style="text-align: center; margin: 20px 0;">
+                        <a href="{notification.action_url}" class="button">{notification.action_text}</a>
+                    </div>
+                """
+            
+            html_body += """
+                </div>
+                <div class="footer">
+                    <p>This email was sent by Hospitality Scheduler.</p>
+                </div>
+            </body>
+            </html>
+            """
+            
+            # Attach HTML and plain text
+            msg.attach(MIMEText(html_body, 'html'))
+            msg.attach(MIMEText(notification.message, 'plain'))
+            
+            # Handle PDF attachment if provided
+            if notification.data.get("pdf_attachment_url"):
+                await self._attach_pdf_to_email(msg, notification.data["pdf_attachment_url"])
+            
+            # Connect to SMTP server and send
+            smtp_host = settings.SMTP_HOST
+            smtp_port = settings.SMTP_PORT or 587
+            smtp_username = settings.SMTP_USERNAME
+            smtp_password = settings.SMTP_PASSWORD
+            
+            # Use STARTTLS by default
+            server = smtplib.SMTP(smtp_host, smtp_port)
+            server.starttls(context=ssl.create_default_context())
+            
+            # Login and send
+            server.login(smtp_username, smtp_password)
+            server.send_message(msg)
+            server.quit()
+            
+            print(f"✅ EMAIL SENT: {notification.title} to {user.email}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to send email to {user.email}: {e}")
+            return False
     
+    #  Helper method to attach PDF to email
+    async def _attach_pdf_to_email(self, msg: MIMEMultipart, pdf_url: str):
+        """Download a PDF from a URL and attach it to the email."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(pdf_url)
+                response.raise_for_status()
+                pdf_data = response.content
+
+            # Create a MIMEBase object for the PDF
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(pdf_data)
+            encoders.encode_base64(part)
+            part.add_header(
+                'Content-Disposition',
+                f'attachment; filename="{pdf_url.split("/")[-1]}"'
+            )
+            msg.attach(part)
+            print(f"✅ PDF attached from {pdf_url}")
+        except Exception as e:
+            print(f"❌ Failed to attach PDF from {pdf_url}: {e}")
+
     # ✅ Existing helper methods (unchanged)
     def _get_template(self, notification_type: NotificationType, tenant_id: uuid.UUID) -> Optional[NotificationTemplate]:
         """Get notification template (tenant-specific or global)"""
