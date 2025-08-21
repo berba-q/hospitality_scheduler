@@ -1,4 +1,5 @@
 # app/main.py - Enhanced with comprehensive security features
+from sqlalchemy import text
 import uvicorn
 import os
 import logging
@@ -233,27 +234,39 @@ async def global_exception_handler(request: Request, exc: Exception):
 #  Health check endpoint with security status
 @app.get("/health")
 async def health_check():
-    """Enhanced health check with security status"""
+    """Enhanced health check with better error handling"""
     try:
-        # Check database connectivity
+        # ✅ FIX: Simple database connectivity test without audit logging
         db = next(get_db())
-        db.exec("SELECT 1")
-        db.close()
-        db_status = "healthy"
-    except Exception:
+        try:
+            # Simple query that won't trigger complex operations
+            result = db.exec(text("SELECT 1 as test")).first()
+            db_status = "healthy" if result else "unhealthy"
+        except Exception as db_error:
+            logger.warning(f"Database health check failed: {db_error}")
+            db_status = "unhealthy"
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
         db_status = "unhealthy"
     
     # Check Redis connectivity
     try:
-        redis = redis_async.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        redis = redis_async.from_url(redis_url)
         await redis.ping()
         redis_status = "healthy"
         await redis.close()
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Redis health check failed: {e}")
         redis_status = "unhealthy"
     
+    # Overall status
+    overall_status = "healthy" if db_status == "healthy" and redis_status == "healthy" else "degraded"
+    
     return {
-        "status": "healthy" if db_status == "healthy" and redis_status == "healthy" else "degraded",
+        "status": overall_status,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": "2.0.0",
         "services": {

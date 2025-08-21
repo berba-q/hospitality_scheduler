@@ -27,17 +27,17 @@ class AuditService:
         severity: str = "info",
         event_description: Optional[str] = None
     ) -> Optional[AuditLog]:
-        """Log an audit event with smart tenant_id resolution"""
+        """Log an audit event with smart tenant context handling"""
         
         try:
-            # ✅ SMART FIX: Derive tenant_id from user_id if missing
+            # ✅ FIX: Try to derive tenant_id from user_id if missing
             if not tenant_id and user_id:
                 from ..models import User
                 user = self.db.get(User, user_id)
                 if user:
                     tenant_id = user.tenant_id
             
-            # ✅ SMART FIX: Skip logging if no tenant context available
+            # ✅ FIX: Skip logging if no tenant context for non-system events
             if not tenant_id and event_type not in [
                 AuditEvent.SYSTEM_STARTUP,
                 AuditEvent.SYSTEM_SHUTDOWN,
@@ -67,7 +67,7 @@ class AuditService:
                 "details": details or {}
             }
             
-            # ✅ SMART FIX: Only add if not None
+            # ✅ FIX: Only add if not None
             if user_id:
                 audit_log_data["user_id"] = user_id
             if tenant_id:
@@ -77,11 +77,19 @@ class AuditService:
             self.db.add(audit_log)
             self.db.commit()
             
+            # Log to application logger as well
+            log_level = getattr(logging, severity.upper(), logging.INFO)
+            logger.log(
+                log_level,
+                f"AUDIT: {event_type.value} - {event_description} (User: {user_id}, IP: {ip_address})"
+            )
+            
             return audit_log
             
         except Exception as e:
             # ✅ FAILSAFE: Don't break the application if audit logging fails
             logger.error(f"Audit logging failed: {e}")
+            self.db.rollback()
             return None
     
     def _generate_description(self, event_type: AuditEvent, details: Optional[Dict[str, Any]]) -> str:
@@ -101,6 +109,9 @@ class AuditService:
             AuditEvent.ALL_SESSIONS_REVOKED: "All user sessions revoked",
             AuditEvent.SUSPICIOUS_ACTIVITY: "Suspicious activity detected",
             AuditEvent.RATE_LIMIT_EXCEEDED: "Rate limit exceeded",
+            AuditEvent.SYSTEM_STARTUP: "System started",
+            AuditEvent.SYSTEM_SHUTDOWN: "System shutdown",
+            AuditEvent.SYSTEM_ERROR: "System error occurred",
         }
         
         base_description = descriptions.get(event_type, f"Event: {event_type.value}")
@@ -134,51 +145,14 @@ class AuditService:
         result = self.db.exec(query)
         return list(result.all())
     
-    async def get_security_events(
-        self,
-        hours: int = 24,
-        severity: Optional[str] = None
-    ) -> List[AuditLog]:
-        """Get recent security-related events"""
+    async def get_security_events(self, hours: int = 24) -> List[AuditLog]:
+        """Get recent security events"""
         from_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
-        # ✅ FIX: Use string values for event types (compatible with both old and new models)
-        security_events = [
-            "login_failed",
-            "login_failed_locked", 
-            "account_locked",
-            "suspicious_activity",
-            "rate_limit_exceeded",
-            "password_reset_failed"
-        ]
+        query = select(AuditLog).where(
+            AuditLog.created_at >= from_time
+        ).order_by(desc(AuditLog.created_at))
         
-        # ✅ FIX: Build query with proper column references
-        base_conditions = [col(AuditLog.created_at) >= from_time]
-        
-        # Check if we have the new event_type field, otherwise use action field
-        if hasattr(AuditLog, 'event_type'):
-            base_conditions.append(col(AuditLog.event_type).in_(security_events))
-        else:
-            # Fallback to action field for compatibility
-            security_actions = [
-                "LOGIN_FAILED",
-                "LOGIN_FAILED_LOCKED",
-                "ACCOUNT_LOCKED", 
-                "SUSPICIOUS_ACTIVITY",
-                "RATE_LIMIT_EXCEEDED",
-                "PASSWORD_RESET_FAILED"
-            ]
-            base_conditions.append(col(AuditLog.action).in_(security_actions))
-        
-        #  Add severity filter if available and requested
-        if severity and hasattr(AuditLog, 'severity'):
-            base_conditions.append(col(AuditLog.severity) == severity)
-        
-        # Combine conditions properly
-        query = select(AuditLog).where(and_(*base_conditions))
-        query = query.order_by(desc(col(AuditLog.created_at)))
-        
-        #  Explicit type casting for exec result
         result = self.db.exec(query)
         return list(result.all())
     

@@ -31,11 +31,22 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             "/v1/auth/verify-reset-token",
             "/v1/invitations/accept",
             "/docs",
-            "/redoc",
+            "/redoc", 
             "/openapi.json",
+            "/health",           # Health checks
+            "/metrics",          # Monitoring
+            "/favicon.ico",      # Browser requests
+            "/robots.txt",       # SEO crawlers
+            "/sitemap.xml",      # SEO crawlers
+            "/.well-known/",     # Various discovery protocols
+        }
+        
+        self.monitoring_paths = {
             "/health",
-            "/metrics",        
-            "/favicon.ico",    # Browser requests
+            "/metrics", 
+            "/status",
+            "/ping",
+            "/healthz"
         }
     
     async def dispatch(self, request: Request, call_next):
@@ -49,10 +60,15 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         client_ip = self._get_client_ip(request)
         user_agent = request.headers.get("user-agent", "")
         
-        # Skip middleware for excluded paths
-        if request.url.path in self.excluded_paths or request.url.path.startswith("/static"):
+        # ✅ FIX: Skip middleware completely for excluded paths
+        if (request.url.path in self.excluded_paths or 
+            request.url.path.startswith("/static") or 
+            any(request.url.path.startswith(path) for path in self.monitoring_paths)):
             response = await call_next(request)
             return response
+        
+        # ✅ FIX: Skip audit logging for monitoring tools
+        is_monitoring_request = self._is_monitoring_request(user_agent, request.url.path)
         
         # Get database session
         db = next(get_db())
@@ -64,14 +80,14 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         try:
             # Validate session for protected routes
             if request.url.path.startswith("/v1/") and request.method != "OPTIONS":
-                user_id = await self._validate_session(request, session_service, audit_service)
+                user_id = await self._validate_session(request, session_service, audit_service, is_monitoring_request)
                 request.state.user_id = user_id
             
             # Process request
             response = await call_next(request)
             
-            # Log successful request (only for authenticated endpoints)
-            if user_id and response.status_code < 400:
+            # Log successful request (only for authenticated endpoints, not monitoring)
+            if user_id and response.status_code < 400 and not is_monitoring_request:
                 await self._log_request_success(
                     audit_service, user_id, request, response, 
                     client_ip, user_agent, request_id, start_time
@@ -80,21 +96,25 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             return response
             
         except HTTPException as e:
-            # Log failed request
-            await audit_service.log_event(
-                AuditEvent.SUSPICIOUS_ACTIVITY if e.status_code == 401 else AuditEvent.LOGIN_FAILED,
-                user_id=user_id,
-                ip_address=client_ip,
-                user_agent=user_agent,
-                request_id=request_id,
-                details={
-                    "path": request.url.path,
-                    "method": request.method,
-                    "status_code": e.status_code,
-                    "error": e.detail
-                },
-                severity="warning" if e.status_code == 401 else "error"
-            )
+            # ✅ FIX: Only log suspicious activity for actual users, not monitoring tools
+            if not is_monitoring_request:
+                await audit_service.log_event(
+                    AuditEvent.SUSPICIOUS_ACTIVITY if e.status_code == 401 else AuditEvent.LOGIN_FAILED,
+                    user_id=user_id,
+                    ip_address=client_ip,
+                    user_agent=user_agent,
+                    request_id=request_id,
+                    details={
+                        "path": request.url.path,
+                        "method": request.method,
+                        "status_code": e.status_code,
+                        "error": e.detail
+                    },
+                    severity="warning" if e.status_code == 401 else "error"
+                )
+            else:
+                # Just log to application logger for monitoring tools
+                logger.debug(f"Monitoring tool access: {client_ip} -> {request.url.path}")
             
             return JSONResponse(
                 status_code=e.status_code,
@@ -102,20 +122,21 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             )
             
         except Exception as e:
-            # Log unexpected error
-            await audit_service.log_event(
-                AuditEvent.SUSPICIOUS_ACTIVITY,
-                user_id=user_id,
-                ip_address=client_ip,
-                user_agent=user_agent,
-                request_id=request_id,
-                details={
-                    "path": request.url.path,
-                    "method": request.method,
-                    "error": str(e)
-                },
-                severity="error"
-            )
+            # ✅ FIX: Don't spam audit logs for monitoring tool errors
+            if not is_monitoring_request:
+                await audit_service.log_event(
+                    AuditEvent.SUSPICIOUS_ACTIVITY,
+                    user_id=user_id,
+                    ip_address=client_ip,
+                    user_agent=user_agent,
+                    request_id=request_id,
+                    details={
+                        "path": request.url.path,
+                        "method": request.method,
+                        "error": str(e)
+                    },
+                    severity="error"
+                )
             
             logger.error(f"Unexpected error in security middleware: {e}")
             return JSONResponse(
@@ -124,12 +145,41 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             )
         finally:
             db.close()
+            
+    def _is_monitoring_request(self, user_agent: str, path: str) -> bool:
+        """Detect if this is a monitoring/health check request"""
+        monitoring_user_agents = [
+            "curl",
+            "wget", 
+            "python-requests",
+            "health-check",
+            "monitoring",
+            "probe",
+            "pingdom",
+            "uptimerobot",
+            "kube-probe",
+            "docker"
+        ]
+        
+        monitoring_paths = [
+            "/health",
+            "/metrics",
+            "/status", 
+            "/ping"
+        ]
+        
+        user_agent_lower = user_agent.lower()
+        is_monitoring_ua = any(ua in user_agent_lower for ua in monitoring_user_agents)
+        is_monitoring_path = any(path.startswith(mp) for mp in monitoring_paths)
+        
+        return is_monitoring_ua or is_monitoring_path
     
     async def _validate_session(
         self, 
         request: Request, 
         session_service: SessionService,
-        audit_service: AuditService
+        audit_service: AuditService,
+        is_monitoring_request: bool = False
     ) -> uuid.UUID:
         """Validate session and return user ID"""
         
@@ -156,18 +206,20 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         # Validate session in database
         session = await session_service.validate_session(token)
         if not session:
-            await audit_service.log_event(
-                AuditEvent.SUSPICIOUS_ACTIVITY,
-                user_id=user_id,
-                ip_address=self._get_client_ip(request),
-                user_agent=request.headers.get("user-agent", ""),
-                request_id=request.state.request_id,
-                details={
-                    "reason": "invalid_session",
-                    "path": request.url.path
-                },
-                severity="warning"
-            )
+            # ✅ FIX: Only log for non-monitoring requests
+            if not is_monitoring_request:
+                await audit_service.log_event(
+                    AuditEvent.SUSPICIOUS_ACTIVITY,
+                    user_id=user_id,
+                    ip_address=self._get_client_ip(request),
+                    user_agent=request.headers.get("user-agent", ""),
+                    request_id=request.state.request_id,
+                    details={
+                        "reason": "invalid_session",
+                        "path": request.url.path
+                    },
+                    severity="warning"
+                )
             
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
