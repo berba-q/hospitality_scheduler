@@ -55,11 +55,7 @@ async def lifespan(app: FastAPI):
     try:
         db = next(get_db())
         audit_service = AuditService(db)
-        await audit_service.log_event(
-            AuditEvent.SYSTEM_STARTUP,
-            details={"version": "2.0.0", "features": ["enhanced_security"]},
-            severity="info"
-        )
+        logger.info("✅ System startup completed successfully")
         db.close()
     except Exception as e:
         logger.warning(f"Could not log startup event: {e}")

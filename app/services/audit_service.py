@@ -5,7 +5,7 @@ from sqlmodel import Session, select, desc, col
 from typing import Optional, Dict, Any, List
 import logging
 
-from ..models import AuditLog, AuditEvent
+from ..models import AuditLog, AuditEvent, User
 
 logger = logging.getLogger(__name__)
 
@@ -26,73 +26,63 @@ class AuditService:
         details: Optional[Dict[str, Any]] = None,
         severity: str = "info",
         event_description: Optional[str] = None
-    ) -> AuditLog:
-        """Log an audit event"""
+    ) -> Optional[AuditLog]:
+        """Log an audit event with smart tenant_id resolution"""
         
-        # Auto-generate description if not provided
-        if not event_description:
-            event_description = self._generate_description(event_type, details)
-        
-        # ✅ FIX: Better action mapping for your existing AuditLog structure
-        action_mapping = {
-            AuditEvent.LOGIN_SUCCESS: "LOGIN_SUCCESS",
-            AuditEvent.LOGIN_FAILED: "LOGIN_FAILED",
-            AuditEvent.LOGIN_FAILED_LOCKED: "LOGIN_FAILED_LOCKED",
-            AuditEvent.SIGNUP_SUCCESS: "CREATE_USER",
-            AuditEvent.SIGNUP_FAILED: "CREATE_USER_FAILED",
-            AuditEvent.PASSWORD_RESET_REQUESTED: "PASSWORD_RESET_REQUEST",
-            AuditEvent.PASSWORD_RESET_SUCCESS: "PASSWORD_RESET_SUCCESS",
-            AuditEvent.PASSWORD_RESET_FAILED: "PASSWORD_RESET_FAILED",
-            AuditEvent.ACCOUNT_LOCKED: "ACCOUNT_LOCKED",
-            AuditEvent.ACCOUNT_UNLOCKED: "ACCOUNT_UNLOCKED",
-            AuditEvent.SESSION_REVOKED: "SESSION_REVOKED",
-            AuditEvent.ALL_SESSIONS_REVOKED: "ALL_SESSIONS_REVOKED",
-            AuditEvent.SUSPICIOUS_ACTIVITY: "SUSPICIOUS_ACTIVITY",
-            AuditEvent.RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
-        }
-        
-        # ✅ FIX: Create audit log with proper field handling
-        audit_log_data = {
-            "action": action_mapping.get(event_type, event_type.value),
-            "resource_type": resource_type or "system",
-            "resource_id": uuid.UUID(resource_id) if resource_id else None,
-            "changes": {},  # Initialize empty for your existing structure
-            "ip_address": ip_address,
-            "user_agent": user_agent,
-            "created_at": datetime.now(timezone.utc)
-        }
-        
-        # Add user_id and tenant_id if provided
-        if user_id:
-            audit_log_data["user_id"] = user_id
-        if tenant_id:
-            audit_log_data["tenant_id"] = tenant_id
-        
-        # ✅ FIX: Add new fields only if they exist in your model
-        if hasattr(AuditLog, 'event_type'):
-            audit_log_data["event_type"] = event_type.value
-        if hasattr(AuditLog, 'event_description'):
-            audit_log_data["event_description"] = event_description
-        if hasattr(AuditLog, 'severity'):
-            audit_log_data["severity"] = severity
-        if hasattr(AuditLog, 'request_id'):
-            audit_log_data["request_id"] = request_id
-        if hasattr(AuditLog, 'details'):
-            audit_log_data["details"] = details or {}
-        
-        audit_log = AuditLog(**audit_log_data)
-        
-        self.db.add(audit_log)
-        self.db.commit()
-        
-        # Log to application logger as well for immediate visibility
-        log_level = getattr(logging, severity.upper(), logging.INFO)
-        logger.log(
-            log_level,
-            f"AUDIT: {event_type.value} - {event_description} (User: {user_id}, IP: {ip_address})"
-        )
-        
-        return audit_log
+        try:
+            # ✅ SMART FIX: Derive tenant_id from user_id if missing
+            if not tenant_id and user_id:
+                from ..models import User
+                user = self.db.get(User, user_id)
+                if user:
+                    tenant_id = user.tenant_id
+            
+            # ✅ SMART FIX: Skip logging if no tenant context available
+            if not tenant_id and event_type not in [
+                AuditEvent.SYSTEM_STARTUP,
+                AuditEvent.SYSTEM_SHUTDOWN,
+                AuditEvent.SYSTEM_ERROR,
+                AuditEvent.SYSTEM_MAINTENANCE
+            ]:
+                logger.warning(f"Skipping audit log - no tenant context: {event_type.value}")
+                return None
+            
+            # Auto-generate description if not provided
+            if not event_description:
+                event_description = self._generate_description(event_type, details)
+            
+            # Create audit log data
+            audit_log_data = {
+                "action": event_type.value,
+                "resource_type": resource_type or "system",
+                "resource_id": uuid.UUID(resource_id) if resource_id else None,
+                "changes": {},
+                "ip_address": ip_address,
+                "user_agent": user_agent,
+                "created_at": datetime.now(timezone.utc),
+                "event_type": event_type.value,
+                "event_description": event_description,
+                "severity": severity,
+                "request_id": request_id,
+                "details": details or {}
+            }
+            
+            # ✅ SMART FIX: Only add if not None
+            if user_id:
+                audit_log_data["user_id"] = user_id
+            if tenant_id:
+                audit_log_data["tenant_id"] = tenant_id
+            
+            audit_log = AuditLog(**audit_log_data)
+            self.db.add(audit_log)
+            self.db.commit()
+            
+            return audit_log
+            
+        except Exception as e:
+            # ✅ FAILSAFE: Don't break the application if audit logging fails
+            logger.error(f"Audit logging failed: {e}")
+            return None
     
     def _generate_description(self, event_type: AuditEvent, details: Optional[Dict[str, Any]]) -> str:
         """Generate human-readable event description"""
