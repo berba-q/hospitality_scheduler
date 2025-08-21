@@ -318,56 +318,16 @@ def create_sample_login_attempts(session, users):
     return login_attempts
 
 def create_sample_user_sessions(session, users):
-    """Create sample user session records"""
+    """Create sample user session records - FIXED to not interfere with real sessions"""
     print("💻 Creating sample user session records...")
     
-    sessions = []
+    # ✅ FIX: Don't create fake sessions - they interfere with real authentication
+    # Instead, just print a message and return empty list
     
-    def hash_token(token: str) -> str:
-        return hashlib.sha256(token.encode()).hexdigest()
+    print("ℹ️  Skipping fake session creation to avoid authentication conflicts")
+    print("   Real sessions will be created when users actually log in")
     
-    for user in users[:12]:  # Create sessions for first 12 users
-        # Each user has 1-3 sessions
-        for session_num in range(randint(1, 3)):
-            # Create a fake JWT token hash
-            fake_token = f"fake_jwt_token_{user.id}_{session_num}_{randint(1000, 9999)}"
-            
-            # CORRECTED: Use timezone-aware datetime
-            created_time = datetime.now(timezone.utc) - timedelta(
-                days=randint(0, 7),
-                hours=randint(0, 23)
-            )
-            
-            # Most sessions are active, some are expired/revoked
-            is_active = choice([True, True, True, False])  # 75% active
-            
-            expires_at = created_time + timedelta(hours=8)  # 8 hour sessions
-            
-            user_session = UserSession(
-                user_id=user.id,
-                session_token_hash=hash_token(fake_token),
-                created_at=created_time,
-                last_used=created_time + timedelta(minutes=randint(5, 480)),
-                expires_at=expires_at,
-                ip_address=fake.ipv4(),
-                user_agent=fake.user_agent(),
-                device_fingerprint=f"device_{randint(1000, 9999)}",
-                is_active=is_active,
-                revoked_at=None if is_active else created_time + timedelta(hours=randint(1, 6)),
-                revocation_reason=None if is_active else choice([
-                    "user_requested",
-                    "admin_revoked", 
-                    "session_timeout",
-                    "security_policy"
-                ])
-            )
-            sessions.append(user_session)
-    
-    session.add_all(sessions)
-    session.commit()
-    
-    print(f"✅ Created {len(sessions)} user session records")
-    return sessions
+    return []
 
 def create_sample_account_lockouts(session, users):
     """Create a few sample account lockouts"""

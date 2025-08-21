@@ -219,6 +219,7 @@ async def login_access_token(
     # Initialize services
     lockout_service = AccountLockoutService(db)
     audit_service = AuditService(db)
+    session_service = SessionService(db)
     
     client_ip = request.client.host
     user_agent = request.headers.get("user-agent", "")
@@ -277,6 +278,17 @@ async def login_access_token(
     
     # Create access token
     token = create_access_token(subject=str(user.id))
+    
+    try:
+        await session_service.create_session(
+            user_id=user.id,
+            token=token,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+        logger.info(f"Created session for user {user.email}")
+    except Exception as e:
+        logger.error(f"Failed to create session for user {user.email}: {e}")
     
     # Update last login
     if hasattr(user, "last_login"):
