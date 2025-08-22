@@ -1,6 +1,6 @@
 // hospitality-scheduler-pwa/src/components/notification/PushReauthModal.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,6 @@ import {
   Bell, 
   AlertTriangle, 
   CheckCircle, 
-  X, 
   Smartphone, 
   Monitor, 
   Tablet,
@@ -23,7 +22,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { useApiClient } from '@/hooks/useApiClient';
+import { useApiClient } from '@/hooks/useApi';
+import { useTranslations } from '@/hooks/useTranslations'; // ADD: Translation hook
 import { toast } from 'sonner';
 
 interface DeviceReauth {
@@ -83,10 +83,11 @@ export function PushReauthModal({
   const [completedDevices, setCompletedDevices] = useState<Set<string>>(new Set());
   const { requestPermission, state } = usePushNotifications();
   const apiClient = useApiClient();
+  const { t } = useTranslations(); // ADD: Use translations hook
 
   const handleReauthorize = async () => {
     if (!apiClient) {
-      toast.error('API client not available');
+      toast.error(t('notifications.pushReauthorization.apiNotAvailable'));
       return;
     }
 
@@ -120,7 +121,7 @@ export function PushReauthModal({
         const successCount = results.filter(r => r.success).length;
         
         if (successCount > 0) {
-          toast.success(`🔔 Notifications re-enabled for ${successCount} device(s)!`);
+          toast.success(t('notifications.pushReauthorization.reenabledSuccess', { count: successCount }));
           
           // Close modal after short delay if all devices succeeded
           if (successCount === devicesNeedingReauth.length) {
@@ -130,7 +131,7 @@ export function PushReauthModal({
             }, 2000);
           }
         } else {
-          toast.error('Failed to re-enable notifications. Please try again.');
+          toast.error(t('notifications.pushReauthorization.reenableFailed'));
         }
       } else {
         // Handle permission denial
@@ -149,14 +150,14 @@ export function PushReauthModal({
         await Promise.all(denialPromises);
         
         if (state.permission === 'denied') {
-          toast.error('Notifications blocked. Please enable them in your browser settings.');
+          toast.error(t('notifications.pushReauthorization.permissionBlocked'));
         } else {
-          toast.error('Failed to enable notifications. Please try again.');
+          toast.error(t('notifications.pushReauthorization.enableFailed'));
         }
       }
     } catch (error) {
       console.error('Re-authorization failed:', error);
-      toast.error('Failed to re-enable notifications. Please try again.');
+      toast.error(t('notifications.pushReauthorization.reenabledFailed'));
     } finally {
       setIsReauthorizing(false);
     }
@@ -179,7 +180,7 @@ export function PushReauthModal({
       );
 
       await Promise.all(skipPromises);
-      toast.info('Push notifications disabled for this session');
+      toast.info(t('notifications.pushReauthorization.disabledForSession'));
     } catch (error) {
       console.error('Failed to update device status:', error);
     }
@@ -192,11 +193,11 @@ export function PushReauthModal({
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
     
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
+    if (diffInHours < 1) return t('notifications.pushReauthorization.justNow');
+    if (diffInHours < 24) return `${diffInHours}${t('notifications.pushReauthorization.hoursAgo')}`;
     
     const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays}d ago`;
+    if (diffInDays < 7) return `${diffInDays}${t('notifications.pushReauthorization.daysAgo')}`;
     
     return date.toLocaleDateString();
   };
@@ -209,13 +210,13 @@ export function PushReauthModal({
             <div className="p-2 bg-orange-100 rounded-lg">
               <Bell className="w-6 h-6 text-orange-600" />
             </div>
-            🔔 Push Notifications Need Re-enabling
+            {t('notifications.pushReauthorization.title')}
           </DialogTitle>
           <DialogDescription className="text-base mt-2">
-            We're having trouble sending you notifications. 
+            {t('notifications.pushReauthorization.description')}
             {isSafari() && (
               <strong className="block mt-1 text-blue-600">
-                Safari users: Make sure to allow notifications when the browser prompts you.
+                {t('notifications.pushReauthorization.safariInstructions')}
               </strong>
             )}
           </DialogDescription>
@@ -224,7 +225,9 @@ export function PushReauthModal({
         <div className="space-y-4 mt-4">
           {/* Device List */}
           <div className="space-y-3">
-            <h4 className="font-medium text-sm text-gray-700">Devices needing attention:</h4>
+            <h4 className="font-medium text-sm text-gray-700">
+              {t('notifications.pushReauthorization.devicesNeedingAttention')}
+            </h4>
             
             {devicesNeedingReauth.map((device) => {
               const isCompleted = completedDevices.has(device.id);
@@ -242,7 +245,7 @@ export function PushReauthModal({
                             {device.device_name || `${device.device_type} Device`}
                           </p>
                           <p className="text-xs text-gray-500">
-                            Last seen: {formatLastSeen(device.last_seen)}
+                            {t('notifications.pushReauthorization.lastSeen')} {formatLastSeen(device.last_seen)}
                           </p>
                         </div>
                       </div>
@@ -251,12 +254,12 @@ export function PushReauthModal({
                         {isCompleted ? (
                           <Badge className="bg-green-100 text-green-800 border-green-200">
                             <CheckCircle className="w-3 h-3 mr-1" />
-                            Fixed
+                            {t('notifications.pushReauthorization.fixed')}
                           </Badge>
                         ) : (
                           <Badge className={getStatusColor(device.status)}>
                             <AlertTriangle className="w-3 h-3 mr-1" />
-                            {device.push_failures} failures
+                            {device.push_failures} {t('notifications.pushReauthorization.failures')}
                           </Badge>
                         )}
                       </div>
@@ -274,10 +277,14 @@ export function PushReauthModal({
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div className="text-sm">
-                    <p className="font-medium text-blue-800">Safari Instructions:</p>
+                    <p className="font-medium text-blue-800">
+                      {t('notifications.pushReauthorization.safariInstructionsTitle')}
+                    </p>
                     <p className="text-blue-700 mt-1">
-                      When you click "Re-enable Notifications", Safari will show a permission dialog. 
-                      Make sure to click "Allow" to receive notifications.
+                      {t('notifications.pushReauthorization.safariDialogInfo')}
+                    </p>
+                    <p className="text-blue-700 text-xs mt-1 font-medium">
+                      {t('notifications.pushReauthorization.allowButtonPrompt')}
                     </p>
                   </div>
                 </div>
@@ -285,46 +292,35 @@ export function PushReauthModal({
             </Card>
           )}
 
-          {/* Action buttons */}
-          <div className="flex gap-3 pt-2">
-            <Button
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3 pt-4">
+            <Button 
               onClick={handleReauthorize}
               disabled={isReauthorizing}
-              className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
               {isReauthorizing ? (
                 <>
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Re-enabling...
+                  {t('common.working')}
                 </>
               ) : (
                 <>
                   <Bell className="w-4 h-4 mr-2" />
-                  Re-enable Notifications
+                  {t('notifications.pushReauthorization.reEnableButton')}
                 </>
               )}
             </Button>
             
-            <Button
-              variant="outline"
+            <Button 
+              variant="ghost" 
               onClick={handleSkip}
               disabled={isReauthorizing}
-              className="px-4"
+              className="flex-shrink-0"
             >
-              <X className="w-4 h-4 mr-2" />
-              Skip
+              {t('notifications.pushReauthorization.skipButton')}
             </Button>
           </div>
-
-          {/* Progress indicator */}
-          {isReauthorizing && (
-            <div className="text-center text-sm text-gray-600">
-              <div className="flex items-center justify-center gap-2">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Setting up notifications...
-              </div>
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -260,7 +260,8 @@ export const en = {
     processing: "Processing...",
     yes: 'Yes',
     no: 'No',
-      
+    working: 'Working...',
+    
     // Generic entities
     facility: 'Facility',
     facilities: 'Facilities',
@@ -2133,6 +2134,34 @@ export const en = {
     setWhatsappNumberToEnable: '* Set your WhatsApp number above to enable WhatsApp notifications',
     devicesHaveValidNotifications: 'devices have valid notifications',
     devicesNeedReauth: 'devices need re-authorization',
+    pushReauthorization: {
+      title: "🔔 Push Notifications Need Re-enabling",
+      description: "We're having trouble sending you notifications.",
+      safariInstructions: "Safari users: Make sure to allow notifications when the browser prompts you.",
+      devicesNeedingAttention: "Devices needing attention:",
+      lastSeen: "Last seen:",
+      fixed: "Fixed",
+      failures: "failures",
+      safariInstructionsTitle: "Safari Instructions:",
+      safariDialogInfo: "When you click \"Re-enable Notifications\", Safari will show a permission dialog.",
+      reEnableButton: "Re-enable Notifications",
+      skipButton: "Skip for now",
+      
+      // Time formatting
+      justNow: "Just now",
+      hoursAgo: "h ago", 
+      daysAgo: "d ago",
+      
+      // Toast messages
+      apiNotAvailable: "API client not available",
+      reenabledSuccess: "🔔 Notifications re-enabled for {{count}} device(s)!",
+      reenableFailed: "Failed to re-enable notifications. Please try again.",
+      permissionBlocked: "Notifications blocked. Please enable them in your browser settings.",
+      enableFailed: "Failed to enable notifications. Please try again.",
+      reenabledFailed: "Failed to re-enable notifications. Please try again.",
+      disabledForSession: "Push notifications disabled for this session",
+      allowButtonPrompt: "Make sure to click \"Allow\" to receive notifications.",
+    },
 
     // ================================================================================
     // NOTIFICATION TEMPLATES

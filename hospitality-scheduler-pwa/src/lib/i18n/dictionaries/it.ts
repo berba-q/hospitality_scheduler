@@ -270,7 +270,8 @@ export const it = {
     processing: "Elaborazione...",
     yes: 'Si',
     no: 'No',
-    
+    working: 'Lavorazione...',
+
     // Entità generiche
     facility: 'Struttura',
     facilities: 'Strutture',
@@ -2130,6 +2131,34 @@ export const it = {
     setWhatsappNumberToEnable: '* Imposta il tuo numero WhatsApp sopra per abilitare le notifiche WhatsApp',
     devicesHaveValidNotifications: 'dispositivi hanno notifiche valide',
     devicesNeedReauth: 'dispositivi necessitano di ri-autenticazione',
+    pushReauthorization: {
+      title: "🔔 Le Notifiche Push Devono Essere Riabilitate",
+      description: "Stiamo avendo problemi nell'inviarti le notifiche.",
+      safariInstructions: "Utenti Safari: Assicuratevi di consentire le notifiche quando il browser ve lo chiede.",
+      devicesNeedingAttention: "Dispositivi che necessitano attenzione:",
+      lastSeen: "Ultimo accesso:",
+      fixed: "Risolto",
+      failures: "errori",
+      safariInstructionsTitle: "Istruzioni per Safari:",
+      safariDialogInfo: "Quando fai clic su \"Riabilita Notifiche\", Safari mostrerà una finestra di dialogo per i permessi.",
+      reEnableButton: "Riabilita Notifiche",
+      skipButton: "Salta per ora",
+      
+      // Time formatting
+      justNow: "Ora",
+      hoursAgo: "o fa",
+      daysAgo: "g fa",
+      
+      // Toast messages
+      apiNotAvailable: "Client API non disponibile",
+      reenabledSuccess: "🔔 Notifiche riabilitate per {{count}} dispositivo(i)!",
+      reenableFailed: "Impossibile riabilitare le notifiche. Riprova.",
+      permissionBlocked: "Notifiche bloccate. Abilitale nelle impostazioni del browser.",
+      enableFailed: "Impossibile abilitare le notifiche. Riprova.",
+      reenabledFailed: "Impossibile riabilitare le notifiche. Riprova.",
+      disabledForSession: "Notifiche push disabilitate per questa sessione",
+      allowButtonPrompt: "Assicuratevi di fare clic su \"Consenti\" per ricevere le notifiche.",
+    },
 
     // =================================================================
     //.                   NOTIFICATION TEMPLATES
