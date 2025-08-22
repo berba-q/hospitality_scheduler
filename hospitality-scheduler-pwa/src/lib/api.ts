@@ -2137,15 +2137,6 @@ async getGlobalSwapStatistics() {
     })
   }
 
-  async updatePushToken(data: { push_token: string }) {
-    console.log('Sending push token to backend:', data);
-    
-    return this.request<any>('/v1/notifications/push-token', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-  }
-
   // ================ SETTINGS ====================
   // System Settings
 async getSystemSettings() {
@@ -2603,11 +2594,61 @@ async importSettings(data: any, options: {
   })
 }
 
-  // DEBUG remove this in production
-  async sendTestNotification() {
-    return this.request<any>('/v1/notifications/test', {
-      method: 'POST'
-    })
+// =====================================================================
+//        PUSH-NOTIFICATIONS ENDPOINTS
+//=======================================================================
+  // Device Management
+  async registerDevice(data: {
+    device_name: string;
+    device_type: string;
+    push_token?: string;
+    user_agent: string;
+    platform: string;
+  }) {
+    return this.request('/devices/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getMyDevices() {
+    return this.request<any>('/devices/');
+  }
+
+  async getPushStats() {
+    return this.request<any>('/devices/push-stats');
+  }
+
+  async getDevicesNeedingReauth() {
+    return this.request<any>('/devices/needing-reauth');
+  }
+
+  async updateTokenAfterReauth(data: {
+    device_id: string;
+    success: boolean;
+    new_token?: string;
+  }) {
+    return this.request('/devices/reauth', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async validatePushTokens(data: { test_notification?: boolean }) {
+    return this.request('/devices/validate-tokens', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async sendTestPushNotification(data: {
+    title?: string;
+    message?: string;
+  }) {
+    return this.request('/devices/test-push', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   async updateWhatsAppNumber(whatsappNumber: string) {

@@ -2128,6 +2128,8 @@ export const it = {
     inApp: 'In-App',
     push: 'Push',
     setWhatsappNumberToEnable: '* Imposta il tuo numero WhatsApp sopra per abilitare le notifiche WhatsApp',
+    devicesHaveValidNotifications: 'dispositivi hanno notifiche valide',
+    devicesNeedReauth: 'dispositivi necessitano di ri-autenticazione',
 
     // =================================================================
     //.                   NOTIFICATION TEMPLATES

@@ -1,7 +1,7 @@
 # app/services/notification_service.py
 
 from asyncio.log import logger
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from sqlmodel import Session, select
 from fastapi import BackgroundTasks
 import httpx
@@ -19,14 +19,16 @@ from email.mime.base import MIMEBase
 from email import encoders
 
 from app.services.user_staff_mapping import UserStaffMappingService
-from app.services.i18n_service import i18n_service  # ✅ NEW: Import i18n service
+from app.services.i18n_service import i18n_service  
 
 from ..models import (
     Facility, Notification, NotificationTemplate, NotificationPreference, Schedule, SwapRequest,
-    User, Staff, NotificationType, NotificationPriority, ShiftAssignment, UserProfile  # ✅ NEW: Import UserProfile
+    User, Staff, NotificationType, NotificationPriority, ShiftAssignment, UserProfile  
 )
 from ..core.config import get_settings
 from .firebase_service import FirebaseService
+from ..models import User, UserDevice, DeviceStatus
+from .push_token_manager import PushTokenManager
 
 settings = get_settings()
 
@@ -36,8 +38,9 @@ class NotificationService:
     def __init__(self, db: Session):
         self.db = db
         self.firebase_service = FirebaseService()
+        self.push_manager = PushTokenManager(db)
     
-    # ✅ NEW: Get user's preferred language
+    # Get user's preferred language
     def _get_user_locale(self, user_id: uuid.UUID) -> str:
         """Get user's preferred language from their profile"""
         user_profile = self.db.exec(
@@ -106,97 +109,103 @@ class NotificationService:
         print(f"Validated user {user.email} for staff ID {staff_id}")
         return user
     
-    async def send_bulk_schedule_notifications(
-        self, 
-        schedule_id: uuid.UUID, 
+    # ==================== BULK NOTIFICATION WITH DEVICE SUPPORT ====================
+    
+    async def send_bulk_schedule_notification(
+        self,
+        schedule_id: uuid.UUID,
         notification_type: NotificationType,
-        custom_message: Optional[str] = None
+        staff_ids: Optional[List[uuid.UUID]] = None,
+        custom_message: Optional[str] = None,
+        template_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Send schedule notifications to all staff using multicast"""
+        """Send bulk notifications with device-based delivery tracking"""
         
-        # Get all staff for the schedule
         schedule = self.db.get(Schedule, schedule_id)
         if not schedule:
             raise ValueError(f"Schedule {schedule_id} not found")
         
-        # Get all staff assignments for this schedule
-        assignments = self.db.exec(
-            select(ShiftAssignment)
-            .where(ShiftAssignment.schedule_id == schedule_id)
-        ).all()
-        
+        # Get staff and their user mappings
         staff_user_mapping = {}
-        notification_data = []
+        valid_device_tokens = []
         
-        for assignment in assignments:
-            user = self._get_validated_user_from_staff(assignment.staff_id)
-            if user and user.push_token:
-                staff_user_mapping[user.push_token] = user
+        if staff_ids:
+            staff_list = self.db.exec(
+                select(Staff).where(Staff.id.in_(staff_ids))
+            ).all()
+        else:
+            staff_list = self.db.exec(
+                select(Staff).where(Staff.facility_id == schedule.facility_id)
+            ).all()
+        
+        # Collect all valid tokens from all users' devices
+        notification_data = []
+        total_devices = 0
+        
+        for staff in staff_list:
+            user = self.db.exec(
+                select(User).where(User.id == staff.user_id)
+            ).first()
+            
+            if user and user.is_active:
+                # Get valid tokens for this user
+                user_tokens = self.push_manager.get_valid_push_tokens(str(user.id))
+                valid_device_tokens.extend(user_tokens)
+                total_devices += len(user_tokens)
                 
-                # ✅ UPDATED: Get localized title and message
-                user_locale = self._get_user_locale(user.id)
-                title = i18n_service.resolve_template_key("notifications.templates.schedule_published.title", user_locale)
-                message = custom_message or i18n_service.resolve_template_key("notifications.templates.schedule_published.message", user_locale)
+                # Create notification record
+                if template_data:
+                    notification_template_data = {**template_data}
+                else:
+                    notification_template_data = {
+                        "staff_name": user.email.split('@')[0],
+                        "facility_name": schedule.facility.name if schedule.facility else "Facility"
+                    }
                 
-                # Render with user data
-                rendered_title = self._render_template(title, {
-                    "staff_name": user.email.split('@')[0],
-                    "week_start": schedule.week_start,
-                    "facility_name": "Facility"  # TODO: Get actual facility name
-                }, user.id)
-                
-                rendered_message = self._render_template(message, {
-                    "staff_name": user.email.split('@')[0],
-                    "week_start": schedule.week_start,
-                    "facility_name": "Facility"
-                }, user.id)
-                
-                # Create notification record for each user
                 notification = Notification(
                     notification_type=notification_type,
                     recipient_user_id=user.id,
-                    tenant_id=user.tenant_id,
-                    title=rendered_title,
-                    message=rendered_message,
+                    title="Schedule Published",
+                    message=custom_message or f"Your schedule for week starting {schedule.week_start} is now available",
                     priority=NotificationPriority.HIGH,
-                    channels=["PUSH", "IN_APP"],
-                    data={
-                        "schedule_id": str(schedule_id),
-                        "week_start": schedule.week_start.isoformat(),
-                        "facility_id": str(schedule.facility_id)
-                    }
+                    channels=["IN_APP", "PUSH"],
+                    action_url=f"/schedule/{schedule_id}",
+                    data=notification_template_data
                 )
                 self.db.add(notification)
                 notification_data.append(notification)
         
         self.db.commit()
         
-        # Use multicast for efficient push delivery
-        if staff_user_mapping:
-            tokens = list(staff_user_mapping.keys())
-            
-            success_count, failure_count = await self.firebase_service.send_push_multicast(
-                tokens=tokens,
-                title="Schedule Published",  # This will be localized per user in the actual push
-                body=custom_message or f"Your schedule for week starting {schedule.week_start} is now available",
-                data={
-                    "notification_type": str(notification_type),
-                    "schedule_id": str(schedule_id),
-                    "action_url": f"/schedule/{schedule_id}"
-                },
-                action_url=f"/schedule/{schedule_id}",
-                analytics_label=f"schedule_published_{schedule.facility_id}"
-            )
-            
-            # Update delivery status for all notifications
-            for notification in notification_data:
-                user = self.db.get(User, notification.recipient_user_id)
-                if user and user.push_token in tokens:
+        # Send multicast push notification if we have valid tokens
+        success_count = 0
+        failure_count = 0
+        
+        if valid_device_tokens:
+            try:
+                success_count, failure_count = await self.firebase_service.send_push_multicast(
+                    tokens=valid_device_tokens,
+                    title="Schedule Published",
+                    body=custom_message or f"Your schedule for week starting {schedule.week_start} is now available",
+                    data={
+                        "notification_type": str(notification_type),
+                        "schedule_id": str(schedule_id),
+                        "action_url": f"/schedule/{schedule_id}"
+                    },
+                    action_url=f"/schedule/{schedule_id}",
+                    analytics_label=f"schedule_published_{schedule.facility_id}"
+                )
+                
+                # Update delivery status for all notifications
+                for notification in notification_data:
                     delivery_status = {
                         "PUSH": {
                             "status": "delivered" if success_count > 0 else "failed",
                             "timestamp": datetime.now(timezone.utc).isoformat(),
-                            "method": "multicast"
+                            "method": "multicast",
+                            "devices_attempted": total_devices,
+                            "devices_success": success_count,
+                            "devices_failed": failure_count
                         },
                         "IN_APP": {
                             "status": "delivered",
@@ -207,28 +216,34 @@ class NotificationService:
                     notification.delivery_status = delivery_status
                     notification.is_delivered = True
                     notification.delivered_at = datetime.now(timezone.utc)
-            
-            self.db.commit()
-            
-            logger.info(
-                "bulk_schedule_notification_sent",
-                extra={
-                    "schedule_id": str(schedule_id),
-                    "total_recipients": len(tokens),
-                    "push_success": success_count,
-                    "push_failure": failure_count,
-                    "analytics_label": f"schedule_published_{schedule.facility_id}"
-                }
-            )
+                
+                self.db.commit()
+                
+            except Exception as e:
+                logger.error(f"Bulk push notification failed: {e}")
+                failure_count = len(valid_device_tokens)
+        
+        logger.info(
+            "bulk_schedule_notification_sent",
+            extra={
+                "schedule_id": str(schedule_id),
+                "total_recipients": len(notification_data),
+                "total_devices": total_devices,
+                "push_success": success_count,
+                "push_failure": failure_count,
+                "analytics_label": f"schedule_published_{schedule.facility_id}"
+            }
+        )
         
         return {
             "total_recipients": len(notification_data),
-            "push_success": success_count if staff_user_mapping else 0,
-            "push_failure": failure_count if staff_user_mapping else 0,
+            "total_devices": total_devices,
+            "push_success": success_count,
+            "push_failure": failure_count,
             "notifications_created": len(notification_data)
         }
     
-    # ✅ UPDATED: Main notification method with i18n support
+    # UPDATED: Main notification method with i18n support
     async def send_notification(
         self,
         notification_type: NotificationType,
@@ -529,12 +544,19 @@ class NotificationService:
         """Send push notification with session safety"""
         try:
             user = session.get(User, notification.recipient_user_id)
-            if not user or not user.push_token:
+            if not user:
+                logger.warning(f"User {notification.recipient_user_id} not found")
+                return False
+            
+            # Get valid push tokens using device manager
+            valid_tokens = self.push_manager.get_valid_push_tokens(str(user.id))
+            
+            if not valid_tokens:
                 logger.warning(
-                    "push_notification_no_token",
+                    "push_notification_no_valid_tokens",
                     extra={
                         "user_id": str(notification.recipient_user_id),
-                        "user_email": user.email if user else "unknown"
+                        "user_email": user.email
                     }
                 )
                 return False
@@ -543,6 +565,7 @@ class NotificationService:
                 logger.error("firebase_service_unavailable")
                 return False
             
+            # Prepare push data
             push_data = {
                 "notification_id": str(notification.id),
                 "type": str(notification.notification_type),
@@ -550,8 +573,49 @@ class NotificationService:
                 **notification.data
             }
             
-            return await self.firebase_service.send_push_notification(
-                token=user.push_token,
+            # Send to multiple devices if user has multiple valid tokens
+            if len(valid_tokens) == 1:
+                # Single device
+                success = await self._send_single_push_notification(
+                    user.id, valid_tokens[0], notification, push_data
+                )
+                return success
+            else:
+                # Multiple devices - use multicast
+                success_count, failure_count = await self._send_multicast_push_notification(
+                    user.id, valid_tokens, notification, push_data
+                )
+                return success_count > 0
+            
+        except Exception as e:
+            logger.error(f"Push notification failed: {e}")
+            return False
+    
+    async def _send_single_push_notification(
+        self, 
+        user_id: str, 
+        token: str, 
+        notification: Notification, 
+        push_data: Dict
+    ) -> bool:
+        """Send push notification to single device with failure tracking"""
+        try:
+            # Find device by token
+            device = self.db.exec(
+                select(UserDevice).where(
+                    UserDevice.user_id == user_id,
+                    UserDevice.push_token == token,
+                    UserDevice.is_active == True
+                )
+            ).first()
+            
+            if not device:
+                logger.warning(f"Device not found for token (user: {user_id})")
+                return False
+            
+            # Send notification
+            success = await self.firebase_service.send_push_notification(
+                token=token,
                 title=notification.title,
                 body=notification.message,
                 data=push_data,
@@ -559,9 +623,82 @@ class NotificationService:
                 analytics_label=f"single_{notification.notification_type}"
             )
             
+            # Record result
+            if success:
+                self.push_manager.record_push_success(str(device.id))
+                logger.info(f"Push notification sent successfully to device {device.id}")
+            else:
+                needs_reauth = self.push_manager.record_push_failure(
+                    str(device.id), 
+                    "Firebase send failed"
+                )
+                if needs_reauth:
+                    logger.warning(f"Device {device.id} marked for re-authorization")
+            
+            return success
+            
         except Exception as e:
-            logger.error(f"Push notification failed: {e}")
+            logger.error(f"Single push notification failed: {e}")
             return False
+    
+    async def _send_multicast_push_notification(
+        self, 
+        user_id: str, 
+        tokens: List[str], 
+        notification: Notification, 
+        push_data: Dict
+    ) -> Tuple[int, int]:
+        """Send push notification to multiple devices with per-device failure tracking"""
+        try:
+            # Get devices for all tokens
+            devices = self.db.exec(
+                select(UserDevice).where(
+                    UserDevice.user_id == user_id,
+                    UserDevice.push_token.in_(tokens),
+                    UserDevice.is_active == True
+                )
+            ).all()
+            
+            # Create token-to-device mapping
+            token_to_device = {device.push_token: device for device in devices if device.push_token}
+            
+            # Send multicast notification
+            success_count, failure_count = await self.firebase_service.send_push_multicast(
+                tokens=tokens,
+                title=notification.title,
+                body=notification.message,
+                data=push_data,
+                action_url=notification.action_url,
+                analytics_label=f"multicast_{notification.notification_type}"
+            )
+            
+            # Unfortunately, Firebase doesn't give us per-token results in multicast
+            # So we'll mark all devices as successful if any succeeded, or failed if all failed
+            if success_count > 0:
+                # At least some succeeded - record success for all (optimistic)
+                for device in devices:
+                    self.push_manager.record_push_success(str(device.id))
+            else:
+                # All failed - record failures
+                for device in devices:
+                    needs_reauth = self.push_manager.record_push_failure(
+                        str(device.id), 
+                        "Multicast send failed"
+                    )
+                    if needs_reauth:
+                        logger.warning(f"Device {device.id} marked for re-authorization")
+            
+            logger.info(
+                f"Multicast push notification: {success_count} success, {failure_count} failures"
+            )
+            
+            return success_count, failure_count
+            
+        except Exception as e:
+            logger.error(f"Multicast push notification failed: {e}")
+            return 0, len(tokens)
+        
+    
     
     # ✅ UPDATED: WhatsApp with i18n support
     async def _send_whatsapp_message(
@@ -850,7 +987,7 @@ class NotificationService:
         except Exception as e:
             print(f"❌ Failed to attach PDF from {pdf_url}: {e}")
 
-    # ✅ Existing helper methods (unchanged)
+    # Helper methods ======================================
     def _get_template(self, notification_type: NotificationType, tenant_id: uuid.UUID) -> Optional[NotificationTemplate]:
         """Get notification template (tenant-specific or global)"""
         # Try tenant-specific first
@@ -899,3 +1036,22 @@ class NotificationService:
             channels.append("EMAIL")
         
         return channels or ["IN_APP"]  # Always fall back to in-app
+    
+    # ==================== HELPER METHODS ====================
+    
+    def get_user_push_notification_summary(self, user_id: uuid.UUID) -> Dict[str, Any]:
+        """Get comprehensive push notification summary for user"""
+        stats = self.push_manager.get_push_stats(str(user_id))
+        devices_needing_reauth = self.push_manager.get_devices_needing_reauth(str(user_id))
+        
+        return {
+            "stats": stats,
+            "devices_needing_reauth": devices_needing_reauth,
+            "needs_attention": len(devices_needing_reauth) > 0,
+            "has_valid_tokens": stats.devices_with_valid_tokens > 0
+        }
+    
+    def should_show_reauth_modal(self, user_id: uuid.UUID) -> bool:
+        """Determine if user should see re-authorization modal"""
+        devices_needing_reauth = self.push_manager.get_devices_needing_reauth(str(user_id))
+        return len(devices_needing_reauth) > 0

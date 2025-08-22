@@ -1,6 +1,9 @@
 from fastapi import APIRouter
+
+from app.api.endpoints import devices
 from .endpoints import auth, facility, staff, import_staff,schedule,schedule_config, availability, swap, notifications,settings, invitations
 from app.api.endpoints.quick_actions import router as quick_actions_router
+
 
 api_router = APIRouter()
 
@@ -16,3 +19,4 @@ api_router.include_router(notifications.router)
 api_router.include_router(quick_actions_router, tags=["quick-actions"])
 api_router.include_router(settings.router)
 api_router.include_router(invitations.router)
+api_router.include_router(devices.router, prefix="/api/v1")

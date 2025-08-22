@@ -64,6 +64,7 @@ export function NotificationSettings() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [whatsappSaving, setWhatsappSaving] = useState(false)
+  const [pushStats, setPushStats] = useState(null);
   
   const apiClient = useApiClient()
   const { user } = useAuth()
@@ -141,6 +142,22 @@ export function NotificationSettings() {
       defaultChannels: ['in_app', 'push', 'whatsapp']
     }
   ]
+
+  // load push stats
+  useEffect(() => {
+  const loadPushStats = async () => {
+    if (!apiClient) return;
+    
+    try {
+      const stats = await apiClient.getPushStats();
+      setPushStats(stats);
+    } catch (error) {
+      console.error('Failed to load push stats:', error);
+    }
+  };
+
+  loadPushStats();
+}, [apiClient]);
 
   // Load current preferences
   useEffect(() => {
@@ -441,7 +458,18 @@ export function NotificationSettings() {
                           />
                         </div>
                       )}
-                      
+
+                      {/* Push stats */}
+                      {pushStats && (
+                        <div className="text-sm text-gray-600 mt-2">
+                          <p>{pushStats.devices_with_valid_tokens} {t('common.of')} {pushStats.total_devices} {t('notifications.devicesHaveValidNotifications')}</p>
+                          {pushStats.devices_needing_reauth > 0 && (
+                            <p className="text-orange-600">
+                              {pushStats.devices_needing_reauth} {t('notifications.devicesNeedReauth')}
+                            </p>
+                          )}
+                        </div>
+                      )}
                       {/* WhatsApp */}
                       <div className="flex items-center gap-2">
                         <MessageSquare className="w-4 h-4 text-green-500" />

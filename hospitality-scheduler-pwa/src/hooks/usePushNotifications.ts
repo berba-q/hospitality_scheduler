@@ -3,108 +3,190 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { 
   requestNotificationPermission, 
-  setupForegroundMessageListener,
   getCurrentToken,
   isPushNotificationSupported
 } from '@/lib/firebase';
 import { useApiClient } from '@/hooks/useApi';
 
 export interface PushNotificationState {
-  permission: NotificationPermission | null;
-  token: string | null;
   isSupported: boolean;
+  permission: NotificationPermission | 'default';
+  token: string | null;
   isLoading: boolean;
   error: string | null;
+  deviceId: string | null;
+  deviceStats: {
+    total_devices: number;
+    devices_with_valid_tokens: number;
+    devices_needing_reauth: number;
+  } | null;
 }
+export interface DeviceInfo {
+  device_name: string;
+  device_type: string;
+  platform: string;
+  user_agent: string;
+}
+
+// Helper functions for device detection
+const getBrowserName = (): string => {
+  const userAgent = navigator.userAgent;
+  
+  if (userAgent.includes('Chrome') && !userAgent.includes('Edge')) return 'Chrome Browser';
+  if (userAgent.includes('Firefox')) return 'Firefox Browser';
+  if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) return 'Safari Browser';
+  if (userAgent.includes('Edge')) return 'Edge Browser';
+  if (userAgent.includes('Opera')) return 'Opera Browser';
+  
+  return 'Web Browser';
+};
+
+const getPlatformName = (): string => {
+  const userAgent = navigator.userAgent.toLowerCase();
+  
+  if (userAgent.includes('mac')) return 'macOS';
+  if (userAgent.includes('win')) return 'Windows';
+  if (userAgent.includes('linux')) return 'Linux';
+  if (userAgent.includes('android')) return 'Android';
+  if (userAgent.includes('iphone') || userAgent.includes('ipad')) return 'iOS';
+  
+  return 'Web';
+};
+
+const getDeviceInfo = (): DeviceInfo => {
+  const userAgent = navigator.userAgent;
+  const platform = getPlatformName();
+  const browserName = getBrowserName();
+  
+  // Determine device type
+  let deviceType = 'desktop';
+  if (/Mobile|Android|iPhone|iPad/.test(userAgent)) {
+    deviceType = /iPad/.test(userAgent) ? 'tablet' : 'mobile';
+  }
+  
+  return {
+    device_name: `${browserName} on ${platform}`,
+    device_type: deviceType,
+    platform: platform,
+    user_agent: userAgent
+  };
+};
 
 export function usePushNotifications() {
   const [state, setState] = useState<PushNotificationState>({
-    permission: null,
-    token: null,
     isSupported: false,
-    isLoading: true,
-    error: null
+    permission: 'default',
+    token: null,
+    isLoading: false,
+    error: null,
+    deviceId: null,
+    deviceStats: null
   });
 
   const apiClient = useApiClient();
 
-  // Check browser support and initial permission state (client-side only)
-  useEffect(() => {
-    // Skip on server-side rendering
-    if (typeof window === 'undefined') return;
+  const getBrowserName = (): string => {
+    const userAgent = navigator.userAgent;
+    
+    if (userAgent.includes('Chrome')) return 'Chrome Browser';
+    if (userAgent.includes('Firefox')) return 'Firefox Browser';
+    if (userAgent.includes('Safari')) return 'Safari Browser';
+    if (userAgent.includes('Edge')) return 'Edge Browser';
+    
+    return 'Web Browser';
+  };
 
-    const checkSupport = async () => {
+const getPlatformName = (): string => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    
+    if (userAgent.includes('mac')) return 'macOS';
+    if (userAgent.includes('win')) return 'Windows';
+    if (userAgent.includes('linux')) return 'Linux';
+    if (userAgent.includes('android')) return 'Android';
+    if (userAgent.includes('iphone') || userAgent.includes('ipad')) return 'iOS';
+    
+    return 'Web';
+  };
+
+  // Initialize push notifications
+  useEffect(() => {
+    const initializePushNotifications = async () => {
+      if (typeof window === 'undefined') return;
+
       try {
         const isSupported = await isPushNotificationSupported();
-        const permission = isSupported ? Notification.permission : null;
         
-        setState(prev => ({
-          ...prev,
+        setState(prev => ({ 
+          ...prev, 
           isSupported,
-          permission,
-          isLoading: false
+          permission: Notification.permission 
         }));
 
-        console.log('Push notification support check:', { isSupported, permission });
+        if (isSupported && Notification.permission === 'granted') {
+          // Try to get existing token
+          const token = await getCurrentToken();
+          if (token) {
+            setState(prev => ({ ...prev, token }));
+            
+            // Register/update device with current token
+            await registerCurrentDevice(token);
+          }
+        }
+
+        // Load device stats
+        await loadDeviceStats();
+
       } catch (error) {
-        console.error('Error checking push notification support:', error);
-        setState(prev => ({
-          ...prev,
-          isSupported: false,
-          isLoading: false,
-          error: 'Failed to check browser support'
+        console.error('Failed to initialize push notifications:', error);
+        setState(prev => ({ 
+          ...prev, 
+          error: 'Failed to initialize push notifications' 
         }));
       }
     };
 
-    checkSupport();
+    initializePushNotifications();
   }, []);
 
-  // Get existing token if permission is already granted
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    if (state.isSupported && state.permission === 'granted' && !state.token) {
-      getCurrentToken().then(token => {
-        if (token) {
-          setState(prev => ({ ...prev, token }));
-          console.log('Retrieved existing FCM token');
-        }
-      }).catch(error => {
-        console.error('Error getting existing token:', error);
+  // Register current device
+  const registerCurrentDevice = async (token?: string) => {
+    if (!apiClient) return null;
+
+    try {
+      const deviceInfo = getDeviceInfo();
+      
+      const response = await apiClient.registerDevice({
+        ...deviceInfo,
+        push_token: token || undefined
       });
+
+      if (response.success) {
+        setState(prev => ({ ...prev, deviceId: response.device_id }));
+        console.log('Device registered successfully:', response.device_id);
+        return response.device_id;
+      } else {
+        console.error('Device registration failed:', response.message);
+        return null;
+      }
+    } catch (error) {
+      console.error('Failed to register device:', error);
+      return null;
     }
-  }, [state.isSupported, state.permission, state.token]);
+  };
 
-  // Set up foreground message listener (client-side only)
-  useEffect(() => {
-    if (typeof window === 'undefined' || !state.isSupported) return;
+  // Load device statistics
+  const loadDeviceStats = async () => {
+    if (!apiClient) return;
 
-    console.log('Setting up foreground message listener...');
-    
-    const unsubscribe = setupForegroundMessageListener((payload) => {
-      console.log('Foreground notification received:', payload);
-      
-      // Show toast notification for foreground messages
-      const title = payload.notification?.title || 'New Notification';
-      const body = payload.notification?.body || 'You have a new notification';
-      
-      toast(title, {
-        description: body,
-        action: payload.data?.action_url ? {
-          label: 'View',
-          onClick: () => {
-            window.open(payload.data.action_url, '_self');
-          }
-        } : undefined,
-        duration: 5000,
-      });
-    });
+    try {
+      const stats = await apiClient.getPushStats();
+      setState(prev => ({ ...prev, deviceStats: stats }));
+    } catch (error) {
+      console.error('Failed to load device stats:', error);
+    }
+  };
 
-    return unsubscribe;
-  }, [state.isSupported]);
-
-  // Request permission and get token
+  // Request permission and register device
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (typeof window === 'undefined') {
       console.warn('Cannot request permission on server side');
@@ -130,20 +212,17 @@ export function usePushNotifications() {
           isLoading: false 
         }));
 
-        // Send token to backend
-        if (apiClient) {
-          try {
-            console.log('Saving FCM token to backend...');
-            await apiClient.updatePushToken({ push_token: token });
-            toast.success('🔔 Push notifications enabled!');
-            console.log('FCM token saved to backend successfully');
-          } catch (error) {
-            console.error('Failed to save push token to backend:', error);
-            toast.error('Push notifications enabled, but failed to save settings');
-          }
+        // Register device with new token
+        const deviceId = await registerCurrentDevice(token);
+        
+        if (deviceId) {
+          toast.success('🔔 Push notifications enabled!');
+          console.log('Device registered with new token');
+          
+          // Reload stats
+          await loadDeviceStats();
         } else {
-          console.warn('API client not available, token not saved to backend');
-          toast.success('🔔 Push notifications enabled! (Token not saved - please refresh)');
+          toast.error('Push notifications enabled, but failed to save device settings');
         }
 
         return true;
@@ -177,7 +256,7 @@ export function usePushNotifications() {
     }
   }, [state.isSupported, apiClient]);
 
-  // Refresh token (useful for debugging or when token expires)
+  // Refresh token and re-register device
   const refreshToken = useCallback(async (): Promise<string | null> => {
     if (typeof window === 'undefined') return null;
     
@@ -194,10 +273,13 @@ export function usePushNotifications() {
       
       setState(prev => ({ ...prev, token, isLoading: false }));
       
-      if (token && apiClient) {
-        await apiClient.updatePushToken({ push_token: token });
+      if (token) {
+        await registerCurrentDevice(token);
         toast.success('Push notification settings refreshed');
-        console.log('Refreshed FCM token saved to backend');
+        console.log('Device re-registered with refreshed token');
+        
+        // Reload stats
+        await loadDeviceStats();
       }
       
       return token;
@@ -209,36 +291,76 @@ export function usePushNotifications() {
     }
   }, [state.isSupported, state.permission, apiClient]);
 
-  // Test notification (for debugging)
-  const sendTestNotification = useCallback(async () => {
+  // Validate push tokens
+  const validateTokens = useCallback(async (sendTest: boolean = false) => {
     if (!apiClient) {
       toast.error('API client not available');
-      return;
+      return null;
     }
 
     try {
-      console.log('Sending test notification...');
-      await apiClient.sendTestNotification();
-      toast.success('Test notification sent! Check if you received it.');
+      console.log('Validating push tokens...');
+      const response = await apiClient.validatePushTokens({
+        test_notification: sendTest
+      });
+
+      if (sendTest) {
+        toast.success(`Token validation complete. ${response.valid_tokens} valid, ${response.invalid_tokens} invalid.`);
+      }
+
+      return response;
     } catch (error) {
-      console.error('Failed to send test notification:', error);
-      toast.error('Failed to send test notification');
-      throw error; // Re-throw for the test component to catch
+      console.error('Failed to validate tokens:', error);
+      toast.error('Failed to validate push tokens');
+      return null;
     }
   }, [apiClient]);
 
+  // Get devices needing reauth
+  const getDevicesNeedingReauth = useCallback(async () => {
+    if (!apiClient) return [];
+
+    try {
+      return await apiClient.getDevicesNeedingReauth();
+    } catch (error) {
+      console.error('Failed to get devices needing reauth:', error);
+      return [];
+    }
+  }, [apiClient]);
+
+  // Check if re-auth modal should be shown
+  const shouldShowReauthModal = useCallback(async (): Promise<boolean> => {
+    const devices = await getDevicesNeedingReauth();
+    return devices.length > 0;
+  }, [getDevicesNeedingReauth]);
+
   return {
     // State
-    ...state,
+    state,
     
-    // Computed properties (safe for SSR)
-    hasPermission: state.permission === 'granted',
-    needsPermission: state.isSupported && state.permission !== 'granted',
-    isBlocked: state.permission === 'denied',
+    // Computed properties
+    isSupported: state.isSupported,
+    permission: state.permission,
+    token: state.token,
+    isLoading: state.isLoading,
+    error: state.error,
+    deviceId: state.deviceId,
+    deviceStats: state.deviceStats,
+    
+    // Derived state
+    hasPushPermission: state.permission === 'granted',
+    needsPushPermission: state.isSupported && state.permission !== 'granted',
+    hasValidToken: Boolean(state.token),
     
     // Actions
     requestPermission,
     refreshToken,
-    sendTestNotification,
+    validateTokens,
+    getDevicesNeedingReauth,
+    shouldShowReauthModal,
+    loadDeviceStats,
+    
+    // Device info
+    getCurrentDeviceInfo: getDeviceInfo
   };
 }

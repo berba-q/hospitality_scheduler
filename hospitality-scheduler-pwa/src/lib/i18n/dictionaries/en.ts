@@ -2131,6 +2131,8 @@ export const en = {
     inApp: 'In-App',
     push: 'Push',
     setWhatsappNumberToEnable: '* Set your WhatsApp number above to enable WhatsApp notifications',
+    devicesHaveValidNotifications: 'devices have valid notifications',
+    devicesNeedReauth: 'devices need re-authorization',
 
     // ================================================================================
     // NOTIFICATION TEMPLATES

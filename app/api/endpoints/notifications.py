@@ -11,8 +11,7 @@ import uuid
 from ...deps import get_db, get_current_user
 from ...models import Notification, NotificationPreference, NotificationType, User
 from ...schemas import (
-    NotificationRead, NotificationPreferenceRead, NotificationPreferenceUpdate,
-    PushTokenUpdate, WhatsAppNumberUpdate
+    NotificationRead, NotificationPreferenceRead, NotificationPreferenceUpdate, WhatsAppNumberUpdate
 )
 from ...services.notification_service import NotificationService
 
@@ -161,19 +160,6 @@ def update_notification_preference(
     
     return preference
 
-@router.post("/push-token")
-def update_push_token(
-    token_update: PushTokenUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Update user's push notification token"""
-    
-    current_user.push_token = token_update.push_token
-    db.add(current_user)
-    db.commit()
-    
-    return {"success": True, "message": "Push token updated"}
 
 @router.post("/whatsapp-number")
 def update_whatsapp_number(
