@@ -222,7 +222,7 @@ class PushTokenManager:
                     UserDevice.user_id == user_id,
                     UserDevice.is_active == True,
                     UserDevice.status == DeviceStatus.ACTIVE,
-                    UserDevice.push_token.isnot(None)
+                    UserDevice.push_token!=None
                 )
             )
         ).all()

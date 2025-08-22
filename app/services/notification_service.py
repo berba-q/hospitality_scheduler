@@ -1,6 +1,5 @@
 # app/services/notification_service.py
 
-from asyncio.log import logger
 from typing import List, Dict, Any, Optional, Tuple
 from sqlmodel import Session, select
 from fastapi import BackgroundTasks
@@ -8,7 +7,8 @@ import httpx
 import uuid
 from datetime import datetime, timezone
 import string
-import asyncio, logging
+import asyncio
+import logging
 
 # Mailing
 import smtplib
@@ -23,13 +23,14 @@ from app.services.i18n_service import i18n_service
 
 from ..models import (
     Facility, Notification, NotificationTemplate, NotificationPreference, Schedule, SwapRequest,
-    User, Staff, NotificationType, NotificationPriority, ShiftAssignment, UserProfile  
+    User, Staff, NotificationType, NotificationPriority, ShiftAssignment, UserProfile, UserDevice, DeviceStatus
 )
 from ..core.config import get_settings
 from .firebase_service import FirebaseService
-from ..models import User, UserDevice, DeviceStatus
 from .push_token_manager import PushTokenManager
 
+# Fix: Use proper logging setup
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 class NotificationService:
@@ -55,7 +56,7 @@ class NotificationService:
         # Fallback to default
         return i18n_service.default_locale
     
-    # ✅ UPDATED: Enhanced template rendering with i18n support
+    # Enhanced template rendering with i18n support
     def _render_template(self, template: str, data: Dict[str, Any], user_id: Optional[uuid.UUID] = None) -> str:
         """Template rendering with i18n key resolution"""
         try:
@@ -65,7 +66,7 @@ class NotificationService:
             # If template is an i18n key, resolve it first
             if template.startswith("notifications."):
                 template = i18n_service.resolve_template_key(template, locale)
-                print(f"🌐 Resolved i18n key to: {template} (locale: {locale})")
+                print(f"🌍 Resolved i18n key to: {template} (locale: {locale})")
             
             # Add default values for common template variables
             safe_data = {
@@ -81,11 +82,11 @@ class NotificationService:
                 "urgency": "Normal",
                 "action_url": "#",
                 "assigned_staff_name": "Staff member",
-                "user_name": "User",  # ✅ NEW: For password reset
-                "reset_url": "#",     # ✅ NEW: For password reset
-                "expires_in": "24 hours",  # ✅ NEW: For password reset
-                "organization_name": "Organization",  # ✅ NEW: For invitations
-                "role": "Staff",      # ✅ NEW: For invitations
+                "user_name": "User",  #  For password reset
+                "reset_url": "#",     # For password reset
+                "expires_in": "24 hours",  #  For password reset
+                "organization_name": "Organization",  # For invitations
+                "role": "Staff",      #  For invitations
                 **data  # Override with actual data
             }
             return string.Template(template).safe_substitute(safe_data)
@@ -126,7 +127,6 @@ class NotificationService:
             raise ValueError(f"Schedule {schedule_id} not found")
         
         # Get staff and their user mappings
-        staff_user_mapping = {}
         valid_device_tokens = []
         
         if staff_ids:
@@ -157,14 +157,17 @@ class NotificationService:
                 if template_data:
                     notification_template_data = {**template_data}
                 else:
+                    facility = self.db.get(Facility, schedule.facility_id) if schedule.facility_id else None
                     notification_template_data = {
                         "staff_name": user.email.split('@')[0],
-                        "facility_name": schedule.facility.name if schedule.facility else "Facility"
+                        "facility_name": facility.name if facility else "Facility"
                     }
                 
+                # FIX: Add tenant_id parameter
                 notification = Notification(
                     notification_type=notification_type,
                     recipient_user_id=user.id,
+                    tenant_id=user.tenant_id,  # ✅ FIXED: Added missing tenant_id
                     title="Schedule Published",
                     message=custom_message or f"Your schedule for week starting {schedule.week_start} is now available",
                     priority=NotificationPriority.HIGH,
@@ -198,7 +201,7 @@ class NotificationService:
                 
                 # Update delivery status for all notifications
                 for notification in notification_data:
-                    delivery_status = {
+                    delivery_status: Dict[str, Dict[str, Any]] = {
                         "PUSH": {
                             "status": "delivered" if success_count > 0 else "failed",
                             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -243,7 +246,7 @@ class NotificationService:
             "notifications_created": len(notification_data)
         }
     
-    # UPDATED: Main notification method with i18n support
+    # ✅ UPDATED: Main notification method with i18n support
     async def send_notification(
         self,
         notification_type: NotificationType,
@@ -261,7 +264,7 @@ class NotificationService:
         
         print(f"📬 Creating notification: {notification_type} for user {recipient_user_id}")
     
-        # CRITICAL: Validate recipient exists and is active
+        # Validate recipient exists and is active
         user = self.db.get(User, recipient_user_id)
         if not user:
             raise ValueError(f"User {recipient_user_id} not found")
@@ -271,9 +274,9 @@ class NotificationService:
         
         print(f"✅ Validated recipient: {user.email} (User ID: {user.id})")
         
-        # ✅ NEW: Get user's locale
+        # Get user's locale
         user_locale = self._get_user_locale(user.id)
-        print(f"🌐 User locale: {user_locale}")
+        print(f"🌍 User locale: {user_locale}")
         
         # Get template
         template = self._get_template(notification_type, user.tenant_id)
@@ -290,7 +293,7 @@ class NotificationService:
         if channels is None:
             channels = self._determine_channels(template, preferences)
         
-        # ✅ UPDATED: Render content with i18n and user locale
+        #  Render content with i18n and user locale
         title = self._render_template(template.title_template, template_data, user.id)
         message = self._render_template(template.message_template, template_data, user.id)
         
@@ -300,10 +303,10 @@ class NotificationService:
             notification_data["pdf_attachment_url"] = pdf_attachment_url
             print(f"📎 PDF attachment added: {pdf_attachment_url}")
         
-        # Create notification record
+        # FIX: Create notification record with tenant_id
         notification = Notification(
             recipient_user_id=user.id,
-            tenant_id=user.tenant_id,
+            tenant_id=user.tenant_id,  # Include tenant_id
             notification_type=notification_type,
             title=title,
             message=message,
@@ -435,9 +438,10 @@ class NotificationService:
             notification_data["pdf_attachment_url"] = pdf_attachment_url
             print(f"📎 PDF attachment added to basic notification: {pdf_attachment_url}")
         
+        # FIX: Include tenant_id in basic notification
         notification = Notification(
             recipient_user_id=user.id,
-            tenant_id=user.tenant_id,
+            tenant_id=user.tenant_id,  # ✅ FIXED: Include tenant_id
             notification_type=notification_type,
             title=title,
             message=message,
@@ -480,7 +484,7 @@ class NotificationService:
                 )
             ).first()
             
-            delivery_status = {}
+            delivery_status: Dict[str, Dict[str, Any]] = {}
             
             print(f"📡 Delivering notification {notification.id} via channels: {notification.channels}")
             
@@ -577,13 +581,13 @@ class NotificationService:
             if len(valid_tokens) == 1:
                 # Single device
                 success = await self._send_single_push_notification(
-                    user.id, valid_tokens[0], notification, push_data
+                    str(user.id), valid_tokens[0], notification, push_data
                 )
                 return success
             else:
                 # Multiple devices - use multicast
                 success_count, failure_count = await self._send_multicast_push_notification(
-                    user.id, valid_tokens, notification, push_data
+                    str(user.id), valid_tokens, notification, push_data
                 )
                 return success_count > 0
             
@@ -596,7 +600,7 @@ class NotificationService:
         user_id: str, 
         token: str, 
         notification: Notification, 
-        push_data: Dict
+        push_data: Dict[str, Any]
     ) -> bool:
         """Send push notification to single device with failure tracking"""
         try:
@@ -646,7 +650,7 @@ class NotificationService:
         user_id: str, 
         tokens: List[str], 
         notification: Notification, 
-        push_data: Dict
+        push_data: Dict[str, Any]
     ) -> Tuple[int, int]:
         """Send push notification to multiple devices with per-device failure tracking"""
         try:
@@ -658,9 +662,6 @@ class NotificationService:
                     UserDevice.is_active == True
                 )
             ).all()
-            
-            # Create token-to-device mapping
-            token_to_device = {device.push_token: device for device in devices if device.push_token}
             
             # Send multicast notification
             success_count, failure_count = await self.firebase_service.send_push_multicast(

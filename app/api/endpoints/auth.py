@@ -37,7 +37,7 @@ async def signup(
     session_service = SessionService(db)
     
     # Get client information
-    client_ip = request.client.host
+    client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "")
     
     try:
@@ -221,7 +221,7 @@ async def login_access_token(
     audit_service = AuditService(db)
     session_service = SessionService(db)
     
-    client_ip = request.client.host
+    client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "")
     
     # Check if account is locked
@@ -353,7 +353,7 @@ async def forgot_password(
     """Enhanced forgot password with rate limiting and audit logging"""
     
     audit_service = AuditService(db)
-    client_ip = request.client.host
+    client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "")
     
     user = db.exec(
@@ -416,7 +416,7 @@ async def reset_password(
     """Enhanced password reset with audit logging"""
     
     audit_service = AuditService(db)
-    client_ip = request.client.host
+    client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent", "")
     
     # Verify token
@@ -497,7 +497,7 @@ async def revoke_session(
         AuditEvent.SESSION_REVOKED,
         user_id=current_user.id,
         tenant_id=current_user.tenant_id,
-        ip_address=request.client.host,
+        ip_address=request.client.host if request.client else "unknown",
         user_agent=request.headers.get("user-agent", ""),
         details={"email": current_user.email}
     )
@@ -522,7 +522,7 @@ async def revoke_all_sessions(
         AuditEvent.ALL_SESSIONS_REVOKED,
         user_id=current_user.id,
         tenant_id=current_user.tenant_id,
-        ip_address=request.client.host,
+        ip_address=request.client.host if request.client else "unknown",
         user_agent=request.headers.get("user-agent", ""),
         details={"email": current_user.email, "sessions_revoked": revoked_count}
     )

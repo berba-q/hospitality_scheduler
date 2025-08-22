@@ -20,7 +20,6 @@ import {
   AlertCircle,
   Settings,
   Globe,
-  Shield,
   Volume2
 } from 'lucide-react'
 import { toast } from 'sonner'

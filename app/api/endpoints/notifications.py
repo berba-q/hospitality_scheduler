@@ -41,7 +41,7 @@ def get_my_notifications(
     )
 
     if unread:
-        query = query.where(Notification.is_read.is_(False))
+        query = query.where(Notification.is_read == False)
 
     if delivered:
         query = query.where(Notification.is_delivered.is_(True)) # type: ignore
