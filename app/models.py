@@ -128,6 +128,7 @@ class ShiftRoleRequirement(SQLModel, table=True):
     shift: FacilityShift = Relationship(back_populates="rolerequirements")
     role: FacilityRole = Relationship(back_populates="shiftrequirements")
 
+# ============== ENUMS ===================================
 class NotificationType(str, Enum):
     SCHEDULE_PUBLISHED = "SCHEDULE_PUBLISHED"
     SWAP_REQUEST = "SWAP_REQUEST"
@@ -142,6 +143,7 @@ class NotificationType(str, Enum):
     STAFF_INVITATION = "STAFF_INVITATION"
     ACCOUNT_LINKED = "ACCOUNT_LINKED"
     WELCOME_EMAIL = "WELCOME_EMAIL"
+    SYSTEM_ALERT = "SYSTEM_ALERT"
 
 class NotificationChannel(str, Enum):
     IN_APP = "IN_APP"
@@ -155,6 +157,12 @@ class NotificationPriority(str, Enum):
     HIGH = "HIGH"
     URGENT = "URGENT"
 
+class DeviceStatus(str, Enum):
+    ACTIVE = "active"
+    NEEDS_REAUTH = "needs_reauth" 
+    PERMISSION_DENIED = "permission_denied"
+    REMOVED = "removed"
+
 class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     tenant_id: uuid.UUID = Field(foreign_key="tenant.id")
@@ -165,8 +173,8 @@ class User(SQLModel, table=True):
     is_active: bool = True
     tenant: Tenant = Relationship(back_populates="managers")
     # Notification settings
-    push_token: Optional[str] = None
     whatsapp_number: Optional[str] = None
+    devices: List["UserDevice"] = Relationship(back_populates="user", cascade_delete=True)
     
     providers: List["UserProvider"] = Relationship(back_populates="user", cascade_delete=True)
     
@@ -294,6 +302,60 @@ class AccountVerificationToken(SQLModel, table=True):
         ).first()
         
         return token
+
+# ======================== User devices ============================
+class UserDevice(SQLModel, table=True):
+    """Track user devices for push notifications and authentication"""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+    
+    # Device information
+    device_name: Optional[str] = Field(None, max_length=100)  # "iPhone 14", "Chrome Browser"
+    device_type: str = Field(default="mobile", max_length=20)  # "mobile", "desktop", "tablet"
+    platform: Optional[str] = Field(None, max_length=50)  # "iOS", "Android", "Web"
+    user_agent: Optional[str] = Field(None, max_length=500)
+    
+    # Push notification token management
+    push_token: Optional[str] = Field(None, max_length=500, index=True)
+    push_failures: int = Field(default=0)
+    last_push_failure: Optional[datetime] = Field(default=None, sa_column=SAColumn(DateTime(timezone=True)))
+    last_push_success: Optional[datetime] = Field(default=None, sa_column=SAColumn(DateTime(timezone=True)))
+    
+    # Authorization status
+    status: DeviceStatus = Field(
+        default=DeviceStatus.ACTIVE,
+        sa_column=SAColumn(
+            SQLEnum(
+                DeviceStatus,
+                name="devicestatus",
+                native_enum=True,
+                values_callable=lambda E: [m.value for m in E],
+                validate_strings=True,
+            )
+        ),
+    )
+    needs_permission_prompt: bool = Field(default=False)
+    permission_denied_at: Optional[datetime] = Field(default=None, sa_column=SAColumn(DateTime(timezone=True)))
+    
+    # Connection tracking
+    ip_address: Optional[str] = Field(None, max_length=45)  # Support IPv6
+    is_active: bool = Field(default=True)
+    last_seen: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
+    
+    # Audit fields
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
+    updated_at: Optional[datetime] = Field(default=None, sa_column=SAColumn(DateTime(timezone=True)))
+    
+    # Relationships
+    user: "User" = Relationship(back_populates="devices")
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_userdevice_user_active', 'user_id', 'is_active'),
+        Index('idx_userdevice_push_token', 'push_token'),
+        Index('idx_userdevice_status', 'status'),
+        Index('idx_userdevice_last_seen', 'last_seen'),
+    )
 
 # ======================= ACCOUNT LOCKOUT MODELS =======================
 class LoginAttempt(SQLModel, table=True):

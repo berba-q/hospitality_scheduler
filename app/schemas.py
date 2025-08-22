@@ -3,7 +3,7 @@ from typing import Any, Dict, Literal, Optional, List
 from enum import Enum
 import uuid
 
-from .models import NotificationType, NotificationChannel, NotificationPriority
+from .models import NotificationType, NotificationChannel, NotificationPriority, DeviceStatus
 from .models import SwapStatus
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
 from pydantic import field_validator
@@ -79,6 +79,153 @@ class UserRead(UserBase):
     is_manager: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+# ====================== USER DEVICES ===========================================
+class UserDeviceBase(BaseModel):
+    device_name: Optional[str] = Field(None, max_length=100)
+    device_type: str = Field(default="mobile", pattern=r"^(mobile|desktop|tablet|web)$")
+    platform: Optional[str] = Field(None, max_length=50)
+
+class UserDeviceCreate(UserDeviceBase):
+    push_token: Optional[str] = Field(None, max_length=500)
+    user_agent: Optional[str] = Field(None, max_length=500)
+
+class UserDeviceUpdate(BaseModel):
+    device_name: Optional[str] = Field(None, max_length=100)
+    push_token: Optional[str] = Field(None, max_length=500)
+    is_active: Optional[bool] = None
+    
+class UserDeviceRead(UserDeviceBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    push_failures: int
+    last_push_failure: Optional[datetime]
+    last_push_success: Optional[datetime]
+    status: DeviceStatus
+    needs_permission_prompt: bool
+    permission_denied_at: Optional[datetime]
+    ip_address: Optional[str]
+    is_active: bool
+    last_seen: datetime
+    created_at: datetime
+    updated_at: Optional[datetime]
+    
+    # Helper fields for API responses
+    has_push_token: bool = Field(description="Whether device has a valid push token")
+    
+    model_config = ConfigDict(from_attributes=True)
+
+# ==================== PUSH NOTIFICATION MANAGEMENT SCHEMAS ====================
+
+class DeviceReauth(BaseModel):
+    """Device that needs re-authorization"""
+    id: str
+    device_name: Optional[str]
+    device_type: str
+    last_seen: datetime
+    push_failures: int
+    status: str
+
+class PushStatsResponse(BaseModel):
+    """Push notification statistics for user"""
+    total_devices: int
+    active_devices: int
+    devices_with_valid_tokens: int
+    devices_needing_reauth: int
+    devices_permission_denied: int
+    push_enabled: bool
+
+class UpdateTokenRequest(BaseModel):
+    """Request to update device token after reauth"""
+    device_id: str
+    success: bool
+    new_token: Optional[str] = None
+
+class RegisterDeviceRequest(BaseModel):
+    """Register a new device for notifications"""
+    device_name: str
+    device_type: str = Field(default="mobile", pattern=r"^(mobile|desktop|tablet|web)$")
+    push_token: Optional[str] = None
+    user_agent: str
+    platform: str
+
+class RegisterDeviceResponse(BaseModel):
+    """Response from device registration"""
+    success: bool
+    message: str
+    device_id: str
+    has_push_token: bool
+
+class PushNotificationTestRequest(BaseModel):
+    """Request to send test push notification"""
+    title: str = Field(default="Test Notification", max_length=100)
+    message: str = Field(default="This is a test push notification!", max_length=500)
+    
+class PushNotificationTestResponse(BaseModel):
+    """Response from test push notification"""
+    success: bool
+    message: str
+    tokens_attempted: int
+    successful_deliveries: int
+    failed_deliveries: int
+
+# ==================== DEVICE CLEANUP SCHEMAS ====================
+
+class DeviceCleanupRequest(BaseModel):
+    """Request to cleanup old devices"""
+    days_inactive: int = Field(default=90, ge=7, le=365)
+    remove_permission_denied: bool = Field(default=True)
+    remove_no_tokens: bool = Field(default=True)
+
+class DeviceCleanupResponse(BaseModel):
+    """Response from device cleanup"""
+    success: bool
+    message: str
+    devices_removed: int
+    devices_updated: int
+
+# ==================== PUSH TOKEN VALIDATION SCHEMAS ====================
+
+class PushTokenValidationRequest(BaseModel):
+    """Validate push tokens for a user"""
+    test_notification: bool = Field(default=False)
+    
+class PushTokenValidationResponse(BaseModel):
+    """Result of push token validation"""
+    total_tokens: int
+    valid_tokens: int
+    invalid_tokens: int
+    tokens_needing_refresh: int
+    recommendations: List[str] = []
+
+class DeviceStatusUpdate(BaseModel):
+    """Update device status"""
+    status: DeviceStatus
+    reason: Optional[str] = None
+
+# ==================== DEVICE ANALYTICS SCHEMAS ====================
+
+class DeviceAnalytics(BaseModel):
+    """Device usage analytics"""
+    user_id: uuid.UUID
+    total_devices: int
+    active_devices: int
+    devices_by_platform: Dict[str, int]
+    devices_by_type: Dict[str, int]
+    push_notification_stats: Dict[str, int]
+    average_device_age_days: float
+    most_active_device: Optional[str]
+    
+class TenantDeviceAnalytics(BaseModel):
+    """Tenant-wide device analytics"""
+    tenant_id: uuid.UUID
+    total_users_with_devices: int
+    total_devices: int
+    active_devices: int
+    push_enabled_devices: int
+    devices_needing_attention: int
+    platform_distribution: Dict[str, int]
+    push_delivery_success_rate: float
 
 #=================FACILITY CRUD===================================================
 class FacilityCreate(BaseModel):
@@ -1588,10 +1735,6 @@ class NotificationPreferenceUpdate(BaseModel):
     quiet_hours_start: Optional[str] = None
     quiet_hours_end: Optional[str] = None
     timezone: Optional[str] = None
-
-class PushTokenUpdate(BaseModel):
-    push_token: str
-
 class WhatsAppNumberUpdate(BaseModel):
     whatsapp_number: str
 
