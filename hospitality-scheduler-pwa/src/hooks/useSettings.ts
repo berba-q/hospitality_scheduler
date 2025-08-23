@@ -79,6 +79,18 @@ interface SystemSettings {
   updated_at?: string
 }
 
+interface ServiceInfo {
+  enabled: boolean      // Is the manager toggle ON/OFF?
+  configured: boolean   // Is the service technically set up?
+  status: 'active' | 'setup_required'  // Simple status for UI
+}
+
+interface ServiceStatus {
+  smtp: ServiceInfo
+  whatsapp: ServiceInfo
+  push: ServiceInfo
+}
+
 interface NotificationSettings {
   id?: string
   tenant_id?: string
@@ -99,7 +111,7 @@ interface NotificationSettings {
   updated_at?: string
 }
 
-// ✅ FIXED UserProfile interface with all missing fields
+// UserProfile interface with all missing fields
 interface UserProfile {
   id?: string
   user_id?: string
@@ -202,6 +214,7 @@ interface SettingsState {
   systemSettings: SystemSettings | null
   notificationSettings: NotificationSettings | null
   userProfile: UserProfile | null
+  serviceStatus: ServiceStatus | null
   loading: boolean
   saving: boolean
   hasUnsavedChanges: boolean
@@ -218,6 +231,7 @@ export function useSettings() {
     systemSettings: null,
     notificationSettings: null,
     userProfile: null,
+    serviceStatus: null,
     loading: false,
     saving: false,
     hasUnsavedChanges: false,
@@ -234,10 +248,11 @@ export function useSettings() {
     setState(prev => ({ ...prev, loading: true }))
     
     try {
-      const [systemResponse, notificationResponse, profileResponse] = await Promise.allSettled([
+      const [systemResponse, notificationResponse, profileResponse, serviceStatusResponse] = await Promise.allSettled([
         apiClient.getSystemSettings(),
         apiClient.getNotificationSettings(),
-        apiClient.getMyProfile()
+        apiClient.getMyProfile(),
+        apiClient.getServiceStatus()
       ])
 
       setState(prev => ({
@@ -245,6 +260,7 @@ export function useSettings() {
         systemSettings: systemResponse.status === 'fulfilled' ? (systemResponse.value ?? DEFAULT_SYSTEM_SETTINGS) : DEFAULT_SYSTEM_SETTINGS,
         notificationSettings: notificationResponse.status === 'fulfilled' ? (notificationResponse.value ?? DEFAULT_NOTIFICATION_SETTINGS) : DEFAULT_NOTIFICATION_SETTINGS,
         userProfile: profileResponse.status === 'fulfilled' ? profileResponse.value : null,
+        serviceStatus: serviceStatusResponse.status === 'fulfilled' ? serviceStatusResponse.value : null,
         loading: false,
         hasUnsavedChanges: false
       }))
@@ -258,6 +274,9 @@ export function useSettings() {
       }
       if (profileResponse.status === 'rejected') {
         console.warn('Failed to load user profile:', profileResponse.reason)
+      }
+      if (serviceStatusResponse.status === 'rejected') {
+      console.warn('Failed to load service status:', serviceStatusResponse.reason)
       }
 
     } catch (error) {
@@ -574,6 +593,75 @@ const updateAvatarSettings = useCallback(async (settings: {
     }
   }, [apiClient])
 
+  const toggleNotificationService = useCallback(async (service: 'email' | 'whatsapp' | 'push', enabled: boolean) => {
+  if (!apiClient) {
+    toast.error('API client not ready')
+    return
+  }
+
+  setState(prev => ({ ...prev, saving: true }))
+  
+  try {
+    const fieldMap = {
+      email: 'email_notifications_enabled',
+      whatsapp: 'whatsapp_notifications_enabled', 
+      push: 'push_notifications_enabled'
+    }
+    
+    const updateData = {
+      [fieldMap[service]]: enabled
+    }
+    
+    await apiClient.updateSystemSettings(updateData)
+    
+    // Refresh status to get updated info
+    const newStatus = await apiClient.getServiceStatus()
+    
+    setState(prev => ({
+      ...prev,
+      systemSettings: prev.systemSettings ? {
+        ...prev.systemSettings,
+        ...updateData
+      } : null,
+      serviceStatus: newStatus,
+      saving: false,
+      hasUnsavedChanges: false
+    }))
+    
+    toast.success(`${service.charAt(0).toUpperCase() + service.slice(1)} notifications ${enabled ? 'enabled' : 'disabled'}`)
+    
+  } catch (error: any) {
+    setState(prev => ({ ...prev, saving: false }))
+    toast.error(`Failed to update ${service} notifications: ${error.response?.data?.detail || error.message}`)
+    throw error
+  }
+}, [apiClient])
+
+// Refresh service status (for "Check Again" button)
+const refreshServiceStatus = useCallback(async () => {
+  if (!apiClient) return
+  
+  try {
+    const status = await apiClient.getServiceStatus()
+    setState(prev => ({
+      ...prev,
+      serviceStatus: status
+    }))
+    return status
+  } catch (error) {
+    console.error('Failed to refresh service status:', error)
+    throw error
+  }
+}, [apiClient])
+
+// Simple helper - are all services ready to use?
+const isFullyConfigured = useCallback(() => {
+  if (!state.serviceStatus) return false
+  return state.serviceStatus.smtp.configured && 
+         state.serviceStatus.whatsapp.configured && 
+         state.serviceStatus.push.configured
+}, [state.serviceStatus])
+
   return {
     // State
     ...state,
@@ -591,10 +679,13 @@ const updateAvatarSettings = useCallback(async (settings: {
     uploadAvatar,
     updateAvatarSettings,
     exportSettings,
+    toggleNotificationService,
+    refreshServiceStatus,
     
     // Computed values
     isLoaded: !state.loading && (state.systemSettings !== null || state.notificationSettings !== null || state.userProfile !== null),
     canSave: state.hasUnsavedChanges && !state.saving,
+    isFullyConfigured: isFullyConfigured(),
     
     // Helper methods
     clearUnsavedChanges: () => setState(prev => ({ ...prev, hasUnsavedChanges: false })),

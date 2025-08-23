@@ -1057,6 +1057,7 @@ class NotificationGlobalSettings(SQLModel, table=True):
     
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=SAColumn(DateTime(timezone=True)))
     updated_at: Optional[datetime] = None
+    
 
 
 class AuditLog(SQLModel, table=True):

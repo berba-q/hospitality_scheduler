@@ -3,10 +3,11 @@
 Settings API endpoints for system, notifications, and profile management
 """
 
+import os
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks, File, UploadFile
 from sqlmodel import Session, select
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import logging
 from pathlib import Path
@@ -108,7 +109,7 @@ def create_system_settings(
         )
     
     # Create new settings
-    settings_data = settings_in.dict()
+    settings_data = settings_in.model_dump()
     settings = SystemSettings(
         tenant_id=current_user.tenant_id,
         **settings_data
@@ -159,7 +160,7 @@ def update_system_settings(
         )
     
     # Track what changes
-    update_data = settings_update.dict(exclude_unset=True)
+    update_data = settings_update.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -186,7 +187,7 @@ def update_system_settings(
         )
     
     # Update timestamp
-    settings.updated_at = datetime.utcnow()
+    settings.updated_at = datetime.now(timezone.utc)
     settings.updated_by = current_user.id
     
     db.commit()
@@ -213,6 +214,76 @@ def update_system_settings(
         message=f"Successfully updated {len(updated_fields)} setting(s)",
         updated_fields=updated_fields
     )
+
+@router.get("/service-status", response_model=Dict[str, Any])
+def get_service_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get simple service status - just what managers need to know"""
+    
+    # Get business-level settings (manager toggles)
+    system_statement = select(SystemSettings).where(
+        SystemSettings.tenant_id == current_user.tenant_id
+    )
+    system_settings = db.exec(system_statement).first()
+    
+    # Get technical configuration
+    notification_statement = select(NotificationGlobalSettings).where(
+        NotificationGlobalSettings.tenant_id == current_user.tenant_id
+    )
+    notification_settings = db.exec(notification_statement).first()
+    
+    # Default values if settings don't exist
+    if not system_settings:
+        system_settings = SystemSettings(
+            tenant_id=current_user.tenant_id,
+            email_notifications_enabled=True,
+            whatsapp_notifications_enabled=False,
+            push_notifications_enabled=True
+        )
+    
+    # Check if services are configured (database OR environment - managers don't need to know which)
+    smtp_configured = False
+    whatsapp_configured = False  
+    push_configured = False
+    
+    # Check SMTP (database OR environment)
+    if notification_settings and notification_settings.smtp_enabled and notification_settings.smtp_host:
+        smtp_configured = True
+    elif os.getenv('SMTP_HOST') and os.getenv('SMTP_USERNAME') and os.getenv('SMTP_PASSWORD'):
+        smtp_configured = True
+    
+    # Check WhatsApp/Twilio (database OR environment)  
+    if notification_settings and notification_settings.twilio_enabled and notification_settings.twilio_account_sid:
+        whatsapp_configured = True
+    elif os.getenv('TWILIO_ACCOUNT_SID') and os.getenv('TWILIO_AUTH_TOKEN'):
+        whatsapp_configured = True
+    
+    # Check Push/Firebase (database OR environment)
+    if notification_settings and notification_settings.push_enabled and notification_settings.firebase_server_key:
+        push_configured = True  
+    elif os.getenv('FIREBASE_SERVER_KEY'):
+        push_configured = True
+    
+    # Return clean, manager-friendly status
+    return {
+        "smtp": {
+            "enabled": system_settings.email_notifications_enabled,
+            "configured": smtp_configured,
+            "status": "active" if (smtp_configured and system_settings.email_notifications_enabled) else "setup_required"
+        },
+        "whatsapp": {
+            "enabled": system_settings.whatsapp_notifications_enabled,
+            "configured": whatsapp_configured,
+            "status": "active" if (whatsapp_configured and system_settings.whatsapp_notifications_enabled) else "setup_required"
+        },
+        "push": {
+            "enabled": system_settings.push_notifications_enabled,
+            "configured": push_configured,
+            "status": "active" if (push_configured and system_settings.push_notifications_enabled) else "setup_required"
+        }
+    }
 
 
 # ==================== TEST CONNECTION ENDPOINTS ====================
@@ -288,7 +359,7 @@ def test_smtp_connection(
         success=False,
         message="",
         details={},
-        tested_at=datetime.utcnow()
+        tested_at=datetime.now(timezone.utc)
     )
     
     try:
@@ -313,7 +384,7 @@ def test_smtp_connection(
         
         This is a test email to verify your SMTP configuration is working correctly.
         
-        Tested at: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
+        Tested at: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
         
         Best regards,
         Hospitality Scheduler
@@ -417,7 +488,7 @@ def test_whatsapp_connection(
         success=False,
         message="",
         details={},
-        tested_at=datetime.utcnow()
+        tested_at=datetime.now(timezone.utc)
     )
     
     try:
@@ -529,7 +600,7 @@ def get_my_profile(
             feature_hints_enabled=True,  # Helpful for new users
             
             # Audit fields (last_active will be set automatically on updates)
-            last_active=datetime.utcnow()  # Set to now since they're accessing profile
+            last_active=datetime.now(timezone.utc)  # Set to now since they're accessing profile
         )
         
         db.add(profile)
@@ -564,7 +635,7 @@ def update_my_profile(
         db.flush()  # Get ID but don't commit yet
     
     # Track what changes
-    update_data = profile_update.dict(exclude_unset=True)
+    update_data = profile_update.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -591,9 +662,9 @@ def update_my_profile(
         )
     
     # Update timestamp and activity
-    profile.updated_at = datetime.utcnow()
-    profile.last_active = datetime.utcnow()
-    
+    profile.updated_at = datetime.now(timezone.utc)
+    profile.last_active = datetime.now(timezone.utc)
+
     db.commit()
     db.refresh(profile)
     
@@ -684,9 +755,9 @@ async def upload_avatar(
                 # Update profile with new avatar
                 profile.avatar_url = f"/uploads/avatars/{unique_filename}"
                 profile.avatar_type = "uploaded"
-                profile.updated_at = datetime.utcnow()
-                profile.last_active = datetime.utcnow()
-                
+                profile.updated_at = datetime.now(timezone.utc)
+                profile.last_active = datetime.now(timezone.utc)
+
                 db.commit()
                 db.refresh(profile)
                 
@@ -719,9 +790,9 @@ async def upload_avatar(
             
             profile.avatar_url = f"/uploads/avatars/{unique_filename}"
             profile.avatar_type = "uploaded"
-            profile.updated_at = datetime.utcnow()
-            profile.last_active = datetime.utcnow()
-            
+            profile.updated_at = datetime.now(timezone.utc)
+            profile.last_active = datetime.now(timezone.utc)
+
             db.commit()
             db.refresh(profile)
             
@@ -786,9 +857,9 @@ def update_avatar_settings(
     # For "uploaded" type, keep existing avatar_url
     
     # Update timestamps
-    profile.updated_at = datetime.utcnow()
-    profile.last_active = datetime.utcnow()
-    
+    profile.updated_at = datetime.now(timezone.utc)
+    profile.last_active = datetime.now(timezone.utc)
+
     db.commit()
     db.refresh(profile)
     
@@ -857,9 +928,9 @@ def delete_avatar(
     old_avatar_url = profile.avatar_url
     profile.avatar_url = None
     profile.avatar_type = "initials"
-    profile.updated_at = datetime.utcnow()
-    profile.last_active = datetime.utcnow()
-    
+    profile.updated_at = datetime.now(timezone.utc)
+    profile.last_active = datetime.now(timezone.utc)
+
     db.commit()
     db.refresh(profile)
     
@@ -902,7 +973,7 @@ def reset_system_settings(
         )
     
     # Store old settings for audit
-    old_settings = settings.dict()
+    old_settings = settings.model_dump()
     
     # Delete existing settings (will trigger recreate with defaults)
     db.delete(settings)
@@ -1020,7 +1091,7 @@ def create_notification_settings(
         )
     
     # Create new settings with encryption
-    settings_data = settings_in.dict()
+    settings_data = settings_in.model_dump()
     settings = NotificationGlobalSettings(
         tenant_id=current_user.tenant_id,
         **settings_data
@@ -1074,7 +1145,7 @@ def update_notification_settings(
         )
     
     # Track what changes
-    update_data = settings_update.dict(exclude_unset=True)
+    update_data = settings_update.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1105,7 +1176,7 @@ def update_notification_settings(
         )
     
     # Update timestamp
-    update_data["updated_at"] = datetime.utcnow()
+    update_data["updated_at"] = datetime.now(timezone.utc)
     
     # Use encryption-aware update
     db_encryption = DatabaseEncryption(db)

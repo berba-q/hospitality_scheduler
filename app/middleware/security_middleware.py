@@ -54,7 +54,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         
         # Allow CORS preflight to pass through untouched (handled by CORSMiddleware)
         if request.method == "OPTIONS":
-            return Response(status_code=200)
+            return await call_next(request)
         
         # Generate request ID for tracing
         request_id = str(uuid.uuid4())

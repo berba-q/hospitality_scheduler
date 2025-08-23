@@ -2404,6 +2404,12 @@ class SystemSettingsRead(SystemSettingsBase):
     
     model_config = ConfigDict(from_attributes=True)
 
+class ServiceStatusResponse(BaseModel):
+    """Service status for managers"""
+    smtp: Dict[str, Any]     # enabled, configured, status
+    whatsapp: Dict[str, Any] # enabled, configured, status  
+    push: Dict[str, Any]     # enabled, configured, status
+
 # ==================== NOTIFICATION GLOBAL SETTINGS SCHEMAS ====================
 
 class NotificationGlobalSettingsBase(BaseModel):

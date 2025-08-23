@@ -3,6 +3,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { 
   Settings, 
   Bell, 
@@ -15,14 +16,12 @@ import {
   Globe,
   Clock,
   Lock,
-  Palette,
   Monitor,
   Save,
   RotateCcw,
   AlertTriangle,
   CheckCircle,
   ExternalLink,
-  TestTube2,
   Zap
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -48,16 +47,18 @@ export default function SettingsPage() {
   const {
     systemSettings,
     notificationSettings,
+    serviceStatus,  
     loading,
     saving,
     hasUnsavedChanges,
-    testResults,
     updateSystemSettings,
     updateNotificationSettings,
     saveSystemSettings,
     saveNotificationSettings,
-    testConnection,
-    resetToDefaults
+    resetToDefaults,         
+    toggleNotificationService,  
+    refreshServiceStatus,                  
+    isFullyConfigured
   } = useSettings()
 
   if (loading) {
@@ -337,301 +338,329 @@ export default function SettingsPage() {
 
           {/* Notifications Settings Tab */}
           <TabsContent value="notifications" className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-2">
-              {/* Email Settings */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Mail className="w-5 h-5" />
-                    {t('settings.emailSettings')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="smtp_enabled">{t('settings.sendEmailNotifications')}</Label>
-                      <p className="text-sm text-gray-500">{t('settings.sendEmailNotificationsDesc')}</p>
-                    </div>
-                    <Switch
-                      id="smtp_enabled"
-                      checked={notificationSettings?.smtp_enabled || false}
-                      onCheckedChange={(checked) => updateNotificationSettings({ smtp_enabled: checked })}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="email_pdf_attachment">{t('settings.sendEmailNotificationsWithPDF')}</Label>
-                      <p className="text-sm text-gray-500">{t('settings.sendEmailNotificationsWithPDFDesc')}</p>
-                    </div>
-                    <Switch
-                      id="email_pdf_attachment"
-                      checked={notificationSettings?.email_pdf_attachment || false}
-                      onCheckedChange={(checked) => updateNotificationSettings({ email_pdf_attachment: checked })}
-                    />
-                  </div>
-
-                  {notificationSettings?.email_enabled && (
-                    <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <Label htmlFor="smtp_server">{t('settings.smtpServer')}</Label>
-                        <Input
-                          id="smtp_server"
-                          value={notificationSettings?.smtp_server || ''}
-                          onChange={(e) => updateNotificationSettings({ smtp_server: e.target.value })}
-                          placeholder="smtp.gmail.com"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="smtp_port">{t('settings.smtpPort')}</Label>
-                        <Input
-                          id="smtp_port"
-                          type="number"
-                          value={notificationSettings?.smtp_port || 587}
-                          onChange={(e) => updateNotificationSettings({ smtp_port: parseInt(e.target.value) || 587 })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="smtp_username">{t('settings.smtpUsername')}</Label>
-                        <Input
-                          id="smtp_username"
-                          value={notificationSettings?.smtp_username || ''}
-                          onChange={(e) => updateNotificationSettings({ smtp_username: e.target.value })}
-                          placeholder={t('settings.smtpUsernamePlaceholder')}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="smtp_password">{t('settings.smtpPassword')}</Label>
-                        <Input
-                          id="smtp_password"
-                          type="password"
-                          value={notificationSettings?.smtp_password || ''}
-                          onChange={(e) => updateNotificationSettings({ smtp_password: e.target.value })}
-                          placeholder={t('settings.smtpPasswordPlaceholder')}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="smtp_from_email">{t('settings.fromEmail')}</Label>
-                        <Input
-                          id="smtp_from_email"
-                          type="email"
-                          value={notificationSettings?.smtp_from_email || ''}
-                          onChange={(e) => updateNotificationSettings({ smtp_from_email: e.target.value })}
-                          placeholder={t('settings.fromEmailPlaceholder')}
-                        />
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={() => testConnection('email')}
-                        className="flex items-center gap-2"
-                      >
-                        <TestTube2 className="w-4 h-4" />
-                        {t('settings.testConnection')}
-                      </Button>
-                      {testResults?.email && (
-                        <Alert className={testResults.email.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
-                          <AlertDescription className={testResults.email.success ? "text-green-800" : "text-red-800"}>
-                            {testResults.email.message}
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* WhatsApp Settings */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5" />
-                    {t('settings.whatsappSettings')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="whatsapp_enabled">{t('settings.sendWhatsappMessages')}</Label>
-                      <p className="text-sm text-gray-500">{t('settings.sendWhatsappMessagesDesc')}</p>
-                    </div>
-                    <Switch
-                      id="whatsapp_enabled"
-                      checked={notificationSettings?.whatsapp_enabled || false}
-                      onCheckedChange={(checked) => updateNotificationSettings({ whatsapp_enabled: checked })}
-                    />
-                  </div>
-
-                  {notificationSettings?.whatsapp_enabled && (
-                    <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <Label htmlFor="twilio_account_sid">{t('settings.twilioAccountSid')}</Label>
-                        <Input
-                          id="twilio_account_sid"
-                          value={notificationSettings?.twilio_account_sid || ''}
-                          onChange={(e) => updateNotificationSettings({ twilio_account_sid: e.target.value })}
-                          placeholder="ACxxxxxxxxxx"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="twilio_auth_token">{t('settings.twilioAuthToken')}</Label>
-                        <Input
-                          id="twilio_auth_token"
-                          type="password"
-                          value={notificationSettings?.twilio_auth_token || ''}
-                          onChange={(e) => updateNotificationSettings({ twilio_auth_token: e.target.value })}
-                          placeholder={t('settings.twilioAuthTokenPlaceholder')}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="twilio_whatsapp_number">{t('settings.twilioWhatsappNumber')}</Label>
-                        <Input
-                          id="twilio_whatsapp_number"
-                          value={notificationSettings?.twilio_whatsapp_number || ''}
-                          onChange={(e) => updateNotificationSettings({ twilio_whatsapp_number: e.target.value })}
-                          placeholder="+14155238886"
-                        />
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={() => testConnection('whatsapp')}
-                        className="flex items-center gap-2"
-                      >
-                        <TestTube2 className="w-4 h-4" />
-                        {t('settings.testConnection')}
-                      </Button>
-                      {testResults?.whatsapp && (
-                        <Alert className={testResults.whatsapp.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
-                          <AlertDescription className={testResults.whatsapp.success ? "text-green-800" : "text-red-800"}>
-                            {testResults.whatsapp.message}
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Push Notifications */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Smartphone className="w-5 h-5" />
-                    {t('settings.pushNotifications')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="push_enabled">{t('settings.sendPushNotifications')}</Label>
-                      <p className="text-sm text-gray-500">{t('settings.sendPushNotificationsDesc')}</p>
-                    </div>
-                    <Switch
-                      id="push_enabled"
-                      checked={notificationSettings?.push_enabled || false}
-                      onCheckedChange={(checked) => updateNotificationSettings({ push_enabled: checked })}
-                    />
-                  </div>
-
-                  {notificationSettings?.push_enabled && (
-                    <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <Label htmlFor="firebase_server_key">{t('settings.firebaseServerKey')}</Label>
-                        <Input
-                          id="firebase_server_key"
-                          type="password"
-                          value={notificationSettings?.firebase_server_key || ''}
-                          onChange={(e) => updateNotificationSettings({ firebase_server_key: e.target.value })}
-                          placeholder={t('settings.firebaseServerKeyPlaceholder')}
-                        />
-                      </div>
-                      {!process.env.NEXT_PUBLIC_FIREBASE_API_KEY && (
-                        <Alert className="border-yellow-200 bg-yellow-50">
-                          <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                          <AlertDescription className="text-yellow-800">
-                            {t('settings.firebaseCredentialsRequired')}
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Default Notification Preferences */}
+            <div className="grid gap-6">
+              {/* Notification Channels - Simplified */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Bell className="w-5 h-5" />
-                    {t('settings.defaultNotificationTypes')}
+                    {t('settings.notificationChannels')}
                   </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    {t('settings.chooseHowTeamReceivesNotifications')}
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Email Notifications */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="email_notifications" className="text-base font-medium">
+                            {t('settings.emailNotifications')}
+                          </Label>
+                          {serviceStatus?.smtp.status === 'active' && (
+                            <Badge variant="default" className="bg-green-100 text-green-800">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              {t('settings.active')}
+                            </Badge>
+                          )}
+                          {serviceStatus?.smtp.status === 'setup_required' && (
+                            <Badge variant="secondary" className="bg-gray-100 text-gray-600">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              {t('settings.setupRequired')}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          {t('settings.sendNotificationsViaEmail')}
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                        id="email_notifications"
+                        checked={serviceStatus?.smtp.enabled || false}
+                        onCheckedChange={(checked) => toggleNotificationService('email', checked)}
+                        disabled={!serviceStatus?.smtp.configured} 
+                    />
+                  </div>
+
+                  {/* WhatsApp Notifications */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <MessageSquare className="w-5 h-5 text-green-600" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="whatsapp_notifications" className="text-base font-medium">
+                            {t('settings.whatsappMessages')}
+                          </Label>
+                          {serviceStatus?.whatsapp.status === 'active' && (
+                            <Badge variant="default" className="bg-green-100 text-green-800">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              {t('settings.active')}
+                            </Badge>
+                          )}
+                          {serviceStatus?.whatsapp.status === 'setup_required' && (
+                            <Badge variant="secondary" className="bg-gray-100 text-gray-600">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              {t('settings.setupRequired')}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          {t('settings.sendUrgentNotificationsViaWhatsApp')}
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="whatsapp_notifications"
+                      checked={serviceStatus?.whatsapp.enabled || false}  {/* ✅ CHANGED: Use serviceStatus */}
+                      onCheckedChange={(checked) => toggleNotificationService('whatsapp', checked)}  {/* ✅ CHANGED: Use new method */}
+                      disabled={!serviceStatus?.whatsapp.configured}  {/* ✅ CHANGED: Disable if not configured */}
+                    />
+                  </div>
+
+                  {/* Push Notifications */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Smartphone className="w-5 h-5 text-purple-600" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="push_notifications" className="text-base font-medium">
+                            {t('settings.pushNotifications')}
+                          </Label>
+                          {serviceStatus?.push.status === 'active' && (
+                            <Badge variant="default" className="bg-green-100 text-green-800">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              {t('settings.active')}
+                            </Badge>
+                          )}
+                          {serviceStatus?.push.status === 'setup_required' && (
+                            <Badge variant="secondary" className="bg-gray-100 text-gray-600">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              {t('settings.setupRequired')}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          {t('settings.sendInstantNotificationsToMobileDevices')}
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="push_notifications"
+                      checked={serviceStatus?.push.enabled || false} 
+                      onCheckedChange={(checked) => toggleNotificationService('push', checked)} 
+                      disabled={!serviceStatus?.push.configured}  
+                    />
+                  </div>
+
+                  {/* Setup Alert */}
+                  {(!serviceStatus?.smtp.configured || 
+                    !serviceStatus?.whatsapp.configured || 
+                    !serviceStatus?.push.configured) && (
+                    <Alert className="border-blue-200 bg-blue-50">
+                      <AlertTriangle className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-800">
+                        <strong>{t('settings.setupRequired')}:</strong> {t('settings.contactSystemAdminToConfigureNotifications')}
+                        <br />
+                        <span className="text-sm mt-1 block">
+                          {t('settings.servicesNeedingSetup')} {[
+                            !serviceStatus?.smtp.configured && t('settings.emailService'),
+                            !serviceStatus?.whatsapp.configured && t('settings.whatsappService'), 
+                            !serviceStatus?.push.configured && t('settings.pushService')
+                          ].filter(Boolean).join(', ')}
+                        </span>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* ✅ NEW: Success Message */}
+                  {isFullyConfigured && (
+                    <Alert className="border-green-200 bg-green-50">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-800">
+                        <strong>All Ready!</strong> All notification services are configured and ready to use.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* What Gets Notified - Using existing system settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="w-5 h-5" />
+                    {t('settings.notificationTypes')}
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    {t('settings.chooseWhatEventsTriggersNotifications')}
+                  </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="schedule_published_notify">{t('settings.schedulePublished')}</Label>
-                      <p className="text-sm text-gray-500">{t('settings.schedulePublishedDesc')}</p>
+                  <div className="grid gap-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="schedule_published_notify" className="text-sm font-medium">
+                          {t('settings.schedulePublished')}
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          {t('settings.notifyStaffWhenSchedulesPublished')}
+                        </p>
+                      </div>
+                      <Switch
+                        id="schedule_published_notify"
+                        checked={systemSettings?.schedule_published_notify || false}
+                        onCheckedChange={(checked) => updateSystemSettings({ schedule_published_notify: checked })}
+                      />
                     </div>
-                    <Switch
-                      id="schedule_published_notify"
-                      checked={systemSettings?.schedule_published_notify || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ schedule_published_notify: checked })}
-                    />
-                  </div>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="swap_request_notify">{t('settings.swapRequests')}</Label>
-                      <p className="text-sm text-gray-500">{t('settings.swapRequestsDesc')}</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="swap_request_notify" className="text-sm font-medium">
+                          {t('settings.shiftSwapRequests')}
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          {t('settings.notifyManagersAndStaffAboutSwapRequests')}
+                        </p>
+                      </div>
+                      <Switch
+                        id="swap_request_notify"
+                        checked={systemSettings?.swap_request_notify || false}
+                        onCheckedChange={(checked) => updateSystemSettings({ swap_request_notify: checked })}
+                      />
                     </div>
-                    <Switch
-                      id="swap_request_notify"
-                      checked={systemSettings?.swap_request_notify || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ swap_request_notify: checked })}
-                    />
-                  </div>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="urgent_swap_notify">{t('settings.urgentSwaps')}</Label>
-                      <p className="text-sm text-gray-500">{t('settings.urgentSwapsDesc')}</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="urgent_swap_notify" className="text-sm font-medium">
+                          {t('settings.urgentCoverageNeeded')}
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          {t('settings.immediateAlertsForEmergencyShiftCoverage')}
+                        </p>
+                      </div>
+                      <Switch
+                        id="urgent_swap_notify"
+                        checked={systemSettings?.urgent_swap_notify || false}
+                        onCheckedChange={(checked) => updateSystemSettings({ urgent_swap_notify: checked })}
+                      />
                     </div>
-                    <Switch
-                      id="urgent_swap_notify"
-                      checked={systemSettings?.urgent_swap_notify || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ urgent_swap_notify: checked })}
-                    />
-                  </div>
 
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="shift_reminder_notify" className="text-sm font-medium">
+                          {t('settings.shiftReminders')}
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          {t('settings.remindStaffAboutUpcomingShifts24hBefore')}
+                        </p>
+                      </div>
+                      <Switch
+                        id="shift_reminder_notify"
+                        checked={systemSettings?.shift_reminder_notify || false}
+                        onCheckedChange={(checked) => updateSystemSettings({ shift_reminder_notify: checked })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="daily_reminder_notify" className="text-sm font-medium">
+                          {t('settings.systemAlerts')}
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          {t('settings.importantSystemUpdatesAndMaintenanceNotices')}
+                        </p>
+                      </div>
+                      <Switch
+                        id="daily_reminder_notify"
+                        checked={systemSettings?.daily_reminder_notify || false}
+                        onCheckedChange={(checked) => updateSystemSettings({ daily_reminder_notify: checked })}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Technical Settings (Collapsed) */}
+              <Card>
+                <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="shift_reminder_notify">{t('settings.shiftReminders')}</Label>
-                      <p className="text-sm text-gray-500">{t('settings.shiftRemindersDesc')}</p>
+                      <CardTitle className="flex items-center gap-2">
+                        <Settings className="w-5 h-5" />
+                        {t('settings.technicalConfiguration')}
+                      </CardTitle>
+                      <p className="text-sm text-gray-600">
+                        {t('settings.advancedSettingsForSystemAdministrators')}
+                      </p>
                     </div>
-                    <Switch
-                      id="shift_reminder_notify"
-                      checked={systemSettings?.shift_reminder_notify || false}
-                      onCheckedChange={(checked) => updateSystemSettings({ shift_reminder_notify: checked })}
-                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Optional: You can implement a way to contact admin or show more details
+                        toast.info('Please contact your system administrator for technical configuration.')
+                      }}
+                    >
+                      {t('settings.contactAdmin')}
+                    </Button>
                   </div>
+                </CardHeader>
+                <CardContent>
+                  <Alert>
+                    <Settings className="h-4 w-4" />
+                    <AlertDescription>
+                      {t('settings.technicalConfigurationRequiresAdminAccess')}
+                      <br />
+                      <strong>{t('settings.currentStatus')}:</strong>
+                      <br />
+                      • {t('settings.emailService')}: {notificationSettings?.smtp_enabled ? t('settings.configured') : t('settings.requiresSetup')}
+                      <br />
+                      • {t('settings.whatsappService')}: {notificationSettings?.whatsapp_enabled ? t('settings.configured') : t('settings.requiresSetup')}
+                      <br />
+                      • {t('settings.pushService')}: {notificationSettings?.push_enabled ? t('settings.configured') : t('settings.requiresSetup')}
+                    </AlertDescription>
+                  </Alert>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="flex justify-end">
+            {/* Save Button */}
+            <div className="flex justify-end space-x-3">
               <Button 
+                variant="outline"
                 onClick={saveNotificationSettings} 
                 disabled={saving}
-                className="flex items-center gap-2"
               >
                 {saving ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mr-2" />
                     {t('common.saving')}...
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4" />
-                    {t('common.saveChanges')}
+                    <Save className="w-4 h-4 mr-2" />
+                    {t('settings.saveNotificationSettings')}
+                  </>
+                )}
+              </Button>
+              
+              <Button 
+                onClick={saveSystemSettings} 
+                disabled={saving}
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    {t('common.saving')}...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    {t('settings.saveSystemSettings')}
                   </>
                 )}
               </Button>

@@ -72,6 +72,18 @@ export interface SwapSummary {
   pending_over_24h: number
 }
 
+interface ServiceInfo {
+  enabled: boolean
+  configured: boolean
+  status: 'active' | 'setup_required'
+}
+
+interface ServiceStatus {
+  smtp: ServiceInfo
+  whatsapp: ServiceInfo
+  push: ServiceInfo
+}
+
 export class ApiClient {
   private config: ApiConfig
 
@@ -2252,6 +2264,11 @@ async resetSystemSettings() {
   }>('/v1/settings/system', {
     method: 'DELETE',
   })
+}
+
+async getServiceStatus(): Promise<ServiceStatus> {
+  const response = await this.request('/settings/service-status')
+  return (response as { data: ServiceStatus }).data
 }
 
 // Notification Settings
