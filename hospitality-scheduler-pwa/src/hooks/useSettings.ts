@@ -325,28 +325,46 @@ export function useSettings() {
     }
   }, [apiClient, state.systemSettings])
 
-  // Save notification settings with correct response handling
+  // Save notification settings with resilient PUT-fallback logic
   const saveNotificationSettings = useCallback(async () => {
     if (!apiClient || !state.notificationSettings) return
 
     setState(prev => ({ ...prev, saving: true }))
-    
+
     try {
-      const method = state.notificationSettings.id ? 'updateNotificationSettings' : 'createNotificationSettings'
-      const response = await apiClient[method](state.notificationSettings)
-      
+      const body = state.notificationSettings
+      let saved: any
+
+      // If record has an id, update directly
+      if ((body as any).id) {
+        saved = await apiClient.updateNotificationSettings(body)
+      } else {
+        try {
+          // Try create first
+          saved = await apiClient.createNotificationSettings(body)
+        } catch (e: any) {
+          const status = e?.response?.status
+          // If backend reports resource already exists, retry with PUT
+          if (status === 400 || status === 409) {
+            saved = await apiClient.updateNotificationSettings(body)
+          } else {
+            throw e
+          }
+        }
+      }
+
       setState(prev => ({
         ...prev,
-        notificationSettings: method === 'createNotificationSettings' ? response : prev.notificationSettings,
+        notificationSettings: saved ?? body,
         saving: false,
         hasUnsavedChanges: false
       }))
-      
+
       toast.success('Notification settings saved successfully!')
-      return response
+      return saved ?? body
     } catch (error: any) {
       setState(prev => ({ ...prev, saving: false }))
-      toast.error(error.response?.data?.detail || 'Failed to save notification settings')
+      toast.error(error?.response?.data?.detail || 'Failed to save notification settings')
       throw error
     }
   }, [apiClient, state.notificationSettings])

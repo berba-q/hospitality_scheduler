@@ -5,7 +5,7 @@ Provides endpoints for device registration, push token management, and re-author
 """
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks, Response
 from sqlmodel import Session
 from typing import List
 import uuid
@@ -21,7 +21,35 @@ from ...schemas import (
 from ...services.push_token_manager import PushTokenManager
 from ...services.firebase_service import FirebaseService
 
+
 router = APIRouter(prefix="/devices", tags=["device-management"])
+
+# ---- CORS preflight for all device endpoints (no auth/deps) ----
+from fastapi import Response
+
+@router.options("/{rest_of_path:path}", include_in_schema=False)
+def devices_preflight(rest_of_path: str, request: Request) -> Response:
+    """Allow browser CORS preflight for any /devices/* path.
+    We intentionally avoid auth/CSRF here because preflight must not be authenticated.
+    """
+    origin = request.headers.get("origin", "")
+    acr_method = request.headers.get("access-control-request-method", "*")
+    acr_headers = request.headers.get("access-control-request-headers", "*")
+
+    allowed_dev_origins = {"http://localhost:3000", "http://127.0.0.1:3000"}
+
+    headers = {
+        "Access-Control-Allow-Methods": acr_method or "*",
+        "Access-Control-Allow-Headers": acr_headers or "*",
+        "Access-Control-Max-Age": "600",
+    }
+
+    if origin in allowed_dev_origins:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+        headers["Vary"] = "Origin"
+
+    return Response(status_code=200, headers=headers)
 
 # ==================== DEVICE REGISTRATION ====================
 

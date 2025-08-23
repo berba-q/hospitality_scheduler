@@ -52,6 +52,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
         
+        # Allow CORS preflight to pass through untouched (handled by CORSMiddleware)
+        if request.method == "OPTIONS":
+            return Response(status_code=200)
+        
         # Generate request ID for tracing
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id

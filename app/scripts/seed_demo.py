@@ -18,6 +18,8 @@ from app.models import (
     PasswordHistory, AuditLog, AuditEvent,
     # Invitations
     StaffInvitation,
+    # Device models
+    UserDevice,
     # Account linking models
     UserProvider, AccountVerificationToken
 )
@@ -86,6 +88,7 @@ def reset_database(session):
     session.execute(delete(StaffInvitation))
     session.execute(delete(UserProfile))
     session.execute(delete(UserProvider))
+    session.execute(delete(UserDevice))
     session.execute(delete(Staff))
 
     # ------------------------

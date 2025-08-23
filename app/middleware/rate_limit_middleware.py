@@ -24,7 +24,7 @@ class CustomRateLimitMiddleware(BaseHTTPMiddleware):
             "/v1/auth/forgot-password": (3, 300), # 3 requests per 5 minutes
             "/v1/auth/reset-password": (5, 300), # 5 requests per 5 minutes
             "/v1/invitations/send": (20, 3600), # 20 requests per hour
-            "/v1/notifications": (500, 3600),     # Increase notifications limit
+            "/v1/notifications:GET": (120, 60),  # 120 req/min for polling in dev
             "default": (500, 3600)              # 500 requests per hour for other endpoints
         }
     
@@ -56,15 +56,19 @@ class CustomRateLimitMiddleware(BaseHTTPMiddleware):
         return context
     
     async def dispatch(self, request: Request, call_next):
+        # Never rate-limit CORS preflight; CORSMiddleware will attach headers
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         client_ip = self._get_client_ip(request)
         endpoint = request.url.path
-        
+
         # Skip rate limiting for certain paths
         if endpoint.startswith("/docs") or endpoint.startswith("/static") or endpoint == "/health":
             return await call_next(request)
         
         # Check rate limit
-        if self._is_rate_limited(client_ip, endpoint):
+        if self._is_rate_limited(client_ip, endpoint, request.method):
             logger.warning(f"Rate limit exceeded for {client_ip} on {endpoint}")
             
             # Extract context for audit logging
@@ -117,7 +121,7 @@ class CustomRateLimitMiddleware(BaseHTTPMiddleware):
                 },
                 headers={
                     "Retry-After": "300",
-                    "X-RateLimit-Limit": str(self._get_limit_for_endpoint(endpoint)[0]),
+                    "X-RateLimit-Limit": str(self._get_limit_for_endpoint(endpoint, request.method)[0]),
                     "X-RateLimit-Remaining": "0"
                 }
             )
@@ -125,30 +129,30 @@ class CustomRateLimitMiddleware(BaseHTTPMiddleware):
         # Continue with request
         response = await call_next(request)
         
-        # Add rate limit headers to successful responses
-        limit, window = self._get_limit_for_endpoint(endpoint)
-        remaining = self._get_remaining_requests(client_ip, endpoint)
-        
-        response.headers["X-RateLimit-Limit"] = str(limit)
-        response.headers["X-RateLimit-Remaining"] = str(remaining)
-        response.headers["X-RateLimit-Window"] = str(window)
+        limit, window = self._get_limit_for_endpoint(endpoint, request.method)
+        remaining = self._get_remaining_requests(client_ip, endpoint, request.method)
+
+        response.headers["X-Rate-Limit-Limit"] = str(limit)
+        response.headers["X-Rate-Limit-Remaining"] = str(remaining)
+        response.headers["X-Rate-Limit-Window"] = str(window)
         
         return response
     
-    def _is_rate_limited(self, client_ip: str, endpoint: str) -> bool:
+    def _is_rate_limited(self, client_ip: str, endpoint: str, method: Optional[str] = None) -> bool:
         """Check if request should be rate limited"""
-        limit, window = self._get_limit_for_endpoint(endpoint)
+        limit, window = self._get_limit_for_endpoint(endpoint, method)
         now = time.time()
-        
+
+        key = f"{endpoint}:{method}" if method else endpoint
         # Clean old requests
-        requests_for_endpoint = self.requests[client_ip][endpoint]
+        requests_for_endpoint = self.requests[client_ip][key]
         while requests_for_endpoint and requests_for_endpoint[0] < now - window:
             requests_for_endpoint.popleft()
-        
+
         # Check if limit exceeded
         if len(requests_for_endpoint) >= limit:
             return True
-        
+
         # Add current request
         requests_for_endpoint.append(now)
         return False
@@ -167,12 +171,17 @@ class CustomRateLimitMiddleware(BaseHTTPMiddleware):
         # Fall back to client host
         return request.client.host if request.client else "unknown"
     
-    def _get_limit_for_endpoint(self, endpoint: str) -> tuple:
-        """Get rate limit for specific endpoint"""
+    def _get_limit_for_endpoint(self, endpoint: str, method: Optional[str] = None) -> tuple:
+        """Get rate limit for specific endpoint/method"""
+        if method is not None:
+            key = f"{endpoint}:{method}"
+            if key in self.limits:
+                return self.limits[key]
         return self.limits.get(endpoint, self.limits["default"])
     
-    def _get_remaining_requests(self, client_ip: str, endpoint: str) -> int:
-        """Get remaining requests for client/endpoint"""
-        limit, _ = self._get_limit_for_endpoint(endpoint)
-        current_count = len(self.requests[client_ip][endpoint])
+    def _get_remaining_requests(self, client_ip: str, endpoint: str, method: Optional[str] = None) -> int:
+        """Get remaining requests for client/endpoint/method"""
+        limit, _ = self._get_limit_for_endpoint(endpoint, method)
+        key = f"{endpoint}:{method}" if method else endpoint
+        current_count = len(self.requests[client_ip][key])
         return max(0, limit - current_count)

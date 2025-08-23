@@ -98,29 +98,23 @@ app = FastAPI(
     redoc_url="/redoc" 
 )
 
-# CORS middleware with better security
+# Build origins list and filter out empties
+_allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+if hasattr(settings, "FRONTEND_URL") and settings.FRONTEND_URL:
+    _allowed_origins.append(settings.FRONTEND_URL)
+
+# CORS middleware MUST be first so preflight isn't blocked by custom middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        settings.FRONTEND_URL if hasattr(settings, 'FRONTEND_URL') else "",
-        # Add production domains here
-    ],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=[
-        "Authorization",
-        "Content-Type", 
-        "X-Requested-With",
-        "Accept",
-        "Origin",
-        "User-Agent",
-        "DNT",
-        "Cache-Control",
-        "X-Mx-ReqToken",
-    ],
-    expose_headers=["X-Rate-Limit-Remaining", "X-Rate-Limit-Reset"]
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Rate-Limit-Remaining", "X-Rate-Limit-Reset"],
+    max_age=600,
 )
 
 #  Add security middleware
