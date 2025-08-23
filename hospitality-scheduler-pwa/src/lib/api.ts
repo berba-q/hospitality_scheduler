@@ -2605,22 +2605,22 @@ async importSettings(data: any, options: {
     user_agent: string;
     platform: string;
   }) {
-    return this.request('/devices/register', {
+    return this.request('/v1/devices/register', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async getMyDevices() {
-    return this.request<any>('/devices/');
+    return this.request<any>('/v1/devices/');
   }
 
   async getPushStats() {
-    return this.request<any>('/devices/push-stats');
+    return this.request<any>('/v1/devices/push-stats');
   }
 
   async getDevicesNeedingReauth() {
-    return this.request<any>('/devices/needing-reauth');
+    return this.request<any>('/v1/devices/needing-reauth');
   }
 
   async updateTokenAfterReauth(data: {
@@ -2628,14 +2628,14 @@ async importSettings(data: any, options: {
     success: boolean;
     new_token?: string;
   }) {
-    return this.request('/devices/reauth', {
+    return this.request('/v1/devices/reauth', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async validatePushTokens(data: { test_notification?: boolean }) {
-    return this.request('/devices/validate-tokens', {
+    return this.request('/v1/devices/validate-tokens', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -2645,7 +2645,7 @@ async importSettings(data: any, options: {
     title?: string;
     message?: string;
   }) {
-    return this.request('/devices/test-push', {
+    return this.request('/v1/devices/test-push', {
       method: 'POST',
       body: JSON.stringify(data),
     });

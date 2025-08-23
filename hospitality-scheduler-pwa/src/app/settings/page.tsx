@@ -349,13 +349,13 @@ export default function SettingsPage() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label htmlFor="email_enabled">{t('settings.sendEmailNotifications')}</Label>
+                      <Label htmlFor="smtp_enabled">{t('settings.sendEmailNotifications')}</Label>
                       <p className="text-sm text-gray-500">{t('settings.sendEmailNotificationsDesc')}</p>
                     </div>
                     <Switch
-                      id="email_enabled"
-                      checked={notificationSettings?.email_enabled || false}
-                      onCheckedChange={(checked) => updateNotificationSettings({ email_enabled: checked })}
+                      id="smtp_enabled"
+                      checked={notificationSettings?.smtp_enabled || false}
+                      onCheckedChange={(checked) => updateNotificationSettings({ smtp_enabled: checked })}
                     />
                   </div>
 

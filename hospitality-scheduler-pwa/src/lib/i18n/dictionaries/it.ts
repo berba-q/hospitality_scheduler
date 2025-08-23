@@ -526,7 +526,8 @@ export const it = {
     manageTeamAndFacilities: 'Gestisci il tuo team e le strutture',
     scheduleAndTeamOverview: 'Ecco la panoramica della tua pianificazione e attività del team',
     loading: 'Caricamento in corso...',
-    
+    loadingData: 'Caricamento dati...',
+
     // Sezioni dashboard
     recentActivity: 'Attività Recente',
     weekOverview: 'Panoramica Settimanale',
@@ -2735,6 +2736,10 @@ Se hai domande, contatta il nostro team di supporto.`,
     staffAccepted: 'Personale Accettato',
     staff_accepted: 'personale accettato',
     potential_assignment: 'assegnazione potenziale',
+    assignment_declined: 'assegnazione rifiutata',
+    declined: 'rifiutato',
+    manager_approved: 'approvato dal manager',
+    manager_final_approval: 'approvazione finale del manager'
   },
 
   messages: {

@@ -16,6 +16,8 @@ from app.models import (
     # Security models - CORRECTED IMPORTS
     UserSession, SecuritySettings, AccountLockout, LoginAttempt, 
     PasswordHistory, AuditLog, AuditEvent,
+    # Invitations
+    StaffInvitation,
     # Account linking models
     UserProvider, AccountVerificationToken
 )
@@ -81,6 +83,7 @@ def reset_database(session):
     # ------------------------
     # User related tables
     # ------------------------
+    session.execute(delete(StaffInvitation))
     session.execute(delete(UserProfile))
     session.execute(delete(UserProvider))
     session.execute(delete(Staff))

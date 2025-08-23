@@ -5,6 +5,45 @@ import { useState, useEffect, useCallback } from 'react'
 import { useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
 
+// Default settings constants
+const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+  company_name: '',
+  timezone: 'UTC',
+  date_format: 'MM/dd/yyyy',
+  currency: 'USD',
+  language: 'en',
+  smart_scheduling_enabled: true,
+  max_optimization_iterations: 100,
+  conflict_check_enabled: true,
+  auto_assign_by_zone: false,
+  balance_workload: true,
+  require_manager_per_shift: false,
+  allow_overtime: false,
+  email_notifications_enabled: true,
+  whatsapp_notifications_enabled: false,
+  push_notifications_enabled: true,
+  schedule_published_notify: true,
+  swap_request_notify: true,
+  urgent_swap_notify: true,
+  daily_reminder_notify: false,
+  session_timeout_hours: 24,
+  require_two_factor: false,
+  enforce_strong_passwords: true,
+  allow_google_auth: true,
+  allow_apple_auth: true,
+  analytics_cache_ttl: 3600,
+  enable_usage_tracking: true,
+  enable_performance_monitoring: true
+}
+
+const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  smtp_enabled: false,
+  smtp_use_tls: true,
+  smtp_use_ssl: false,
+  whatsapp_enabled: false,
+  push_enabled: false
+}
+
 // Types
 interface SystemSettings {
   id?: string
@@ -203,8 +242,8 @@ export function useSettings() {
 
       setState(prev => ({
         ...prev,
-        systemSettings: systemResponse.status === 'fulfilled' ? systemResponse.value : null,
-        notificationSettings: notificationResponse.status === 'fulfilled' ? notificationResponse.value : null,
+        systemSettings: systemResponse.status === 'fulfilled' ? (systemResponse.value ?? DEFAULT_SYSTEM_SETTINGS) : DEFAULT_SYSTEM_SETTINGS,
+        notificationSettings: notificationResponse.status === 'fulfilled' ? (notificationResponse.value ?? DEFAULT_NOTIFICATION_SETTINGS) : DEFAULT_NOTIFICATION_SETTINGS,
         userProfile: profileResponse.status === 'fulfilled' ? profileResponse.value : null,
         loading: false,
         hasUnsavedChanges: false
@@ -237,7 +276,7 @@ export function useSettings() {
   const updateSystemSettings = useCallback((updates: Partial<SystemSettings>) => {
     setState(prev => ({
       ...prev,
-      systemSettings: prev.systemSettings ? { ...prev.systemSettings, ...updates } : null,
+      systemSettings: { ...(prev.systemSettings ?? DEFAULT_SYSTEM_SETTINGS), ...updates },
       hasUnsavedChanges: true
     }))
   }, [])
@@ -246,7 +285,7 @@ export function useSettings() {
   const updateNotificationSettings = useCallback((updates: Partial<NotificationSettings>) => {
     setState(prev => ({
       ...prev,
-      notificationSettings: prev.notificationSettings ? { ...prev.notificationSettings, ...updates } : null,
+      notificationSettings: { ...(prev.notificationSettings ?? DEFAULT_NOTIFICATION_SETTINGS), ...updates },
       hasUnsavedChanges: true
     }))
   }, [])
@@ -387,43 +426,8 @@ export function useSettings() {
 
   // Reset to defaults
   const resetToDefaults = useCallback(() => {
-    const defaultSystemSettings: SystemSettings = {
-      company_name: '',
-      timezone: 'UTC',
-      date_format: 'MM/dd/yyyy',
-      currency: 'USD',
-      language: 'en',
-      smart_scheduling_enabled: true,
-      max_optimization_iterations: 100,
-      conflict_check_enabled: true,
-      auto_assign_by_zone: false,
-      balance_workload: true,
-      require_manager_per_shift: false,
-      allow_overtime: false,
-      email_notifications_enabled: true,
-      whatsapp_notifications_enabled: false,
-      push_notifications_enabled: true,
-      schedule_published_notify: true,
-      swap_request_notify: true,
-      urgent_swap_notify: true,
-      daily_reminder_notify: false,
-      session_timeout_hours: 24,
-      require_two_factor: false,
-      enforce_strong_passwords: true,
-      allow_google_auth: true,
-      allow_apple_auth: true,
-      analytics_cache_ttl: 3600,
-      enable_usage_tracking: true,
-      enable_performance_monitoring: true
-    }
-
-    const defaultNotificationSettings: NotificationSettings = {
-      smtp_enabled: false,
-      smtp_use_tls: true,
-      smtp_use_ssl: false,
-      whatsapp_enabled: false,
-      push_enabled: false
-    }
+    const defaultSystemSettings = DEFAULT_SYSTEM_SETTINGS
+    const defaultNotificationSettings = DEFAULT_NOTIFICATION_SETTINGS
 
     setState(prev => ({
       ...prev,

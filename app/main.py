@@ -94,8 +94,8 @@ app = FastAPI(
     description="Enhanced API with comprehensive security features",
     version="2.0.0",
     lifespan=lifespan,
-    docs_url="/docs" if settings.DEBUG else None,  # Disable docs in production
-    redoc_url="/redoc" if settings.DEBUG else None
+    docs_url="/docs",
+    redoc_url="/redoc" 
 )
 
 # CORS middleware with better security

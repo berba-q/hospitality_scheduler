@@ -261,7 +261,7 @@ export const en = {
     yes: 'Yes',
     no: 'No',
     working: 'Working...',
-    
+
     // Generic entities
     facility: 'Facility',
     facilities: 'Facilities',
@@ -515,7 +515,8 @@ export const en = {
     manageTeamAndFacilities: 'Manage your team and facilities',
     scheduleAndTeamOverview: "Here's your schedule and team activity overview",
     loading: 'Loading ...',
-    
+    loadingData: 'Loading data ...',
+
     // Dashboard sections
     recentActivity: 'Recent Activity',
     weekOverview: 'Week Overview',
@@ -2750,7 +2751,11 @@ If you have any questions, please contact our support team.`,
     executed: 'Executed',
     staffAccepted: 'Staff Accepted',
     staff_accepted: 'staff accepted',
-    potential_assignment: 'potential assignment'
+    potential_assignment: 'potential assignment',
+    assignment_declined: 'assignment declined',
+    declined: 'declined',
+    manager_approved: 'manager approved',
+    manager_final_approval: 'manager final approval'
 
   },
 
