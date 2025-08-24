@@ -11,6 +11,7 @@ import { FirebaseInitializer } from '@/components/firebase/FirebaseInitializer';
 import { PushReauthModal } from '@/components/notification/PushReauthModal';
 import { useApiClient } from '@/hooks/useApi'
 import { useTranslations } from '@/hooks/useTranslations'
+import { Toaster } from '@/components/ui/sonner' 
 
 
 interface AppLayoutProps {
@@ -103,6 +104,17 @@ export function AppLayout({ children }: AppLayoutProps) {
       >
       <AppLayoutInner>
         {children}
+        <Toaster 
+          position="bottom-right"
+          richColors
+          duration={4500}
+          closeButton
+          toastOptions={{
+            style: {
+              zIndex: 9999
+            }
+          }}
+        />
       </AppLayoutInner>
       </PushNotificationProvider>
     </NotificationProvider>
