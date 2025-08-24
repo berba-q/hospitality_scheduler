@@ -65,6 +65,7 @@ export default function SettingsPage() {
   try {
     await saveSystemSettings()
     toast.success(t('settings.systemSettingsSavedSuccessfully'))
+    console.log('System settings saved successfully')
   } catch (error) {
     toast.error(t('settings.failedToSaveSystemSettings'))
     console.error('Failed to save system settings:', error)
@@ -75,6 +76,7 @@ const handleSaveNotificationSettings = async () => {
   try {
     await saveNotificationSettings()
     toast.success(t('settings.notificationSettingsSavedSuccessfully'))
+    console.log('Notification settings saved successfully')
   } catch (error) {
     toast.error(t('settings.failedToSaveNotificationSettings'))
     console.error('Failed to save notification settings:', error)
