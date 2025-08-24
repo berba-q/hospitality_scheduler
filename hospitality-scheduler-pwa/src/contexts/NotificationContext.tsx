@@ -22,7 +22,7 @@ interface NotificationContextType {
   notifications: Notification[]
   unreadCount: number
   loading: boolean
-  refreshNotifications: () => Promise<void>
+  refreshNotifications: () => Promise<{ ok: boolean; retryAfterMs?: number }>
   markAsRead: (id: string) => Promise<void>
   markAllAsRead: () => Promise<void>
   addNotification: (notification: Notification) => void
@@ -39,7 +39,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const apiClient = useApiClient()
   const { isLoading: authLoading, isAuthenticated } = useAuth()
 
-  const refreshNotifications = useCallback(async () => {
+  const refreshNotifications = useCallback(async (): Promise<{ ok: boolean; retryAfterMs?: number }> => {
     // FIXED: Don't make API calls if auth is not ready
     if (authLoading || !apiClient || !isAuthenticated) {
       console.log('🔔 Skipping notification refresh - auth not ready:', { 
@@ -47,7 +47,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         hasApiClient: !!apiClient, 
         isAuthenticated 
       })
-      return
+      return { ok: false }
     }
 
     try {
@@ -90,34 +90,32 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       setNotifications(newNotifications)
       console.log(`🔔 Loaded ${newNotifications.length} notifications`)
+      return { ok: true }
     } catch (error) {
       console.error('Failed to refresh notifications:', error)
+      // Respect server rate-limit hints when available
+      let retryAfterMs: number | undefined
+      const anyErr: any = error
+      try {
+        // fetch Response-like
+        const hdrGet = anyErr?.response?.headers?.get?.bind?.(anyErr.response.headers)
+        const hdrObj = anyErr?.response?.headers
+        const retryAfter = hdrGet ? hdrGet('Retry-After') : (hdrObj ? (hdrObj['retry-after'] || hdrObj['Retry-After']) : undefined)
+        if (retryAfter) {
+          const s = parseInt(String(retryAfter), 10)
+          if (!Number.isNaN(s) && s > 0) retryAfterMs = s * 1000
+        }
+      } catch {}
       // Don't show error toast if it's just auth not ready
       if (!authLoading && isAuthenticated) {
         toast.error('Failed to load notifications')
       }
+      return { ok: false, retryAfterMs }
     } finally {
       setLoading(false)
     }
+    return { ok: false }
   }, [notifications, apiClient, authLoading, isAuthenticated]) // FIXED: Added auth dependencies
-
-  // FIXED: Auto-refresh only when auth is ready
-  useEffect(() => {
-    // Don't start interval if auth is not ready
-    if (authLoading || !apiClient || !isAuthenticated) {
-      return
-    }
-
-    console.log('🔔 Starting notification auto-refresh interval')
-    const id = setInterval(() => {
-      refreshNotifications()
-    }, 30_000)
-
-    return () => {
-      console.log('🔔 Stopping notification auto-refresh interval')
-      clearInterval(id)
-    }
-  }, [refreshNotifications, authLoading, apiClient, isAuthenticated]) // FIXED: Added auth deps
 
   // FIXED: Initial load only when auth is ready
   useEffect(() => {
@@ -216,35 +214,82 @@ export function useRealtimeNotifications() {
 
     console.log('🔔 Starting realtime notification polling')
 
-    // Option 3: Polling with exponential backoff (current implementation)
-    let pollInterval = 5000 // Start with 5 seconds
-    const maxInterval = 60000 // Max 1 minute
-    let timeoutId: NodeJS.Timeout
-    
+    let pollInterval = 5000 // base
+    const maxInterval = 60000 // cap at 60s
+    let timeoutId: NodeJS.Timeout | null = null
+
+    const schedule = (ms: number) => {
+      if (timeoutId) clearTimeout(timeoutId)
+      timeoutId = setTimeout(poll, ms)
+    }
+
     const poll = async () => {
-      try {
-        // Double-check auth is still ready before polling
-        if (!authLoading && isAuthenticated && apiClient) {
-          await refreshNotifications()
-          pollInterval = 5000 // Reset to 5 seconds on success
-        }
-      } catch (error) {
-        console.warn('Notification polling error:', error)
-        pollInterval = Math.min(pollInterval * 1.5, maxInterval) // Exponential backoff
+      // pause if tab hidden or offline
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        // wait until visible
+        return
       }
-      
-      // Schedule next poll only if auth is still ready
-      if (!authLoading && isAuthenticated && apiClient) {
-        timeoutId = setTimeout(poll, pollInterval)
+      if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
+        // retry later when back online
+        pollInterval = Math.min(pollInterval * 1.5, maxInterval)
+        schedule(pollInterval)
+        return
+      }
+
+      try {
+        const result = await refreshNotifications()
+        if (result?.ok) {
+          pollInterval = 5000 // reset to base on success
+        } else if (result?.retryAfterMs) {
+          // server asked us to back off explicitly
+          pollInterval = Math.min(Math.max(result.retryAfterMs, 5000), maxInterval)
+        } else {
+          // generic backoff
+          pollInterval = Math.min(pollInterval * 1.5, maxInterval)
+        }
+      } catch (err) {
+        console.warn('Notification polling error:', err)
+        pollInterval = Math.min(pollInterval * 1.5, maxInterval)
+      }
+
+      schedule(pollInterval)
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        // when tab becomes visible, poll immediately and reset cadence
+        pollInterval = 5000
+        schedule(0)
+      } else if (timeoutId) {
+        clearTimeout(timeoutId)
+        timeoutId = null
       }
     }
 
-    // Start polling after initial delay
-    timeoutId = setTimeout(poll, pollInterval)
+    const handleOnline = () => {
+      pollInterval = 5000
+      schedule(0)
+    }
+    const handleOffline = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+        timeoutId = null
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    // start after initial delay
+    schedule(pollInterval)
 
     return () => {
       console.log('🔔 Stopping realtime notification polling')
-      clearTimeout(timeoutId)
+      if (timeoutId) clearTimeout(timeoutId)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
     }
   }, [addNotification, refreshNotifications, authLoading, isAuthenticated, apiClient]) // FIXED: Added auth deps
 }

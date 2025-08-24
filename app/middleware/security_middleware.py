@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import logging
 import uuid
 import time
+from typing import Iterable
 
 from ..deps import get_db
 from ..services.session_service import SessionService
@@ -30,6 +31,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             "/v1/auth/reset-password",
             "/v1/auth/verify-reset-token",
             "/v1/invitations/accept",
+            "/v1/notifications",
             "/docs",
             "/redoc", 
             "/openapi.json",
@@ -48,6 +50,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             "/ping",
             "/healthz"
         }
+        self.cors_allowed_origins = {"http://localhost:3000", "http://127.0.0.1:3000"}
+        self.notification_paths = ("/v1/notifications", "/v1/notifications/stream")
     
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
@@ -63,6 +67,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         # Get client info
         client_ip = self._get_client_ip(request)
         user_agent = request.headers.get("user-agent", "")
+        
+        # Allow unauthenticated GET preflights and ensure notifications polling isn't blocked by this middleware
+        is_notification_path = any(request.url.path.startswith(p) for p in self.notification_paths)
         
         # ✅ FIX: Skip middleware completely for excluded paths
         if (request.url.path in self.excluded_paths or 
@@ -83,7 +90,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         user_id = None
         try:
             # Validate session for protected routes
-            if request.url.path.startswith("/v1/") and request.method != "OPTIONS":
+            if request.url.path.startswith("/v1/") and request.method not in ("OPTIONS",):
+                # For notifications, still require auth but avoid excessive audit noise
                 user_id = await self._validate_session(request, session_service, audit_service, is_monitoring_request)
                 request.state.user_id = user_id
             
@@ -120,10 +128,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 # Just log to application logger for monitoring tools
                 logger.debug(f"Monitoring tool access: {client_ip} -> {request.url.path}")
             
-            return JSONResponse(
-                status_code=e.status_code,
-                content={"detail": e.detail}
-            )
+            resp = JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+            self._apply_cors_headers(resp, request)
+            return resp
             
         except Exception as e:
             # ✅ FIX: Don't spam audit logs for monitoring tool errors
@@ -143,10 +150,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 )
             
             logger.error(f"Unexpected error in security middleware: {e}")
-            return JSONResponse(
-                status_code=500,
-                content={"detail": "Internal server error"}
-            )
+            resp = JSONResponse(status_code=500, content={"detail": "Internal server error"})
+            self._apply_cors_headers(resp, request)
+            return resp
         finally:
             db.close()
             
@@ -271,6 +277,22 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     "processing_time_ms": round(processing_time * 1000, 2)
                 }
             )
+    
+    def _apply_cors_headers(self, response: Response, request: Request) -> None:
+        """Ensure CORS headers are present on error responses even if this middleware fires before CORSMiddleware."""
+        origin = request.headers.get("origin")
+        if not origin:
+            return
+        if "*" in self.cors_allowed_origins or origin in self.cors_allowed_origins:
+            # Only set if not already present
+            if not response.headers.get("Access-Control-Allow-Origin"):
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Vary"] = "Origin"
+                # Mirror typical FastAPI CORSMiddleware behavior
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                allow_headers = request.headers.get("access-control-request-headers") or "*"
+                response.headers.setdefault("Access-Control-Allow-Headers", allow_headers)
+                response.headers.setdefault("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
     
     def _get_client_ip(self, request: Request) -> str:
         """Get client IP address, handling proxies"""

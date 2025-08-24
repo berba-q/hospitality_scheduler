@@ -58,7 +58,7 @@ export default function SettingsPage() {
     resetToDefaults,         
     toggleNotificationService,  
     refreshServiceStatus,                  
-    isFullyConfigured
+    isFullyConfigured,
   } = useSettings()
 
   if (loading) {
@@ -68,7 +68,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-gray-600">{t('common.loading')}...</p>
+              <p className="text-gray-600">{t('common.loading')}</p>
             </div>
           </div>
         </div>
@@ -415,9 +415,9 @@ export default function SettingsPage() {
                     </div>
                     <Switch
                       id="whatsapp_notifications"
-                      checked={serviceStatus?.whatsapp.enabled || false}  {/* ✅ CHANGED: Use serviceStatus */}
-                      onCheckedChange={(checked) => toggleNotificationService('whatsapp', checked)}  {/* ✅ CHANGED: Use new method */}
-                      disabled={!serviceStatus?.whatsapp.configured}  {/* ✅ CHANGED: Disable if not configured */}
+                      checked={serviceStatus?.whatsapp.enabled || false}
+                      onCheckedChange={(checked) => toggleNotificationService('whatsapp', checked)}
+                      disabled={!serviceStatus?.whatsapp.configured}
                     />
                   </div>
 
@@ -450,9 +450,9 @@ export default function SettingsPage() {
                     </div>
                     <Switch
                       id="push_notifications"
-                      checked={serviceStatus?.push.enabled || false} 
-                      onCheckedChange={(checked) => toggleNotificationService('push', checked)} 
-                      disabled={!serviceStatus?.push.configured}  
+                      checked={serviceStatus?.push.enabled || false}
+                      onCheckedChange={(checked) => toggleNotificationService('push', checked)}
+                      disabled={!serviceStatus?.push.configured}
                     />
                   </div>
 
