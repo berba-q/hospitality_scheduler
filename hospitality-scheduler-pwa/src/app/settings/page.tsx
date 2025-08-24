@@ -61,6 +61,26 @@ export default function SettingsPage() {
     isFullyConfigured,
   } = useSettings()
 
+  const handleSaveSystemSettings = async () => {
+  try {
+    await saveSystemSettings()
+    toast.success(t('settings.systemSettingsSavedSuccessfully'))
+  } catch (error) {
+    toast.error(t('settings.failedToSaveSystemSettings'))
+    console.error('Failed to save system settings:', error)
+  }
+}
+
+const handleSaveNotificationSettings = async () => {
+  try {
+    await saveNotificationSettings()
+    toast.success(t('settings.notificationSettingsSavedSuccessfully'))
+  } catch (error) {
+    toast.error(t('settings.failedToSaveNotificationSettings'))
+    console.error('Failed to save notification settings:', error)
+  }
+}
+
   if (loading) {
     return (
       <AppLayout>
@@ -317,8 +337,8 @@ export default function SettingsPage() {
 
             <div className="flex justify-end">
               <Button 
-                onClick={saveSystemSettings} 
-                disabled={saving}
+                onClick={handleSaveSystemSettings}
+                disabled={saving || !hasUnsavedChanges} // Disable when saving OR no changes
                 className="flex items-center gap-2"
               >
                 {saving ? (
@@ -632,8 +652,8 @@ export default function SettingsPage() {
             <div className="flex justify-end space-x-3">
               <Button 
                 variant="outline"
-                onClick={saveNotificationSettings} 
-                disabled={saving}
+                onClick={handleSaveNotificationSettings}
+                disabled={saving || !hasUnsavedChanges}
               >
                 {saving ? (
                   <>
@@ -649,8 +669,8 @@ export default function SettingsPage() {
               </Button>
               
               <Button 
-                onClick={saveSystemSettings} 
-                disabled={saving}
+                onClick={handleSaveSystemSettings}
+                disabled={saving || !hasUnsavedChanges}
               >
                 {saving ? (
                   <>
@@ -792,8 +812,8 @@ export default function SettingsPage() {
 
             <div className="flex justify-end">
               <Button 
-                onClick={saveSystemSettings} 
-                disabled={saving}
+                onClick={handleSaveSystemSettings}
+                disabled={saving || !hasUnsavedChanges} // Disable when saving OR no changes
                 className="flex items-center gap-2"
               >
                 {saving ? (

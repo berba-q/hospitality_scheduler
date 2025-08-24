@@ -2267,8 +2267,7 @@ async resetSystemSettings() {
 }
 
 async getServiceStatus(): Promise<ServiceStatus> {
-  const response = await this.request('/settings/service-status')
-  return (response as { data: ServiceStatus }).data
+  return this.request<ServiceStatus>('/v1/settings/service-status')
 }
 
 // Notification Settings

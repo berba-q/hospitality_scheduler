@@ -2651,6 +2651,16 @@ If you have any questions, please contact our support team.`,
     logRetentionDays: 'Log Retention Days',
     logSensitiveData: 'Log Sensitive Data',
     logSensitiveDataDesc: 'Include sensitive information in audit logs (not recommended)',
+
+    systemSettingsSavedSuccessfully: "System settings saved successfully",
+    notificationSettingsSavedSuccessfully: "Notification settings saved successfully", 
+    allChangesSaved: "All Changes Saved",
+    systemSettingsSaved: "System Settings Saved",
+    notificationSettingsSaved: "Notification Settings Saved",
+    
+    // Error messages
+    failedToSaveSystemSettings: "Failed to save system settings",
+    failedToSaveNotificationSettings: "Failed to save notification settings",
   },
 
   profile: {

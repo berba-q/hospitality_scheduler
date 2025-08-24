@@ -2641,6 +2641,16 @@ Se hai domande, contatta il nostro team di supporto.`,
     logRetentionDays: 'Giorni di Conservazione Log',
     logSensitiveData: 'Registra Dati Sensibili',
     logSensitiveDataDesc: 'Includi informazioni sensibili nei log di audit (non raccomandato)',
+    // Success messages
+    systemSettingsSavedSuccessfully: "Impostazioni di sistema salvate con successo",
+    notificationSettingsSavedSuccessfully: "Impostazioni di notifica salvate con successo",
+    allChangesSaved: "Tutte le Modifiche Salvate", 
+    systemSettingsSaved: "Impostazioni di Sistema Salvate",
+    notificationSettingsSaved: "Impostazioni di Notifica Salvate",
+    
+    // Error messages
+    failedToSaveSystemSettings: "Impossibile salvare le impostazioni di sistema",
+    failedToSaveNotificationSettings: "Impossibile salvare le impostazioni di notifica",
   },
 
    profile: {
