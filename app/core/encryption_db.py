@@ -7,10 +7,10 @@ import logging
 from typing import Any, Dict, List, Optional, Type
 from sqlmodel import Session, select
 from sqlalchemy import text
-from datetime import datetime
+from datetime import datetime, timezone
 
 from .encryption import ModelEncryption, get_field_encryption, SENSITIVE_FIELDS
-from ..models import NotificationGlobalSettings, SystemSettings, AuditLog
+from ..models import NotificationGlobalSettings, SystemSettings, AuditLog, AuditEvent
 
 logger = logging.getLogger(__name__)
 
@@ -265,15 +265,31 @@ def create_audit_log_entry(db: Session, user_id: Any, tenant_id: Any,
     """
     Create an audit log entry for encryption-related operations.
     """
+    action_to_event_type = {
+        "CREATE_SETTINGS": AuditEvent.ADMIN_ACTION,
+        "UPDATE_SETTINGS": AuditEvent.ADMIN_ACTION, 
+        "DELETE_AVATAR": AuditEvent.ADMIN_ACTION,
+        "RESET_SETTINGS": AuditEvent.ADMIN_ACTION,
+        "UPDATE_AVATAR_SETTINGS": AuditEvent.ADMIN_ACTION,
+    }
+    
+    # Get the appropriate event type, default to ADMIN_ACTION
+    event_type = action_to_event_type.get(action, AuditEvent.ADMIN_ACTION)
+    
     audit_entry = AuditLog(
         tenant_id=tenant_id,
         user_id=user_id,
         action=action,
+        event_type=event_type.value,
+        event_description=f"Settings: {action}",   # ✅ ADD THIS  
+        severity="info",  
         resource_type=resource_type,
         resource_id=resource_id,
         changes=changes or {},
         ip_address=ip_address,
-        user_agent=user_agent
+        user_agent=user_agent,
+        created_at=datetime.now(timezone.utc),     # ✅ ADD THIS
+        details={}   
     )
     
     db.add(audit_entry)
