@@ -361,7 +361,7 @@ const handleSaveNotificationSettings = async () => {
           {/* Notifications Settings Tab */}
           <TabsContent value="notifications" className="space-y-6">
             <div className="grid gap-6">
-              {/* Notification Channels - Simplified */}
+              {/* Notification Channels - with autosave feature*/}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -370,6 +370,9 @@ const handleSaveNotificationSettings = async () => {
                   </CardTitle>
                   <p className="text-sm text-gray-600">
                     {t('settings.chooseHowTeamReceivesNotifications')}
+                    <span className="block text-xs text-green-600 mt-1">
+                      ✓ {t('settings.changesAreSavedAutomatically')}
+                    </span>
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -498,12 +501,12 @@ const handleSaveNotificationSettings = async () => {
                     </Alert>
                   )}
 
-                  {/* ✅ NEW: Success Message */}
+                  {/* Success Message */}
                   {isFullyConfigured && (
                     <Alert className="border-green-200 bg-green-50">
                       <CheckCircle className="h-4 w-4 text-green-600" />
                       <AlertDescription className="text-green-800">
-                        <strong>All Ready!</strong> All notification services are configured and ready to use.
+                        <strong>{t('settings.allReady')}</strong> {t('settings.notificationServicesAreFullyConfigured')}
                       </AlertDescription>
                     </Alert>
                   )}
@@ -603,6 +606,26 @@ const handleSaveNotificationSettings = async () => {
                       />
                     </div>
                   </div>
+                  {/* SAVE BUTTON FOR NOTIFICATION TYPES */}
+                    <div className="flex justify-end pt-4 border-t bg-gray-50 -mx-6 -mb-6 px-6 py-4">
+                      <Button 
+                        onClick={handleSaveSystemSettings}
+                        disabled={saving || !hasUnsavedChanges}
+                        className="flex items-center gap-2"
+                      >
+                        {saving ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            {t('common.saving')}...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            {hasUnsavedChanges ? t('settings.saveNotificationTypes') : t('settings.allChangesSaved')}
+                          </>
+                        )}
+                      </Button>
+                    </div>
                 </CardContent>
               </Card>
 
@@ -623,8 +646,8 @@ const handleSaveNotificationSettings = async () => {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        // Optional: You can implement a way to contact admin or show more details
-                        toast.info('Please contact your system administrator for technical configuration.')
+                        // admin msg.
+                        toast.info(t('settings.contactSystemAdministratorForTechnicalConfiguration'))
                       }}
                     >
                       {t('settings.contactAdmin')}
@@ -648,44 +671,6 @@ const handleSaveNotificationSettings = async () => {
                   </Alert>
                 </CardContent>
               </Card>
-            </div>
-
-            {/* Save Button */}
-            <div className="flex justify-end space-x-3">
-              <Button 
-                variant="outline"
-                onClick={handleSaveNotificationSettings}
-                disabled={saving || !hasUnsavedChanges}
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mr-2" />
-                    {t('common.saving')}...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    {t('settings.saveNotificationSettings')}
-                  </>
-                )}
-              </Button>
-              
-              <Button 
-                onClick={handleSaveSystemSettings}
-                disabled={saving || !hasUnsavedChanges}
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    {t('common.saving')}...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    {t('settings.saveSystemSettings')}
-                  </>
-                )}
-              </Button>
             </div>
           </TabsContent>
 

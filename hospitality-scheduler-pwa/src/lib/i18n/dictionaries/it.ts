@@ -2630,10 +2630,12 @@ Se hai domande, contatta il nostro team di supporto.`,
 
     // Additional translations 
     "allReady": "Tutto Pronto!",
-    "allNotificationServicesConfigured": "Tutti i servizi di notifica sono configurati e pronti all'uso.",
+    "notificationServicesAreFullyConfigured": "Tutti i servizi di notifica sono configurati e pronti all'uso.",
     "refreshStatus": "Aggiorna Stato",
     "serviceStatusRefreshed": "Stato dei servizi aggiornato",
-    
+    contactSystemAdministratorForTechnicalConfiguration: "Contatta l'amministratore di sistema per la configurazione tecnica.",
+    changesAreSavedAutomatically: "Tutte le modifiche vengono salvate automaticamente.",
+
     // Audit e Logging
     auditAndLogging: 'Audit e Logging',
     enableAuditLogging: 'Abilita Audit Logging',
@@ -2647,7 +2649,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     allChangesSaved: "Tutte le Modifiche Salvate", 
     systemSettingsSaved: "Impostazioni di Sistema Salvate",
     notificationSettingsSaved: "Impostazioni di Notifica Salvate",
-    
+
     // Error messages
     failedToSaveSystemSettings: "Impossibile salvare le impostazioni di sistema",
     failedToSaveNotificationSettings: "Impossibile salvare le impostazioni di notifica",

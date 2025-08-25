@@ -2657,7 +2657,12 @@ If you have any questions, please contact our support team.`,
     allChangesSaved: "All Changes Saved",
     systemSettingsSaved: "System Settings Saved",
     notificationSettingsSaved: "Notification Settings Saved",
-    
+    allReady: "All Ready!",
+    allNotificationServicesConfigured: "All notification services are configured and ready to use.",
+    contactSystemAdministratorForTechnicalConfiguration: "Please contact your system administrator for technical configuration.",
+    notificationServicesAreFullyConfigured: "All notification services are fully configured.",
+    changesAreSavedAutomatically: "All changes are saved automatically.",
+
     // Error messages
     failedToSaveSystemSettings: "Failed to save system settings",
     failedToSaveNotificationSettings: "Failed to save notification settings",
