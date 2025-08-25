@@ -57,6 +57,7 @@ export default function StaffPage() {
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
   const [showInvitationConfirmation, setShowInvitationConfirmation] = useState(false)
   const [importedStaffForInvitation, setImportedStaffForInvitation] = useState<ImportedStaffMember[]>([])
+  const [singleStaffForInvitation, setSingleStaffForInvitation] = useState<ImportedStaffMember | null>(null)
 
   // Check if user is manager - redirect if not
   useEffect(() => {
@@ -440,14 +441,20 @@ export default function StaffPage() {
           </Card>
         </div>
 
-        {/* Modals - Clean separation */}
+        {/* Modals  */}
         <AddStaffModal 
           open={showAddModal} 
           onClose={() => setShowAddModal(false)}
           facilities={facilities}
-          onSuccess={() => {
+          onSuccess={(newStaff) => {
             setShowAddModal(false)
             loadData()
+
+            // If the newly created staff has an email, trigger invitation flow
+            if (newStaff && newStaff.email) {
+              setImportedStaffForInvitation([newStaff]) // Reuse existing array format
+              setShowInvitationConfirmation(true)
+            }
           }}
         />
 

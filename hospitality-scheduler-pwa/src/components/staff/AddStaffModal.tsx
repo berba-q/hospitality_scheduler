@@ -15,7 +15,7 @@ interface AddStaffModalProps {
   open: boolean
   onClose: () => void
   facilities: any[]
-  onSuccess: () => void
+  onSuccess: (newStaff?: { id: string; full_name: string; email?: string; facility_name?: string }) => void
 }
 
 const COMMON_ROLES = [
@@ -55,9 +55,17 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
         toast.error(t('staff.staffNameExistsAtFacility', { name: formData.full_name }))
         return
       }
-      await apiClient.createStaff(formData)
+      const newStaff = await apiClient.createStaff(formData)
       toast.success(t('staff.staffAddedSuccessfully', { name: formData.full_name }))
-      onSuccess()
+      // Pass the newly created staff data back
+      const staffForInvitation = newStaff.email ? {
+        id: newStaff.id,
+        full_name: newStaff.full_name,
+        email: newStaff.email,
+        facility_name: facilities.find(f => f.id === formData.facility_id)?.name || 'Unknown'
+      } : undefined
+      
+      onSuccess(staffForInvitation)
       onClose()
       
       // Reset form
