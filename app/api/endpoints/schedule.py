@@ -10,6 +10,7 @@ from sqlmodel import Session, select, text
 from sqlalchemy import desc, func
 from sqlalchemy import and_
  
+from app.core.config import get_settings
 from app.schemas import (
     ScheduleRead, ScheduleDetail, PreviewRequestWithConfig, 
     ScheduleValidationResult
@@ -19,7 +20,7 @@ from app.services.scheduler import create_schedule, validate_schedule_constraint
 from app.services.schedule_solver import (
     generate_weekly_schedule, ScheduleConstraints, constraints_from_config
 )
-from app.models import NotificationType, Staff, Schedule, ScheduleConfig, Facility, ShiftAssignment, User, ZoneAssignment
+from app.models import NotificationPriority, NotificationType, Staff, Schedule, ScheduleConfig, Facility, ShiftAssignment, StaffInvitation, User, ZoneAssignment
 from app.deps import get_db, get_current_user
 from ...services.pdf_service import PDFService 
 
@@ -1866,47 +1867,59 @@ async def publish_schedule(
     # Send notifications
     notification_service = NotificationService(db)
     
+     #  Track different notification outcomes
+    notifications_sent = 0
+    notifications_skipped = 0
+    pending_invitations = 0
+    invitation_reminders_sent = 0
+    
     for staff_member in staff_members:
         # Find User by matching email
         user = db.exec(
             select(User).where(User.email == staff_member.email)
         ).first()
         
-        if not user:
-            print(f"Skipping notification for {staff_member.full_name} - no user account found")
-            continue
-        try:
-            # Determine channels
-            channels = ['IN_APP']  # Always send in-app
-            if notification_options.get('send_push', False):
-                channels.append('PUSH')
-            if notification_options.get('send_whatsapp', False):
-                channels.append('WHATSAPP')
-            if notification_options.get('send_email', False):
-                channels.append('EMAIL')
+        if user and user.is_active:
+            # ✅ HAPPY PATH: User exists and is active
+            try:
+                await send_schedule_notification(user, staff_member, schedule, facility, notification_options, background_tasks)
+                notifications_sent += 1
+                print(f"✅ Schedule notification sent to {staff_member.full_name}")
+            except Exception as e:
+                print(f"❌ Failed to send notification to {staff_member.full_name}: {e}")
+                notifications_skipped += 1
+                
+        else:
+            # Step 2: Check for pending invitation
+            pending_invitation = db.exec(
+                select(StaffInvitation).where(
+                    StaffInvitation.staff_id == staff_member.id,
+                    StaffInvitation.status.in_(["pending", "sent"])  # Not yet accepted # type: ignore
+                )
+            ).first()
             
-            # Template data
-            template_data = {
-                'staff_name': staff_member.full_name,
-                'week_start': schedule.week_start.strftime('%B %d, %Y'),
-                'facility_name': facility.name,
-                'custom_message': notification_options.get('custom_message', '')
-            }
-            
-            # Send notification
-            await notification_service.send_notification(
-                notification_type=NotificationType.SCHEDULE_PUBLISHED,
-                recipient_user_id=user.id,
-                template_data=template_data,
-                channels=channels,
-                action_url=f"/schedule?week={schedule.week_start}",
-                action_text="View Schedule",
-                background_tasks=background_tasks,
-                pdf_attachment_url=pdf_url
-            )
-            
-        except Exception as e:
-            print(f"Failed to send notification to {staff_member.full_name}: {e}")
+            if pending_invitation:
+                # ✅ PENDING INVITATION: Send reminder instead of schedule notification
+                print(f"📧 {staff_member.full_name} has pending invitation - sending reminder with schedule info")
+                
+                try:
+                    await send_invitation_reminder_with_schedule(
+                        pending_invitation, 
+                        schedule, 
+                        facility, 
+                        background_tasks
+                    )
+                    invitation_reminders_sent += 1
+                    pending_invitations += 1
+                    
+                except Exception as e:
+                    print(f"❌ Failed to send invitation reminder to {staff_member.full_name}: {e}")
+                    notifications_skipped += 1
+            else:
+                # ❌ NO INVITATION: Staff exists but no user account and no pending invitation
+                print(f"⚠️  {staff_member.full_name} has no user account and no pending invitation")
+                print(f"    Recommendation: Send new invitation to {staff_member.email}")
+                notifications_skipped += 1
     
     # Mark schedule as published
     schedule.is_published = True
@@ -1915,7 +1928,88 @@ async def publish_schedule(
     
     return {
         "success": True,
-        "message": f"Schedule published and notifications sent to {len(staff_members)} staff members",
+        "message": f"Schedule published - {notifications_sent} notifications sent, {invitation_reminders_sent} invitation reminders sent, {notifications_skipped} skipped",
         "pdf_url": pdf_url,
-        "notifications_sent": len(staff_members)
+        "notifications_sent": notifications_sent,
+        "invitation_reminders_sent": invitation_reminders_sent,
+        "pending_invitations": pending_invitations,
+        "notifications_skipped": notifications_skipped
     }
+
+async def send_invitation_reminder_with_schedule(
+    invitation: StaffInvitation,
+    schedule,
+    facility,
+    background_tasks: BackgroundTasks,
+    notification_service: NotificationService,  # FIXED: Pass as parameter
+    tenant_id: uuid.UUID
+):
+    """Send invitation reminder that includes schedule information"""
+    staff = invitation.staff
+    
+    # Create accept URL
+    settings = get_settings()
+    accept_url = f"{settings.FRONTEND_URL}/signup/accept/{invitation.token}"
+    
+    template_data = {
+        'staff_name': staff.full_name,
+        'organization_name': invitation.tenant.name,
+        'facility_name': facility.name,
+        'role': staff.role,
+        'accept_url': accept_url,
+        'week_start': schedule.week_start.strftime('%B %d, %Y'),
+        'schedule_published': True,  # Flag to show schedule context
+        'custom_message': f"Great news! Your schedule for the week of {schedule.week_start.strftime('%B %d, %Y')} is ready. Please complete your account setup to view your assignments and receive future notifications.",
+        'expires_at': invitation.expires_at.strftime('%B %d, %Y at %I:%M %p')
+    }
+    
+    # Send reminder email directly to staff email
+    await notification_service.send_email_to_address(
+        notification_type=NotificationType.STAFF_INVITATION,  # Reuse invitation template
+        to_email=staff.email,
+        template_data=template_data,
+        tenant_id=tenant_id,
+        background_tasks=background_tasks,
+        priority=NotificationPriority.MEDIUM
+    )
+
+# Standard schedule notification function  
+async def send_schedule_notification(
+    user: User,
+    staff_member,
+    schedule,
+    facility,
+    notification_options: Dict[str, Any],
+    background_tasks: BackgroundTasks,
+    notification_service: NotificationService,  # FIXED: Pass as parameter
+    pdf_url: Optional[str] = None
+):
+    """Send standard schedule notification to registered user"""
+    
+    
+    # Determine channels
+    channels = ['IN_APP']  # Always send in-app
+    if notification_options.get('send_push', False):
+        channels.append('PUSH')
+    if notification_options.get('send_whatsapp', False):
+        channels.append('WHATSAPP')
+    if notification_options.get('send_email', False):
+        channels.append('EMAIL')
+    
+    template_data = {
+        'staff_name': staff_member.full_name,
+        'week_start': schedule.week_start.strftime('%B %d, %Y'),
+        'facility_name': facility.name,
+        'custom_message': notification_options.get('custom_message', '')
+    }
+    
+    await notification_service.send_notification(
+        notification_type=NotificationType.SCHEDULE_PUBLISHED,
+        recipient_user_id=user.id,
+        template_data=template_data,
+        channels=channels,
+        action_url=f"/schedule?week={schedule.week_start}",
+        action_text="View Schedule",
+        background_tasks=background_tasks,
+        pdf_attachment_url=pdf_url
+    )

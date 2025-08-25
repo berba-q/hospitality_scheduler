@@ -11,9 +11,11 @@ from ...models import (
     Facility,
     Schedule,
     ShiftAssignment,
+    StaffInvitation,
     StaffUnavailability,
     SwapRequest,
     SwapStatus,
+    User,
     ZoneAssignment,        
 )
 from ...schemas import StaffCreate, StaffDeleteResponse, StaffDeleteValidation, StaffDuplicateCheck, StaffRead, StaffUpdate
@@ -313,6 +315,164 @@ def update_staff(
     db.commit()
     db.refresh(staff)
     return staff
+
+#============= Staff registration ==============================
+@router.get("/registration-status")
+async def get_staff_registration_status(
+    facility_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get registration status for all staff members"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Build staff query
+    staff_query = select(Staff).where(Staff.is_active == True)
+    if facility_id:
+        staff_query = staff_query.where(Staff.facility_id == facility_id)
+        
+    staff_members = db.exec(staff_query).all()
+    
+    results = []
+    
+    for staff in staff_members:
+        # Check for user account
+        user = db.exec(
+            select(User).where(func.lower(User.email) == func.lower(staff.email))
+        ).first()
+        
+        # Check for invitation
+        invitation = db.exec(
+            select(StaffInvitation)
+            .where(StaffInvitation.staff_id == staff.id)
+            .order_by(StaffInvitation.created_at.desc())
+        ).first()
+        
+        # Determine status
+        if user and user.is_active:
+            status = "registered"
+            notification_capable = True
+            action_needed = None
+        elif invitation and invitation.expires_at > datetime.now(timezone.utc) and not invitation.accepted_at:
+            status = "invitation_pending"
+            notification_capable = False
+            action_needed = "Wait for staff to accept invitation"
+        elif invitation and invitation.expires_at < datetime.now(timezone.utc):
+            status = "invitation_expired" 
+            notification_capable = False
+            action_needed = "Resend invitation"
+        else:
+            status = "no_invitation"
+            notification_capable = False
+            action_needed = "Send invitation"
+        
+        results.append({
+            "staff_id": str(staff.id),
+            "staff_name": staff.full_name,
+            "email": staff.email,
+            "role": staff.role,
+            "status": status,
+            "notification_capable": notification_capable,
+            "action_needed": action_needed,
+            "user_account_exists": user is not None,
+            "user_account_active": user.is_active if user else False,
+            "invitation_status": invitation.status if invitation else None,
+            "invitation_sent": invitation.sent_at.isoformat() if invitation and invitation.sent_at else None,
+            "invitation_expires": invitation.expires_at.isoformat() if invitation else None,
+            "facility_id": str(staff.facility_id)
+        })
+    
+    # Summary stats
+    summary = {
+        "total_staff": len(results),
+        "registered": len([r for r in results if r["status"] == "registered"]),
+        "pending_invitations": len([r for r in results if r["status"] == "invitation_pending"]),
+        "expired_invitations": len([r for r in results if r["status"] == "invitation_expired"]), 
+        "no_invitations": len([r for r in results if r["status"] == "no_invitation"]),
+        "notification_ready": len([r for r in results if r["notification_capable"]])
+    }
+    
+    return {
+        "summary": summary,
+        "staff_details": results
+    }
+
+# Endpoint to specifically check a staff member by name (for debugging)
+@router.get("/check-staff/{staff_name}")
+async def check_specific_staff_status(
+    staff_name: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Check registration status for a specific staff member by name"""
+    
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    # Find staff member (case insensitive)
+    staff = db.exec(
+        select(Staff).where(
+            func.lower(Staff.full_name).like(f"%{staff_name.lower()}%")
+        )
+    ).all()
+    
+    if not staff:
+        raise HTTPException(status_code=404, detail=f"No staff found matching '{staff_name}'")
+    
+    results = []
+    for member in staff:
+        # Get detailed status (same logic as above)
+        user = db.exec(
+            select(User).where(func.lower(User.email) == func.lower(member.email))
+        ).first()
+        
+        invitations = db.exec(
+            select(StaffInvitation)
+            .where(StaffInvitation.staff_id == member.id)
+            .order_by(StaffInvitation.created_at.desc())
+        ).all()
+        
+        results.append({
+            "staff": {
+                "id": str(member.id),
+                "full_name": member.full_name,
+                "email": member.email,
+                "role": member.role,
+                "is_active": member.is_active
+            },
+            "user_account": {
+                "exists": user is not None,
+                "id": str(user.id) if user else None,
+                "email": user.email if user else None,
+                "is_active": user.is_active if user else False,
+                "created_at": user.created_at.isoformat() if user else None
+            },
+            "invitations": [
+                {
+                    "id": str(inv.id),
+                    "status": inv.status,
+                    "sent_at": inv.sent_at.isoformat() if inv.sent_at else None,
+                    "accepted_at": inv.accepted_at.isoformat() if inv.accepted_at else None,
+                    "expires_at": inv.expires_at.isoformat(),
+                    "is_expired": inv.expires_at < datetime.now(timezone.utc),
+                    "token": inv.token[:8] + "..." if inv.token else None  # Partial token for debugging
+                }
+                for inv in invitations
+            ],
+            "notification_diagnosis": {
+                "can_receive_notifications": user is not None and user.is_active,
+                "reason": (
+                    "User account active" if user and user.is_active else
+                    "User account inactive" if user and not user.is_active else
+                    "Invitation pending - no user account yet" if invitations and any(not inv.accepted_at for inv in invitations) else
+                    "No user account and no invitations sent"
+                )
+            }
+        })
+    
+    return results
 #============== Delete staff ====================================
 @router.delete("/{staff_id}/validate", response_model=StaffDeleteValidation)
 def validate_staff_deletion(

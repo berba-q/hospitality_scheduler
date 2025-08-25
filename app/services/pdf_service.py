@@ -211,13 +211,19 @@ class PDFService:
         content = []
         
         # Main title
-        facility_name = facility.get('name', 'Facility')
+        facility_name = getattr(facility, 'name', 'Facility')
         title_text = f"{facility_name}<br/>Weekly Schedule"
         title = Paragraph(title_text, self.title_style)
         content.append(title)
         
         # Date range
-        week_start = datetime.fromisoformat(schedule.week_start if hasattr(schedule, 'week_start') else schedule['week_start'])
+        if hasattr(schedule, 'week_start'):
+            week_start_str = schedule.week_start
+        else:
+            # Handle if schedule is a dict
+            week_start_str = schedule.get('week_start', datetime.now().isoformat())
+        
+        week_start = datetime.fromisoformat(week_start_str)
         week_end = week_start + timedelta(days=6)
         
         date_text = f"{week_start.strftime('%B %d')} - {week_end.strftime('%B %d, %Y')}"
@@ -228,8 +234,9 @@ class PDFService:
         content.append(subtitle_para)
         
         # Additional info
-        facility_type = facility.get('facility_type', 'General')
-        zones_count = len(facility.get('zones', []))
+        facility_type = getattr(facility, 'facility_type', 'General')
+        zones = getattr(facility, 'zones', [])
+        zones_count = len(zones) if zones else 0
         info_text = f"Facility Type: {facility_type} • Zones: {zones_count} • Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}"
         info_para = Paragraph(info_text, self.header_info_style)
         content.append(info_para)

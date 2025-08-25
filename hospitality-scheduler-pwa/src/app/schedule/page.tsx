@@ -1083,6 +1083,10 @@ function ManagerScheduleView({
                     <CheckCircle className="w-5 h-5 text-green-600" />
                     <div>
                       <p className="font-medium text-green-800">{t('schedule.scheduleActive')}</p>
+                      {currentSchedule?.is_draft && (
+                        <p className="text-xs text-amber-700">{t('common.draft')} – {t('schedule.notPublishedYet')}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500">
                         {currentSchedule.assignments?.length || 0} {t('common.assignments')}
                       </p>
@@ -1644,6 +1648,10 @@ export default function SchedulePage() {
     return null
   }
 
+  // Helper: check if a string is a UUID (v4-style)
+  const isUuid = (val?: string) =>
+    !!val && /^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$/.test(val)
+
   // Helper function to get the end date of a week (6 days after start)
   const getWeekEndDate = (weekStartString) => {
     const weekStart = new Date(weekStartString)
@@ -1707,29 +1715,108 @@ export default function SchedulePage() {
     }
   }
 
+  // Helper function to create draft schedules
+  const createDraftSchedule = () => {
+  const weekStartISO = getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0]
+  const draft = {
+    id: `draft-${selectedFacility?.id || 'facility'}-${weekStartISO}`,
+    facility_id: selectedFacility?.id,
+    week_start: weekStartISO,
+    assignments: [],
+    is_generated: false,
+    is_draft: true,
+  }
+  setCurrentSchedule(draft)
+    return draft
+  }
+
+  const ensureDraftSchedule = () => {
+    return currentSchedule ?? createDraftSchedule()
+  }
+
   // Handler functions
   const handleAssignmentChange = async (dayIndex: number, shiftIndex: number, staffId: string) => {
-    if (!currentSchedule) return
+    const schedule = ensureDraftSchedule()
+    if (!schedule) return
 
     try {
-      console.log('📝 Assignment change:', { dayIndex, shiftIndex, staffId })
+        console.log('🔍 SHIFT DEBUG - Received parameters:', { 
+        dayIndex, 
+        shiftIndex, 
+        staffId,
+        dayType: typeof dayIndex,
+        shiftType: typeof shiftIndex,
+        dayIsNumber: !isNaN(Number(dayIndex)),
+        shiftIsNumber: !isNaN(Number(shiftIndex))
+      })
+
+      const normalizedDay = Number(dayIndex)
+      const normalizedShift = Number(shiftIndex)
+      
+      if (isNaN(normalizedDay) || isNaN(normalizedShift)) {
+        console.error('❌ Invalid day or shift values:', { dayIndex, shiftIndex })
+        toast.error('Invalid assignment data')
+        return
+      }
+
+      console.log('📝 Assignment change:', { 
+        normalizedDay, 
+        normalizedShift, 
+        staffId 
+      })
+
+      // Generate a temporary ID for the assignment
+      const tempId = `temp-${Date.now()}-${normalizedDay}-${normalizedShift}-${staffId}`
+
       
       // Create new assignment
       const newAssignment = {
-        day: dayIndex,
-        shift: shiftIndex,
-        staff_id: staffId,
-        schedule_id: currentSchedule.id
+        id: tempId,
+        day: normalizedDay,
+        shift: normalizedShift,  
+        staff_id: String(staffId),
+        schedule_id: schedule.id,
+        created_at: new Date().toISOString()
       }
+      console.log('📋 Creating assignment object:', newAssignment)
+
+      // Prevent duplicates (same day/shift/staff)
+    const exists = (schedule.assignments || []).some(
+      (a: any) => {
+        const existingDay = Number(a.day)
+        const existingShift = Number(a.shift)
+        const existingStaff = String(a.staff_id)
+        
+        console.log('🔍 Checking duplicate against:', { existingDay, existingShift, existingStaff })
+        
+        return existingDay === normalizedDay &&
+               existingShift === normalizedShift &&
+               existingStaff === String(staffId)
+      }
+    )
+    if (exists) {
+      toast.error(t('schedule.assignmentExists'))
+      return
+    }
+
 
       // Update local state immediately for responsiveness
-      const updatedSchedule = {
-        ...currentSchedule,
-        assignments: [...(currentSchedule.assignments || []), newAssignment]
-      }
-      
-      setCurrentSchedule(updatedSchedule)
-      setUnsavedChanges(true)
+      // Immutable update so the calendar re-renders
+    const updated = {
+      ...schedule,
+      assignments: [...(schedule.assignments || []), newAssignment],
+      updated_at: new Date().toISOString()
+    }
+
+    setCurrentSchedule(updated)
+    setUnsavedChanges(true)
+
+    console.log(' Local schedule updated. Assignments:', updated.assignments.length)
+    console.log('📊 All assignments now:', updated.assignments.map(a => ({ 
+      day: a.day, 
+      shift: a.shift, 
+      staff_id: a.staff_id 
+    })))
       
       toast.success(t('common.assignments') + ' ' + t('common.add'))
     } catch (error) {
@@ -1739,20 +1826,18 @@ export default function SchedulePage() {
   }
 
   const handleRemoveAssignment = async (assignmentId: string) => {
-    if (!currentSchedule) return
-
     try {
-      console.log('🗑️ Removing assignment:', assignmentId)
-      
-      // Update local state
+      const schedule = ensureDraftSchedule()
+      console.log('🗑️ Removing assignment:', assignmentId, 'from schedule', schedule.id)
+
       const updatedSchedule = {
-        ...currentSchedule,
-        assignments: currentSchedule.assignments?.filter(a => a.id !== assignmentId) || []
+        ...schedule,
+        assignments: (schedule.assignments || []).filter((a: any) => a.id !== assignmentId),
       }
-      
+
       setCurrentSchedule(updatedSchedule)
       setUnsavedChanges(true)
-      
+
       toast.success(t('common.assignments') + ' ' + t('common.delete'))
     } catch (error) {
       console.error('Failed to remove assignment:', error)
@@ -1792,26 +1877,101 @@ export default function SchedulePage() {
 
   try {
     console.log('💾 Saving schedule:', currentSchedule.id)
+
+    console.log('🔍 SAVE DEBUG - Original assignments:', 
+      currentSchedule.assignments?.map(a => ({ 
+        id: a.id,
+        day: a.day, 
+        shift: a.shift, 
+        staff_id: a.staff_id,
+        dayType: typeof a.day,
+        shiftType: typeof a.shift
+      }))
+    )
     
     let scheduleId: string
     
-    // Step 1: Create or update the schedule first
-    if (currentSchedule.id && !currentSchedule.is_generated) {
-      // Update existing schedule
-      await apiClient.updateSchedule(currentSchedule.id, currentSchedule)
-      scheduleId = currentSchedule.id
-    } else {
-      // Create new schedule - FIX: Send correct data structure
-      const createData = {
-        facility_id: selectedFacility.id, // Use selectedFacility.id
-        week_start: getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0],
-        assignments: currentSchedule.assignments || []
-      }
+    // FIXED: Better condition to determine create vs update
+    const isDraftSchedule = currentSchedule.is_draft || 
+                            currentSchedule.id.startsWith('draft-') || 
+                            currentSchedule.is_generated
+    
+    if (isDraftSchedule) {
+      // CREATE PATH - New schedule or draft schedule
+      console.log('🆕 Creating new schedule (draft or generated)')
       
-      console.log('📝 Creating schedule with data:', createData)
+      // CRITICAL: Clean the assignment data - remove draft IDs
+      const cleanAssignments = (currentSchedule.assignments || []).map((assignment, index) => {
+        const cleanedAssignment = {
+          day: Number(assignment.day),
+          shift: Number(assignment.shift),
+          staff_id: String(assignment.staff_id),
+          zone_id: assignment.zone_id || null
+        }
+
+        //Validate assignment elements
+        if (isNaN(cleanedAssignment.day) || isNaN(cleanedAssignment.shift)) {
+          console.error(`❌ Invalid assignment ${index}:`, { 
+            original: assignment, 
+            cleaned: cleanedAssignment 
+          })
+          throw new Error(`Assignment ${index} has invalid day/shift values`)
+        }
+        
+        return cleanedAssignment
+      })
+
+      console.log('🧹 SAVE DEBUG - Cleaned assignments:', cleanAssignments)
+      
+      const createData = {
+        facility_id: selectedFacility.id,
+        week_start: getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0],
+        assignments: cleanAssignments
+      }
+      console.log('📤 SAVE DEBUG - Sending to API:', createData)
+      
+      console.log('🔄 Creating schedule with cleaned data:', {
+        ...createData,
+        assignments_sample: cleanAssignments.slice(0, 3)
+      })
+      
       const savedSchedule = await apiClient.createSchedule(createData)
+      console.log('✅ Schedule created successfully:', savedSchedule.id)
+      
       setCurrentSchedule(savedSchedule)
       scheduleId = savedSchedule.id
+      
+    } else {
+      // UPDATE PATH - Existing real schedule
+      console.log('📝 Updating existing schedule')
+
+      const cleanAssignments = (currentSchedule.assignments || []).map((assignment, index) => {
+        const cleanedAssignment = {
+          day: Number(assignment.day),
+          shift: Number(assignment.shift),
+          staff_id: String(assignment.staff_id),
+          zone_id: assignment.zone_id || null
+        }
+        
+        if (isNaN(cleanedAssignment.day) || isNaN(cleanedAssignment.shift)) {
+          console.error(`❌ Invalid assignment ${index}:`, { 
+            original: assignment, 
+            cleaned: cleanedAssignment 
+          })
+          throw new Error(`Assignment ${index} has invalid day/shift values`)
+        }
+        
+        return cleanedAssignment
+      })
+      
+      // For updates, also clean assignment data
+      const updateData = {
+        ...currentSchedule,
+        assignments: cleanAssignments
+      }
+      
+      await apiClient.updateSchedule(currentSchedule.id, updateData)
+      scheduleId = currentSchedule.id
     }
     
     // Step 2: If notification options provided, publish the schedule
@@ -1825,7 +1985,7 @@ export default function SchedulePage() {
         custom_message: notificationOptions.customMessage
       })
       
-      toast.success('Schedule published and notifications sent!')
+      toast.success(t('schedule.schedulePublished'))
     } else {
       toast.success(t('schedule.schedule') + ' ' + t('common.savedSuccessfully'))
     }
@@ -1833,11 +1993,17 @@ export default function SchedulePage() {
     setUnsavedChanges(false)
     setShowSaveDialog(false)
     
-    // Reload schedules
-    loadSchedules()
+    // Reload schedules to get fresh data
+    await loadSchedules()
+    
   } catch (error) {
     console.error('Failed to save schedule:', error)
-    toast.error(t('common.failedToSave') + ' schedule')
+    console.error('Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    })
+    toast.error(t('common.failedToSave') + ' schedule: ' + (error.message || 'Unknown error'))
   }
 }
 

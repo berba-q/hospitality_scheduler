@@ -186,7 +186,8 @@ export const it = {
     enable: 'Abilita',
     or: 'o',
     primary: 'Primario',
-    
+    declined: 'Rifiutato',
+
     // Azioni mostra/nascondi
     show: 'Mostra',
     hide: 'Nascondi',
@@ -271,6 +272,8 @@ export const it = {
     yes: 'Si',
     no: 'No',
     working: 'Lavorazione...',
+    note: 'Nota',
+    levelNumber: 'L{{level}}',
 
     // Entità generiche
     facility: 'Struttura',
@@ -612,7 +615,8 @@ export const it = {
     generationPreview: 'Anteprima Generazione',
     aiPoweredGeneration: 'Generazione Basata su AI',
     generateSchedule: 'Genera Pianificazione',
-    
+    dropHere: 'Trascina il personale qui per assegnarlo a un turno',
+    constraints: 'Vincoli',
     // Smart constraints
     useSmartConstraints: 'Usa Vincoli Intelligenti',
     applyBusinessRules: 'Applica regole aziendali e normative',
@@ -742,7 +746,8 @@ export const it = {
     totalAssignments: 'Assegnazioni Totali',
     totalCoverage: 'Copertura Totale',
     weeklyActivity: 'Attività Settimanale',
-    
+    assignmentExists: 'Il membro del personale è già assegnato a questo turno',
+    schedulePublished: 'Pianificazione pubblicata e notifiche inviate!',
     // Configurazione
     scheduleConfiguration: 'Configurazione Pianificazione',
     configuration: 'Configurazione',
@@ -1081,7 +1086,23 @@ export const it = {
       '336': '2 settimane',
       '720': '30 giorni'
     },
-    
+
+    // Invitation Status Panel keys
+    invitationStatus: 'Stato Inviti',
+    loadingInvitationStatus: 'Caricamento stato inviti...',
+    invitationResent: 'Invito reinviato con successo',
+    failedResendInvitation: 'Impossibile reinviare l\'invito',
+    pendingInvitationsCount: '{{count}} membro{{plural}} del personale non ha completato la registrazione:',
+    resend: 'Reinvia',
+    andCountMore: '... e altri {{count}}',
+    allStaffRegistered: '✅ Tutti i membri del personale hanno completato la registrazione!',
+    pendingInvitationsNote: 'Il personale con inviti in sospeso non riceverà notifiche di pianificazione finché non completa la registrazione. Usa "Reinvia" per ricordarglielo.',
+
+    // Staff status badges
+    statusActive: '✓ Attivo',
+    statusInvited: '📧 Invitato',
+    statusNoAccount: '⚠ Nessun Account',
+
     // Invitation sending progress/results
     sendingInvitations: 'Invio Inviti...',
     invitationsSentSuccessfully: 'Inviti inviati con successo!',

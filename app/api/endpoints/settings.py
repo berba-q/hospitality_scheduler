@@ -263,7 +263,7 @@ def get_service_status(
     # Check Push/Firebase (database OR environment)
     if notification_settings and notification_settings.push_enabled and notification_settings.firebase_server_key:
         push_configured = True  
-    elif os.getenv('FIREBASE_SERVER_KEY'):
+    elif os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH') or os.getenv('FIREBASE_PROJECT_ID'):
         push_configured = True
     
     # Return clean, manager-friendly status

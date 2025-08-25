@@ -192,7 +192,8 @@ export const en = {
     clearAll: 'Clear All',
     clearSelection: 'Clear Selection',
     clearFilters: 'Clear Filters',
-    
+    declined: 'Declined',
+
     // ============================================================================
     // COMMON STATUS TERMS (reusable)
     // ============================================================================
@@ -261,6 +262,8 @@ export const en = {
     yes: 'Yes',
     no: 'No',
     working: 'Working...',
+    note: 'Note',
+    levelNumber: 'L{{level}}',
 
     // Generic entities
     facility: 'Facility',
@@ -595,6 +598,8 @@ export const en = {
     aiOptimizationSettings: 'AI Optimization Settings',
     generationPreview: 'Generation Preview',
     aiPoweredGeneration: 'AI-Powered Generation',
+    dropHere: "Drop staff here to assign them to a shift",
+    constraints: "Constraints",
     
     // Smart constraints
     useSmartConstraints: 'Use Smart Constraints',
@@ -725,6 +730,8 @@ export const en = {
     totalAssignments: 'Total Assignments',
     totalCoverage: 'Total Coverage',
     weeklyActivity: 'Weekly Activity',
+    assignmentExists: 'Staff member already assigned to this shift',
+    schedulePublished: 'Schedule published and notifications sent!',
 
     // Configuration
     scheduleConfiguration: 'Schedule Configuration',
@@ -1045,8 +1052,24 @@ export const en = {
       '72': '3 days', 
       '168': '1 week (recommended)',
       '336': '2 weeks',
-      '720': '30 days'
+      '720': '30 days',
     },
+
+    // Invitation Status Panel keys
+    invitationStatus: 'Invitation Status',
+    loadingInvitationStatus: 'Loading invitation status...',
+    invitationResent: 'Invitation resent successfully',
+    failedResendInvitation: 'Failed to resend invitation',
+    pendingInvitationsCount: '{{count}} staff member{{plural}} haven\'t completed registration:',
+    resend: 'Resend',
+    andCountMore: '... and {{count}} more',
+    allStaffRegistered: '✅ All staff members have completed registration!',
+    pendingInvitationsNote: 'Staff with pending invitations won\'t receive schedule notifications until they complete registration. Use "Resend" to remind them.',
+
+    // Staff status badges
+    statusActive: '✓ Active',
+    statusInvited: '📧 Invited',
+    statusNoAccount: '⚠ No Account',
 
     // Delete confirmation
     removeStaffMember: "Remove {name}",
