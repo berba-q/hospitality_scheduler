@@ -1112,12 +1112,59 @@ export class ApiClient {
   }
 
   // Time off ========================
+  async createStaffUnavailability(staffId: string, unavailabilityData: {
+    start: string // ISO datetime string
+    end: string   // ISO datetime string  
+    reason?: string
+    is_recurring?: boolean
+  }) {
+    const response = await this.request(`/v1/availability/staff/${staffId}`, {
+      method: 'POST',
+      body: JSON.stringify(unavailabilityData)
+    })
+    return response
+  }
+
+  async createUnavailabilityRequest(staffId: string, requestData: any) {
+    if (requestData.pattern && requestData.pattern !== 'custom') {
+      return this.createMyQuickUnavailability(requestData)
+    } 
+    
+    const unavailabilityData = {
+      start: requestData.start,
+      end: requestData.end,
+      reason: requestData.reason,
+      is_recurring: requestData.is_recurring || false
+    }
+    
+    return this.createMyUnavailability(unavailabilityData)
+}
+
   async createTimeOffRequest(staffId: string, requestData: any) {
     const response = await this.request(`/v1/availability/staff/${staffId}/quick`, {
       method: 'POST',
       body: JSON.stringify(requestData)
     })
     return response
+  }
+
+  async createMyUnavailability(unavailabilityData: {
+    start: string
+    end: string  
+    reason?: string
+    is_recurring?: boolean
+  }) {
+    return this.request(`/v1/availability/me`, {
+      method: 'POST',
+      body: JSON.stringify(unavailabilityData)
+    })
+  }
+
+  async createMyQuickUnavailability(requestData: any) {
+    return this.request(`/v1/availability/me/quick`, {
+      method: 'POST',
+      body: JSON.stringify(requestData)
+    })
   }
 
   async getStaffUnavailability(staffId: string, startDate?: string, endDate?: string) {

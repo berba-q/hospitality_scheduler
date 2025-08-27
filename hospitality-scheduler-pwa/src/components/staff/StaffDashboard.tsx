@@ -498,14 +498,9 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
 
   const handleTimeOffRequest = async (requestData: any) => {
     try {
-      const staffId = user.staffId || user.staff_id || user.id
-      if (!staffId) {
-        throw new Error('Staff ID not found in user object')
-      }
-      
-      await apiClient.createTimeOffRequest(staffId, requestData)
-      toast.success(t('dashboard.timeOffRequestSubmitted')) // TRANSLATE: Success message
-      
+      // No need to resolve staff ID anymore - the backend handles it
+      await apiClient.createUnavailabilityRequest('', requestData) // staffId not needed
+      toast.success(t('dashboard.timeOffRequestSubmitted'))
       loadDashboardData()
     } catch (error: any) {
       console.error('Failed to submit time off request:', error)

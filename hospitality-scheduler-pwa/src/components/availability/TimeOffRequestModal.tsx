@@ -113,30 +113,66 @@ export function TimeOffRequestModal({
     try {
       if (requestType === 'single') {
         // Single date request
-        const requestData = {
-          pattern: selectedPattern,
-          date: selectedDate,
-          reason: reason || undefined,
-          is_recurring: isRecurring,
-          custom_start_hour: selectedPattern === 'custom' ? customStartHour : undefined,
-          custom_end_hour: selectedPattern === 'custom' ? customEndHour : undefined
+        let requestData;
+        
+        if (selectedPattern === 'custom') {
+          // For custom patterns, create start/end datetime strings
+          const startDateTime = new Date(selectedDate!)
+          startDateTime.setHours(customStartHour, 0, 0, 0)
+          
+          const endDateTime = new Date(selectedDate!)
+          endDateTime.setHours(customEndHour, 0, 0, 0)
+          
+          requestData = {
+            start: startDateTime.toISOString(),
+            end: endDateTime.toISOString(),
+            reason: reason || undefined,
+            is_recurring: isRecurring
+          }
+        } else {
+          // For quick patterns, use existing structure
+          requestData = {
+            pattern: selectedPattern,
+            date: selectedDate,
+            reason: reason || undefined,
+            is_recurring: isRecurring
+          }
         }
         
         await onSubmit(requestData)
       } else {
-        // Date range request - create multiple single-day requests
+        // Date range request - create multiple requests
         const requests = []
         const current = new Date(startDate!)
         
         while (current <= endDate!) {
-          requests.push({
-            pattern: selectedPattern,
-            date: new Date(current),
-            reason: reason || undefined,
-            is_recurring: false, // Range requests are not recurring
-            custom_start_hour: selectedPattern === 'custom' ? customStartHour : undefined,
-            custom_end_hour: selectedPattern === 'custom' ? customEndHour : undefined
-          })
+          let requestData;
+          
+          if (selectedPattern === 'custom') {
+            // For custom patterns in ranges
+            const startDateTime = new Date(current)
+            startDateTime.setHours(customStartHour, 0, 0, 0)
+            
+            const endDateTime = new Date(current)
+            endDateTime.setHours(customEndHour, 0, 0, 0)
+            
+            requestData = {
+              start: startDateTime.toISOString(),
+              end: endDateTime.toISOString(),
+              reason: reason || undefined,
+              is_recurring: false
+            }
+          } else {
+            // For quick patterns in ranges
+            requestData = {
+              pattern: selectedPattern,
+              date: new Date(current),
+              reason: reason || undefined,
+              is_recurring: false
+            }
+          }
+          
+          requests.push(requestData)
           current.setDate(current.getDate() + 1)
         }
         

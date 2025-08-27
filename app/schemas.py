@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Any, Dict, Literal, Optional, List
 from enum import Enum
 import uuid
@@ -804,14 +804,14 @@ class StaffUnavailabilityCreate(BaseModel):
     is_recurring: bool = False
     
     @field_validator('end')
-    def end_after_start(cls, v, values):
-        if 'start' in values and v <= values['start']:
+    def end_after_start(cls, v, info):
+        if 'start' in info.data and v <= info.data['start']:
             raise ValueError('End time must be after start time')
         return v
 
     @field_validator('start')
     def start_not_in_past(cls, v):
-        if v < datetime.utcnow():
+        if v < datetime.now(timezone.utc):
             raise ValueError('Cannot set availability for past dates')
         return v
 
@@ -822,8 +822,8 @@ class StaffUnavailabilityUpdate(BaseModel):
     is_recurring: Optional[bool] = None
 
     @field_validator('end')
-    def end_after_start(cls, v, values):
-        if v and 'start' in values and values['start'] and v <= values['start']:
+    def end_after_start(cls, v, info):
+        if v and 'start' in info.data and info.data['start'] and v <= info.data['start']:
             raise ValueError('End time must be after start time')
         return v
 
@@ -855,11 +855,11 @@ class QuickUnavailabilityCreate(BaseModel):
     custom_end_hour: Optional[int] = Field(None, ge=1, le=24)
     
     @field_validator('custom_end_hour')
-    def custom_end_after_start(cls, v, values):
-        if values.get('pattern') == 'custom':
-            if not values.get('custom_start_hour') or not v:
+    def custom_end_after_start(cls, v, info):
+        if info.data.get('pattern') == 'custom':
+            if not info.data.get('custom_start_hour') or not v:
                 raise ValueError('Custom pattern requires both start and end hours')
-            if v <= values['custom_start_hour']:
+            if v <= info.data['custom_start_hour']:
                 raise ValueError('End hour must be after start hour')
         return v
 
@@ -2780,8 +2780,8 @@ class ResetPasswordRequest(BaseModel):
         return v
     
     @field_validator('confirm_password')
-    def passwords_match(cls, v, values):
-        if 'new_password' in values.data and v != values.data['new_password']:
+    def passwords_match(cls, v, info):
+        if 'new_password' in info.data and v != info.data['new_password']:
             raise ValueError('Passwords do not match')
         return v
 
@@ -2826,8 +2826,8 @@ class InvitationAcceptRequest(BaseModel):
     confirm_password: Optional[str] = None
     
     @field_validator('password')
-    def validate_password(cls, v, values):
-        if values.data.get('signup_method') == 'credentials':
+    def validate_password(cls, v, info):
+        if info.data.get('signup_method') == 'credentials':
             if not v or len(v) < 8:
                 raise ValueError('Password must be at least 8 characters long')
         return v

@@ -77,8 +77,13 @@ def create_quick_unavailability(
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
-    # Convert pattern to start/end times
-    base_date = quick_in.date.replace(hour=0, minute=0, second=0, microsecond=0)
+    from datetime import timezone
+    
+    # Make sure the date is timezone-aware
+    if quick_in.date.tzinfo is None:
+        base_date = quick_in.date.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=timezone.utc)
+    else:
+        base_date = quick_in.date.replace(hour=0, minute=0, second=0, microsecond=0)
     
     if quick_in.pattern == "morning":
         start = base_date.replace(hour=6)
@@ -107,6 +112,46 @@ def create_quick_unavailability(
     )
     
     return create_staff_unavailability(staff_id, unavailability_data, db, current_user)
+
+# Create unavailability for current user (staff member)
+
+@router.post("/me", response_model=StaffUnavailabilityRead, status_code=201)
+def create_my_unavailability(
+    unavailability_in: StaffUnavailabilityCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """Create unavailability period for current user (staff member)"""
+    # Get the staff record for the current user
+    staff = db.exec(
+        select(Staff).where(Staff.email == current_user.email)
+    ).first()
+    
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff profile not found. Please contact your manager.")
+    
+    # Use the existing create logic but with the correct staff_id
+    return create_staff_unavailability(staff.id, unavailability_in, db, current_user)
+
+@router.post("/me/quick", response_model=StaffUnavailabilityRead, status_code=201)
+def create_my_quick_unavailability(
+    quick_in: QuickUnavailabilityCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """Create quick unavailability period for current user (staff member)"""
+    from datetime import timezone
+    
+    # Get the staff record for the current user
+    staff = db.exec(
+        select(Staff).where(Staff.email == current_user.email)
+    ).first()
+    
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff profile not found. Please contact your manager.")
+    
+    # Use the existing quick create logic but with the correct staff_id
+    return create_quick_unavailability(staff.id, quick_in, db, current_user)
 
 @router.get("/staff/{staff_id}", response_model=List[StaffUnavailabilityRead])
 def get_staff_unavailability(
