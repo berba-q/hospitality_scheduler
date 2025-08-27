@@ -505,6 +505,25 @@ def validate_staff_deletion(
     today = date.today()
     now = datetime.now()
     
+    pending_invitations = db.exec(
+        select(func.count(StaffInvitation.id))
+        .where(StaffInvitation.staff_id == staff_uuid)
+        .where(StaffInvitation.accepted_at.is_(None))
+        .where(StaffInvitation.cancelled_at.is_(None))
+        .where(StaffInvitation.expires_at > datetime.now(timezone.utc))
+    ).first() or 0
+    
+    if pending_invitations > 0:
+        warnings.append(f"Staff member has {pending_invitations} pending invitation(s) that will be cancelled")
+    
+    total_invitations = db.exec(
+        select(func.count(StaffInvitation.id))
+        .where(StaffInvitation.staff_id == staff_uuid)
+    ).first() or 0
+    
+    if total_invitations > 0:
+        warnings.append(f"Staff member has {total_invitations} invitation record(s) that will be deleted")
+    
     # Check for future shift assignments
     today = date.today()
     future_assignments_count = db.exec(
@@ -677,6 +696,28 @@ def delete_staff(
     # Count what will be affected for response
     reassigned_schedules_count = 0
     cancelled_swaps_count = 0
+    cancelled_invitations_count = 0
+    
+    pending_invitations = db.exec(
+            select(StaffInvitation)
+            .where(StaffInvitation.staff_id == staff_uuid)
+            .where(StaffInvitation.accepted_at.is_(None))
+            .where(StaffInvitation.cancelled_at.is_(None))
+        ).all()
+        
+    for invitation in pending_invitations:
+            invitation.cancelled_at = datetime.now(timezone.utc)
+            cancelled_invitations_count += 1
+        
+        # For hard deletion, delete all invitation records
+    if not soft_delete:
+            all_invitations = db.exec(
+                select(StaffInvitation)
+                .where(StaffInvitation.staff_id == staff_uuid)
+            ).all()
+            
+            for invitation in all_invitations:
+                db.delete(invitation)
     
     try:
         # Handle dependencies based on options
@@ -746,11 +787,15 @@ def delete_staff(
             staff.updated_at = datetime.now()
             db.commit()
             message = f"Staff member '{staff.full_name}' deactivated successfully"
+            if cancelled_invitations_count > 0:
+                message += f" ({cancelled_invitations_count} pending invitation(s) cancelled)"
         else:
             # Hard delete
             db.delete(staff)
             db.commit()
             message = f"Staff member '{staff.full_name}' deleted successfully"
+            if cancelled_invitations_count > 0:
+                message += f" ({cancelled_invitations_count} invitation record(s) removed)"
         
         return StaffDeleteResponse(
             success=True,
