@@ -100,30 +100,38 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             
             # Log successful request (only for authenticated endpoints, not monitoring)
             if user_id and response.status_code < 400 and not is_monitoring_request:
-                await self._log_request_success(
-                    audit_service, user_id, request, response, 
-                    client_ip, user_agent, request_id, start_time
-                )
+                try:
+                    await self._log_request_success(
+                        audit_service, user_id, request, response, 
+                        client_ip, user_agent, request_id, start_time
+                    )
+                except Exception as audit_error:
+                    # FIXED: Don't let audit failures crash the request
+                    logger.warning(f"Audit logging failed: {audit_error}")
             
             return response
             
         except HTTPException as e:
             # ✅ FIX: Only log suspicious activity for actual users, not monitoring tools
             if not is_monitoring_request:
-                await audit_service.log_event(
-                    AuditEvent.SUSPICIOUS_ACTIVITY if e.status_code == 401 else AuditEvent.LOGIN_FAILED,
-                    user_id=user_id,
-                    ip_address=client_ip,
-                    user_agent=user_agent,
-                    request_id=request_id,
-                    details={
-                        "path": request.url.path,
-                        "method": request.method,
-                        "status_code": e.status_code,
-                        "error": e.detail
-                    },
-                    severity="warning" if e.status_code == 401 else "error"
-                )
+                try:
+                    await audit_service.log_event(
+                        AuditEvent.SUSPICIOUS_ACTIVITY if e.status_code == 401 else AuditEvent.LOGIN_FAILED,
+                        user_id=user_id,
+                        ip_address=client_ip,
+                        user_agent=user_agent,
+                        request_id=request_id,
+                        details={
+                            "path": request.url.path,
+                            "method": request.method,
+                            "status_code": e.status_code,
+                            "error": e.detail
+                        },
+                        severity="warning" if e.status_code == 401 else "error"
+                    )
+                except Exception as audit_error:
+                    # FIXED: Don't let audit failures crash the middleware
+                    logger.error(f"Failed to log suspicious activity: {audit_error}")
             else:
                 # Just log to application logger for monitoring tools
                 logger.debug(f"Monitoring tool access: {client_ip} -> {request.url.path}")
@@ -135,26 +143,33 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             # ✅ FIX: Don't spam audit logs for monitoring tool errors
             if not is_monitoring_request:
-                await audit_service.log_event(
-                    AuditEvent.SUSPICIOUS_ACTIVITY,
-                    user_id=user_id,
-                    ip_address=client_ip,
-                    user_agent=user_agent,
-                    request_id=request_id,
-                    details={
-                        "path": request.url.path,
-                        "method": request.method,
-                        "error": str(e)
-                    },
-                    severity="error"
-                )
+                try:
+                    await audit_service.log_event(
+                        AuditEvent.SUSPICIOUS_ACTIVITY,
+                        user_id=user_id,
+                        ip_address=client_ip,
+                        user_agent=user_agent,
+                        request_id=request_id,
+                        details={
+                            "path": request.url.path,
+                            "method": request.method,
+                            "error": str(e)
+                        },
+                        severity="error"
+                    )
+                except Exception as audit_error:
+                    # FIXED: Don't let audit failures crash the middleware
+                    logger.error(f"Failed to log exception to audit: {audit_error}")
             
             logger.error(f"Unexpected error in security middleware: {e}")
             resp = JSONResponse(status_code=500, content={"detail": "Internal server error"})
             self._apply_cors_headers(resp, request)
             return resp
         finally:
-            db.close()
+            try:
+                db.close()
+            except Exception:
+                pass  # Ignore close errors
             
     def _is_monitoring_request(self, user_agent: str, path: str) -> bool:
         """Detect if this is a monitoring/health check request"""

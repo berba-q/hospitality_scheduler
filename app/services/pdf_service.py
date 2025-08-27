@@ -87,17 +87,7 @@ class PDFService:
         pdf_type: str = "full"  # "full", "individual", or "summary"
     ) -> bytes:
         """
-        Generate a PDF schedule
-        
-        Args:
-            schedule: Schedule object with basic info
-            assignments: List of assignment dictionaries
-            staff: List of staff member dictionaries  
-            facility: Facility dictionary with name, zones, shifts
-            pdf_type: Type of PDF to generate
-        
-        Returns:
-            bytes: PDF file content
+        Generate a PDF schedule with improved data handling
         """
         buffer = BytesIO()
         
@@ -111,18 +101,106 @@ class PDFService:
             rightMargin=0.75*inch
         )
         
-        # Build content based on PDF type
-        if pdf_type == "individual":
-            content = self._build_individual_schedule_content(schedule, assignments, staff, facility)
-        elif pdf_type == "summary":
-            content = self._build_summary_content(schedule, assignments, staff, facility)
-        else:  # full
-            content = self._build_full_schedule_content(schedule, assignments, staff, facility)
-        
-        # Build PDF
-        doc.build(content)
-        buffer.seek(0)
-        return buffer.getvalue()
+        try:
+            # FIXED: Normalize the input data to ensure consistent format
+            
+            # Normalize schedule data
+            if isinstance(schedule, dict):
+                # It's already a dict
+                schedule_dict = schedule
+            else:
+                # It's a SQLModel object
+                schedule_dict = {
+                    'week_start': getattr(schedule, 'week_start', None),
+                    'id': getattr(schedule, 'id', 'unknown'),
+                    'facility_id': getattr(schedule, 'facility_id', 'unknown')
+                }
+            
+            # Normalize assignments data
+            normalized_assignments = []
+            for assignment in assignments:
+                if isinstance(assignment, dict):
+                    # It's already a dict
+                    normalized_assignment = {
+                        'staff_id': str(assignment.get('staff_id', 'unknown')),
+                        'day': int(assignment.get('day', 0)),
+                        'shift': int(assignment.get('shift', 0)),
+                        'id': str(assignment.get('id', 'unknown'))
+                    }
+                else:
+                    # It's a SQLModel object, use dot notation
+                    normalized_assignment = {
+                        'staff_id': str(getattr(assignment, 'staff_id', 'unknown')),
+                        'day': int(getattr(assignment, 'day', 0)),
+                        'shift': int(getattr(assignment, 'shift', 0)),
+                        'id': str(getattr(assignment, 'id', 'unknown'))
+                    }
+                normalized_assignments.append(normalized_assignment)
+            
+            # Normalize staff data
+            normalized_staff = []
+            for staff_member in staff:
+                if isinstance(staff_member, dict):
+                    # It's already a dict
+                    normalized_staff_member = {
+                        'id': str(staff_member.get('id', 'unknown')),
+                        'full_name': staff_member.get('full_name', staff_member.get('name', 'Unknown')),
+                        'role': staff_member.get('role', 'Staff')
+                    }
+                else:
+                    # It's a SQLModel object, use getattr for safety
+                    normalized_staff_member = {
+                        'id': str(getattr(staff_member, 'id', 'unknown')),
+                        'full_name': getattr(staff_member, 'full_name', 'Unknown'),
+                        'role': getattr(staff_member, 'role', 'Staff')
+                    }
+                normalized_staff.append(normalized_staff_member)
+            
+            # Normalize facility data
+            if hasattr(facility, '__dict__'):
+                # It's a SQLModel object
+                facility_dict = {
+                    'name': getattr(facility, 'name', 'Facility'),
+                    'facility_type': getattr(facility, 'facility_type', 'General'),
+                    'zones': getattr(facility, 'zones', []),
+                    'shifts': getattr(facility, 'shifts', [])
+                }
+            else:
+                # It's already a dict
+                facility_dict = {
+                    'name': facility.get('name', 'Facility'),
+                    'facility_type': facility.get('facility_type', 'General'),
+                    'zones': facility.get('zones', []),
+                    'shifts': facility.get('shifts', [])
+                }
+            
+            # Build content based on PDF type
+            if pdf_type == "individual":
+                content = self._build_individual_schedule_content(
+                    schedule_dict, normalized_assignments, normalized_staff, facility_dict
+                )
+            elif pdf_type == "summary":
+                content = self._build_summary_content(
+                    schedule_dict, normalized_assignments, normalized_staff, facility_dict
+                )
+            else:  # full
+                content = self._build_full_schedule_content(
+                    schedule_dict, normalized_assignments, normalized_staff, facility_dict
+                )
+            
+            # Build PDF
+            doc.build(content)
+            buffer.seek(0)
+            return buffer.getvalue()
+            
+        except Exception as e:
+            print(f"❌ PDF generation error: {e}")
+            print(f"Schedule type: {type(schedule)}")
+            print(f"Assignments count: {len(assignments)}")
+            print(f"Staff count: {len(staff)}")
+            import traceback
+            traceback.print_exc()
+            raise Exception(f"PDF generation failed: {str(e)}")
     
     def _build_full_schedule_content(self, schedule, assignments, staff, facility):
         """Build content for full schedule PDF"""
@@ -217,13 +295,27 @@ class PDFService:
         content.append(title)
         
         # Date range
+        week_start = None
         if hasattr(schedule, 'week_start'):
-            week_start_str = schedule.week_start
-        else:
+            week_start_raw = schedule.week_start
+            if isinstance(week_start_raw, str):
+                # It's already a string, parse it
+                week_start = datetime.fromisoformat(week_start_raw.split('T')[0])  # Handle both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM:SS"
+            elif hasattr(week_start_raw, 'date'):
+                # It's a datetime object
+                week_start = week_start_raw if isinstance(week_start_raw, datetime) else datetime.combine(week_start_raw, datetime.min.time())
+            else:
+                week_start = datetime.now()
+        elif isinstance(schedule, dict):
             # Handle if schedule is a dict
             week_start_str = schedule.get('week_start', datetime.now().isoformat())
+            if isinstance(week_start_str, str):
+                week_start = datetime.fromisoformat(week_start_str.split('T')[0])
+            else:
+                week_start = datetime.now()
+        else:
+            week_start = datetime.now()
         
-        week_start = datetime.fromisoformat(week_start_str)
         week_end = week_start + timedelta(days=6)
         
         date_text = f"{week_start.strftime('%B %d')} - {week_end.strftime('%B %d, %Y')}"

@@ -1,6 +1,6 @@
 # Schedule API endpoints for smart scheduling, daily, monthly generation, and zone management
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 import uuid
@@ -266,8 +266,7 @@ async def generate_daily_schedule(
             week_start=target_date
         )
         db.add(schedule)
-        db.commit()
-        db.refresh(schedule)
+        db.flush() 
         
         # Save assignments
         for assignment_data in schedule_data['assignments']:
@@ -280,6 +279,7 @@ async def generate_daily_schedule(
             db.add(assignment)
         
         db.commit()
+        db.refresh(schedule)
         
         return {
             "schedule_id": schedule.id,
@@ -1655,74 +1655,190 @@ async def create_schedule(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Create a new schedule"""
+    """Create a new schedule with comprehensive error handling"""
     
     facility_id = request.get('facility_id')
     week_start = request.get('week_start')
     assignments = request.get('assignments', [])
     
+    # Validate required fields
+    if not facility_id:
+        raise HTTPException(status_code=400, detail="facility_id is required")
+    if not week_start:
+        raise HTTPException(status_code=400, detail="week_start is required")
+    
+    # Validate facility_id format
+    try:
+        facility_uuid = UUID(facility_id)
+    except (ValueError, TypeError) as e:
+        raise HTTPException(status_code=400, detail=f"Invalid facility_id format: {facility_id}")
+    
     # Verify facility access
-    facility = db.get(Facility, facility_id)
+    facility = db.get(Facility, facility_uuid)
     if not facility or facility.tenant_id != current_user.tenant_id:
-        raise HTTPException(status_code=403, detail="Invalid facility")
+        raise HTTPException(status_code=403, detail="Invalid facility or access denied")
     
     try:
         print(f"🆕 Creating new schedule for facility {facility_id} with {len(assignments)} assignments")
         
-        # Parse week_start date
-        week_start_date = datetime.fromisoformat(week_start).date()
+        # Parse and validate week_start date
+        try:
+            week_start_date = datetime.fromisoformat(week_start).date()
+        except (ValueError, TypeError) as e:
+            raise HTTPException(status_code=400, detail=f"Invalid date format for week_start: {week_start}")
         
-        # Create new schedule
-        schedule = Schedule(
-            facility_id=UUID(facility_id),
-            week_start=week_start_date
-        )
-        db.add(schedule)
-        db.commit()
-        db.refresh(schedule)
-        
-        print(f" Schedule created with ID: {schedule.id}")
-        
-        # Save assignments
-        saved_assignments = []
-        for i, assignment_data in enumerate(assignments):
-            print(f" Adding assignment {i+1}: day={assignment_data.get('day')}, shift={assignment_data.get('shift')}, staff_id={assignment_data.get('staff_id')}")
-            
-            assignment = ShiftAssignment(
-                schedule_id=schedule.id,
-                day=assignment_data.get('day', 0),
-                shift=assignment_data.get('shift', 0),
-                staff_id=UUID(assignment_data['staff_id'])
+        # Check for duplicate schedule
+        existing_schedule = db.exec(
+            select(Schedule).where(
+                Schedule.facility_id == facility_uuid,
+                Schedule.week_start == week_start_date
             )
-            db.add(assignment)
+        ).first()
+        
+        if existing_schedule:
+            raise HTTPException(
+                status_code=409, 
+                detail=f"Schedule already exists for week starting {week_start_date}"
+            )
+        
+        # Validate and clean assignments
+        if assignments:
+            unique_staff_ids = []
+            cleaned_assignments = []
             
-            saved_assignments.append({
-                'id': f"{schedule.id}-{assignment.day}-{assignment.shift}-{assignment.staff_id}",
-                'day': assignment.day,
-                'shift': assignment.shift,
-                'staff_id': str(assignment.staff_id),
-                'schedule_id': str(schedule.id)
-            })
+            for i, assignment_data in enumerate(assignments):
+                try:
+                    # Extract and validate data
+                    day = assignment_data.get('day')
+                    shift = assignment_data.get('shift')
+                    staff_id = assignment_data.get('staff_id')
+                    
+                    # Validate required fields
+                    if day is None or shift is None or not staff_id:
+                        raise ValueError(f"Assignment {i} missing required fields: day={day}, shift={shift}, staff_id={staff_id}")
+                    
+                    # Convert and validate types
+                    try:
+                        day_int = int(day)
+                        shift_int = int(shift)
+                        staff_uuid = UUID(staff_id)
+                    except (ValueError, TypeError) as e:
+                        raise ValueError(f"Assignment {i} has invalid data types: {e}")
+                    
+                    # Validate ranges
+                    if not (0 <= day_int <= 6):
+                        raise ValueError(f"Assignment {i} has invalid day: {day_int} (must be 0-6)")
+                    if not (0 <= shift_int <= 2):
+                        raise ValueError(f"Assignment {i} has invalid shift: {shift_int} (must be 0-2)")
+                    
+                    cleaned_assignment = {
+                        'day': day_int,
+                        'shift': shift_int,
+                        'staff_id': str(staff_uuid),  # Keep as string for consistency
+                        'zone_id': assignment_data.get('zone_id')
+                    }
+                    
+                    cleaned_assignments.append(cleaned_assignment)
+                    unique_staff_ids.append(str(staff_uuid))
+                    
+                    print(f"✅ Validated assignment {i+1}: day={day_int}, shift={shift_int}, staff_id={staff_uuid}")
+                    
+                except Exception as e:
+                    print(f"❌ Assignment {i} validation failed: {e}")
+                    raise HTTPException(status_code=400, detail=f"Assignment {i+1} is invalid: {str(e)}")
+            
+            # Validate all staff exist and belong to facility
+            if unique_staff_ids:
+                unique_staff_uuids = [UUID(sid) for sid in set(unique_staff_ids)]
+                existing_staff = db.exec(
+                    select(Staff).where(
+                        Staff.id.in_(unique_staff_uuids),
+                        Staff.facility_id == facility_uuid,
+                        Staff.is_active == True
+                    )
+                ).all()
+                
+                existing_staff_ids = {str(s.id) for s in existing_staff}
+                missing_staff = set(unique_staff_ids) - existing_staff_ids
+                
+                if missing_staff:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Staff members not found or inactive: {list(missing_staff)}"
+                    )
+                
+                print(f"✅ All {len(unique_staff_ids)} staff members validated")
+        else:
+            cleaned_assignments = []
         
-        # Commit all assignments
-        db.commit()
+        # Start database transaction
+        try:
+            # Create new schedule
+            schedule = Schedule(
+                facility_id=facility_uuid,
+                week_start=week_start_date
+            )
+            db.add(schedule)
+            db.flush()  # Get the ID without committing
+            
+            print(f"📅 Schedule created with ID: {schedule.id}")
+            
+            # Create assignments
+            saved_assignments = []
+            for i, assignment_data in enumerate(cleaned_assignments):
+                try:
+                    assignment = ShiftAssignment(
+                        schedule_id=schedule.id,
+                        day=assignment_data['day'],
+                        shift=assignment_data['shift'],
+                        staff_id=UUID(assignment_data['staff_id'])
+                    )
+                    db.add(assignment)
+                    
+                    saved_assignments.append({
+                        'id': f"{schedule.id}-{assignment.day}-{assignment.shift}-{assignment.staff_id}",
+                        'day': assignment.day,
+                        'shift': assignment.shift,
+                        'staff_id': str(assignment.staff_id),
+                        'schedule_id': str(schedule.id)
+                    })
+                    
+                    print(f"✅ Added assignment {i+1}: day={assignment.day}, shift={assignment.shift}")
+                    
+                except Exception as e:
+                    print(f"❌ Failed to create assignment {i+1}: {e}")
+                    raise HTTPException(status_code=400, detail=f"Failed to create assignment {i+1}: {str(e)}")
+            
+            # Commit all changes
+            db.commit()
+            db.refresh(schedule)
+            
+            print(f"✅ Successfully created schedule with {len(saved_assignments)} assignments")
+            
+            return {
+                "id": str(schedule.id),
+                "facility_id": str(schedule.facility_id),
+                "week_start": schedule.week_start.isoformat(),
+                "assignments": saved_assignments,
+                "created_at": schedule.created_at.isoformat() if schedule.created_at else None,
+                "success": True
+            }
+            
+        except Exception as e:
+            # Rollback on any database error
+            db.rollback()
+            print(f"❌ Database error, rolled back: {e}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
         
-        print(f" Successfully created schedule with {len(saved_assignments)} assignments")
-        
-        return {
-            "id": str(schedule.id),
-            "facility_id": str(schedule.facility_id),
-            "week_start": schedule.week_start.isoformat(),
-            "assignments": saved_assignments,
-            "created_at": schedule.created_at.isoformat() if schedule.created_at else None,
-            "success": True
-        }
-        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
-        print(f" Failed to create schedule: {str(e)}")
+        # Catch any other unexpected errors
+        print(f"❌ Unexpected error in create_schedule: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=422, detail=f"Schedule creation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.put("/{schedule_id}")
 async def update_schedule(
@@ -1731,7 +1847,7 @@ async def update_schedule(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Update an existing schedule"""
+    """Update an existing schedule with comprehensive error handling"""
     
     # Get existing schedule
     schedule = db.get(Schedule, schedule_id)
@@ -1741,70 +1857,91 @@ async def update_schedule(
     # Verify facility access
     facility = db.get(Facility, schedule.facility_id)
     if not facility or facility.tenant_id != current_user.tenant_id:
-        raise HTTPException(status_code=403, detail="Invalid facility")
+        raise HTTPException(status_code=403, detail="Access denied")
     
     try:
         assignments = request.get('assignments', [])
         print(f"🔄 Updating schedule {schedule_id} with {len(assignments)} assignments")
         
-        # Update the schedule timestamp
-        schedule.updated_at = datetime.utcnow()  # Set updated timestamp
-        
-        # Properly delete existing assignments
-        existing_assignments = db.exec(
-            select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule_id)
-        ).all()
-        
-        print(f" Deleting {len(existing_assignments)} existing assignments")
-        for assignment in existing_assignments:
-            db.delete(assignment)
-        
-        # Commit the deletions first
-        db.commit()
-        print(" Existing assignments deleted")
-        
-        # Add new assignments
-        saved_assignments = []
-        for i, assignment_data in enumerate(assignments):
-            print(f" Adding assignment {i+1}: day={assignment_data.get('day')}, shift={assignment_data.get('shift')}, staff_id={assignment_data.get('staff_id')}")
+        # Start transaction
+        try:
+            # Update the schedule timestamp
+            schedule.updated_at = datetime.utcnow()
             
-            assignment = ShiftAssignment(
-                schedule_id=schedule.id,
-                day=assignment_data.get('day', 0),
-                shift=assignment_data.get('shift', 0),
-                staff_id=UUID(assignment_data['staff_id'])
-            )
-            db.add(assignment)
+            # Delete existing assignments
+            existing_assignments = db.exec(
+                select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule_id)
+            ).all()
             
-            # Build response data
-            saved_assignments.append({
-                'id': f"{schedule.id}-{assignment.day}-{assignment.shift}-{assignment.staff_id}",
-                'day': assignment.day,
-                'shift': assignment.shift,
-                'staff_id': str(assignment.staff_id),
-                'schedule_id': str(schedule.id)
-            })
+            print(f"🗑️ Deleting {len(existing_assignments)} existing assignments")
+            for assignment in existing_assignments:
+                db.delete(assignment)
+            
+            db.flush()  # Apply deletions
+            
+            # Validate and add new assignments
+            saved_assignments = []
+            for i, assignment_data in enumerate(assignments):
+                try:
+                    # Validate data
+                    day = int(assignment_data.get('day', 0))
+                    shift = int(assignment_data.get('shift', 0))
+                    staff_id = UUID(assignment_data.get('staff_id'))
+                    
+                    # Validate ranges
+                    if not (0 <= day <= 6):
+                        raise ValueError(f"Invalid day: {day}")
+                    if not (0 <= shift <= 2):
+                        raise ValueError(f"Invalid shift: {shift}")
+                    
+                    assignment = ShiftAssignment(
+                        schedule_id=schedule.id,
+                        day=day,
+                        shift=shift,
+                        staff_id=staff_id
+                    )
+                    db.add(assignment)
+                    
+                    saved_assignments.append({
+                        'id': f"{schedule.id}-{day}-{shift}-{staff_id}",
+                        'day': day,
+                        'shift': shift,
+                        'staff_id': str(staff_id),
+                        'schedule_id': str(schedule.id)
+                    })
+                    
+                except (ValueError, TypeError) as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid assignment {i+1}: {str(e)}")
+            
+            # Commit all changes
+            db.commit()
+            db.refresh(schedule)
+            
+            print(f"✅ Successfully updated schedule with {len(saved_assignments)} assignments")
+            
+            return {
+                "id": str(schedule.id),
+                "facility_id": str(schedule.facility_id),
+                "week_start": schedule.week_start.isoformat(),
+                "assignments": saved_assignments,
+                "updated_at": schedule.updated_at.isoformat() if schedule.updated_at else None,
+                "success": True
+            }
+            
+        except Exception as e:
+            # Rollback on any error
+            db.rollback()
+            print(f"❌ Database error during update, rolled back: {e}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
         
-        # Commit all new assignments
-        db.commit()
-        db.refresh(schedule)
-        
-        print(f" Successfully saved {len(saved_assignments)} assignments")
-        
-        return {
-            "id": str(schedule.id),
-            "facility_id": str(schedule.facility_id),
-            "week_start": schedule.week_start.isoformat(),
-            "assignments": saved_assignments,
-            "updated_at": schedule.updated_at.isoformat() if schedule.updated_at else None,  # Now safe to access
-            "success": True
-        }
-        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
-        print(f" Failed to update schedule: {str(e)}")
+        print(f"❌ Unexpected error in update_schedule: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=422, detail=f"Schedule update failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     
 #======================== NOTIFICATIONS ===============================================
 @router.post("/{schedule_id}/publish")
@@ -1853,16 +1990,47 @@ async def publish_schedule(
     if notification_options.get('generate_pdf', False):
         try:
             pdf_service = PDFService()
+            # Convert assignments and staff to the format expected by PDF service
+            assignment_dicts = []
+            for assignment in assignments:
+                assignment_dicts.append({
+                    'staff_id': str(assignment.staff_id),
+                    'day': assignment.day,
+                    'shift': assignment.shift,
+                    'id': str(assignment.id)
+                })
+            
+            staff_dicts = []
+            for staff_member in staff_members:
+                staff_dicts.append({
+                    'id': str(staff_member.id),
+                    'full_name': staff_member.full_name,
+                    'role': staff_member.role
+                })
+            
+            facility_dict = {
+                'name': facility.name,
+                'facility_type': facility.facility_type,
+                'zones': getattr(facility, 'zones', []),
+                'shifts': [
+                    {'shift_index': 0, 'name': 'Morning', 'start_time': '6:00 AM', 'end_time': '2:00 PM'},
+                    {'shift_index': 1, 'name': 'Afternoon', 'start_time': '2:00 PM', 'end_time': '10:00 PM'},
+                    {'shift_index': 2, 'name': 'Evening', 'start_time': '10:00 PM', 'end_time': '6:00 AM'}
+                ]
+            }
+            
             pdf_data = await pdf_service.generate_schedule_pdf(
                 schedule=schedule,
-                assignments=assignments,
-                staff=staff_members,
-                facility=facility
+                assignments=assignment_dicts,
+                staff=staff_dicts,
+                facility=facility_dict
             )
+            
             # Save PDF and get URL (implement your file storage logic)
             pdf_url = await pdf_service.save_pdf(pdf_data, f"schedule_{schedule_id}.pdf")
         except Exception as e:
             print(f"PDF generation failed: {e}")
+            pdf_url = None
     
     # Send notifications
     notification_service = NotificationService(db)
@@ -1873,45 +2041,65 @@ async def publish_schedule(
     pending_invitations = 0
     invitation_reminders_sent = 0
     
+    # Debug tracking
+    notified_users: list[str] = []
+    pending_invite_emails: list[str] = []
+
     for staff_member in staff_members:
         # Find User by matching email
         user = db.exec(
             select(User).where(User.email == staff_member.email)
         ).first()
-        
+
         if user and user.is_active:
             # ✅ HAPPY PATH: User exists and is active
             try:
-                await send_schedule_notification(user, staff_member, schedule, facility, notification_options, background_tasks)
+                await send_schedule_notification(
+                    user, 
+                    staff_member, 
+                    schedule, 
+                    facility, 
+                    notification_options, 
+                    background_tasks, 
+                    notification_service,
+                    pdf_url
+                )
                 notifications_sent += 1
+                notified_users.append(user.email)
                 print(f"✅ Schedule notification sent to {staff_member.full_name}")
             except Exception as e:
                 print(f"❌ Failed to send notification to {staff_member.full_name}: {e}")
                 notifications_skipped += 1
-                
+
         else:
             # Step 2: Check for pending invitation
             pending_invitation = db.exec(
                 select(StaffInvitation).where(
                     StaffInvitation.staff_id == staff_member.id,
-                    StaffInvitation.status.in_(["pending", "sent"])  # Not yet accepted # type: ignore
+                    StaffInvitation.accepted_at.is_(None), # type: ignore
+                    StaffInvitation.cancelled_at.is_(None), # type: ignore
                 )
             ).first()
-            
+
             if pending_invitation:
                 # ✅ PENDING INVITATION: Send reminder instead of schedule notification
+                pending_invite_emails.append(staff_member.email)
+                print(f"📨 Pending invitation detected for {staff_member.email}; sending reminder")
                 print(f"📧 {staff_member.full_name} has pending invitation - sending reminder with schedule info")
-                
+
                 try:
+                    notification_service = NotificationService(db)
                     await send_invitation_reminder_with_schedule(
                         pending_invitation, 
                         schedule, 
                         facility, 
-                        background_tasks
+                        background_tasks,
+                        notification_service,
+                        current_user.tenant_id
                     )
                     invitation_reminders_sent += 1
                     pending_invitations += 1
-                    
+
                 except Exception as e:
                     print(f"❌ Failed to send invitation reminder to {staff_member.full_name}: {e}")
                     notifications_skipped += 1
@@ -1923,7 +2111,7 @@ async def publish_schedule(
     
     # Mark schedule as published
     schedule.is_published = True
-    schedule.published_at = datetime.utcnow()
+    schedule.published_at = datetime.now(timezone.utc)
     db.commit()
     
     return {
@@ -1933,7 +2121,9 @@ async def publish_schedule(
         "notifications_sent": notifications_sent,
         "invitation_reminders_sent": invitation_reminders_sent,
         "pending_invitations": pending_invitations,
-        "notifications_skipped": notifications_skipped
+        "notifications_skipped": notifications_skipped,
+        "notified_users": notified_users,
+        "pending_invite_emails": pending_invite_emails
     }
 
 async def send_invitation_reminder_with_schedule(

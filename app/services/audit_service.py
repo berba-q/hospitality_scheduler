@@ -136,12 +136,21 @@ class AuditService:
         query = select(AuditLog).where(col(AuditLog.user_id) == user_id)
         
         # ✅ FIX: Handle event_types filtering properly
-        if event_types and hasattr(AuditLog, 'event_type'):
-            query = query.where(col(AuditLog.event_type).in_(event_types))
+        if event_types:
+            # Try different column names based on your actual AuditLog model
+            if hasattr(AuditLog, 'event_type') and hasattr(AuditLog.__table__.c, 'event_type'):
+                # It's an actual database column
+                query = query.where(AuditLog.event_type.in_(event_types))
+            elif hasattr(AuditLog, 'action') and hasattr(AuditLog.__table__.c, 'action'):
+                # Alternative column name
+                query = query.where(AuditLog.action.in_(event_types))
+            else:
+                # Log a warning if neither column exists
+                print(f"Warning: No event_type or action column found in AuditLog model")
         
         query = query.order_by(desc(col(AuditLog.created_at))).limit(limit)
         
-        # ✅ FIX: Explicit type casting for exec result
+        # Explicit type casting for exec result
         result = self.db.exec(query)
         return list(result.all())
     
@@ -149,9 +158,26 @@ class AuditService:
         """Get recent security events"""
         from_time = datetime.now(timezone.utc) - timedelta(hours=hours)
         
+        # Use simple column reference without col() wrapper
         query = select(AuditLog).where(
             AuditLog.created_at >= from_time
-        ).order_by(desc(AuditLog.created_at))
+        )
+        
+        # Only filter by event type if the column actually exists
+        security_events = [
+            'suspicious_activity', 
+            'login_failed', 
+            'rate_limit_exceeded',
+            'unauthorized_access',
+            'account_locked'
+        ]
+        
+        if hasattr(AuditLog, 'event_type') and hasattr(AuditLog.__table__.c, 'event_type'):
+            query = query.where(AuditLog.event_type.in_(security_events))
+        elif hasattr(AuditLog, 'action') and hasattr(AuditLog.__table__.c, 'action'):
+            query = query.where(AuditLog.action.in_(security_events))
+        
+        query = query.order_by(desc(AuditLog.created_at))
         
         result = self.db.exec(query)
         return list(result.all())
