@@ -1178,6 +1178,30 @@ export class ApiClient {
     return response
   }
 
+  async getFacilityUnavailability(facilityId: string, startDate?: string, endDate?: string) {
+    const params = new URLSearchParams()
+    if (startDate) params.append('start_date', startDate)
+    if (endDate) params.append('end_date', endDate)
+    
+    const queryString = params.toString()
+    return this.request<Array<{
+      id: string
+      staff_id: string
+      start: string
+      end: string
+      reason?: string
+      is_recurring: boolean
+      staff: {
+        id: string
+        full_name: string
+        role: string
+        email: string
+      }
+    }>>(
+      `/v1/availability/facility/${facilityId}${queryString ? `?${queryString}` : ''}`
+    )
+  }
+
   async updateTimeOffRequest(unavailabilityId: string, updateData: any) {
     const response = await this.request(`/v1/availability/${unavailabilityId}`, {
       method: 'PUT',

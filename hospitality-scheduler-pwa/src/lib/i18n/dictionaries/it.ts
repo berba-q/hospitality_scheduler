@@ -360,6 +360,16 @@ export const it = {
     areYouSureDelete: 'Sei sicuro di voler eliminare',
     areYouSureCancel: 'Sei sicuro di voler annullare',
     cannotBeUndone: 'Questa azione non può essere annullata',
+
+    // Staff Availability Modal
+    searchStaff: 'Cerca Personale',
+    searchByNameOrEmail: 'Cerca per nome o email...',
+    allRoles: 'Tutti i Ruoli',
+    startDate: 'Data di Inizio',
+    endDate: 'Data di Fine',
+    errorLoadingData: 'Impossibile caricare i dati di disponibilità del personale',
+    past: 'Passato',
+    upcoming: 'Prossimo',
     
     // Stati generici
     empty: 'Vuoto',
@@ -661,6 +671,23 @@ export const it = {
     configurationValid: 'Configurazione Valida',
     resetToDefaults: 'Ripristina Predefiniti',
     noChanges: 'Nessuna Modifica',
+
+    // Staff Availability Modal
+    staffAvailability: 'Disponibilità del Personale',
+    staffAvailabilityOverview: 'Panoramica Disponibilità del Personale',
+    thisWeek: 'Questa Settimana',
+    nextWeek: 'Prossima Settimana',
+    thisMonth: 'Questo Mese',
+    next30Days: 'Prossimi 30 Giorni',
+    recurringOnly: 'Solo Ricorrenti',
+    totalUnavailable: 'Totale Non Disponibili',
+    timeOffPeriods: 'Periodi di Assenza',
+    recurring: 'Ricorrente',
+    currentlyOff: 'Attualmente Assenti',
+    allStaffAvailable: 'Tutto il Personale è Disponibile!',
+    noUnavailabilityFound: 'Nessuna indisponibilità trovata per il periodo selezionato.',
+    period: 'periodo',
+    showingStaffWith: 'Mostrando {{staffCount}} membri del personale con {{periodCount}} periodi di indisponibilità',
     
     // Field labels
     minimumRestHours: 'Ore di Riposo Minime',

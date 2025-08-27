@@ -24,7 +24,8 @@ import {
   RefreshCw,
   User,
   ArrowLeftRight,
-  Home
+  Home,
+  Users
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -51,6 +52,7 @@ import { useSwapRequests } from '@/hooks/useSwapRequests'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SaveConfirmationOptions, ScheduleSaveConfirmationDialog } from '@/components/schedule/ScheduleSaveConfirmationDialog'
 import { SwapNotificationDialog } from '@/components/swap/SwapNotificationDialog'
+import { StaffAvailabilityModal } from '@/components/schedule/StaffAvailabilityModal'
 import React from 'react'
 
 type ViewPeriod = 'daily' | 'weekly' | 'monthly'
@@ -790,6 +792,8 @@ function ManagerScheduleView({
   setShowConfigModal,
   showScheduleListModal,
   setShowScheduleListModal,
+  showStaffAvailabilityModal,
+  setShowStaffAvailabilityModal,
   showSwapDashboard,
   setShowSwapDashboard,
   draggedStaff,
@@ -946,6 +950,17 @@ function ManagerScheduleView({
                   {swapSummary.pending_swaps}
                 </Badge>
               )}
+            </Button>
+
+            {/* Staff Availability Modal */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowStaffAvailabilityModal(true)}
+              className="gap-2"
+            >
+              <Users className="w-4 h-4" />
+              {t('schedule.staffAvailability')}
             </Button>
 
           </div>
@@ -1276,6 +1291,16 @@ function ManagerScheduleView({
         />
       )}
 
+      {/* Staff Availability Modal */}
+        {showStaffAvailabilityModal && (
+          <StaffAvailabilityModal
+            isOpen={showStaffAvailabilityModal}
+            onClose={() => setShowStaffAvailabilityModal(false)}
+            facility={selectedFacility}
+            currentDate={currentDate}
+          />
+        )}
+
       {/* Save Confirmation Dialog - FIX: Only render when needed */}
       {showSaveDialog && (
         <ScheduleSaveConfirmationDialog
@@ -1362,6 +1387,7 @@ export default function SchedulePage() {
   // Modal state
   const [showSmartGenerateModal, setShowSmartGenerateModal] = useState(false)
   const [showConfigModal, setShowConfigModal] = useState(false)
+  const [showStaffAvailabilityModal, setShowStaffAvailabilityModal] = useState(false)
   
   // Schedule editing state
   const [draggedStaff, setDraggedStaff] = useState(null)
@@ -2126,6 +2152,8 @@ export default function SchedulePage() {
           setShowScheduleListModal={setShowScheduleListModal}
           showSwapDashboard={showSwapDashboard}
           setShowSwapDashboard={setShowSwapDashboard}
+          showStaffAvailabilityModal={showStaffAvailabilityModal}
+          setShowStaffAvailabilityModal={setShowStaffAvailabilityModal}
           draggedStaff={draggedStaff}
           setDraggedStaff={setDraggedStaff}
           unsavedChanges={unsavedChanges}

@@ -453,6 +453,16 @@ export const en = {
     notSet: 'Not set',
     notSpecified: 'Not specified',
     noAddress: 'No address',
+
+    // Staff Availability Modal
+    searchStaff: 'Search Staff',
+    searchByNameOrEmail: 'Search by name or email...',
+    allRoles: 'All Roles',
+    startDate: 'Start Date',
+    endDate: 'End Date',
+    errorLoadingData: 'Failed to load staff availability data',
+    past: 'Past',
+    upcoming: 'Upcoming',
     
     // Navigation helpers
     goBack: 'Go back',
@@ -833,7 +843,24 @@ export const en = {
     failedUpdateShift: 'Failed to update shift',
     failedUpdateShifts: 'Failed to update shifts',
     failedDeleteSchedule: 'Failed to delete schedule',
-    retryAssignment: 'Retry Assignment'
+    retryAssignment: 'Retry Assignment',
+
+    // Staff Availability Modal
+    staffAvailability: 'Staff Availability',
+    staffAvailabilityOverview: 'Staff Availability Overview',
+    thisWeek: 'This Week',
+    nextWeek: 'Next Week', 
+    thisMonth: 'This Month',
+    next30Days: 'Next 30 Days',
+    recurringOnly: 'Recurring Only',
+    totalUnavailable: 'Total Unavailable',
+    timeOffPeriods: 'Time Off Periods',
+    recurring: 'Recurring',
+    currentlyOff: 'Currently Off',
+    allStaffAvailable: 'All Staff Available!',
+    noUnavailabilityFound: 'No unavailability found for the selected period.',
+    period: 'period',
+    showingStaffWith: 'Showing {{staffCount}} staff with {{periodCount}} unavailability periods',
   },
 
   staff: {
