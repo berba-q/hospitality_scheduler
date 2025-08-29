@@ -2965,6 +2965,31 @@ If you have any questions, please contact our support team.`,
     requestSubmitError: 'Failed to submit time off request',
   },
 
+  pwa: {
+    install: {
+      title: "Install Schedula",
+      descriptionMobile: "Add to your home screen for quick access and offline scheduling",
+      descriptionDesktop: "Add to your desktop for quick access and offline scheduling", 
+      descriptionIOS: "Tap Share, then \"Add to Home Screen\" for quick access",
+      buttonInstall: "Install",
+      buttonInstallFull: "Install App",
+      buttonLater: "Later",
+      buttonMaybeLater: "Maybe Later",
+      installed: "Schedula installed successfully!",
+      installPromptAvailable: "PWA install prompt available",
+      userAccepted: "User accepted the Schedula install prompt",
+      userDismissed: "User dismissed the Schedula install prompt",
+      installFailed: "Schedula install prompt failed"
+    },
+    status: {
+      loading: "Loading Schedula...",
+      offline: "You're offline - some features may be limited",
+      online: "Back online!",
+      updateAvailable: "A new version of Schedula is available",
+      updateReady: "Update ready - restart the app to apply"
+    }
+  },
+
   test: {
     // ============================================================================
     // TEST/DEBUG TERMS

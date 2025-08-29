@@ -2948,6 +2948,31 @@ Se hai domande, contatta il nostro team di supporto.`,
     requestSubmitError: 'Impossibile inviare la richiesta di permesso',
   },
 
+  pwa: {
+    install: {
+      title: "Installa Schedula",
+      descriptionMobile: "Aggiungi alla schermata home per accesso rapido e programmazione offline",
+      descriptionDesktop: "Aggiungi al desktop per accesso rapido e programmazione offline",
+      descriptionIOS: "Tocca Condividi, poi \"Aggiungi a Home\" per accesso rapido", 
+      buttonInstall: "Installa",
+      buttonInstallFull: "Installa App",
+      buttonLater: "Più tardi",
+      buttonMaybeLater: "Forse più tardi",
+      installed: "Schedula installata con successo!",
+      installPromptAvailable: "Prompt di installazione PWA disponibile",
+      userAccepted: "L'utente ha accettato l'installazione di Schedula",
+      userDismissed: "L'utente ha rifiutato l'installazione di Schedula", 
+      installFailed: "Installazione di Schedula fallita"
+    },
+    status: {
+      loading: "Caricamento Schedula...",
+      offline: "Sei offline - alcune funzionalità potrebbero essere limitate",
+      online: "Di nuovo online!",
+      updateAvailable: "È disponibile una nuova versione di Schedula",
+      updateReady: "Aggiornamento pronto - riavvia l'app per applicarlo"
+    }
+  },
+
   test: {
     // ============================================================================
     // TERMINI TEST/DEBUG
