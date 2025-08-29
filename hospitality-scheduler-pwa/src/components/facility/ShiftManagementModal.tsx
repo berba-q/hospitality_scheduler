@@ -111,7 +111,7 @@ const calculateShiftDuration = (startTime: string, endTime: string) => {
   const [startHour, startMin] = startTime.split(':').map(Number)
   const [endHour, endMin] = endTime.split(':').map(Number)
   
-  let startMinutes = startHour * 60 + startMin
+  const startMinutes = startHour * 60 + startMin
   let endMinutes = endHour * 60 + endMin
   
   // Handle overnight shifts

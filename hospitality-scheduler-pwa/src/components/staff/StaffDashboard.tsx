@@ -458,7 +458,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
       }
 
       // Use the REAL schedule ID from the loaded schedule
-      let scheduleId = currentSchedule?.id || selectedAssignmentForSwap?.scheduleId
+      const scheduleId = currentSchedule?.id || selectedAssignmentForSwap?.scheduleId
       
       if (!scheduleId) {
         throw new Error('No schedule ID available. Please try refreshing the page.')
