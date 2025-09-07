@@ -3,7 +3,7 @@
 // Dashboard page for both staff and manager roles
 // Displays role-specific dashboards with appropriate data and functionality
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,44 @@ import { useTranslations } from '@/hooks/useTranslations' // Add translation hoo
 import { Users, Building, RefreshCw, AlertTriangle, ArrowRight, Calendar } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { StaffDashboard } from '@/components/staff/StaffDashboard'
-import type { Staff, Facility, ApiResponse } from "@/types";
+import type { Staff, Facility } from "@/types"
+import type { SwapUrgency } from "@/types/swaps" // keep as type-only
+
+interface SwapRequest {
+  id: string
+  schedule_id: string
+  requesting_staff: {
+    id: string
+    full_name: string
+    role?: string
+  } | null
+  target_staff?: {
+    id: string
+    full_name: string
+    role?: string
+  } | null
+  assigned_staff?: {
+    id: string
+    full_name: string
+    role?: string
+  } | null
+  original_day: number
+  original_shift: number
+  target_day?: number
+  target_shift?: number
+  swap_type: 'specific' | 'auto'
+  reason: string
+  urgency: SwapUrgency
+  status: string
+  target_staff_accepted?: boolean
+  assigned_staff_accepted?: boolean
+  manager_approved?: boolean
+  manager_final_approved?: boolean
+  manager_notes?: string
+  created_at: string
+  updated_at?: string
+  expires_at?: string
+}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -22,45 +59,49 @@ export default function DashboardPage() {
   const { t } = useTranslations() // Add translation hook
   
   // Manager-specific state
-  const [facilities, setFacilities] = useState([])
-  const [staff, setStaff] = useState([])
-  const [swapRequests, setSwapRequests] = useState([])
+  const [facilities, setFacilities] = useState<Facility[]>([])
+  const [staff, setStaff] = useState<Staff[]>([])
+  const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Only load manager data when authentication is complete and user is a manager
-  useEffect(() => {
-    if (!authLoading && isAuthenticated && isManager) {
-      loadManagerData()
-    } else if (!authLoading && isAuthenticated) {
-      // For staff, we don't need to load manager data
-      setLoading(false)
-    } else if (!authLoading && !isAuthenticated) {
-      setLoading(false)
+  const loadManagerData = useCallback(async () => {
+    if (!apiClient) {
+      // API client not ready yet; bail out quietly
+      return;
     }
-  }, [authLoading, isAuthenticated, isManager])
-
-  const loadManagerData = async () => {
     try {
-      setLoading(true)
-      console.log('Loading manager dashboard data...')
+      setLoading(true);
       const [facilitiesData, staffData, swapsData] = await Promise.all([
         apiClient.getFacilities(),
         apiClient.getStaff(),
-        apiClient.getSwapRequests()
-      ])
-      setFacilities(facilitiesData)
-      setStaff(staffData)
-      setSwapRequests(swapsData)
-      console.log('Manager data loaded:', { facilities: facilitiesData.length, staff: staffData.length, swaps: swapsData.length })
+        apiClient.getSwapRequests(),
+      ]);
+      setFacilities(facilitiesData);
+      setStaff(staffData);
+      setSwapRequests(swapsData);
     } catch (error) {
-      console.error('Failed to load manager dashboard data:', error)
+      console.error('Failed to load manager dashboard data:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  }, [apiClient]);
 
-  const pendingSwaps = swapRequests.filter((swap: any) => swap.status === 'pending')
-  const urgentSwaps = pendingSwaps.filter((swap: any) => ['high', 'emergency'].includes(swap.urgency))
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+    if (isManager) {
+      void loadManagerData();
+    } else {
+      setLoading(false);
+    }
+  }, [authLoading, isAuthenticated, isManager, loadManagerData]);
+
+  const pendingSwaps = swapRequests.filter((swap: SwapRequest) => swap.status === 'pending')
+  
+  const urgentSwaps = pendingSwaps.filter((swap: SwapRequest) => swap.urgency === 'high' || swap.urgency === 'emergency')
 
   // Show loading while auth is loading
   if (authLoading) {
@@ -269,7 +310,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {swapRequests.slice(0, 5).map((swap: any) => (
+                  {swapRequests.slice(0, 5).map((swap: SwapRequest) => (
                     <div key={swap.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
