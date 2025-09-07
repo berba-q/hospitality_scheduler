@@ -1,6 +1,9 @@
 // API client to communicate with the backend server
 // Api client implemtation for backend communication
-import { SwapStatus, SwapUrgency } from '@/types/swaps'
+import type { Staff, Facility, Schedule } from '@/types';
+import type { SwapRequest, SwapStatus, SwapUrgency } from '@/types/swaps';
+import type * as ApiTypes from '@/types/api';
+type JsonMap = Record<string, unknown>;
 
 export interface ApiConfig {
   baseUrl: string
@@ -83,6 +86,86 @@ interface ServiceStatus {
   whatsapp: ServiceInfo
   push: ServiceInfo
 }
+
+// ---- Core domain types used by this API client ----
+export interface Shift {
+  id: string;
+  name: string;
+  start_time: string; // "HH:mm"
+  end_time: string;   // "HH:mm"
+  requires_manager?: boolean;
+  min_staff?: number;
+  max_staff?: number;
+  shift_order?: number;
+  is_active?: boolean;
+  color?: string;
+  facility_id: string;
+}
+
+export interface Role {
+  id: string;
+  role_name: string;
+  min_skill_level?: number;
+  max_skill_level?: number;
+  is_management?: boolean;
+  hourly_rate_min?: number;
+  hourly_rate_max?: number;
+  is_active?: boolean;
+  facility_id: string;
+}
+
+export interface Zone {
+  id: string;
+  zone_id?: string;
+  zone_name: string;
+  description?: string;
+  required_roles?: string[];
+  preferred_roles?: string[];
+  min_staff_per_shift?: number;
+  max_staff_per_shift?: number;
+  display_order?: number;
+  is_active?: boolean;
+  facility_id: string;
+}
+
+export interface Unavailability {
+  id: string;
+  staff_id: string;
+  start: string; // ISO
+  end: string;   // ISO
+  reason?: string;
+  is_recurring: boolean;
+}
+
+export interface UnavailabilityWithStaff extends Unavailability {
+  staff: {
+    id: string;
+    full_name: string;
+    role: string;
+    email: string;
+  };
+}
+
+export interface ScheduleConfig {
+  facility_id: string;
+  min_rest_hours?: number;
+  max_consecutive_days?: number;
+  max_weekly_hours?: number;
+  min_staff_per_shift?: number;
+  max_staff_per_shift?: number;
+  require_manager_per_shift?: boolean;
+  shift_role_requirements?: Record<string, unknown>;
+  allow_overtime?: boolean;
+  weekend_restrictions?: boolean;
+}
+
+export type QuickUnavailabilityRequest = {
+  start: string;
+  end: string;
+  reason?: string;
+  is_recurring?: boolean;
+  pattern?: 'weekdays' | 'weekends' | 'custom' | string;
+} & Record<string, unknown>;
 
 export class ApiClient {
   private config: ApiConfig
@@ -199,7 +282,7 @@ export class ApiClient {
   }
 
   async signup(email: string, password: string, tenantName: string) {
-    return this.request<any>('/v1/auth/signup', {
+    return this.request<{ success: boolean; message?: string }>('/v1/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password, tenant_name: tenantName }),
     })
@@ -213,15 +296,15 @@ export class ApiClient {
     if (includeInactive) params.append('include_inactive', includeInactive.toString())
     
     const queryString = params.toString()
-    return this.request<any[]>(`/v1/facilities/${queryString ? `?${queryString}` : ''}`)
+    return this.request<Facility[]>(`/v1/facilities/${queryString ? `?${queryString}` : ''}`)
   }
 
   async getFacility(facilityId: string) {
-    return this.request<any>(`/v1/facilities/${facilityId}`)
+    return this.request<Facility>(`/v1/facilities/${facilityId}`)
   }
 
   async getFacilityStaff(facilityId: string) {
-    return this.request<any[]>(`/v1/facilities/${facilityId}/staff`)
+    return this.request<Staff[]>(`/v1/facilities/${facilityId}/staff`)
   }
 
   async createFacility(facilityData: {
@@ -233,7 +316,7 @@ export class ApiClient {
     email?: string
     description?: string
   }) {
-    return this.request<any>('/v1/facilities/', {
+    return this.request<Facility>('/v1/facilities/', {
       method: 'POST',
       body: JSON.stringify(facilityData),
     })
@@ -252,17 +335,7 @@ export class ApiClient {
     force_create_duplicates?: boolean
     skip_duplicate_check?: boolean
     validate_only?: boolean
-  }): Promise<{
-    total_processed: number
-    successful_imports: number
-    skipped_duplicates: number
-    validation_errors: number
-    created_facilities: any[]
-    skipped_facilities: any[]
-    error_facilities: any[]
-    duplicate_warnings: any[]
-    processing_details: any
-  }> {
+  }): Promise<ApiTypes.ImportResult<Facility>> {
     const queryParams = new URLSearchParams()
     if (options?.force_create_duplicates) queryParams.append('force_create_duplicates', 'true')
     if (options?.skip_duplicate_check) queryParams.append('skip_duplicate_check', 'true')
@@ -295,13 +368,7 @@ export class ApiClient {
     phone?: string
     email?: string
     description?: string
-  }>): Promise<{
-    total_processed: number
-    successful_imports: number
-    validation_errors: number
-    created_facilities: any[]
-    error_facilities: any[]
-  }> {
+  }>): Promise<ApiTypes.ImportResult<Facility>> {
     return this.request('/v1/facilities/validate-import', {
       method: 'POST',
       body: JSON.stringify(facilities.map(f => ({
@@ -325,7 +392,7 @@ export class ApiClient {
     email?: string
     description?: string
   }) {
-    return this.request<any>(`/v1/facilities/${facilityId}`, {
+    return this.request<Facility>(`/v1/facilities/${facilityId}`, {
       method: 'PUT',
       body: JSON.stringify(facilityData),
     })
@@ -377,7 +444,7 @@ export class ApiClient {
   // ==================== SHIFT MANAGEMENT ====================
 
   async getFacilityShifts(facilityId: string, includeInactive: boolean = false) {
-    return this.request<any[]>(`/v1/facilities/${facilityId}/shifts/for-scheduling`)
+    return this.request<Shift[]>(`/v1/facilities/${facilityId}/shifts/for-scheduling`)
   }
 
   async createFacilityShift(facilityId: string, shiftData: {
@@ -390,7 +457,7 @@ export class ApiClient {
     shift_order?: number
     color?: string
   }) {
-    return this.request<any>(`/v1/facilities/${facilityId}/shifts`, {
+    return this.request<Shift>(`/v1/facilities/${facilityId}/shifts`, {
       method: 'POST',
       body: JSON.stringify({
         facility_id: facilityId,
@@ -410,7 +477,7 @@ export class ApiClient {
     is_active?: boolean
     color?: string
   }) {
-    return this.request<any>(`/v1/facilities/${facilityId}/shifts/${shiftId}`, {
+    return this.request<Shift>(`/v1/facilities/${facilityId}/shifts/${shiftId}`, {
       method: 'PUT',
       body: JSON.stringify(shiftData),
     })
@@ -426,7 +493,7 @@ export class ApiClient {
     shift_order?: number
     color?: string
   }>) {
-    return this.request<any[]>(`/v1/facilities/${facilityId}/shifts/bulk`, {
+    return this.request<Shift[]>(`/v1/facilities/${facilityId}/shifts/bulk`, {
       method: 'PUT',
       body: JSON.stringify({
         facility_id: facilityId,
@@ -465,7 +532,7 @@ export class ApiClient {
 
   async getFacilityRoles(facilityId: string, includeInactive: boolean = false) {
     const params = includeInactive ? '?include_inactive=true' : ''
-    return this.request<any[]>(`/v1/facilities/${facilityId}/roles${params}`)
+    return this.request<Role[]>(`/v1/facilities/${facilityId}/roles${params}`)
   }
 
   async createFacilityRole(facilityId: string, roleData: {
@@ -476,7 +543,7 @@ export class ApiClient {
     hourly_rate_min?: number
     hourly_rate_max?: number
   }) {
-    return this.request<any>(`/v1/facilities/${facilityId}/roles`, {
+    return this.request<Role>(`/v1/facilities/${facilityId}/roles`, {
       method: 'POST',
       body: JSON.stringify({
         facility_id: facilityId,
@@ -494,7 +561,7 @@ export class ApiClient {
     hourly_rate_max?: number
     is_active?: boolean
   }) {
-    return this.request<any>(`/v1/facilities/${facilityId}/roles/${roleId}`, {
+    return this.request<Role>(`/v1/facilities/${facilityId}/roles/${roleId}`, {
       method: 'PUT',
       body: JSON.stringify(roleData),
     })
@@ -508,7 +575,7 @@ export class ApiClient {
     hourly_rate_min?: number
     hourly_rate_max?: number
   }>) {
-    return this.request<any[]>(`/v1/facilities/${facilityId}/roles/bulk`, {
+    return this.request<Role[]>(`/v1/facilities/${facilityId}/roles/bulk`, {
       method: 'PUT',
       body: JSON.stringify({
         facility_id: facilityId,
@@ -518,7 +585,7 @@ export class ApiClient {
   }
 
   async deleteFacilityRole(facilityId: string, roleId: string) {
-    return this.request<any>(`/v1/facilities/${facilityId}/roles/${roleId}`, {
+    return this.request<{ success: boolean }>(`/v1/facilities/${facilityId}/roles/${roleId}`, {
       method: 'DELETE',
     })
   }
@@ -527,7 +594,7 @@ export class ApiClient {
 
   async getFacilityZones(facilityId: string, includeInactive: boolean = false) {
     const params = includeInactive ? '?include_inactive=true' : ''
-    return this.request<any[]>(`/v1/facilities/${facilityId}/zones${params}`)
+    return this.request<Zone[]>(`/v1/facilities/${facilityId}/zones${params}`)
   }
 
   async createFacilityZone(facilityId: string, zoneData: {
@@ -540,7 +607,7 @@ export class ApiClient {
     max_staff_per_shift?: number
     display_order?: number
   }) {
-    return this.request<any>(`/v1/facilities/${facilityId}/zones`, {
+    return this.request<Zone>(`/v1/facilities/${facilityId}/zones`, {
       method: 'POST',
       body: JSON.stringify({
         facility_id: facilityId,
@@ -560,7 +627,7 @@ export class ApiClient {
     is_active?: boolean
     display_order?: number
   }) {
-    return this.request<any>(`/v1/facilities/${facilityId}/zones/${zoneId}`, {
+    return this.request<Zone>(`/v1/facilities/${facilityId}/zones/${zoneId}`, {
       method: 'PUT',
       body: JSON.stringify(zoneData),
     })
@@ -576,7 +643,7 @@ export class ApiClient {
     max_staff_per_shift?: number
     display_order?: number
   }>) {
-    return this.request<any[]>(`/v1/facilities/${facilityId}/zones/bulk`, {
+    return this.request<Zone[]>(`/v1/facilities/${facilityId}/zones/bulk`, {
       method: 'PUT',
       body: JSON.stringify({
         facility_id: facilityId,
@@ -586,7 +653,7 @@ export class ApiClient {
   }
 
   async deleteFacilityZone(facilityId: string, zoneId: string) {
-    return this.request<any>(`/v1/facilities/${facilityId}/zones/${zoneId}`, {
+    return this.request<{ success: boolean }>(`/v1/facilities/${facilityId}/zones/${zoneId}`, {
       method: 'DELETE',
     })
   }
@@ -658,7 +725,7 @@ export class ApiClient {
 
   // Staff Management
   async getStaff() {
-    return this.request<any[]>('/v1/staff/')
+    return this.request<Staff[]>('/v1/staff/')
   }
 
   async createStaff(staffData: {
@@ -684,7 +751,7 @@ export class ApiClient {
     const queryString = queryParams.toString()
     const endpoint = `/v1/staff${queryString ? `?${queryString}` : ''}`
     
-    return this.request<any>(endpoint, {
+    return this.request<Staff>(endpoint, {
       method: 'POST',
       body: JSON.stringify(bodyData)
     })
@@ -700,7 +767,7 @@ export class ApiClient {
     weekly_hours_max?: number
     is_active?: boolean
   }) {
-    return this.request<any>(`/v1/staff/${staffId}`, {
+    return this.request<Staff>(`/v1/staff/${staffId}`, {
       method: 'PUT',
       body: JSON.stringify(staffData),
     })
@@ -784,19 +851,8 @@ export class ApiClient {
     facility_id: string
     weekly_hours_max?: number
     is_active?: boolean
-  }): Promise<{
-    can_create: boolean
-    validation_errors: string[]
-    duplicates: {
-      exact_email_match?: any
-      name_similarity_matches: any[]
-      phone_matches: any[]
-      has_any_duplicates: boolean
-      severity: 'none' | 'warning' | 'error'
-    }
-    recommendations: string[]
-  }> {
-    return this.request<any>('/v1/staff/validate-before-create', {
+  }): Promise<ApiTypes.ValidationResult> {
+    return this.request<ApiTypes.ValidationResult>('/v1/staff/validate-before-create', {
       method: 'POST',
       body: JSON.stringify(staffData)
     })
@@ -806,32 +862,51 @@ export class ApiClient {
 
 // Staff Profile & Dashboard 
   async getMyStaffProfile() {
-    return this.request<any>('/v1/staff/me')
+    return this.request<Staff>('/v1/staff/me')
   }
 
   async getMySchedule(startDate: string, endDate: string) {
-    return this.request<any>(`/v1/staff/me/schedule?start_date=${startDate}&end_date=${endDate}`)
-  }
+  return this.request<ApiTypes.ScheduleAssignment[]>(`/v1/staff/me/schedule?start_date=${startDate}&end_date=${endDate}`)
+  } 
 
   async getMyDashboardStats() {
     try {
-      const response = await this.request<any>('/v1/staff/me/dashboard-stats')
+      const response = await this.request<ApiTypes.StaffDashboardStats>('/v1/staff/me/dashboard-stats')
       return response
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('getMyDashboardStats failed:', error)
       
-      if (error.message?.includes('500') || error.message?.includes('404')) {
+      if (message?.includes('500') || message?.includes('404')) {
         console.warn('Dashboard stats endpoint failing, providing fallback data')
         
         // Return minimal fallback data structure
         return {
-          current_week: { hours_scheduled: 0 },
+          current_week: { 
+            hours_scheduled: 0,
+            shifts_count: 0,
+            completion_rate: 0
+          },
+          next_week: {
+            hours_scheduled: 0,
+            shifts_count: 0
+          },
           upcoming_shifts: [],
-          swap_requests: { my_pending: 0 },
+          swap_requests: { 
+            my_pending: 0,
+            my_completed: 0,
+            helped_others: 0
+          },
+          performance_metrics: {
+            attendance_rate: 0,
+            helpfulness_score: 0,
+            reliability_rating: 0
+          },
+          // Legacy fields for backward compatibility
           thisWeekHours: 0,
           nextWeekHours: 0,
-          upcomingShifts: [],
-          pendingSwaps: 0
+          pendingSwaps: 0,
+          upcomingShifts: []
         }
       }
       
@@ -849,12 +924,13 @@ export class ApiClient {
     const endpoint = `/v1/staff/me/swap-requests${queryString ? `?${queryString}` : ''}`
     
     try {
-      return await this.request<any[]>(endpoint)
-    } catch (error: any) {
+      return await this.request<SwapRequest[]>(endpoint)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('getMySwapRequests failed:', error)
       
       // If the endpoint fails completely, return empty array instead of crashing
-      if (error.message?.includes('500') || error.message?.includes('Internal Server Error')) {
+      if (message?.includes('500') || message?.includes('Internal Server Error')) {
         console.warn('Staff swap requests endpoint is failing, returning empty array')
         return []
       }
@@ -866,11 +942,11 @@ export class ApiClient {
 
   // Schedule Management
   async getFacilitySchedules(facilityId: string) {
-    return this.request<any[]>(`/v1/schedule/facility/${facilityId}`)
-  }
+  return this.request<ApiTypes.ScheduleWithAssignments[]>(`/v1/schedule/facility/${facilityId}`)
+}
 
   async getSchedule(scheduleId: string) {
-    return this.request<any>(`/v1/schedule/${scheduleId}`)
+    return this.request<ApiTypes.ScheduleWithAssignments>(`/v1/schedule/${scheduleId}`)
   }
 
   async generateSchedule(data: {
@@ -881,7 +957,7 @@ export class ApiClient {
     shifts_per_day?: number
     hours_per_shift?: number
   }) {
-    return this.request<any>('/v1/schedule/generate', {
+    return this.request<ApiTypes.ScheduleWithAssignments>('/v1/schedule/generate', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -892,7 +968,7 @@ export class ApiClient {
     period_start: string
     period_type: 'daily' | 'weekly' | 'monthly'
     zones: string[]
-    zone_assignments: Record<string, any>
+    zone_assignments: Record<string, unknown>
     role_mapping: Record<string, string[]>
     use_constraints?: boolean
     auto_assign_by_zone?: boolean
@@ -907,7 +983,7 @@ export class ApiClient {
     total_days?: number
     shifts_per_day?: number
   }) {
-    return this.request<any>('/v1/schedule/smart-generate', {
+    return this.request<ApiTypes.ScheduleWithAssignments>('/v1/schedule/smart-generate', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -916,38 +992,39 @@ export class ApiClient {
   async createSchedule(data: {
     facility_id: string
     week_start: string
-    assignments: any[]
+    assignments: ApiTypes.ScheduleAssignment[]
   }) {
-    return this.request<any>('/v1/schedule/create', {  
+    return this.request<ApiTypes.ScheduleWithAssignments>('/v1/schedule/create', {
       method: 'POST',
       body: JSON.stringify(data),
     })
   }
 
   async updateSchedule(scheduleId: string, data: {
-    assignments?: any[]
+    assignments?: ApiTypes.ScheduleAssignment[]
     week_start?: string
     facility_id?: string
   }) {
-    return this.request<any>(`/v1/schedule/${scheduleId}`, {
+    return this.request<ApiTypes.ScheduleWithAssignments>(`/v1/schedule/${scheduleId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
   }
 
   async getDailySchedule(facilityId: string, date: string) {
-    try {
-      return await this.request<any>(`/v1/schedule/daily/${facilityId}?date=${date}`)
-    } catch (error: any) {
-      if (error.message.includes('404')) {
-        return null
-      }
-      throw error
+  try {
+    return await this.request<ApiTypes.ScheduleWithAssignments | null>(`/v1/schedule/daily/${facilityId}?date=${date}`)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('404')) {
+      return null
     }
+    throw error
   }
+}
 
   async getMonthlyScheduleOverview(facilityId: string, month: string, year: string) {
-    return this.request<any>(`/v1/schedule/monthly/${facilityId}?month=${month}&year=${year}`)
+    return this.request<ApiTypes.ScheduleSummary>(`/v1/schedule/monthly/${facilityId}?month=${month}&year=${year}`)
   }
 
   async generateDailySchedule(data: {
@@ -958,7 +1035,7 @@ export class ApiClient {
     copy_from_template?: boolean
     template_day?: string
   }) {
-    return this.request<any>('/v1/schedule/generate-daily', {
+    return this.request<ApiTypes.ScheduleWithAssignments>('/v1/schedule/generate-daily', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -973,7 +1050,7 @@ export class ApiClient {
     pattern?: 'weekly_repeat' | 'rotating' | 'balanced'
     base_template?: string
   }) {
-    return this.request<any>('/v1/schedule/generate-monthly', {
+    return this.request<ApiTypes.ScheduleWithAssignments>('/v1/schedule/generate-monthly', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -985,14 +1062,14 @@ export class ApiClient {
     shifts_per_day?: number
     hours_per_shift?: number
   }) {
-    return this.request<any>('/v1/schedule/preview', {
+    return this.request<ApiTypes.SchedulePreview>('/v1/schedule/preview', {
       method: 'POST',
       body: JSON.stringify(data),
     })
   }
 
   async validateSchedule(scheduleId: string) {
-    return this.request<any>(`/v1/schedule/${scheduleId}/validate`, {
+    return this.request<ApiTypes.ScheduleValidation>(`/v1/schedule/${scheduleId}/validate`, {
       method: 'POST',
     })
   }
@@ -1004,30 +1081,28 @@ export class ApiClient {
     generate_pdf?: boolean
     custom_message?: string
   }) {
-    return this.request<any>(`/v1/schedule/${scheduleId}/publish`, {
+    return this.request<ApiTypes.ScheduleWithAssignments>(`/v1/schedule/${scheduleId}/publish`, {
       method: 'POST',
       body: JSON.stringify(notificationOptions)
     })
   }
 
   async deleteSchedule(scheduleId: string) {
-    return this.request<any>(`/v1/schedule/${scheduleId}`, {
-      method: 'DELETE',
-    })
+    return this.request<{ success: boolean }>(`/v1/schedule/${scheduleId}`, { method: 'DELETE' })
   }
 
   // acessc facility schedules
   async getFacilityScheduleSummary(facilityId: string) {
-    return this.request<any>(`/v1/schedule/facility/${facilityId}/summary`)
+    return this.request<ApiTypes.ScheduleSummary>(`/v1/schedule/facility/${facilityId}/summary`)
   }
 
   async checkSchedulingConflicts(facilityId: string, weekStart: string) {
-    return this.request<any>(`/v1/schedule/facility/${facilityId}/conflicts?week_start=${weekStart}`)
+    return this.request<JsonMap>(`/v1/schedule/facility/${facilityId}/conflicts?week_start=${weekStart}`)
   }
 
   // Zone-based Scheduling
   async getZoneSchedule(facilityId: string, zoneId: string, periodStart: string, periodType: string) {
-    return this.request<any>(`/v1/schedule/zone/${facilityId}/${zoneId}?period_start=${periodStart}&period_type=${periodType}`)
+    return this.request<ApiTypes.ScheduleWithAssignments>(`/v1/schedule/zone/${facilityId}/${zoneId}?period_start=${periodStart}&period_type=${periodType}`)
   }
 
   async assignStaffToZone(data: {
@@ -1038,16 +1113,16 @@ export class ApiClient {
     shift: number
     auto_balance?: boolean
   }) {
-    return this.request<any>('/v1/schedule/assign-zone', {
+    return this.request<ApiTypes.ScheduleWithAssignments>('/v1/schedule/assign-zone', {
       method: 'POST',
       body: JSON.stringify(data),
     })
   }
 
   // Schedule Configuration
-  async getScheduleConfig(facilityId: string) {
+  async getScheduleConfig(facilityId: string): Promise<ScheduleConfig | null> {
     try {
-      return await this.request<any>(`/v1/schedule-config/config/${facilityId}`)
+      return await this.request<ScheduleConfig>(`/v1/schedule-config/config/${facilityId}`)
     } catch (error: any) {
       if (error.message.includes('404')) {
         return null
@@ -1064,11 +1139,11 @@ export class ApiClient {
     min_staff_per_shift?: number
     max_staff_per_shift?: number
     require_manager_per_shift?: boolean
-    shift_role_requirements?: Record<string, any>
+    shift_role_requirements?: Record<string, unknown>
     allow_overtime?: boolean
     weekend_restrictions?: boolean
   }) {
-    return this.request<any>('/v1/schedule-config/config/', {
+    return this.request<ScheduleConfig>('/v1/schedule-config/config/', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -1081,31 +1156,31 @@ export class ApiClient {
     min_staff_per_shift?: number
     max_staff_per_shift?: number
     require_manager_per_shift?: boolean
-    shift_role_requirements?: Record<string, any>
+    shift_role_requirements?: Record<string, unknown>
     allow_overtime?: boolean
     weekend_restrictions?: boolean
   }) {
-    return this.request<any>(`/v1/schedule-config/config/${facilityId}`, {
+    return this.request<ScheduleConfig>(`/v1/schedule-config/config/${facilityId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
   }
 
   async getDefaultScheduleConfig(facilityId: string) {
-    return this.request<any>(`/v1/schedule-config/config/${facilityId}/defaults`)
+    return this.request<ScheduleConfig>(`/v1/schedule-config/config/${facilityId}/defaults`)
   }
 
   // Role Requirements
   async getRoleRequirements(facilityId: string) {
-    return this.request<any>(`/v1/schedule/role-requirements/${facilityId}`)
+    return this.request<Record<string, unknown>>(`/v1/schedule/role-requirements/${facilityId}`)
   }
 
   async updateRoleRequirements(facilityId: string, data: {
     zone_role_mapping: Record<string, string[]>
-    shift_requirements: Record<string, any>
+    shift_requirements: Record<string, unknown>
     skill_requirements: Record<string, number>
   }) {
-    return this.request<any>(`/v1/schedule/role-requirements/${facilityId}`, {
+    return this.request<Record<string, unknown>>(`/v1/schedule/role-requirements/${facilityId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
@@ -1125,7 +1200,7 @@ export class ApiClient {
     return response
   }
 
-  async createUnavailabilityRequest(staffId: string, requestData: any) {
+  async createUnavailabilityRequest(staffId: string, requestData: QuickUnavailabilityRequest) {
     if (requestData.pattern && requestData.pattern !== 'custom') {
       return this.createMyQuickUnavailability(requestData)
     } 
@@ -1140,7 +1215,7 @@ export class ApiClient {
     return this.createMyUnavailability(unavailabilityData)
 }
 
-  async createTimeOffRequest(staffId: string, requestData: any) {
+  async createTimeOffRequest(staffId: string, requestData: QuickUnavailabilityRequest) {
     const response = await this.request(`/v1/availability/staff/${staffId}/quick`, {
       method: 'POST',
       body: JSON.stringify(requestData)
@@ -1160,7 +1235,7 @@ export class ApiClient {
     })
   }
 
-  async createMyQuickUnavailability(requestData: any) {
+  async createMyQuickUnavailability(requestData: QuickUnavailabilityRequest) {
     return this.request(`/v1/availability/me/quick`, {
       method: 'POST',
       body: JSON.stringify(requestData)
@@ -1172,10 +1247,9 @@ export class ApiClient {
     if (startDate) params.append('start_date', startDate)
     if (endDate) params.append('end_date', endDate)
     
-    const response = await this.request(
+    return this.request<Unavailability[]>(
       `/v1/availability/staff/${staffId}?${params.toString()}`
     )
-    return response
   }
 
   async getFacilityUnavailability(facilityId: string, startDate?: string, endDate?: string) {
@@ -1184,25 +1258,12 @@ export class ApiClient {
     if (endDate) params.append('end_date', endDate)
     
     const queryString = params.toString()
-    return this.request<Array<{
-      id: string
-      staff_id: string
-      start: string
-      end: string
-      reason?: string
-      is_recurring: boolean
-      staff: {
-        id: string
-        full_name: string
-        role: string
-        email: string
-      }
-    }>>(
+    return this.request<UnavailabilityWithStaff[]>(
       `/v1/availability/facility/${facilityId}${queryString ? `?${queryString}` : ''}`
     )
   }
 
-  async updateTimeOffRequest(unavailabilityId: string, updateData: any) {
+  async updateTimeOffRequest(unavailabilityId: string, updateData: Partial<QuickUnavailabilityRequest>) {
     const response = await this.request(`/v1/availability/${unavailabilityId}`, {
       method: 'PUT',
       body: JSON.stringify(updateData)
@@ -1227,7 +1288,7 @@ export class ApiClient {
   }
 
   async getSwapRequest(swapId: string) {
-    return this.request<any>(`/v1/swaps/${swapId}`)
+    return this.request<SwapRequest>(`/v1/swaps/${swapId}`)
   }
 
   async getSwapRequestsWithFilters(filters: {
@@ -1248,11 +1309,11 @@ export class ApiClient {
     const queryString = params.toString()
     const endpoint = `/v1/swaps/${queryString ? `?${queryString}` : ''}`
     
-    return this.request<any[]>(endpoint)
+    return this.request<SwapRequest[]>(endpoint)
   }
 
   async getAllSwapRequests(limit = 100) {
-    return this.request<any[]>(`/v1/swaps/all/?limit=${limit}`)
+    return this.request<SwapRequest[]>(`/v1/swaps/all/?limit=${limit}`)
   }
 
   async respondToPotentialAssignment(swapId: string, data: {
@@ -1366,7 +1427,7 @@ export class ApiClient {
 
   async getSwapTrends(facilityId?: string, days = 30) {
     const params = facilityId ? `?facility_id=${facilityId}&days=${days}` : `?days=${days}`
-    return this.request<any>(`/v1/swaps/trends${params}`)
+    return this.request<ApiTypes.SwapAnalytics>(`/v1/swaps/trends${params}`)
   }
 
   async retryAutoAssignment(swapId: string, avoidStaffIds: string[] = []) {
@@ -1676,7 +1737,7 @@ async getGlobalSwapStatistics() {
     return this.request<any>(`/v1/swaps/facility/${facilityId}/summary/`)
   }
 
-  async createSwapRequest(swapData: any, notificationOptions?: {
+  async createSwapRequest(swapData: Partial<SwapRequest>, notificationOptions?: {
     send_whatsapp?: boolean
     send_push?: boolean
     send_email?: boolean
@@ -1698,13 +1759,13 @@ async getGlobalSwapStatistics() {
     // Determine the endpoint based on swap type
     if (swapData.swap_type === 'specific') {
       console.log('🔍 DEBUG: Calling /v1/swaps/specific')
-      return this.request<any>('/v1/swaps/specific', {
+      return this.request<SwapRequest>('/v1/swaps/specific', {
         method: 'POST',
         body: JSON.stringify(payload)
       })
     } else {
       console.log('🔍 DEBUG: Calling /v1/swaps/auto')
-      return this.request<any>('/v1/swaps/auto', {
+      return this.request<SwapRequest>('/v1/swaps/auto', {
         method: 'POST',
         body: JSON.stringify(payload)
       })
@@ -1719,7 +1780,7 @@ async getGlobalSwapStatistics() {
     requires_manager_final_approval?: boolean
     role_verification_required?: boolean
   }) {
-    return this.request<any>(`/v1/swaps/${swapId}`, {
+    return this.request<SwapRequest>(`/v1/swaps/${swapId}`, {
       method: 'PUT',
       body: JSON.stringify(updateData)
     })
@@ -2114,15 +2175,17 @@ async getGlobalSwapStatistics() {
 
   // Analytics & Reporting
   async getScheduleAnalytics(facilityId: string, startDate: string, endDate: string) {
-    return this.request<any>(`/v1/schedule/analytics/${facilityId}?start_date=${startDate}&end_date=${endDate}`)
+    return this.request<ApiTypes.ScheduleAnalytics>(
+      `/v1/schedule/analytics/${facilityId}?start_date=${startDate}&end_date=${endDate}`
+    )
   }
 
   async optimizeExistingSchedule(scheduleId: string, data: {
     optimization_goals: string[]
-    constraints: Record<string, any>
+    constraints: Record<string, unknown>
     preserve_assignments?: string[]
   }) {
-    return this.request<any>(`/v1/schedule/${scheduleId}/optimize`, {
+    return this.request<{ success: boolean; message?: string }>(`/v1/schedule/${scheduleId}/optimize`, {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -2130,7 +2193,7 @@ async getGlobalSwapStatistics() {
 
   // Staff Availability
   async getStaffAvailabilityForPeriod(facilityId: string, startDate: string, endDate: string) {
-    return this.request<any>(`/v1/availability/facility/${facilityId}/period?start_date=${startDate}&end_date=${endDate}`)
+    return this.request<UnavailabilityWithStaff[]>(`/v1/availability/facility/${facilityId}/period?start_date=${startDate}&end_date=${endDate}`)
   }
 
   // Schedule Templates & Bulk Operations
@@ -2188,23 +2251,23 @@ async getGlobalSwapStatistics() {
     const query = params.toString()
     const endpoint = `/v1/notifications${query ? `?${query}` : ''}`  // ⚠ no trailing slash
 
-    return this.request<any[]>(endpoint)
+    return this.request<ApiTypes.Notification[]>(endpoint)
   }
 
   async markNotificationRead(notificationId: string) {
-    return this.request<any>(`/v1/notifications/${notificationId}/read`, {
+    return this.request<{ success: boolean }>(`/v1/notifications/${notificationId}/read`, {
       method: 'POST'
     })
   }
 
   async markAllNotificationsRead() {
-    return this.request<any>('/v1/notifications/mark-all-read', {
+    return this.request<{ success: boolean }>('/v1/notifications/mark-all-read', {
       method: 'POST'
     })
   }
 
   async getNotificationPreferences() {
-    return this.request<any>('/v1/notifications/preferences')
+    return this.request<ApiTypes.NotificationPreferences>('/v1/notifications/preferences')
   }
 
   async updateNotificationPreferences(preferences: {
@@ -2214,7 +2277,7 @@ async getGlobalSwapStatistics() {
     whatsapp_enabled?: boolean
     email_enabled?: boolean
   }) {
-    return this.request<any>('/v1/notifications/preferences', {
+    return this.request<ApiTypes.NotificationPreferences>('/v1/notifications/preferences', {
       method: 'POST',
       body: JSON.stringify(preferences)
     })
@@ -2287,7 +2350,7 @@ async createSystemSettings(settings: {
   enable_usage_tracking?: boolean
   enable_performance_monitoring?: boolean
 }) {
-  return this.request<any>('/v1/settings/system', {
+  return this.request<ApiTypes.SystemSettings>('/v1/settings/system', {
     method: 'POST',
     body: JSON.stringify(settings),
   })
@@ -2322,7 +2385,7 @@ async updateSystemSettings(settings: {
   enable_usage_tracking?: boolean
   enable_performance_monitoring?: boolean
 }) {
-  return this.request<any>('/v1/settings/system', {
+  return this.request<ApiTypes.SystemSettings>('/v1/settings/system', {
     method: 'PUT',
     body: JSON.stringify(settings),
   })
@@ -2358,7 +2421,7 @@ async getNotificationSettings() {
     twilio_auth_token?: string
     twilio_whatsapp_number?: string
     push_enabled: boolean
-    firebase_config?: any
+    firebase_config?: JsonMap
     created_at: string
     updated_at: string
   }>('/v1/settings/notifications')
@@ -2377,9 +2440,9 @@ async createNotificationSettings(settings: {
   twilio_auth_token?: string
   twilio_whatsapp_number?: string
   push_enabled?: boolean
-  firebase_config?: any
+  firebase_config?: JsonMap
 }) {
-  return this.request<any>('/v1/settings/notifications', {
+  return this.request<ApiTypes.NotificationSettings>('/v1/settings/notifications', {
     method: 'POST',
     body: JSON.stringify(settings),
   })
@@ -2398,9 +2461,9 @@ async updateNotificationSettings(settings: {
   twilio_auth_token?: string
   twilio_whatsapp_number?: string
   push_enabled?: boolean
-  firebase_config?: any
+  firebase_config?: JsonMap
 }) {
-  return this.request<any>('/v1/settings/notifications', {
+  return this.request<ApiTypes.NotificationSettings>('/v1/settings/notifications', {
     method: 'PUT',
     body: JSON.stringify(settings),
   })
@@ -2448,7 +2511,7 @@ async updateNotificationSettings(settings: {
 
   async getInvitations(status?: 'pending' | 'sent' | 'accepted' | 'expired' | 'cancelled') {
     const params = status ? `?status=${status}` : ''
-    return this.request<any[]>(`/v1/invitations/${params}`)
+    return this.request<ApiTypes.Invitation[]>(`/v1/invitations/${params}`)
   }
 
   async getInvitationStats() {
@@ -2548,7 +2611,7 @@ async testSmtpConnection() {
     service: string
     success: boolean
     message: string
-    details: Record<string, any>
+    details: Record<string, unknown>
     tested_at: string
   }>('/v1/settings/test/smtp', {
     method: 'POST',
@@ -2560,7 +2623,7 @@ async testTwilioConnection() {
     service: string
     success: boolean
     message: string
-    details: Record<string, any>
+    details: Record<string, unknown>
     tested_at: string
   }>('/v1/settings/test/twilio', {
     method: 'POST',
@@ -2572,7 +2635,7 @@ async testFirebaseConnection() {
     service: string
     success: boolean
     message: string
-    details: Record<string, any>
+    details: Record<string, unknown>
     tested_at: string
   }>('/v1/settings/test/firebase', {
     method: 'POST',
@@ -2661,7 +2724,7 @@ async exportSettings(options: {
   return response.blob()
 }
 
-async importSettings(data: any, options: {
+async importSettings(data: unknown, options: {
   overwrite_existing?: boolean
   validate_only?: boolean
   apply_to_existing_users?: boolean
@@ -2699,15 +2762,15 @@ async importSettings(data: any, options: {
   }
 
   async getMyDevices() {
-    return this.request<any>('/v1/devices/');
+    return this.request<Record<string, unknown>>('/v1/devices/');
   }
 
   async getPushStats() {
-    return this.request<any>('/v1/devices/push-stats');
+    return this.request<Record<string, unknown>>('/v1/devices/push-stats');
   }
 
   async getDevicesNeedingReauth() {
-    return this.request<any>('/v1/devices/needing-reauth');
+    return this.request<Record<string, unknown>>('/v1/devices/needing-reauth');
   }
 
   async updateTokenAfterReauth(data: {
