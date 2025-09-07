@@ -1,6 +1,6 @@
 // API client to communicate with the backend server
 // Api client implemtation for backend communication
-import type { Staff, Facility, Schedule } from '@/types';
+import type { Staff, Facility} from '@/types';
 import type { SwapRequest, SwapStatus, SwapUrgency } from '@/types/swaps';
 import type * as ApiTypes from '@/types/api';
 type JsonMap = Record<string, unknown>;
@@ -443,7 +443,7 @@ export class ApiClient {
 
   // ==================== SHIFT MANAGEMENT ====================
 
-  async getFacilityShifts(facilityId: string, includeInactive: boolean = false) {
+  async getFacilityShifts(facilityId: string) {
     return this.request<Shift[]>(`/v1/facilities/${facilityId}/shifts/for-scheduling`)
   }
 
@@ -865,9 +865,9 @@ export class ApiClient {
     return this.request<Staff>('/v1/staff/me')
   }
 
-  async getMySchedule(startDate: string, endDate: string) {
-  return this.request<ApiTypes.ScheduleAssignment[]>(`/v1/staff/me/schedule?start_date=${startDate}&end_date=${endDate}`)
-  } 
+  async getMySchedule(startDate: string, endDate: string): Promise<ApiTypes.StaffScheduleResponse> {
+    return this.request<ApiTypes.StaffScheduleResponse>(`/v1/staff/me/schedule?start_date=${startDate}&end_date=${endDate}`)
+  }
 
   async getMyDashboardStats() {
     try {
@@ -926,11 +926,11 @@ export class ApiClient {
     try {
       return await this.request<SwapRequest[]>(endpoint)
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('getMySwapRequests failed:', error)
       
       // If the endpoint fails completely, return empty array instead of crashing
-      if (message?.includes('500') || message?.includes('Internal Server Error')) {
+      if (errorMessage?.includes('500') || errorMessage?.includes('Internal Server Error')) {
         console.warn('Staff swap requests endpoint is failing, returning empty array')
         return []
       }
@@ -1096,8 +1096,32 @@ export class ApiClient {
     return this.request<ApiTypes.ScheduleSummary>(`/v1/schedule/facility/${facilityId}/summary`)
   }
 
-  async checkSchedulingConflicts(facilityId: string, weekStart: string) {
-    return this.request<JsonMap>(`/v1/schedule/facility/${facilityId}/conflicts?week_start=${weekStart}`)
+  async checkSchedulingConflicts(facilityId: string, weekStart: string): Promise<{
+    has_conflicts: boolean
+    conflicts: Array<{
+      type: 'double_booking' | 'unavailable' | 'overtime' | 'skill_mismatch'
+      severity: 'low' | 'medium' | 'high'
+      staff_id: string
+      staff_name: string
+      day: number
+      shift: number
+      message: string
+    }>
+    suggestions: string[]
+  }> {
+    return this.request<{
+      has_conflicts: boolean
+      conflicts: Array<{
+        type: 'double_booking' | 'unavailable' | 'overtime' | 'skill_mismatch'
+        severity: 'low' | 'medium' | 'high'
+        staff_id: string
+        staff_name: string
+        day: number
+        shift: number
+        message: string
+      }>
+      suggestions: string[]
+    }>(`/v1/schedule/facility/${facilityId}/conflicts?week_start=${weekStart}`)
   }
 
   // Zone-based Scheduling
@@ -1123,8 +1147,9 @@ export class ApiClient {
   async getScheduleConfig(facilityId: string): Promise<ScheduleConfig | null> {
     try {
       return await this.request<ScheduleConfig>(`/v1/schedule-config/config/${facilityId}`)
-    } catch (error: any) {
-      if (error.message.includes('404')) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('404')) {
         return null
       }
       throw error
@@ -1171,16 +1196,42 @@ export class ApiClient {
   }
 
   // Role Requirements
-  async getRoleRequirements(facilityId: string) {
-    return this.request<Record<string, unknown>>(`/v1/schedule/role-requirements/${facilityId}`)
+  async getRoleRequirements(facilityId: string): Promise<{
+    zone_role_mapping: Record<string, string[]>
+    shift_requirements: Record<string, {
+      min_staff: number
+      max_staff: number
+      required_roles: string[]
+    }>
+    skill_requirements: Record<string, number>
+  }> {
+    return this.request<{
+      zone_role_mapping: Record<string, string[]>
+      shift_requirements: Record<string, {
+        min_staff: number
+        max_staff: number
+        required_roles: string[]
+      }>
+      skill_requirements: Record<string, number>
+    }>(`/v1/schedule/role-requirements/${facilityId}`)
   }
 
   async updateRoleRequirements(facilityId: string, data: {
     zone_role_mapping: Record<string, string[]>
     shift_requirements: Record<string, unknown>
     skill_requirements: Record<string, number>
-  }) {
-    return this.request<Record<string, unknown>>(`/v1/schedule/role-requirements/${facilityId}`, {
+  }): Promise<{
+    success: boolean
+    message: string
+    updated_zones: number
+    updated_shifts: number
+  }> {
+    return this.request<{
+      success: boolean
+      message: string
+      updated_zones: number
+      updated_shifts: number
+    }>(`/v1/schedule/role-requirements/${facilityId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
@@ -1320,9 +1371,8 @@ export class ApiClient {
     accepted: boolean
     notes?: string
     availability_confirmed?: boolean
-  }) {
-    // Use the existing staff-response endpoint instead of potential-assignment-response
-    return this.request<any>(`/v1/swaps/${swapId}/staff-response`, {
+  }): Promise<ApiTypes.SwapStaffResponse> {
+    return this.request<ApiTypes.SwapStaffResponse>(`/v1/swaps/${swapId}/staff-response`, {
       method: 'PUT',
       body: JSON.stringify({
         accepted: data.accepted,
@@ -1331,6 +1381,7 @@ export class ApiClient {
       }),
     })
   }
+
   async getSwapWorkflowStatus(swapId: string) {
     return this.request<{
       current_status: SwapStatus
@@ -1350,8 +1401,8 @@ export class ApiClient {
       send_push?: boolean
       send_email?: boolean
     }
-  }) {
-    return this.request<any>(`/v1/swaps/${swapId}/manager-decision`, {
+  }): Promise<ApiTypes.SwapDecisionResponse> {
+    return this.request<ApiTypes.SwapDecisionResponse>(`/v1/swaps/${swapId}/manager-decision`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
@@ -1362,15 +1413,15 @@ export class ApiClient {
     notes?: string
     override_role_verification?: boolean
     role_override_reason?: string
-  }) {
-    return this.request<any>(`/v1/swaps/${swapId}/final-approval`, {
-      method: 'PUT', 
+  }): Promise<ApiTypes.SwapDecisionResponse> {
+    return this.request<ApiTypes.SwapDecisionResponse>(`/v1/swaps/${swapId}/final-approval`, {
+      method: 'PUT',
       body: JSON.stringify(data),
     })
   }
 
-  async approveSwap(swapId: string, approved: boolean, notes?: string) {
-    return this.request<any>(`/v1/swaps/${swapId}/manager-decision`, {
+  async approveSwap(swapId: string, approved: boolean, notes?: string): Promise<ApiTypes.SwapDecisionResponse> {
+    return this.request<ApiTypes.SwapDecisionResponse>(`/v1/swaps/${swapId}/manager-decision`, {
       method: 'PUT',
       body: JSON.stringify({ approved, notes })
     })
@@ -1430,12 +1481,12 @@ export class ApiClient {
     return this.request<ApiTypes.SwapAnalytics>(`/v1/swaps/trends${params}`)
   }
 
-  async retryAutoAssignment(swapId: string, avoidStaffIds: string[] = []) {
+  async retryAutoAssignment(swapId: string, avoidStaffIds: string[] = []): Promise<ApiTypes.SwapRetryResponse> {
     const params = avoidStaffIds.length > 0 
       ? '?' + avoidStaffIds.map(id => `avoid_staff_ids=${id}`).join('&')
       : ''
-    
-    return this.request<any>(`/v1/swaps/${swapId}/retry-auto-assignment${params}`, {
+
+    return this.request<ApiTypes.SwapRetryResponse>(`/v1/swaps/${swapId}/retry-auto-assignment${params}`, {
       method: 'POST'
     })
   }
@@ -1444,8 +1495,8 @@ export class ApiClient {
     accepted: boolean
     notes?: string
     confirm_availability?: boolean
-  }) {
-    return this.request<any>(`/v1/swaps/${swapId}/staff-response`, {
+  }): Promise<ApiTypes.SwapStaffResponse> {
+    return this.request<ApiTypes.SwapStaffResponse>(`/v1/swaps/${swapId}/staff-response`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
@@ -1581,8 +1632,8 @@ export class ApiClient {
   }
 
 
-  async getSwapHistory(swapId: string) {
-    return this.request<any[]>(`/v1/swaps/${swapId}/history`)
+  async getSwapHistory(swapId: string): Promise<ApiTypes.SwapHistoryRead[]> {
+    return this.request<ApiTypes.SwapHistoryRead[]>(`/v1/swaps/${swapId}/history`)
   }
 
   async cleanupExpiredSwaps(dryRun: boolean = true, daysOld: number = 30) {
@@ -1601,25 +1652,21 @@ export class ApiClient {
   }
 
   async exportSwapData(facilityId: string, options: {
-  format: 'excel' | 'csv' | 'pdf'
-  period_start?: string
-  period_end?: string
-  include_history?: boolean
-  include_analytics?: boolean
-}) {
-  const params = new URLSearchParams()
-  Object.entries(options).forEach(([key, value]) => {
-    if (value !== undefined) {
-      params.append(key, value.toString())
-    }
-  })
-  
-  return this.request<{
-    export_summary: any
-    download_url: string
-    expires_at: string
-  }>(`/v1/swaps/export/${facilityId}?${params.toString()}`)
-}
+    format: 'excel' | 'csv' | 'pdf'
+    period_start?: string
+    period_end?: string
+    include_history?: boolean
+    include_analytics?: boolean
+  }): Promise<ApiTypes.SwapExportResponse> {
+    const params = new URLSearchParams()
+    Object.entries(options).forEach(([key, value]) => {
+      if (value !== undefined) {
+        params.append(key, value.toString())
+      }
+    })
+    
+    return this.request<ApiTypes.SwapExportResponse>(`/v1/swaps/export/${facilityId}?${params.toString()}`)
+  }
 
 // 5. Health check
 async getSwapHealthCheck() {
@@ -1647,8 +1694,24 @@ async testSwapNotifications(swapId: string, notificationType: string) {
 }
 
   // Global swaps
-  async getGlobalSwapSummary() {
-    return this.request<any>('/v1/swaps/global-summary')
+  async getGlobalSwapSummary(): Promise<{
+    tenant_id: string
+    total_swaps: number
+    pending_swaps: number
+    completed_swaps: number
+    failed_swaps: number
+    success_rate: number
+    generated_at: string
+  }> {
+    return this.request<{
+      tenant_id: string
+      total_swaps: number
+      pending_swaps: number
+      completed_swaps: number
+      failed_swaps: number
+      success_rate: number
+      generated_at: string
+    }>('/v1/swaps/global-summary')
   }
 
   // 6. Global statistics
@@ -1686,8 +1749,20 @@ async getGlobalSwapStatistics() {
   }>('/v1/swaps/statistics/global')
 }
 
-  async getFacilitiesSwapSummary() {
-    return this.request<any[]>('/v1/swaps/facilities-summary')
+  async getFacilitiesSwapSummary(): Promise<Array<{
+    facility_id: string
+    facility_name: string
+    pending_swaps: number
+    total_swaps: number
+    success_rate: number
+  }>> {
+    return this.request<Array<{
+      facility_id: string
+      facility_name: string
+      pending_swaps: number
+      total_swaps: number
+      success_rate: number
+    }>>('/v1/swaps/facilities-summary')
   }
 
   async getFacilitySwaps(facilityId: string, options: {
@@ -1702,7 +1777,7 @@ async getGlobalSwapStatistics() {
     if (options.urgency) params.append('urgency', options.urgency)
     if (options.limit) params.append('limit', options.limit.toString())
 
-    return this.request<any[]>(`/v1/swaps?${params.toString()}`)
+    return this.request<SwapRequest[]>(`/v1/swaps?${params.toString()}`)
   }
 
   async getSwapSummary(facilityId: string) {
@@ -1734,7 +1809,7 @@ async getGlobalSwapStatistics() {
   }
 
   async getFacilitySwapSummary(facilityId: string) {
-    return this.request<any>(`/v1/swaps/facility/${facilityId}/summary/`)
+    return this.request<SwapSummary>(`/v1/swaps/facility/${facilityId}/summary/`)
   }
 
   async createSwapRequest(swapData: Partial<SwapRequest>, notificationOptions?: {
@@ -1842,8 +1917,8 @@ async getGlobalSwapStatistics() {
     channels?: ('IN_APP' | 'PUSH' | 'WHATSAPP' | 'EMAIL')[]
     action_url?: string
     action_text?: string
-  }) {
-    return this.request<any>(`/v1/swaps/${swapId}/send-notification`, {
+  }): Promise<{ success: boolean; message: string; notification_id: string }> {
+    return this.request<{ success: boolean; message: string; notification_id: string }>(`/v1/swaps/${swapId}/send-notification`, {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -1988,8 +2063,9 @@ async getGlobalSwapStatistics() {
     try {
       const response = await this.request(`/v1/analytics/staff/${staffId}/swap-analytics?period=${period}`)
       return response
-    } catch (error) {
-      console.warn('Swap analytics not available:', error.message)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn('Swap analytics not available:', errorMessage)
       return {
         summary: {
           total_requested: 0,
@@ -2012,7 +2088,11 @@ async getGlobalSwapStatistics() {
     date_to?: string
     requesting_staff?: string
     target_staff?: string
-  } = {}) {
+  } = {}): Promise<Array<SwapRequest & { 
+    relevance_score: number
+    matched_fields: string[]
+    highlights: Record<string, string>
+  }>> {
     const params = new URLSearchParams()
     params.append('q', query)
     
@@ -2020,7 +2100,11 @@ async getGlobalSwapStatistics() {
       if (value) params.append(key, value)
     })
 
-    return this.request<any[]>(`/v1/swaps/search?${params.toString()}`)
+    return this.request<Array<SwapRequest & { 
+      relevance_score: number
+      matched_fields: string[]
+      highlights: Record<string, string>
+    }>>(`/v1/swaps/search?${params.toString()}`)
   }
 
   async getStaffSwapRequests(status?: SwapStatus, limit = 50) {
@@ -2033,14 +2117,15 @@ async getGlobalSwapStatistics() {
     
     try {
       console.log('🔍 Calling staff swap endpoint:', endpoint)
-      const result = await this.request<any[]>(endpoint)
+      const result = await this.request<SwapRequest[]>(endpoint)
       console.log('✅ Staff swap response:', result)
       return result
-    } catch (error: any) {
-      console.error(' getStaffSwapRequests failed:', error)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('❌ getStaffSwapRequests failed:', error)
       
       // If the staff-specific endpoint fails, try the general endpoint
-      if (error.message?.includes('404') || error.message?.includes('403')) {
+      if (errorMessage?.includes('404') || errorMessage?.includes('403')) {
         console.warn('Staff endpoint not available, trying general swap endpoint...')
         try {
           return await this.getMySwapRequests(status, limit)
@@ -2051,7 +2136,7 @@ async getGlobalSwapStatistics() {
       }
       
       // For server errors, return empty array instead of crashing
-      if (error.message?.includes('500') || error.message?.includes('Internal Server Error')) {
+      if (errorMessage?.includes('500') || errorMessage?.includes('Internal Server Error')) {
         console.warn('Staff swap requests endpoint is failing, returning empty array')
         return []
       }
@@ -2063,13 +2148,27 @@ async getGlobalSwapStatistics() {
   async getStaffSwapStats(staffId: string, options: {
     start_date?: string
     end_date?: string
-  } = {}) {
+  } = {}): Promise<{
+    staff_id: string
+    total_requests: number
+    accepted_requests: number
+    helped_others: number
+    success_rate: number
+    response_time_avg: number
+  }> {
     const params = new URLSearchParams()
     if (options.start_date) params.append('start_date', options.start_date)
     if (options.end_date) params.append('end_date', options.end_date)
 
     const queryString = params.toString()
-    return this.request<any>(`/v1/swaps/staff/${staffId}/stats${queryString ? `?${queryString}` : ''}`)
+    return this.request<{
+      staff_id: string
+      total_requests: number
+      accepted_requests: number
+      helped_others: number
+      success_rate: number
+      response_time_avg: number
+    }>(`/v1/swaps/staff/${staffId}/stats${queryString ? `?${queryString}` : ''}`)
   }
 
   async searchSwaps(query: string, filters: {
@@ -2078,7 +2177,7 @@ async getGlobalSwapStatistics() {
     urgency?: SwapUrgency
     date_from?: string
     date_to?: string
-  } = {}) {
+  } = {}): Promise<Array<SwapRequest & { relevance_score: number }>> {
     const params = new URLSearchParams()
     params.append('q', query)
     
@@ -2086,32 +2185,52 @@ async getGlobalSwapStatistics() {
       if (value) params.append(key, value)
     })
 
-    return this.request<any[]>(`/v1/swaps/search?${params.toString()}`)
+    return this.request<Array<SwapRequest & { relevance_score: number }>>(`/v1/swaps/search?${params.toString()}`)
   }
 
   // Staff swap analytics
   async getTopRequestingStaff(facilityId: string, options: {
     days?: number
     limit?: number
-  } = {}) {
+  } = {}): Promise<ApiTypes.TopRequestersResponse> {
     const params = new URLSearchParams()
     if (options.days) params.append('days', options.days.toString())
     if (options.limit) params.append('limit', options.limit.toString())
 
     const queryString = params.toString()
-    return this.request<any>(`/v1/swaps/analytics/top-requesters/${facilityId}${queryString ? `?${queryString}` : ''}`)
+    return this.request<ApiTypes.TopRequestersResponse>(`/v1/swaps/analytics/top-requesters/${facilityId}${queryString ? `?${queryString}` : ''}`)
   }
 
   async getSwapReasonsAnalysis(facilityId: string, days: number = 30) {
-    return this.request<any>(`/v1/swaps/analytics/reasons/${facilityId}?days=${days}`)
+    return this.request<ApiTypes.SwapReasonsAnalysis>(`/v1/swaps/analytics/reasons/${facilityId}?days=${days}`)
   }
 
   async getStaffPerformanceMetrics(facilityId: string, days: number = 30) {
-    return this.request<any>(`/v1/swaps/analytics/staff-performance/${facilityId}?days=${days}`)
+    return this.request<ApiTypes.StaffPerformanceMetrics>(`/v1/swaps/analytics/staff-performance/${facilityId}?days=${days}`)
   }
 
-  async getProblemPatterns(facilityId: string, days: number = 30) {
-    return this.request<any>(`/v1/swaps/analytics/problem-patterns/${facilityId}?days=${days}`)
+  async getProblemPatterns(facilityId: string, days: number = 30): Promise<{
+    facility_id: string
+    period_days: number
+    patterns: Array<{
+      pattern_type: string
+      frequency: number
+      description: string
+      severity: 'low' | 'medium' | 'high'
+    }>
+    recommendations: string[]
+  }> {
+    return this.request<{
+      facility_id: string
+      period_days: number
+      patterns: Array<{
+        pattern_type: string
+        frequency: number
+        description: string
+        severity: 'low' | 'medium' | 'high'
+      }>
+      recommendations: string[]
+    }>(`/v1/swaps/analytics/problem-patterns/${facilityId}?days=${days}`)
   }
 
   async getComprehensiveSwapAnalytics(facilityId: string, days: number = 30) {
@@ -2132,35 +2251,44 @@ async getGlobalSwapStatistics() {
     }
   }
 
-  async getTeamReliabilityStats(staffId: string) {
+  async getTeamReliabilityStats(staffId: string): Promise<ApiTypes.StaffReliabilityStats> {
     try {
-      const response = await this.request(`/v1/analytics/staff/${staffId}/reliability-stats`)
+      const response = await this.request<ApiTypes.StaffReliabilityStats>(`/v1/analytics/staff/${staffId}/reliability-stats`)
       return response
-    } catch (error) {
-      console.warn('Team reliability stats not available:', error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn('Team reliability stats not available:', message)
       return {
+        staff_id: staffId,
+        period_days: 30,
         acceptance_rate: 0,
         helpfulness_score: 0,
         current_streak: 0,
         total_helped: 0,
+        total_requests: 0,
         avg_response_time: 'N/A',
         team_rating: 0
       }
     }
   }
 
-  async getTeamInsights(facilityId: string) {
+  async getTeamInsights(facilityId: string): Promise<ApiTypes.TeamInsights> {
     try {
-      const response = await this.request(`/v1/analytics/facilities/${facilityId}/team-insights`)
+      const response = await this.request<ApiTypes.TeamInsights>(`/v1/analytics/facilities/${facilityId}/team-insights`)
       return response
-    } catch (error) {
-      console.warn('Team insights not available:', error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn('Team insights not available:', message)
       return {
+        facility_id: facilityId,
+        analysis_period_days: 30,
         busyDays: [],
         needyShifts: [],
         teamCoverage: 0,
         yourContribution: 0,
-        recentTrends: 'Analytics not available'
+        recentTrends: 'Analytics not available',
+        day_distribution: {},
+        shift_distribution: {}
       }
     }
   }
@@ -2197,8 +2325,8 @@ async getGlobalSwapStatistics() {
   }
 
   // Schedule Templates & Bulk Operations
-  async getScheduleTemplates(facilityId: string) {
-    return this.request<any>(`/v1/schedule/templates/${facilityId}`)
+  async getScheduleTemplates(facilityId: string): Promise<ApiTypes.ScheduleTemplateResponse[]> {
+    return this.request<ApiTypes.ScheduleTemplateResponse[]>(`/v1/schedule/templates/${facilityId}`)
   }
 
   async saveScheduleAsTemplate(scheduleId: string, data: {
@@ -2206,8 +2334,8 @@ async getGlobalSwapStatistics() {
     description?: string
     tags: string[]
     is_public?: boolean
-  }) {
-    return this.request<any>(`/v1/schedule/${scheduleId}/save-template`, {
+  }): Promise<ApiTypes.ScheduleTemplateResponse> {
+    return this.request<ApiTypes.ScheduleTemplateResponse>(`/v1/schedule/${scheduleId}/save-template`, {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -2219,8 +2347,8 @@ async getGlobalSwapStatistics() {
     period_type: 'daily' | 'weekly' | 'monthly'
     adapt_staff?: boolean
     include_unavailability?: boolean
-  }) {
-    return this.request<any>(`/v1/schedule/${sourceScheduleId}/copy`, {
+  }): Promise<ApiTypes.ScheduleCopyResponse> {
+    return this.request<ApiTypes.ScheduleCopyResponse>(`/v1/schedule/${sourceScheduleId}/copy`, {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -2761,16 +2889,32 @@ async importSettings(data: unknown, options: {
     });
   }
 
-  async getMyDevices() {
-    return this.request<Record<string, unknown>>('/v1/devices/');
+  async getMyDevices(): Promise<ApiTypes.DeviceListResponse> {
+    return this.request<ApiTypes.DeviceListResponse>('/v1/devices/')
   }
 
-  async getPushStats() {
-    return this.request<Record<string, unknown>>('/v1/devices/push-stats');
+  async getPushStats(): Promise<ApiTypes.PushStatsResponse> {
+    return this.request<ApiTypes.PushStatsResponse>('/v1/devices/push-stats');
   }
 
-  async getDevicesNeedingReauth() {
-    return this.request<Record<string, unknown>>('/v1/devices/needing-reauth');
+  async getDevicesNeedingReauth(): Promise<{
+    devices: Array<{
+      id: string
+      device_name: string
+      last_failure: string
+      failure_reason: string
+    }>
+    total_count: number
+  }> {
+    return this.request<{
+      devices: Array<{
+        id: string
+        device_name: string
+        last_failure: string
+        failure_reason: string
+      }>
+      total_count: number
+    }>('/v1/devices/needing-reauth')
   }
 
   async updateTokenAfterReauth(data: {
@@ -2801,8 +2945,8 @@ async importSettings(data: unknown, options: {
     });
   }
 
-  async updateWhatsAppNumber(whatsappNumber: string) {
-    return this.request<any>('/v1/notifications/whatsapp-number', {
+  async updateWhatsAppNumber(whatsappNumber: string): Promise<ApiTypes.WhatsAppUpdateResponse> {
+    return this.request<ApiTypes.WhatsAppUpdateResponse>('/v1/notifications/whatsapp-number', {
       method: 'POST',
       body: JSON.stringify({ whatsapp_number: whatsappNumber })
     })

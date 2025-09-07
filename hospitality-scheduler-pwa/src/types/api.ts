@@ -73,7 +73,34 @@ export interface ScheduleValidation {
   suggestions: string[]
 }
 
-export interface ScheduleTemplate {
+export interface StaffScheduleResponse {
+  staff_id: string
+  staff_name: string  
+  facility_id: string
+  assignments: Array<{
+    date: string
+    day_of_week: number
+    shift: number
+    schedule_id: string
+    assignment_id: string
+  }>
+}
+
+export interface SwapHistoryRead {
+  id: string
+  swap_request_id: string
+  action: string
+  actor_name: string
+  timestamp: string
+  notes?: string
+  previous_status?: SwapStatus
+  new_status?: SwapStatus
+  role_information?: Record<string, unknown>
+  system_action: boolean
+  notification_sent: boolean
+}
+
+export interface ScheduleTemplateResponse {
   id: string
   name: string
   description?: string
@@ -87,6 +114,40 @@ export interface ScheduleTemplate {
   usage_count: number
   created_by: string
   created_at: string
+}
+
+export interface ScheduleCopyResponse {
+  success: boolean
+  message: string
+  new_schedule_id: string
+  copied_assignments: number
+  adapted_staff_count: number
+  conflicts_resolved: number
+}
+
+export interface SwapRetryResponse {
+  success: boolean
+  message: string
+  assigned_staff_id?: string
+  assigned_staff_name?: string
+  role_match_level: string
+  retry_attempt: number
+}
+
+export interface WhatsAppUpdateResponse {
+  success: boolean
+  message: string
+  whatsapp_number: string
+  verification_required: boolean
+}
+
+export interface SwapExportResponse {
+  success: boolean
+  file_url: string
+  records_exported: number
+  file_size_bytes: number
+  export_timestamp: string
+  expires_at: string
 }
 
 export interface ScheduleAnalytics {
@@ -108,6 +169,21 @@ export interface ScheduleAnalytics {
     last_minute_changes: number
     no_show_rate: number
   }
+}
+
+export interface SwapDecisionResponse {
+  message: string
+  swap_id: string
+  new_status: SwapStatus
+  notification_sent: boolean
+  updated_at: string
+}
+
+export interface SwapStaffResponse {
+  message: string
+  swap_id: string
+  staff_response: boolean
+  response_at: string
 }
 
 // ==================== NOTIFICATION TYPES ====================
@@ -152,7 +228,20 @@ export interface DeviceRegistration {
   created_at: string
 }
 
-export interface PushStats {
+export interface DeviceListResponse {
+  devices: Array<{
+    id: string
+    device_name: string
+    device_type: string
+    platform: string
+    is_active: boolean
+    last_seen: string
+    push_token?: string
+  }>
+  total_count: number
+}
+
+export interface PushStatsResponse {
   total_devices: number
   active_devices: number
   notifications_sent_today: number
@@ -257,6 +346,18 @@ export interface TopRequestersData {
   most_common_reason: string
 }
 
+export interface TopRequestersResponse {
+  facility_id: string
+  period_days: number
+  top_requesters: Array<{
+    staff_id: string
+    name: string
+    total_requests: number
+    success_rate: number
+    most_common_reason: string
+  }>
+}
+
 export interface SwapReasonsAnalysis {
   reasons: Array<{
     reason: string
@@ -267,16 +368,21 @@ export interface SwapReasonsAnalysis {
   patterns: string[]
 }
 
-export interface StaffPerformanceMetrics {
+export interface StaffReliabilityStats {
   staff_id: string
-  name: string
-  requests_made: number
-  requests_fulfilled: number
-  help_provided: number
-  reliability_score: number
+  period_days: number
+  acceptance_rate: number
+  helpfulness_score: number
+  current_streak: number
+  total_helped: number
+  total_requests: number
+  avg_response_time: string
+  team_rating: number
 }
 
 export interface TeamInsights {
+  facility_id: string
+  analysis_period_days: number
   busyDays: string[]
   needyShifts: Array<{
     name: string
@@ -285,15 +391,17 @@ export interface TeamInsights {
   teamCoverage: number
   yourContribution: number
   recentTrends: string
+  day_distribution: Record<string, number>
+  shift_distribution: Record<string, number>
 }
 
-export interface ReliabilityStats {
-  acceptance_rate: number
-  helpfulness_score: number
-  current_streak: number
-  total_helped: number
-  avg_response_time: string
-  team_rating: number
+export interface StaffPerformanceMetrics {
+  staff_id: string
+  name: string
+  requests_made: number
+  requests_fulfilled: number
+  help_provided: number
+  reliability_score: number
 }
 
 // ==================== SETTINGS TYPES ====================
