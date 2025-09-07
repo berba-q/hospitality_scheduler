@@ -9,11 +9,7 @@ import {
   Upload, 
   Save, 
   ArrowLeft, 
-  Mail, 
   Phone, 
-  MapPin, 
-  Building, 
-  Calendar, 
   Globe, 
   Palette, 
   Bell, 
@@ -22,7 +18,6 @@ import {
   Moon,
   Sun,
   Settings,
-  CheckCircle,
   AlertTriangle,
   ExternalLink
 } from 'lucide-react'

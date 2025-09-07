@@ -10,9 +10,10 @@ import { Button } from '@/components/ui/button'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth, useApiClient } from '@/hooks/useApi'
 import { useTranslations } from '@/hooks/useTranslations' // Add translation hook
-import { Users, Building, RefreshCw, AlertTriangle, Plus, ArrowRight, Calendar } from 'lucide-react'
+import { Users, Building, RefreshCw, AlertTriangle, ArrowRight, Calendar } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { StaffDashboard } from '@/components/staff/StaffDashboard'
+import type { Staff, Facility, ApiResponse } from "@/types";
 
 export default function DashboardPage() {
   const router = useRouter()

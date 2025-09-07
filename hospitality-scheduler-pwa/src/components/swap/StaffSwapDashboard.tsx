@@ -4,12 +4,10 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { 
-  Calendar, 
   Clock, 
   User, 
   ArrowLeftRight, 
   CheckCircle, 
-  XCircle, 
   AlertTriangle, 
   Plus,
   RefreshCw,
@@ -19,7 +17,6 @@ import {
   Zap,
   ThumbsUp,
   History,
-  TrendingUp,
   Target
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'

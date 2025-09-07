@@ -3,8 +3,7 @@
 'use client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Calendar, Users, Clock, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
 
 interface MonthlyCalendarProps {

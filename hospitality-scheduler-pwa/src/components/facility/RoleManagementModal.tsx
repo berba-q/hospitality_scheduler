@@ -16,8 +16,6 @@ import {
   Star, 
   DollarSign,
   Shield,
-  AlertTriangle,
-  CheckCircle,
   Save,
   X
 } from 'lucide-react'

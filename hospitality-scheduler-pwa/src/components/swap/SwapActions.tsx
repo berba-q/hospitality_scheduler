@@ -1,7 +1,6 @@
 // Quick Actions Component for Swap Requests
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -9,11 +8,7 @@ import {
   Edit3, 
   X, 
   CheckCircle, 
-  Clock, 
-  AlertTriangle, 
-  MoreHorizontal,
-  MessageSquare,
-  Calendar
+  MoreHorizontal
 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useTranslations } from '@/hooks/useTranslations'

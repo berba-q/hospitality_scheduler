@@ -10,14 +10,11 @@ import { useTranslations } from '@/hooks/useTranslations'
 import { 
   History, 
   User, 
-  Clock, 
   CheckCircle, 
   XCircle,
   ArrowLeftRight,
-  Calendar,
   MessageSquare,
   AlertTriangle,
-  Users,
   Zap,
   X,
   Activity

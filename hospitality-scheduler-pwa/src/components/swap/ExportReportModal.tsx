@@ -15,7 +15,6 @@ import {
   FileText, 
   FileSpreadsheet, 
   Calendar as CalendarIcon,
-  Filter,
   Loader2
 } from 'lucide-react'
 

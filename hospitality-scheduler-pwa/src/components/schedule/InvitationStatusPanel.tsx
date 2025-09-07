@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Mail, Clock, CheckCircle, AlertTriangle, Send } from 'lucide-react'
+import { Mail, Clock, CheckCircle, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslations } from '@/hooks/useTranslations'
 

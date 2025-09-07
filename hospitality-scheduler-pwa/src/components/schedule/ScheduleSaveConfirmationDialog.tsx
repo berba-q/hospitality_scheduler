@@ -17,7 +17,6 @@ import {
   FileText,
   AlertTriangle,
   CheckCircle,
-  Clock,
   Mail
 } from 'lucide-react'
 

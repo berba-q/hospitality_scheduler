@@ -21,7 +21,6 @@ import StaffSwapDashboard from '@/components/swap/StaffSwapDashboard'
 
 // Icons
 import { 
-  ArrowLeftRight, 
   AlertTriangle, 
   Clock, 
   CheckCircle,
@@ -36,9 +35,7 @@ import {
   X,
   Download,
   BarChart3,
-  Plus,
   Zap,
-  Target,
   Brain,
   Settings,
   Shield
@@ -51,7 +48,7 @@ import {ManagerFinalApprovalModal} from '@/components/swap/ManagerFinalApprovalM
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'

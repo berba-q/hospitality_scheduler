@@ -21,8 +21,6 @@ import {
   CheckCircle, 
   XCircle, 
   AlertTriangle, 
-  User, 
-  Clock,
   ArrowLeftRight,
   Settings,
   Info

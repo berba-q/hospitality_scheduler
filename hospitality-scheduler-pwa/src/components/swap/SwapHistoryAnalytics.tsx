@@ -3,19 +3,16 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { 
   TrendingUp, 
-  TrendingDown, 
   Clock, 
   CheckCircle, 
-  XCircle, 
   BarChart3,
   Calendar,
   Users,
   Award
 } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n/hooks'
+import { useTranslations } from '@/hooks/useTranslations'
 
 interface SwapHistoryAnalyticsProps {
   isOpen: boolean
@@ -25,7 +22,7 @@ interface SwapHistoryAnalyticsProps {
 }
 
 export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: SwapHistoryAnalyticsProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslations()
   
   // Calculate analytics
   const myRequests = swapRequests.filter(s => s.requesting_staff_id === user.id)

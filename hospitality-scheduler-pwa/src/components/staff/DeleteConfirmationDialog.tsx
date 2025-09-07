@@ -1,19 +1,31 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { AlertCircle, Calendar, ArrowRightLeft, Users, Shield, AlertTriangle } from 'lucide-react'
 import { useApiClient } from '@/hooks/useApi'
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
+import type { Staff, StaffRemovalAction as RemovalAction, DeleteOptions } from "@/types";
 
 interface DeleteConfirmationDialogProps {
   open: boolean
   onClose: () => void
-  onConfirm: (action: string, options?: any) => Promise<void>
-  staffMember: any
-  loading: boolean
+  onConfirm: (action: RemovalAction, options?: DeleteOptions) => Promise<void>
+  staffMember: Staff | null
+  loading?: boolean
+}
+
+interface DeletionValidation {
+  can_delete: boolean;
+  errors: string[];
+  warnings: string[];
+  blocking_entities: unknown[];
+  future_assignments_count: number;
+  pending_swap_requests_count: number;
+  is_manager: boolean;
+  has_unique_skills: boolean;
 }
 
 export function DeleteConfirmationDialog({ 
@@ -21,57 +33,60 @@ export function DeleteConfirmationDialog({
   onClose, 
   onConfirm, 
   staffMember, 
-  loading 
+  loading = false
 }: DeleteConfirmationDialogProps) {
   const apiClient = useApiClient()
   const { t } = useTranslations()
-  const [validation, setValidation] = useState<any>(null)
+  const [validation, setValidation] = useState<DeletionValidation | null>(null)
   const [validationLoading, setValidationLoading] = useState(false)
-  const [selectedAction, setSelectedAction] = useState<string>('deactivate')
+  const [selectedAction, setSelectedAction] = useState<RemovalAction>('deactivate')
   const [showAdvanced, setShowAdvanced] = useState(false)
 
-  useEffect(() => {
-    if (open && staffMember) {
-      validateDeletion()
-    }
-  }, [open, staffMember])
-
-  const validateDeletion = async () => {
-    if (!staffMember) return
-    
-    setValidationLoading(true)
+  const validateDeletion = useCallback(async () => {
+    if (!staffMember || !apiClient) return;
+    setValidationLoading(true);
     try {
-      const result = await apiClient.validateStaffDeletion(staffMember.id)
-      setValidation(result)
-      
-      // Set default action based on validation
+      const result: DeletionValidation = await apiClient.validateStaffDeletion(staffMember.id);
+      setValidation(result);
       if (result.can_delete) {
-        setSelectedAction('deactivate')
+        setSelectedAction('deactivate');
       } else {
-        setSelectedAction('transfer_and_deactivate')
+        setSelectedAction('transfer_and_deactivate');
       }
-    } catch (error) {
-      console.error('Validation failed:', error)
-      toast.error(t('staff.failedToValidateDeletion'))
-      setValidation({ 
-        can_delete: false, 
-        errors: [t('staff.unableToValidateDeletion')], 
-        warnings: [], 
-        blocking_entities: [] 
-      })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('Validation failed:', message);
+      toast.error(t('staff.failedToValidateDeletion'));
+      setValidation({
+        can_delete: false,
+        errors: [t('staff.unableToValidateDeletion')],
+        warnings: [],
+        blocking_entities: [],
+        future_assignments_count: 0,
+        pending_swap_requests_count: 0,
+        is_manager: false,
+        has_unique_skills: false,
+      });
     } finally {
-      setValidationLoading(false)
+      setValidationLoading(false);
     }
-  }
+  }, [staffMember, apiClient, t]);
+
+  useEffect(() => {
+    if (open) {
+      void validateDeletion();
+    }
+  }, [open, validateDeletion]);
 
   const handleConfirm = async () => {
-    await onConfirm(selectedAction, {
-    removal_type: selectedAction,                       // 'deactivate' | 'transfer_and_deactivate' | 'permanent'
-    soft_delete: selectedAction !== 'permanent',
-    cascade_assignments:
-      selectedAction === 'permanent' || selectedAction === 'transfer_and_deactivate',
-    force: selectedAction === 'permanent',              // <-- key fix
-  })
+    const opts: DeleteOptions = {
+      removal_type: selectedAction,
+      soft_delete: selectedAction !== 'permanent',
+      cascade_assignments:
+        selectedAction === 'permanent' || selectedAction === 'transfer_and_deactivate',
+      force: selectedAction === 'permanent',
+    };
+    await onConfirm(selectedAction, opts);
   }
 
   if (!open) return null
@@ -87,7 +102,7 @@ export function DeleteConfirmationDialog({
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900">
-                {t('staff.removeStaffMember', { name: staffMember?.full_name })}
+                {t('staff.removeStaffMember', { name: staffMember?.full_name ?? '' })}
               </h3>
               <p className="text-sm text-gray-500">
                 {t('staff.chooseRemovalMethod')}
@@ -187,7 +202,7 @@ export function DeleteConfirmationDialog({
                     name="action"
                     value="deactivate"
                     checked={selectedAction === 'deactivate'}
-                    onChange={(e) => setSelectedAction(e.target.value)}
+                    onChange={(e) => setSelectedAction(e.target.value as RemovalAction)}
                     className="mt-1"
                   />
                   <div className="flex-1">
@@ -198,7 +213,7 @@ export function DeleteConfirmationDialog({
                       </Badge>
                     </div>
                     <p className="text-sm text-gray-600 mt-1">
-                      {t('staff.deactivateDescription', { name: staffMember?.full_name })}
+                      {t('staff.deactivateDescription', { name: staffMember?.full_name ?? '' })}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       {t('staff.wontAppearInScheduling')}
@@ -214,7 +229,7 @@ export function DeleteConfirmationDialog({
                       name="action"
                       value="transfer_and_deactivate"
                       checked={selectedAction === 'transfer_and_deactivate'}
-                      onChange={(e) => setSelectedAction(e.target.value)}
+                      onChange={(e) => setSelectedAction(e.target.value as RemovalAction)}
                       className="mt-1"
                     />
                     <div className="flex-1">
@@ -246,7 +261,7 @@ export function DeleteConfirmationDialog({
                           name="action"
                           value="permanent"
                           checked={selectedAction === 'permanent'}
-                          onChange={(e) => setSelectedAction(e.target.value)}
+                          onChange={(e) => setSelectedAction(e.target.value as RemovalAction)}
                           className="mt-1"
                         />
                         <div className="flex-1">

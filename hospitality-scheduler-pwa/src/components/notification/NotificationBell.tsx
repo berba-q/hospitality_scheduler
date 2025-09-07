@@ -12,7 +12,6 @@ import {
   Check,
   X,
   ExternalLink,
-  Clock,
   AlertTriangle,
   CheckCircle,
   RefreshCw,
@@ -21,20 +20,14 @@ import {
   Eye,
   UserPlus,
   Loader2,
-  MoreHorizontal,
   Smartphone,
-  AlertCircle,
   MessageSquare,
-  Globe,
   ChevronRight
 } from 'lucide-react'
 import { usePushNotificationContext } from '@/components/providers/PushNotificationProvider';
 import { NotificationSettings } from './NotificationSettings'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { useApiClient, useAuth } from '@/hooks/useApi'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'

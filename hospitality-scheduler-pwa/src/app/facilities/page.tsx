@@ -4,7 +4,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
-import * as XLSX from 'xlsx'
 import { 
   Building2, 
   Plus, 
@@ -14,18 +13,13 @@ import {
   Settings, 
   Edit, 
   Trash2, 
-  ArrowLeft,
-  Save,
   FileSpreadsheet,
   Search,
   Filter,
-  MoreVertical,
   Shield,
   UserCog,
   Calendar,
   Star,
-  CheckCircle,
-  AlertTriangle,
   Coffee,
   Utensils,
   Home,
@@ -36,10 +30,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth, useApiClient } from '@/hooks/useApi'
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'

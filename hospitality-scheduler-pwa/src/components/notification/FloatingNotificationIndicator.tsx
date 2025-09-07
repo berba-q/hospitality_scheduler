@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Bell, X, Eye, ArrowUp, AlertTriangle, Clock, CheckCircle } from 'lucide-react'
 import { useNotifications } from '@/contexts/NotificationContext'
-import { toast } from 'sonner'
 import { useTranslations } from '@/hooks/useTranslations'
 
 interface FloatingNotificationIndicatorProps {

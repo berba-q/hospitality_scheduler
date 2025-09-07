@@ -16,7 +16,6 @@ import {
   Zap, 
   Eye,
   EyeOff,
-  ArrowLeft,
   AlertTriangle,
   CheckCircle,
   Building,
@@ -24,7 +23,6 @@ import {
   RefreshCw,
   User,
   ArrowLeftRight,
-  Home,
   Users
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -43,8 +41,6 @@ import { StaffAssignmentPanel } from '@/components/schedule/StaffAssignmentPanel
 import { FacilityZoneSelector } from '@/components/schedule/FacilityZoneSelector'
 import { toast } from 'sonner'
 import { SwapRequestModal } from '@/components/swap/SwapRequestModal'
-import { SwapManagementDashboard } from '@/components/swap/SwapManagementDashboard'
-import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
 import { FacilitySwapModal } from '@/components/swap/FacilitySwapModal'
 import SwapDetailModal from '@/components/swap/SwapDetailModal'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'

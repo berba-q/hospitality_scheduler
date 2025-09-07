@@ -10,14 +10,7 @@ import {
   ArrowLeftRight, 
   CheckCircle, 
   XCircle, 
-  AlertTriangle, 
-  MessageSquare,
   History,
-  MapPin,
-  Phone,
-  Mail,
-  Star,
-  TrendingUp,
   FileText
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -26,12 +19,11 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 import { useTranslations } from '@/hooks/useTranslations'
 import { WorkflowStatusIndicator, WorkflowStepper } from './WorkflowStatusIndicator'
 import { ManagerFinalApprovalModal } from './ManagerFinalApprovalModal'
-import { SwapStatus, SwapUrgency } from '@/types/swaps'
+import { SwapStatus } from '@/types/swaps'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const SHIFTS = ['Morning (6AM-2PM)', 'Afternoon (2PM-10PM)', 'Evening (10PM-6AM)']

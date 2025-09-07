@@ -9,32 +9,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { BulkSwapManager } from './ManagerFinalApprovalModal'
 import { useTranslations } from '@/hooks/useTranslations'
-import { 
-  ArrowLeftRight, 
+import {  
   Clock, 
   AlertTriangle, 
   CheckCircle, 
   XCircle,
   Users,
-  Calendar,
   RotateCcw,
   History,
   User,
   Search,
-  ChevronRight,
-  PlayCircle,
-  PauseCircle,
   StopCircle,
-  TrendingUp,
   Hourglass,
-  ExternalLink,
-  MessageCircle,
-  Award,
-  Building,
   Shield,
   Zap
 } from 'lucide-react'

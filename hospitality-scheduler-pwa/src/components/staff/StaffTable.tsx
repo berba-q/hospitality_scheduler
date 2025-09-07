@@ -1,7 +1,7 @@
 'use client'
 // Staff table component to display and manage staff members
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Edit, Trash2, Phone, MapPin, Star, Mail } from 'lucide-react'
@@ -10,21 +10,36 @@ import { DeleteConfirmationDialog } from './DeleteConfirmationDialog'
 import { useApiClient } from '@/hooks/useApi'
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
+import type { Staff, Facility} from "@/types";
+
 
 interface StaffTableProps {
-  staff: any[]
-  facilities: any[]
+  staff: Staff[]
+  facilities: Facility[]
   onRefresh: () => void
 }
+interface DeleteActionResult {
+  reassigned_schedules_count?: number;
+  message?: string;
+}
+type StaffRemovalAction = 'deactivate' | 'transfer_and_deactivate' | 'permanent';
+
+interface DeleteOptions {
+  removal_type?: StaffRemovalAction;  // More specific type
+  reassign_to?: string;
+  transfer_schedules?: boolean;
+}
+
+
 
 export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
   const apiClient = useApiClient()
   const { t } = useTranslations()
-  const [editingStaff, setEditingStaff] = useState<any>(null)
-  const [deletingStaff, setDeletingStaff] = useState<any>(null)
+  const [editingStaff, setEditingStaff] = useState<Staff | null>(null)
+  const [deletingStaff, setDeletingStaff] = useState<Staff | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const getFacilityName = (facilityId: string) => {
+  const getFacilityName = (facilityId: Facility["id"]) => {
     const facility = facilities.find(f => f.id === facilityId)
     return facility?.name || t('staff.unknownFacility')
   }
@@ -54,7 +69,7 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
     ))
   }
 
-  const handleDelete = async (action: string, options?: any) => {
+   const handleDelete = async (action: StaffRemovalAction, options?: DeleteOptions) => {
     if (!deletingStaff) return
 
     setDeleteLoading(true)
@@ -62,29 +77,31 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
       if (!apiClient) {
         throw new Error('API client is not initialized');
       }
-      const result = await apiClient.deleteStaff(deletingStaff.id, {
+      const result: DeleteActionResult = await apiClient.deleteStaff(deletingStaff.id, {
         removal_type: action,
         ...options
       })
-
       // Show detailed success message based on what actually happened
       const successMessage = getSuccessMessage(action, result)
       toast.success(successMessage)
       
       onRefresh()
       setDeletingStaff(null)
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
       console.error('Delete failed:', error)
+
       
       // Show more specific error messages
-      if (error.message.includes('Cannot delete staff member due to existing assignments')) {
+      if (errorMessage.includes('Cannot delete staff member due to existing assignments')) {
         toast.error(
           'Cannot remove staff member. They have active assignments that need to be handled first.',
           {
             description: 'Try using "Remove and Clear Schedule" option instead.'
           }
         )
-      } else if (error.message.includes('foreign key constraint')) {
+      } else if (errorMessage.includes('foreign key constraint')) {
         toast.error(
           'Cannot remove staff member due to schedule dependencies.',
           {
@@ -93,7 +110,7 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
         )
       } else {
         toast.error('Failed to remove staff member', {
-          description: error.message || 'An unexpected error occurred.'
+          description: errorMessage || 'An unexpected error occurred.'
         })
       }
     } finally {
@@ -101,7 +118,7 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
     }
   }
 
-  const getSuccessMessage = (action: string, result: any) => {
+  const getSuccessMessage = (action: StaffRemovalAction, result: DeleteActionResult) => {
     const name = deletingStaff?.full_name || 'Staff member'
     
     switch (action) {
@@ -161,9 +178,9 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
                       {member.role}
                     </Badge>
                     <div className="flex items-center gap-1">
-                      {getSkillStars(member.skill_level || 1)}
+                      {getSkillStars((member as Staff & { skill_level?: number }).skill_level || 1)}
                       <span className="text-xs text-gray-500 ml-1">
-                        {t('staff.level')} {member.skill_level || 1}
+                        {t('staff.level')} {(member as Staff & { skill_level?: number }).skill_level || 1}
                       </span>
                     </div>
                   </div>
@@ -174,7 +191,7 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-400" />
                     <span className="text-sm font-medium text-gray-700">
-                      {getFacilityName(member.facility_id)}
+                      {getFacilityName((member as Staff & { facility_id?: string }).facility_id || '')}
                     </span>
                   </div>
                 </td>
@@ -188,10 +205,10 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
                         <span className="text-xs text-gray-600">{member.email}</span>
                       </div>
                     )}
-                    {member.phone && (
+                    {(member as Staff & { phone?: string }).phone && (
                       <div className="flex items-center gap-2">
                         <Phone className="w-3 h-3 text-gray-400" />
-                        <span className="text-xs text-gray-600">{member.phone}</span>
+                        <span className="text-xs text-gray-600">{(member as Staff & { phone?: string }).phone}</span>
                       </div>
                     )}
                   </div>
@@ -201,16 +218,16 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
                 <td className="p-4">
                   <div className="space-y-1">
                     <Badge 
-                      variant={member.is_active ? "default" : "secondary"}
-                      className={member.is_active ? 
+                      variant={(member as Staff & { is_active?: boolean }).is_active ? "default" : "secondary"}
+                      className={(member as Staff & { is_active?: boolean }).is_active ? 
                         "bg-green-100 text-green-800 border-green-200" : 
                         "bg-gray-100 text-gray-800 border-gray-200"
                       }
                     >
-                      {member.is_active ? t('staff.active') : t('staff.inactive')}
+                      {(member as Staff & { is_active?: boolean }).is_active ? t('staff.active') : t('staff.inactive')}
                     </Badge>
                     <p className="text-xs text-gray-500">
-                      {t('staff.maxHours', { hours: member.weekly_hours_max || 40 })}
+                      {t('staff.maxHours', { hours: (member as Staff & { weekly_hours_max?: number }).weekly_hours_max || 40 })}
                     </p>
                   </div>
                 </td>

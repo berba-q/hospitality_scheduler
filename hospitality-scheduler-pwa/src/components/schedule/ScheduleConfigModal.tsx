@@ -14,7 +14,6 @@ import {
   Shield, 
   Save,
   RotateCcw,
-  AlertTriangle,
   CheckCircle,
   Star
 } from 'lucide-react'

@@ -10,15 +10,11 @@ import { useTranslations } from '@/hooks/useTranslations' // ADD: Translation ho
 import { 
   Calendar, 
   Clock, 
-  User, 
   ArrowLeftRight, 
-  CheckCircle, 
   AlertTriangle, 
   TrendingUp,
   Users,
-  Star,
-  CalendarOff,
-  Hourglass
+  CalendarOff
 } from 'lucide-react'
 import { toast } from 'sonner'
 

@@ -2,7 +2,7 @@
 // Staff management page for managers
 import { useState, useEffect, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Plus, Upload, Search, Users, FileSpreadsheet, ArrowLeft, Shield } from 'lucide-react'
+import { Plus, Search, Users, FileSpreadsheet, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'

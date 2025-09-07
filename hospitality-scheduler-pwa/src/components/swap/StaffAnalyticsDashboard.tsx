@@ -8,14 +8,9 @@ import { Progress } from '@/components/ui/progress'
 import { 
   Users, 
   AlertTriangle, 
-  TrendingUp, 
   Star, 
-  Clock,
   Award,
-  BarChart3,
-  Target,
-  Zap,
-  User
+  BarChart3
 } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
 

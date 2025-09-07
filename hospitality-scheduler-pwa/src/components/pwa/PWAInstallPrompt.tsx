@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, X, Smartphone, Monitor, Calendar } from 'lucide-react';
+import { Download, X, Calendar } from 'lucide-react';
 import { useTranslations } from '@/hooks/useTranslations';
 
 interface BeforeInstallPromptEvent extends Event {

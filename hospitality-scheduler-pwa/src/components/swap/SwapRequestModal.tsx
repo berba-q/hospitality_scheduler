@@ -17,11 +17,9 @@ import {
   Users, 
   Clock, 
   AlertTriangle, 
-  CheckCircle,
   Calendar,
   User,
-  Zap,
-  Star
+  Zap
 } from 'lucide-react'
 import { toast } from 'sonner'
 

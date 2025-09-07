@@ -8,6 +8,19 @@ export interface ApiResponse<T = unknown> {
 export type FormEvent = React.FormEvent<HTMLFormElement>;
 export type ChangeEvent = React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
 
+// ---- Staff deletion shared types ----
+export type StaffRemovalAction =
+  | 'deactivate'
+  | 'transfer_and_deactivate'
+  | 'permanent';
+
+export type DeleteOptions = {
+  removal_type?: StaffRemovalAction;
+  soft_delete?: boolean;
+  cascade_assignments?: boolean;
+  force?: boolean;
+} & Record<string, unknown>;
+
 export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -62,6 +75,13 @@ export interface CalendarEvent {
   staffName: string;
   role: string;
   status: string;
+}
+
+export interface Facility {
+  id: string;
+  name: string;
+  address?: string;
+  isActive: boolean;
 }
 
 export interface WeeklyEvent extends CalendarEvent {

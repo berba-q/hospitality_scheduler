@@ -11,12 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Zap, 
   Users, 
-  Clock, 
-  AlertTriangle, 
-  CheckCircle, 
-  Settings,
   Calendar,
-  Star,
   Shield,
   MapPin,
   Brain,

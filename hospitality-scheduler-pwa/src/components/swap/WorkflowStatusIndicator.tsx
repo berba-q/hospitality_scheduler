@@ -16,8 +16,6 @@ import {
   User, 
   Settings, 
   Zap,
-  PlayCircle,
-  PauseCircle,
   XCircle,
   Target,
   Shield,
