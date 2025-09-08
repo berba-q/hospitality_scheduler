@@ -1,84 +1,34 @@
 // File: hospitality-scheduler-pwa/src/hooks/useFacility.ts
-// Dedicated hook for facility management operations
+// Dedicated hook for facility management operations - WITH PROPER TYPES & NULL SAFETY
 
 import { useState, useEffect, useCallback } from 'react'
 import { useApiClient } from './useApi'
 import { toast } from 'sonner'
 
-// Types
-interface Facility {
-  id: string
-  name: string
-  location?: string
-  facility_type: string
-  address?: string
-  phone?: string
-  email?: string
-  description?: string
-  shifts?: any[]
-  roles?: any[]
-  zones?: any[]
-  staff_count?: number
-  active_schedules?: number
-  created_at: string
-  updated_at?: string
-}
+// Import centralized types
+import * as FacilityTypes from '@/types/facility'
 
-interface FacilityRole {
-  id: string
-  role_name: string
-  min_skill_level: number
-  max_skill_level: number
-  is_management: boolean
-  hourly_rate_min?: number
-  hourly_rate_max?: number
-  is_active: boolean
-  created_at: string
-}
+// ==================== MAIN FACILITIES HOOK ====================
 
-interface FacilityZone {
-  id: string
-  zone_id: string
-  zone_name: string
-  description?: string
-  required_roles: string[]
-  preferred_roles: string[]
-  min_staff_per_shift: number
-  max_staff_per_shift: number
-  is_active: boolean
-  display_order: number
-  created_at: string
-}
-
-interface FacilityShift {
-  id: string
-  shift_name: string
-  start_time: string
-  end_time: string
-  requires_manager: boolean
-  min_staff: number
-  max_staff: number
-  shift_order: number
-  is_active: boolean
-  color?: string
-  created_at: string
-}
-
-// Main facilities hook
 export function useFacilities() {
-  const [facilities, setFacilities] = useState<Facility[]>([])
+  const [facilities, setFacilities] = useState<FacilityTypes.Facility[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const apiClient = useApiClient()
 
   const loadFacilities = useCallback(async () => {
+    if (!apiClient) {
+      console.warn('API client not ready, skipping facilities load')
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
       const data = await apiClient.getFacilities(true) // includeDetails = true
       setFacilities(data)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load facilities'
+      const errorMessage = FacilityTypes.handleApiError(err, 'Failed to load facilities')
       setError(errorMessage)
       console.error('Failed to load facilities:', err)
     } finally {
@@ -90,36 +40,31 @@ export function useFacilities() {
     loadFacilities()
   }, [loadFacilities])
 
-  const createFacility = useCallback(async (facilityData: {
-    name: string
-    location?: string
-    facility_type?: string
-    address?: string
-    phone?: string
-    email?: string
-    description?: string
-  }) => {
+  const createFacility = useCallback(async (facilityData: FacilityTypes.CreateFacilityInput): Promise<FacilityTypes.Facility> => {
+    if (!apiClient) {
+      throw new Error('API client not available. Please try again.')
+    }
+
     try {
       const newFacility = await apiClient.createFacility(facilityData)
       setFacilities(prev => [...prev, newFacility])
       toast.success(`Facility "${facilityData.name}" created successfully!`)
       return newFacility
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to create facility'
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to create facility')
       toast.error(errorMessage)
       throw error
     }
   }, [apiClient])
 
-  const updateFacility = useCallback(async (facilityId: string, facilityData: {
-    name?: string
-    location?: string
-    facility_type?: string
-    address?: string
-    phone?: string
-    email?: string
-    description?: string
-  }) => {
+  const updateFacility = useCallback(async (
+    facilityId: string, 
+    facilityData: FacilityTypes.UpdateFacilityInput
+  ): Promise<FacilityTypes.Facility> => {
+    if (!apiClient) {
+      throw new Error('API client not available. Please try again.')
+    }
+
     try {
       const updatedFacility = await apiClient.updateFacility(facilityId, facilityData)
       setFacilities(prev => 
@@ -127,20 +72,24 @@ export function useFacilities() {
       )
       toast.success('Facility updated successfully!')
       return updatedFacility
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to update facility'
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to update facility')
       toast.error(errorMessage)
       throw error
     }
   }, [apiClient])
 
-  const deleteFacility = useCallback(async (facilityId: string, facilityName?: string) => {
+  const deleteFacility = useCallback(async (facilityId: string, facilityName?: string): Promise<void> => {
+    if (!apiClient) {
+      throw new Error('API client not available. Please try again.')
+    }
+
     try {
       await apiClient.deleteFacility(facilityId)
       setFacilities(prev => prev.filter(f => f.id !== facilityId))
       toast.success(`Facility "${facilityName || 'facility'}" deleted successfully!`)
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to delete facility'
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to delete facility')
       toast.error(errorMessage)
       throw error
     }
@@ -158,359 +107,21 @@ export function useFacilities() {
   }
 }
 
-// Facility roles hook
-export function useFacilityRoles(facilityId?: string) {
-  const [roles, setRoles] = useState<FacilityRole[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const apiClient = useApiClient()
+// ==================== SINGLE FACILITY HOOK ====================
 
-  const loadRoles = useCallback(async () => {
-    if (!facilityId) return
-
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await apiClient.getFacilityRoles(facilityId)
-      setRoles(data)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load roles'
-      setError(errorMessage)
-      console.error('Failed to load facility roles:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [apiClient, facilityId])
-
-  useEffect(() => {
-    if (facilityId) {
-      loadRoles()
-    }
-  }, [loadRoles, facilityId])
-
-  const createRole = useCallback(async (roleData: {
-    role_name: string
-    min_skill_level?: number
-    max_skill_level?: number
-    is_management?: boolean
-    hourly_rate_min?: number
-    hourly_rate_max?: number
-  }) => {
-    if (!facilityId) throw new Error('Facility ID is required')
-
-    try {
-      const newRole = await apiClient.createFacilityRole(facilityId, roleData)
-      setRoles(prev => [...prev, newRole])
-      toast.success(`Role "${roleData.role_name}" created successfully!`)
-      return newRole
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to create role'
-      toast.error(errorMessage)
-      throw error
-    }
-  }, [apiClient, facilityId])
-
-  const updateRole = useCallback(async (roleId: string, roleData: {
-    role_name?: string
-    min_skill_level?: number
-    max_skill_level?: number
-    is_management?: boolean
-    hourly_rate_min?: number
-    hourly_rate_max?: number
-    is_active?: boolean
-  }) => {
-    if (!facilityId) throw new Error('Facility ID is required')
-
-    try {
-      const updatedRole = await apiClient.updateFacilityRole(facilityId, roleId, roleData)
-      setRoles(prev => 
-        prev.map(r => r.id === roleId ? { ...r, ...updatedRole } : r)
-      )
-      toast.success('Role updated successfully!')
-      return updatedRole
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to update role'
-      toast.error(errorMessage)
-      throw error
-    }
-  }, [apiClient, facilityId])
-
-  const deleteRole = useCallback(async (roleId: string, roleName?: string) => {
-    if (!facilityId) throw new Error('Facility ID is required')
-
-    try {
-      await apiClient.deleteFacilityRole(facilityId, roleId)
-      setRoles(prev => prev.filter(r => r.id !== roleId))
-      toast.success(`Role "${roleName || 'role'}" deleted successfully!`)
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to delete role'
-      toast.error(errorMessage)
-      throw error
-    }
-  }, [apiClient, facilityId])
-
-  return {
-    roles,
-    loading,
-    error,
-    loadRoles,
-    createRole,
-    updateRole,
-    deleteRole,
-    refetch: loadRoles
-  }
-}
-
-// Facility zones hook
-export function useFacilityZones(facilityId?: string) {
-  const [zones, setZones] = useState<FacilityZone[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const apiClient = useApiClient()
-
-  const loadZones = useCallback(async () => {
-    if (!facilityId) return
-
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await apiClient.getFacilityZones(facilityId)
-      setZones(data.sort((a: FacilityZone, b: FacilityZone) => a.display_order - b.display_order))
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load zones'
-      setError(errorMessage)
-      console.error('Failed to load facility zones:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [apiClient, facilityId])
-
-  useEffect(() => {
-    if (facilityId) {
-      loadZones()
-    }
-  }, [loadZones, facilityId])
-
-  const createZone = useCallback(async (zoneData: {
-    zone_id: string
-    zone_name: string
-    description?: string
-    required_roles?: string[]
-    preferred_roles?: string[]
-    min_staff_per_shift?: number
-    max_staff_per_shift?: number
-    display_order?: number
-  }) => {
-    if (!facilityId) throw new Error('Facility ID is required')
-
-    try {
-      const newZone = await apiClient.createFacilityZone(facilityId, zoneData)
-      setZones(prev => [...prev, newZone].sort((a, b) => a.display_order - b.display_order))
-      toast.success(`Zone "${zoneData.zone_name}" created successfully!`)
-      return newZone
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to create zone'
-      toast.error(errorMessage)
-      throw error
-    }
-  }, [apiClient, facilityId])
-
-  const updateZone = useCallback(async (zoneId: string, zoneData: {
-    zone_id?: string
-    zone_name?: string
-    description?: string
-    required_roles?: string[]
-    preferred_roles?: string[]
-    min_staff_per_shift?: number
-    max_staff_per_shift?: number
-    is_active?: boolean
-    display_order?: number
-  }) => {
-    if (!facilityId) throw new Error('Facility ID is required')
-
-    try {
-      const updatedZone = await apiClient.updateFacilityZone(facilityId, zoneId, zoneData)
-      setZones(prev => 
-        prev.map(z => z.id === zoneId ? { ...z, ...updatedZone } : z)
-          .sort((a, b) => a.display_order - b.display_order)
-      )
-      toast.success('Zone updated successfully!')
-      return updatedZone
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to update zone'
-      toast.error(errorMessage)
-      throw error
-    }
-  }, [apiClient, facilityId])
-
-  const deleteZone = useCallback(async (zoneId: string, zoneName?: string) => {
-    if (!facilityId) throw new Error('Facility ID is required')
-
-    try {
-      await apiClient.deleteFacilityZone(facilityId, zoneId)
-      setZones(prev => prev.filter(z => z.id !== zoneId))
-      toast.success(`Zone "${zoneName || 'zone'}" deleted successfully!`)
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to delete zone'
-      toast.error(errorMessage)
-      throw error
-    }
-  }, [apiClient, facilityId])
-
-  return {
-    zones,
-    loading,
-    error,
-    loadZones,
-    createZone,
-    updateZone,
-    deleteZone,
-    refetch: loadZones
-  }
-}
-
-// Facility shifts hook
-export function useFacilityShifts(facilityId?: string) {
-  const [shifts, setShifts] = useState<FacilityShift[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const apiClient = useApiClient()
-
-  const loadShifts = useCallback(async () => {
-    if (!facilityId) return
-
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await apiClient.getFacilityShifts(facilityId)
-      setShifts(data.sort((a: FacilityShift, b: FacilityShift) => a.shift_order - b.shift_order))
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load shifts'
-      setError(errorMessage)
-      console.error('Failed to load facility shifts:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [apiClient, facilityId])
-
-  useEffect(() => {
-    if (facilityId) {
-      loadShifts()
-    }
-  }, [loadShifts, facilityId])
-
-  const createShift = useCallback(async (shiftData: {
-    shift_name: string
-    start_time: string
-    end_time: string
-    requires_manager?: boolean
-    min_staff?: number
-    max_staff?: number
-    shift_order?: number
-    color?: string
-  }) => {
-    if (!facilityId) throw new Error('Facility ID is required')
-
-    try {
-      const newShift = await apiClient.createFacilityShift(facilityId, shiftData)
-      setShifts(prev => [...prev, newShift].sort((a, b) => a.shift_order - b.shift_order))
-      toast.success(`Shift "${shiftData.shift_name}" created successfully!`)
-      return newShift
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to create shift'
-      toast.error(errorMessage)
-      throw error
-    }
-  }, [apiClient, facilityId])
-
-  const updateShift = useCallback(async (shiftId: string, shiftData: {
-    shift_name?: string
-    start_time?: string
-    end_time?: string
-    requires_manager?: boolean
-    min_staff?: number
-    max_staff?: number
-    shift_order?: number
-    is_active?: boolean
-    color?: string
-  }) => {
-    if (!facilityId) throw new Error('Facility ID is required')
-
-    try {
-      const updatedShift = await apiClient.updateFacilityShift(facilityId, shiftId, shiftData)
-      setShifts(prev => 
-        prev.map(s => s.id === shiftId ? { ...s, ...updatedShift } : s)
-          .sort((a, b) => a.shift_order - b.shift_order)
-      )
-      toast.success('Shift updated successfully!')
-      return updatedShift
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to update shift'
-      toast.error(errorMessage)
-      throw error
-    }
-  }, [apiClient, facilityId])
-
-  const updateShiftsBulk = useCallback(async (shifts: Array<{
-    shift_name: string
-    start_time: string
-    end_time: string
-    requires_manager?: boolean
-    min_staff?: number
-    max_staff?: number
-    shift_order?: number
-    color?: string
-  }>) => {
-    if (!facilityId) throw new Error('Facility ID is required')
-
-    try {
-      const updatedShifts = await apiClient.updateFacilityShiftsBulk(facilityId, shifts)
-      setShifts(updatedShifts.sort((a: FacilityShift, b: FacilityShift) => a.shift_order - b.shift_order))
-      toast.success('Shifts updated successfully!')
-      return updatedShifts
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to update shifts'
-      toast.error(errorMessage)
-      throw error
-    }
-  }, [apiClient, facilityId])
-
-  const deleteShift = useCallback(async (shiftId: string, shiftName?: string) => {
-    if (!facilityId) throw new Error('Facility ID is required')
-
-    try {
-      await apiClient.deleteFacilityShift(facilityId, shiftId)
-      setShifts(prev => prev.filter(s => s.id !== shiftId))
-      toast.success(`Shift "${shiftName || 'shift'}" deleted successfully!`)
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to delete shift'
-      toast.error(errorMessage)
-      throw error
-    }
-  }, [apiClient, facilityId])
-
-  return {
-    shifts,
-    loading,
-    error,
-    loadShifts,
-    createShift,
-    updateShift,
-    updateShiftsBulk,
-    deleteShift,
-    refetch: loadShifts
-  }
-}
-
-// Single facility hook (for detailed facility management)
 export function useFacility(facilityId?: string) {
-  const [facility, setFacility] = useState<Facility | null>(null)
+  const [facility, setFacility] = useState<FacilityTypes.Facility | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const apiClient = useApiClient()
 
   const loadFacility = useCallback(async () => {
-    if (!facilityId) return
+    if (!facilityId || !apiClient) {
+      if (!apiClient) {
+        console.warn('API client not ready, skipping facility load')
+      }
+      return
+    }
 
     try {
       setLoading(true)
@@ -518,7 +129,7 @@ export function useFacility(facilityId?: string) {
       const data = await apiClient.getFacility(facilityId)
       setFacility(data)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load facility'
+      const errorMessage = FacilityTypes.handleApiError(err, 'Failed to load facility')
       setError(errorMessage)
       console.error('Failed to load facility:', err)
     } finally {
@@ -541,10 +152,408 @@ export function useFacility(facilityId?: string) {
   }
 }
 
-// Export types for use in components
-export type {
-  Facility,
-  FacilityRole,
-  FacilityZone,
-  FacilityShift
+// ==================== FACILITY ROLES HOOK ====================
+
+export function useFacilityRoles(facilityId?: string) {
+  const [roles, setRoles] = useState<FacilityTypes.FacilityRole[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const apiClient = useApiClient()
+
+  const loadRoles = useCallback(async () => {
+    if (!facilityId || !apiClient) {
+      if (!apiClient) {
+        console.warn('API client not ready, skipping roles load')
+      }
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await apiClient.getFacilityRoles(facilityId)
+      setRoles(data)
+    } catch (err) {
+      const errorMessage = FacilityTypes.handleApiError(err, 'Failed to load roles')
+      setError(errorMessage)
+      console.error('Failed to load facility roles:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [apiClient, facilityId])
+
+  useEffect(() => {
+    if (facilityId) {
+      loadRoles()
+    }
+  }, [loadRoles, facilityId])
+
+  const createRole = useCallback(async (roleData: FacilityTypes.CreateRoleInput): Promise<FacilityTypes.FacilityRole> => {
+    if (!facilityId) throw new Error('Facility ID is required')
+    if (!apiClient) throw new Error('API client not available. Please try again.')
+
+    try {
+      const newRole = await apiClient.createFacilityRole(facilityId, roleData)
+      setRoles(prev => [...prev, newRole])
+      toast.success(`Role "${roleData.role_name}" created successfully!`)
+      return newRole
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to create role')
+      toast.error(errorMessage)
+      throw error
+    }
+  }, [apiClient, facilityId])
+
+  const updateRole = useCallback(async (
+    roleId: string, 
+    roleData: FacilityTypes.UpdateRoleInput
+  ): Promise<FacilityTypes.FacilityRole> => {
+    if (!facilityId) throw new Error('Facility ID is required')
+    if (!apiClient) throw new Error('API client not available. Please try again.')
+
+    try {
+      const updatedRole = await apiClient.updateFacilityRole(facilityId, roleId, roleData)
+      setRoles(prev => 
+        prev.map(r => r.id === roleId ? { ...r, ...updatedRole } : r)
+      )
+      toast.success('Role updated successfully!')
+      return updatedRole
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to update role')
+      toast.error(errorMessage)
+      throw error
+    }
+  }, [apiClient, facilityId])
+
+  const deleteRole = useCallback(async (roleId: string, roleName?: string): Promise<void> => {
+    if (!facilityId) throw new Error('Facility ID is required')
+    if (!apiClient) throw new Error('API client not available. Please try again.')
+
+    try {
+      await apiClient.deleteFacilityRole(facilityId, roleId)
+      setRoles(prev => prev.filter(r => r.id !== roleId))
+      toast.success(`Role "${roleName || 'role'}" deleted successfully!`)
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to delete role')
+      toast.error(errorMessage)
+      throw error
+    }
+  }, [apiClient, facilityId])
+
+  return {
+    roles,
+    loading,
+    error,
+    loadRoles,
+    createRole,
+    updateRole,
+    deleteRole,
+    refetch: loadRoles
+  }
+}
+
+// ==================== FACILITY ZONES HOOK ====================
+
+export function useFacilityZones(facilityId?: string) {
+  const [zones, setZones] = useState<FacilityTypes.FacilityZone[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const apiClient = useApiClient()
+
+  const loadZones = useCallback(async () => {
+    if (!facilityId || !apiClient) {
+      if (!apiClient) {
+        console.warn('API client not ready, skipping zones load')
+      }
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await apiClient.getFacilityZones(facilityId)
+      setZones(data.sort((a: FacilityTypes.FacilityZone, b: FacilityTypes.FacilityZone) => a.display_order - b.display_order))
+    } catch (err) {
+      const errorMessage = FacilityTypes.handleApiError(err, 'Failed to load zones')
+      setError(errorMessage)
+      console.error('Failed to load facility zones:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [apiClient, facilityId])
+
+  useEffect(() => {
+    if (facilityId) {
+      loadZones()
+    }
+  }, [loadZones, facilityId])
+
+  const createZone = useCallback(async (zoneData: FacilityTypes.CreateZoneInput): Promise<FacilityTypes.FacilityZone> => {
+    if (!facilityId) throw new Error('Facility ID is required')
+    if (!apiClient) throw new Error('API client not available. Please try again.')
+
+    try {
+      const newZone = await apiClient.createFacilityZone(facilityId, zoneData)
+      setZones(prev => [...prev, newZone].sort((a, b) => a.display_order - b.display_order))
+      toast.success(`Zone "${zoneData.zone_name}" created successfully!`)
+      return newZone
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to create zone')
+      toast.error(errorMessage)
+      throw error
+    }
+  }, [apiClient, facilityId])
+
+  const updateZone = useCallback(async (
+    zoneId: string, 
+    zoneData: FacilityTypes.UpdateZoneInput
+  ): Promise<FacilityTypes.FacilityZone> => {
+    if (!facilityId) throw new Error('Facility ID is required')
+    if (!apiClient) throw new Error('API client not available. Please try again.')
+
+    try {
+      const updatedZone = await apiClient.updateFacilityZone(facilityId, zoneId, zoneData)
+      setZones(prev => 
+        prev.map(z => z.id === zoneId ? { ...z, ...updatedZone } : z)
+          .sort((a, b) => a.display_order - b.display_order)
+      )
+      toast.success('Zone updated successfully!')
+      return updatedZone
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to update zone')
+      toast.error(errorMessage)
+      throw error
+    }
+  }, [apiClient, facilityId])
+
+  const deleteZone = useCallback(async (zoneId: string, zoneName?: string): Promise<void> => {
+    if (!facilityId) throw new Error('Facility ID is required')
+    if (!apiClient) throw new Error('API client not available. Please try again.')
+
+    try {
+      await apiClient.deleteFacilityZone(facilityId, zoneId)
+      setZones(prev => prev.filter(z => z.id !== zoneId))
+      toast.success(`Zone "${zoneName || 'zone'}" deleted successfully!`)
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to delete zone')
+      toast.error(errorMessage)
+      throw error
+    }
+  }, [apiClient, facilityId])
+
+  return {
+    zones,
+    loading,
+    error,
+    loadZones,
+    createZone,
+    updateZone,
+    deleteZone,
+    refetch: loadZones
+  }
+}
+
+// ==================== FACILITY SHIFTS HOOK ====================
+
+export function useFacilityShifts(facilityId?: string) {
+  const [shifts, setShifts] = useState<FacilityTypes.FacilityShift[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const apiClient = useApiClient()
+
+  const loadShifts = useCallback(async () => {
+    if (!facilityId || !apiClient) {
+      if (!apiClient) {
+        console.warn('API client not ready, skipping shifts load')
+      }
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await apiClient.getFacilityShifts(facilityId)
+      setShifts(data.sort((a: FacilityTypes.FacilityShift, b: FacilityTypes.FacilityShift) => a.shift_order - b.shift_order))
+    } catch (err) {
+      const errorMessage = FacilityTypes.handleApiError(err, 'Failed to load shifts')
+      setError(errorMessage)
+      console.error('Failed to load facility shifts:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [apiClient, facilityId])
+
+  useEffect(() => {
+    if (facilityId) {
+      loadShifts()
+    }
+  }, [loadShifts, facilityId])
+
+  const createShift = useCallback(async (shiftData: FacilityTypes.CreateShiftInput): Promise<FacilityTypes.FacilityShift> => {
+    if (!facilityId) throw new Error('Facility ID is required')
+    if (!apiClient) throw new Error('API client not available. Please try again.')
+
+    try {
+      const newShift = await apiClient.createFacilityShift(facilityId, shiftData)
+      setShifts(prev => [...prev, newShift].sort((a, b) => a.shift_order - b.shift_order))
+      toast.success(`Shift "${shiftData.shift_name}" created successfully!`)
+      return newShift
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to create shift')
+      toast.error(errorMessage)
+      throw error
+    }
+  }, [apiClient, facilityId])
+
+  const updateShift = useCallback(async (
+    shiftId: string, 
+    shiftData: FacilityTypes.UpdateShiftInput
+  ): Promise<FacilityTypes.FacilityShift> => {
+    if (!facilityId) throw new Error('Facility ID is required')
+    if (!apiClient) throw new Error('API client not available. Please try again.')
+
+    try {
+      const updatedShift = await apiClient.updateFacilityShift(facilityId, shiftId, shiftData)
+      setShifts(prev => 
+        prev.map(s => s.id === shiftId ? { ...s, ...updatedShift } : s)
+          .sort((a, b) => a.shift_order - b.shift_order)
+      )
+      toast.success('Shift updated successfully!')
+      return updatedShift
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to update shift')
+      toast.error(errorMessage)
+      throw error
+    }
+  }, [apiClient, facilityId])
+
+  const updateShiftsBulk = useCallback(async (
+    shifts: FacilityTypes.BulkShiftUpdateInput[]
+  ): Promise<FacilityTypes.FacilityShift[]> => {
+    if (!facilityId) throw new Error('Facility ID is required')
+    if (!apiClient) throw new Error('API client not available. Please try again.')
+
+    try {
+      const updatedShifts = await apiClient.updateFacilityShiftsBulk(facilityId, shifts)
+      setShifts(updatedShifts.sort((a: FacilityTypes.FacilityShift, b: FacilityTypes.FacilityShift) => a.shift_order - b.shift_order))
+      toast.success('Shifts updated successfully!')
+      return updatedShifts
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to update shifts')
+      toast.error(errorMessage)
+      throw error
+    }
+  }, [apiClient, facilityId])
+
+  const deleteShift = useCallback(async (shiftId: string, shiftName?: string): Promise<void> => {
+    if (!facilityId) throw new Error('Facility ID is required')
+    if (!apiClient) throw new Error('API client not available. Please try again.')
+
+    try {
+      await apiClient.deleteFacilityShift(facilityId, shiftId)
+      setShifts(prev => prev.filter(s => s.id !== shiftId))
+      toast.success(`Shift "${shiftName || 'shift'}" deleted successfully!`)
+    } catch (error) {
+      const errorMessage = FacilityTypes.handleApiError(error, 'Failed to delete shift')
+      toast.error(errorMessage)
+      throw error
+    }
+  }, [apiClient, facilityId])
+
+  return {
+    shifts,
+    loading,
+    error,
+    loadShifts,
+    createShift,
+    updateShift,
+    updateShiftsBulk,
+    deleteShift,
+    refetch: loadShifts
+  }
+}
+
+// ==================== ADDITIONAL UTILITY HOOKS ====================
+
+/**
+ * Hook that provides a safe way to check if the API client is ready
+ * Useful for conditionally rendering UI elements
+ */
+export function useFacilityApiStatus() {
+  const apiClient = useApiClient()
+  
+  return {
+    isReady: !!apiClient,
+    apiClient
+  }
+}
+
+/**
+ * Combined hook that provides all facility-related functionality
+ * Use this when you need access to multiple facility operations
+ */
+export function useCompleteFacilityManagement(facilityId?: string) {
+  const facilities = useFacilities()
+  const facility = useFacility(facilityId)
+  const roles = useFacilityRoles(facilityId)
+  const zones = useFacilityZones(facilityId)
+  const shifts = useFacilityShifts(facilityId)
+  const { isReady } = useFacilityApiStatus()
+
+  return {
+    // API status
+    isReady,
+    
+    // All facilities
+    facilities: facilities.facilities,
+    facilitiesLoading: facilities.loading,
+    facilitiesError: facilities.error,
+    loadFacilities: facilities.loadFacilities,
+    createFacility: facilities.createFacility,
+    updateFacility: facilities.updateFacility,
+    deleteFacility: facilities.deleteFacility,
+    
+    // Single facility
+    facility: facility.facility,
+    facilityLoading: facility.loading,
+    facilityError: facility.error,
+    loadFacility: facility.loadFacility,
+    
+    // Roles
+    roles: roles.roles,
+    rolesLoading: roles.loading,
+    rolesError: roles.error,
+    loadRoles: roles.loadRoles,
+    createRole: roles.createRole,
+    updateRole: roles.updateRole,
+    deleteRole: roles.deleteRole,
+    
+    // Zones
+    zones: zones.zones,
+    zonesLoading: zones.loading,
+    zonesError: zones.error,
+    loadZones: zones.loadZones,
+    createZone: zones.createZone,
+    updateZone: zones.updateZone,
+    deleteZone: zones.deleteZone,
+    
+    // Shifts
+    shifts: shifts.shifts,
+    shiftsLoading: shifts.loading,
+    shiftsError: shifts.error,
+    loadShifts: shifts.loadShifts,
+    createShift: shifts.createShift,
+    updateShift: shifts.updateShift,
+    updateShiftsBulk: shifts.updateShiftsBulk,
+    deleteShift: shifts.deleteShift,
+    
+    // Global operations
+    refreshAll: () => {
+      facilities.refetch()
+      facility.refetch()
+      roles.refetch()
+      zones.refetch()
+      shifts.refetch()
+    }
+  }
 }
