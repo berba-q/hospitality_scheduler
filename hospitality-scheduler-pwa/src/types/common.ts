@@ -77,7 +77,7 @@ export interface CalendarEvent {
   status: string;
 }
 
-export interface Facility {
+export interface SimpleFacility {
   id: string;
   name: string;
   address?: string;

@@ -1,8 +1,9 @@
 // API client to communicate with the backend server
 // Api client implemtation for backend communication
-import type { Staff, Facility} from '@/types';
+import type { Staff} from '@/types';
 import type { SwapRequest, SwapStatus, SwapUrgency } from '@/types/swaps';
 import type * as ApiTypes from '@/types/api';
+import * as FacilityTypes from '@/types/facility';
 type JsonMap = Record<string, unknown>;
 
 export interface ApiConfig {
@@ -88,46 +89,6 @@ interface ServiceStatus {
 }
 
 // ---- Core domain types used by this API client ----
-export interface Shift {
-  id: string;
-  name: string;
-  start_time: string; // "HH:mm"
-  end_time: string;   // "HH:mm"
-  requires_manager?: boolean;
-  min_staff?: number;
-  max_staff?: number;
-  shift_order?: number;
-  is_active?: boolean;
-  color?: string;
-  facility_id: string;
-}
-
-export interface Role {
-  id: string;
-  role_name: string;
-  min_skill_level?: number;
-  max_skill_level?: number;
-  is_management?: boolean;
-  hourly_rate_min?: number;
-  hourly_rate_max?: number;
-  is_active?: boolean;
-  facility_id: string;
-}
-
-export interface Zone {
-  id: string;
-  zone_id?: string;
-  zone_name: string;
-  description?: string;
-  required_roles?: string[];
-  preferred_roles?: string[];
-  min_staff_per_shift?: number;
-  max_staff_per_shift?: number;
-  display_order?: number;
-  is_active?: boolean;
-  facility_id: string;
-}
-
 export interface Unavailability {
   id: string;
   staff_id: string;
@@ -296,11 +257,11 @@ export class ApiClient {
     if (includeInactive) params.append('include_inactive', includeInactive.toString())
     
     const queryString = params.toString()
-    return this.request<Facility[]>(`/v1/facilities/${queryString ? `?${queryString}` : ''}`)
+    return this.request<FacilityTypes.Facility[]>(`/v1/facilities/${queryString ? `?${queryString}` : ''}`)
   }
 
   async getFacility(facilityId: string) {
-    return this.request<Facility>(`/v1/facilities/${facilityId}`)
+    return this.request<FacilityTypes.Facility>(`/v1/facilities/${facilityId}`)
   }
 
   async getFacilityStaff(facilityId: string) {
@@ -316,7 +277,7 @@ export class ApiClient {
     email?: string
     description?: string
   }) {
-    return this.request<Facility>('/v1/facilities/', {
+    return this.request<FacilityTypes.Facility>('/v1/facilities/', {
       method: 'POST',
       body: JSON.stringify(facilityData),
     })
@@ -335,7 +296,7 @@ export class ApiClient {
     force_create_duplicates?: boolean
     skip_duplicate_check?: boolean
     validate_only?: boolean
-  }): Promise<ApiTypes.ImportResult<Facility>> {
+  }): Promise<ApiTypes.ImportResult<FacilityTypes.Facility>> {
     const queryParams = new URLSearchParams()
     if (options?.force_create_duplicates) queryParams.append('force_create_duplicates', 'true')
     if (options?.skip_duplicate_check) queryParams.append('skip_duplicate_check', 'true')
@@ -368,7 +329,7 @@ export class ApiClient {
     phone?: string
     email?: string
     description?: string
-  }>): Promise<ApiTypes.ImportResult<Facility>> {
+  }>): Promise<ApiTypes.ImportResult<FacilityTypes.Facility>> {
     return this.request('/v1/facilities/validate-import', {
       method: 'POST',
       body: JSON.stringify(facilities.map(f => ({
@@ -392,7 +353,7 @@ export class ApiClient {
     email?: string
     description?: string
   }) {
-    return this.request<Facility>(`/v1/facilities/${facilityId}`, {
+    return this.request<FacilityTypes.Facility>(`/v1/facilities/${facilityId}`, {
       method: 'PUT',
       body: JSON.stringify(facilityData),
     })
@@ -441,10 +402,11 @@ export class ApiClient {
     })
   }
 
+
   // ==================== SHIFT MANAGEMENT ====================
 
   async getFacilityShifts(facilityId: string) {
-    return this.request<Shift[]>(`/v1/facilities/${facilityId}/shifts/for-scheduling`)
+    return this.request<FacilityTypes.FacilityShift[]>(`/v1/facilities/${facilityId}/shifts/for-scheduling`)
   }
 
   async createFacilityShift(facilityId: string, shiftData: {
@@ -457,7 +419,7 @@ export class ApiClient {
     shift_order?: number
     color?: string
   }) {
-    return this.request<Shift>(`/v1/facilities/${facilityId}/shifts`, {
+    return this.request<FacilityTypes.FacilityShift>(`/v1/facilities/${facilityId}/shifts`, {
       method: 'POST',
       body: JSON.stringify({
         facility_id: facilityId,
@@ -477,7 +439,7 @@ export class ApiClient {
     is_active?: boolean
     color?: string
   }) {
-    return this.request<Shift>(`/v1/facilities/${facilityId}/shifts/${shiftId}`, {
+    return this.request<FacilityTypes.FacilityShift>(`/v1/facilities/${facilityId}/shifts/${shiftId}`, {
       method: 'PUT',
       body: JSON.stringify(shiftData),
     })
@@ -493,7 +455,7 @@ export class ApiClient {
     shift_order?: number
     color?: string
   }>) {
-    return this.request<Shift[]>(`/v1/facilities/${facilityId}/shifts/bulk`, {
+    return this.request<FacilityTypes.FacilityShift[]>(`/v1/facilities/${facilityId}/shifts/bulk`, {
       method: 'PUT',
       body: JSON.stringify({
         facility_id: facilityId,
@@ -532,7 +494,7 @@ export class ApiClient {
 
   async getFacilityRoles(facilityId: string, includeInactive: boolean = false) {
     const params = includeInactive ? '?include_inactive=true' : ''
-    return this.request<Role[]>(`/v1/facilities/${facilityId}/roles${params}`)
+    return this.request<FacilityTypes.FacilityRole[]>(`/v1/facilities/${facilityId}/roles${params}`)
   }
 
   async createFacilityRole(facilityId: string, roleData: {
@@ -543,7 +505,7 @@ export class ApiClient {
     hourly_rate_min?: number
     hourly_rate_max?: number
   }) {
-    return this.request<Role>(`/v1/facilities/${facilityId}/roles`, {
+    return this.request<FacilityTypes.FacilityRole>(`/v1/facilities/${facilityId}/roles`, {
       method: 'POST',
       body: JSON.stringify({
         facility_id: facilityId,
@@ -561,7 +523,7 @@ export class ApiClient {
     hourly_rate_max?: number
     is_active?: boolean
   }) {
-    return this.request<Role>(`/v1/facilities/${facilityId}/roles/${roleId}`, {
+    return this.request<FacilityTypes.FacilityRole>(`/v1/facilities/${facilityId}/roles/${roleId}`, {
       method: 'PUT',
       body: JSON.stringify(roleData),
     })
@@ -575,7 +537,7 @@ export class ApiClient {
     hourly_rate_min?: number
     hourly_rate_max?: number
   }>) {
-    return this.request<Role[]>(`/v1/facilities/${facilityId}/roles/bulk`, {
+    return this.request<FacilityTypes.FacilityRole[]>(`/v1/facilities/${facilityId}/roles/bulk`, {
       method: 'PUT',
       body: JSON.stringify({
         facility_id: facilityId,
@@ -594,7 +556,7 @@ export class ApiClient {
 
   async getFacilityZones(facilityId: string, includeInactive: boolean = false) {
     const params = includeInactive ? '?include_inactive=true' : ''
-    return this.request<Zone[]>(`/v1/facilities/${facilityId}/zones${params}`)
+    return this.request<FacilityTypes.FacilityZone[]>(`/v1/facilities/${facilityId}/zones${params}`)
   }
 
   async createFacilityZone(facilityId: string, zoneData: {
@@ -607,7 +569,7 @@ export class ApiClient {
     max_staff_per_shift?: number
     display_order?: number
   }) {
-    return this.request<Zone>(`/v1/facilities/${facilityId}/zones`, {
+    return this.request<FacilityTypes.FacilityZone>(`/v1/facilities/${facilityId}/zones`, {
       method: 'POST',
       body: JSON.stringify({
         facility_id: facilityId,
@@ -627,7 +589,7 @@ export class ApiClient {
     is_active?: boolean
     display_order?: number
   }) {
-    return this.request<Zone>(`/v1/facilities/${facilityId}/zones/${zoneId}`, {
+    return this.request<FacilityTypes.FacilityZone>(`/v1/facilities/${facilityId}/zones/${zoneId}`, {
       method: 'PUT',
       body: JSON.stringify(zoneData),
     })
@@ -643,7 +605,7 @@ export class ApiClient {
     max_staff_per_shift?: number
     display_order?: number
   }>) {
-    return this.request<Zone[]>(`/v1/facilities/${facilityId}/zones/bulk`, {
+    return this.request<FacilityTypes.FacilityZone[]>(`/v1/facilities/${facilityId}/zones/bulk`, {
       method: 'PUT',
       body: JSON.stringify({
         facility_id: facilityId,
