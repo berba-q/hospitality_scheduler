@@ -15,52 +15,12 @@ import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 import React from 'react'
 import * as FacilityTypes from '@/types/facility'
-import * as ApiTypes from '@/types/api'
-
-// Define proper warning structure based on API response
-interface FacilityWarning {
-  facility_name: string
-  severity: 'none' | 'warning' | 'error'
-  duplicate_info: DuplicateInfo
-}
 
 interface ImportFacilitiesModalProps {
   open: boolean
   onClose: () => void
   onImport: (validFacilities: FacilityTypes.CreateFacilityInput[]) => Promise<void>
   initialFile?: File | null
-}
-
-// Define proper duplicate info structure based on backend response
-interface DuplicateMatch {
-  id: string
-  name: string
-  address?: string
-  phone?: string
-  similarity_score?: number
-}
-
-interface DuplicateInfo {
-  has_any_duplicates: boolean
-  severity: 'none' | 'warning' | 'error'
-  exact_name_match?: DuplicateMatch
-  similar_names?: DuplicateMatch[]
-  address_matches?: DuplicateMatch[]
-  phone_matches?: DuplicateMatch[]
-  email_matches?: DuplicateMatch[]
-}
-
-// Enhanced ParsedFacility that extends CreateFacilityInput with validation metadata
-interface ParsedFacility extends FacilityTypes.CreateFacilityInput {
-  valid: boolean
-  errors: string[]
-  // Duplicate checking fields
-  duplicateInfo?: DuplicateInfo
-  hasDuplicates?: boolean
-  duplicateSeverity?: 'none' | 'warning' | 'error'
-  canImport?: boolean
-  forceCreate?: boolean
-  rowIndex?: number // For tracking which row this came from
 }
 
 const FACILITY_TYPES = [
@@ -88,36 +48,18 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
   const [step, setStep] = useState<'upload' | 'preview'>('upload')
   const [detectedColumns, setDetectedColumns] = useState<Set<string>>(new Set())
   const [originalColumnNames, setOriginalColumnNames] = useState<Record<string, string>>({})
-  const [parsedData, setParsedData] = useState<ParsedFacility[]>([])
+  const [parsedData, setParsedData] = useState<FacilityTypes.ParsedFacility[]>([])
   const [file, setFile] = useState<File | null>(null)
   const [processing, setProcessing] = useState(false)
   
   // Duplicate checking state
   const [checkingDuplicates, setCheckingDuplicates] = useState(false)
-  const [duplicatesChecked, setDuplicatesChecked] = useState(false)
   const [selectedForImport, setSelectedForImport] = useState<Set<number>>(new Set())
   const [showDuplicateDetails, setShowDuplicateDetails] = useState<Set<number>>(new Set())
   const [forceCreateAll, setForceCreateAll] = useState(false)
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const uploadedFile = acceptedFiles[0]
-    if (uploadedFile) {
-      setFile(uploadedFile)
-      parseExcelFile(uploadedFile)
-    }
-  }, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'text/csv': ['.csv']
-    },
-    maxFiles: 1
-  })
-
   // Enhanced column detection with flexible mapping
-  const detectColumn = (headerName: string): string | null => {
+  const detectColumn = useCallback((headerName: string): string | null => {
     const cleanHeader = headerName.toLowerCase().trim()
     
     for (const [standardName, variations] of Object.entries(COLUMN_MAPPINGS)) {
@@ -126,10 +68,75 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
       }
     }
     return null
-  }
+  }, [])
 
-  // Enhanced Excel parsing with proper typing
-  const parseExcelFile = async (file: File) => {
+   // Duplicate checking function
+  const checkForDuplicates = useCallback(async (facilitiesList: FacilityTypes.ParsedFacility[]) => {
+    if (!facilitiesList.length || !apiClient) return
+
+    setCheckingDuplicates(true)
+    
+    try {
+      const updatedFacilities = [...facilitiesList]
+      
+      for (let i = 0; i < updatedFacilities.length; i++) {
+        const facility = updatedFacilities[i]
+        
+        if (!facility.valid) continue
+
+        try {
+          if (!apiClient) throw new Error(t('common.apiClientNotInitialized'))
+          
+          // Pass array instead of single object and proper typing
+          const response = await apiClient.validateFacilitiesImport([{
+            name: facility.name,
+            facility_type: facility.facility_type || 'hotel',
+            location: facility.location,
+            address: facility.address,
+            phone: facility.phone,
+            email: facility.email,
+            description: facility.description
+          }]) as unknown as FacilityTypes.FacilityImportResult
+
+          // Proper typing for facilityWarning using centralized types
+          const facilityWarning: FacilityTypes.FacilityWarning | undefined = 
+            response.duplicate_warnings?.find(w => w.facility_name === facility.name)
+
+          if (facilityWarning && facilityWarning.duplicate_info?.has_any_duplicates) {
+            updatedFacilities[i] = {
+              ...facility,
+              hasDuplicates: true,
+              duplicateInfo: facilityWarning.duplicate_info,
+              duplicateSeverity: facilityWarning.severity || 'warning',
+              canImport: facilityWarning.severity !== 'error',
+              errors: facilityWarning.severity === 'error' && !forceCreateAll 
+                ? [...facility.errors, t('facilities.duplicateDetected')]
+                : facility.errors
+            }
+            
+            // Remove from auto-selection if it's a blocking duplicate
+            if (facilityWarning.severity === 'error') {
+              setSelectedForImport(prev => {
+                const newSet = new Set(prev)
+                newSet.delete(i)
+                return newSet
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Error checking duplicates for:', facility.name, error)
+        }
+      }
+
+      setParsedData(updatedFacilities)
+      
+    } finally {
+      setCheckingDuplicates(false)
+    }
+  }, [apiClient, t, forceCreateAll])
+
+  // Excel parsing with validation
+  const parseExcelFile = useCallback(async (file: File) => {
     if (!apiClient) {
       toast.error('API client not available. Please try again.')
       return
@@ -166,7 +173,7 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
       setOriginalColumnNames(originalNames)
 
       // Process data rows
-      const facilities: ParsedFacility[] = []
+      const facilities: FacilityTypes.ParsedFacility[] = []
       for (let i = 1; i < jsonData.length; i++) {
         const row = jsonData[i]
         if (!row || row.every(cell => !cell)) continue // Skip empty rows
@@ -193,8 +200,8 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
 
         // Map facility type
         let facilityType = facilityData.facility_type
-        const typeMatch = FACILITY_TYPES.find(t => 
-          t.name.toLowerCase() === (facilityType || '').toLowerCase()
+        const typeMatch = FACILITY_TYPES.find(ft => 
+          ft.name.toLowerCase() === (facilityType || '').toLowerCase()
         )
         
         if (!typeMatch) {
@@ -212,7 +219,7 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
         }
 
         // Create ParsedFacility with proper typing
-        const parsedFacility: ParsedFacility = {
+        const parsedFacility: FacilityTypes.ParsedFacility = {
           name: facilityData.name || t('facilities.unnamedFacility'),
           facility_type: facilityType,
           location: facilityData.location || undefined,
@@ -236,7 +243,7 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
       
       // Auto-select valid facilities
       const validIndices = new Set(
-        facilities.map((_, index) => index).filter(i => facilities[i].valid)
+        facilities.map((_, index) => index).filter(idx => facilities[idx].valid)
       )
       setSelectedForImport(validIndices)
       
@@ -254,82 +261,32 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
     } finally {
       setProcessing(false)
     }
+  }, [apiClient, t, detectColumn, checkForDuplicates])
+
+  // Dropzone setup
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const uploadedFile = acceptedFiles[0]
+  if (uploadedFile) {
+    setFile(uploadedFile)
+    parseExcelFile(uploadedFile)
   }
+}, [parseExcelFile])
 
-  // Duplicate checking with proper API call signature
-  const checkForDuplicates = async (facilitiesList: ParsedFacility[]) => {
-    if (!facilitiesList.length || !apiClient) return
-
-    setCheckingDuplicates(true)
-    
-    try {
-      const updatedFacilities = [...facilitiesList]
-      
-      for (let i = 0; i < updatedFacilities.length; i++) {
-        const facility = updatedFacilities[i]
-        
-        if (!facility.valid) continue
-
-        try {
-          if (!apiClient) throw new Error(t('common.apiClientNotInitialized'))
-          
-          // Pass array instead of single object and proper typing
-          const response: ApiTypes.ImportResult = await apiClient.validateFacilitiesImport([{
-            name: facility.name,
-            facility_type: facility.facility_type,
-            location: facility.location,
-            address: facility.address,
-            phone: facility.phone,
-            email: facility.email,
-            description: facility.description
-          }])
-
-          // Proper typing for facilityWarning
-          const facilityWarning:  | undefined = response.duplicate_warnings?.find(
-            (warning: FacilityWarning) => warning.facility_name === facility.name
-          )
-
-          if (facilityWarning && facilityWarning.duplicate_info?.has_any_duplicates) {
-            updatedFacilities[i] = {
-              ...facility,
-              hasDuplicates: true,
-              duplicateInfo: facilityWarning.duplicate_info,
-              duplicateSeverity: facilityWarning.severity || 'warning',
-              canImport: facilityWarning.severity !== 'error',
-              errors: facilityWarning.severity === 'error' && !forceCreateAll 
-                ? [...facility.errors, t('facilities.duplicateDetected')]
-                : facility.errors
-            }
-            
-            // Remove from auto-selection if it's a blocking duplicate
-            if (facilityWarning.severity === 'error') {
-              setSelectedForImport(prev => {
-                const newSet = new Set(prev)
-                newSet.delete(i)
-                return newSet
-              })
-            }
-          }
-        } catch (error) {
-          console.error('Error checking duplicates for:', facility.name, error)
-        }
-      }
-
-      setParsedData(updatedFacilities)
-      setDuplicatesChecked(true)
-      
-    } finally {
-      setCheckingDuplicates(false)
-    }
-  }
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'text/csv': ['.csv']
+    },
+    maxFiles: 1
+  })
 
   // Handle initial file if provided
   useEffect(() => {
     if (open && initialFile && step === 'upload') {
-      setFile(initialFile)
       parseExcelFile(initialFile)
     }
-  }, [open, initialFile, step])
+  }, [open, initialFile, step, parseExcelFile])
 
   // Toggle selection
   const toggleSelection = (index: number) => {
@@ -402,8 +359,12 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
       setProcessing(true)
       
       // Use the enhanced import API with proper options
-      const result: ApiTypes.ImportResult<FacilityTypes.Facility> = await apiClient.importFacilities(
-        selectedFacilities.map(f => ({ ...f, force_create: forceCreateAll })), 
+      const result = await apiClient.importFacilities(
+        selectedFacilities.map(f => ({ 
+          ...f, 
+          facility_type: f.facility_type || 'hotel',
+          force_create: forceCreateAll 
+        })), 
         {
           force_create_duplicates: forceCreateAll,
           skip_duplicate_check: false,
@@ -444,7 +405,6 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
     setParsedData([])
     setProcessing(false)
     setCheckingDuplicates(false)
-    setDuplicatesChecked(false)
     setSelectedForImport(new Set())
     setShowDuplicateDetails(new Set())
     setForceCreateAll(false)
@@ -544,7 +504,7 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
           </div>
         )}
 
-        {step === 'preview' && (
+        {step === 'preview' && file && (
           <div className="flex flex-col space-y-4 flex-1 min-h-0">
             {/* Header with counts */}
             <div className="flex items-center justify-between">
@@ -559,6 +519,10 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
               <div className="text-sm text-gray-600">
                 {parsedData.length} {t('facilities.facilitiesFound')} • {selectedForImport.size} {t('facilities.selected')}
               </div>
+            </div>
+
+            <div className="text-sm text-gray-500 mb-2">
+              {t('facilities.uploadedFile')}: {file.name}
             </div>
 
             {/* Conflict warning */}
@@ -625,7 +589,7 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
                           
                           {getColumns().map(col => (
                             <td key={col.key} className="p-3 text-sm">
-                              {facility[col.key as keyof ParsedFacility] as string || '-'}
+                              {facility[col.key as keyof FacilityTypes.ParsedFacility] as string || '-'}
                             </td>
                           ))}
                           
@@ -655,14 +619,14 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
                                     <strong>{t('facilities.exactNameMatch')}</strong> {facility.duplicateInfo.exact_name_match.name}
                                   </div>
                                 )}
-                                {facility.duplicateInfo.similar_names?.length > 0 && (
+                                {(facility.duplicateInfo.similar_names?.length ?? 0) > 0 && (
                                   <div className="text-yellow-600">
-                                    <strong>{t('facilities.similarNamesFound')}</strong> {facility.duplicateInfo.similar_names.map((f: any) => f.name).join(', ')}
+                                    <strong>{t('facilities.similarNamesFound')}</strong> {facility.duplicateInfo.similar_names?.map((f: FacilityTypes.DuplicateMatch) => f.name).join(', ')}
                                   </div>
                                 )}
-                                {facility.duplicateInfo.address_matches?.length > 0 && (
+                                {(facility.duplicateInfo.address_matches?.length ?? 0) > 0 && (
                                   <div className="text-yellow-600">
-                                    <strong>{t('facilities.addressMatches')}</strong> {facility.duplicateInfo.address_matches.map((f: any) => f.name).join(', ')}
+                                    <strong>{t('facilities.addressMatches')}</strong> {facility.duplicateInfo.address_matches?.map((f: FacilityTypes.DuplicateMatch) => f.name).join(', ')}
                                   </div>
                                 )}
                               </div>
