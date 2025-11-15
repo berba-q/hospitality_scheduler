@@ -19,7 +19,7 @@ import * as FacilityTypes from '@/types/facility'
 interface ImportFacilitiesModalProps {
   open: boolean
   onClose: () => void
-  onImport: (validFacilities: FacilityTypes.CreateFacilityInput[]) => Promise<void>
+  onSuccess: () => Promise<void> | void
   initialFile?: File | null
 }
 
@@ -42,7 +42,7 @@ const COLUMN_MAPPINGS: Record<string, string[]> = {
   description: ['description', 'notes', 'details', 'descrição', 'notes', 'descripción']
 }
 
-export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: ImportFacilitiesModalProps) {
+export function ImportFacilitiesModal({ open, onClose, onSuccess, initialFile }: ImportFacilitiesModalProps) {
   const { t } = useTranslations()
   const apiClient = useApiClient()
   const [step, setStep] = useState<'upload' | 'preview'>('upload')
@@ -386,7 +386,7 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
       }
       
       // Call the parent's onImport for any additional handling
-      await onImport(selectedFacilities)
+      await onSuccess()
       
       reset()
       onClose()

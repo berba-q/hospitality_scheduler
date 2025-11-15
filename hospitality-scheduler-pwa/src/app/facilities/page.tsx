@@ -162,14 +162,7 @@ export default function FacilitiesManagementPage() {
   }, [isManager, authLoading, user, router, t])
 
   // Load facilities data
-  useEffect(() => {
-    if (isManager && apiClient) {
-      loadFacilities()
-    }
-  }, [isManager, apiClient])
-
-  const loadFacilities = async () => {
-
+  const loadFacilities = useCallback(async () => {
     if (!apiClient) {
       console.warn('API client not available, skipping facilities load')
       return
@@ -185,7 +178,13 @@ export default function FacilitiesManagementPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [apiClient, t])
+
+  useEffect(() => {
+    if (isManager && apiClient) {
+      loadFacilities()
+    }
+  }, [isManager, apiClient, loadFacilities])
 
   // Handle facility deletion
   const handleDeleteFacility = async (facilityId: string, facilityName: string) => {
