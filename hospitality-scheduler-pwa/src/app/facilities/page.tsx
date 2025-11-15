@@ -43,6 +43,7 @@ import { ZoneManagementModal } from '@/components/facility/ZoneManagementModal'
 import { ShiftManagementModal } from '@/components/facility/ShiftManagementModal'
 import { GlobalDropZone } from '@/components/facility/GlobalDropZone'
 import { ImportFacilitiesModal } from '@/components/facility/ImportFacilitiesModal'
+import * as FacilityTypes from '@/types/facility'
 
 // Real-world facility types with appropriate defaults
 const FACILITY_TYPES = [
@@ -113,7 +114,7 @@ const FACILITY_TYPES = [
   }
 ]
 
-const ZONE_ICONS = {
+const ZONE_ICONS: Record<string, React.ComponentType<{ className?: string; size?: number | string }>> = {
   'front-desk': Users,
   'housekeeping': Home,
   'kitchen': Utensils,
@@ -129,36 +130,14 @@ const ZONE_ICONS = {
   'seating': Users
 }
 
-interface Facility {
-  id: string
-  name: string
-  address: string
-  facility_type: string
-  zones: string[]
-  shifts: ShiftConfig[]
-  roles: string[]
-  staff_count: number
-  active_schedules: number
-  created_at: string
-}
-
-interface ShiftConfig {
-  id: string
-  name: string
-  start_time: string
-  end_time: string
-  requires_manager: boolean
-  min_staff: number
-  max_staff: number
-}
 
 export default function FacilitiesManagementPage() {
   const router = useRouter()
-  const { user, isManager, loading: authLoading } = useAuth()
+  const { user, isManager, isLoading: authLoading } = useAuth()
   const apiClient = useApiClient()
   const { t } = useTranslations()
   
-  const [facilities, setFacilities] = useState<Facility[]>([])
+  const [facilities, setFacilities] = useState<FacilityTypes.Facility[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedType, setSelectedType] = useState('all')
@@ -170,7 +149,7 @@ export default function FacilitiesManagementPage() {
   const [showShiftModal, setShowShiftModal] = useState(false)
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [showZoneModal, setShowZoneModal] = useState(false)
-  const [editingFacility, setEditingFacility] = useState<Facility | null>(null)
+  const [editingFacility, setEditingFacility] = useState<FacilityTypes.Facility | null>(null)
 
 
   // Check permissions and redirect if needed
@@ -184,12 +163,18 @@ export default function FacilitiesManagementPage() {
 
   // Load facilities data
   useEffect(() => {
-    if (isManager) {
+    if (isManager && apiClient) {
       loadFacilities()
     }
-  }, [isManager])
+  }, [isManager, apiClient])
 
   const loadFacilities = async () => {
+
+    if (!apiClient) {
+      console.warn('API client not available, skipping facilities load')
+      return
+    }
+
     try {
       setLoading(true)
       const data = await apiClient.getFacilities()
@@ -208,13 +193,26 @@ export default function FacilitiesManagementPage() {
       return
     }
 
+    if (!apiClient) {
+      toast.error(t('common.failedToLoad'))
+      return
+    }
+
     try {
       await apiClient.deleteFacility(facilityId)
       toast.success(t('facilities.deletedSuccessfully', { name: facilityName }))
       await loadFacilities()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to delete facility:', error)
-      toast.error(error.response?.data?.detail || t('facilities.failedToDeleteFacility'))
+      let errorMessage = t('facilities.failedToDeleteFacility')
+  
+        if (error instanceof Error) {
+          errorMessage = error.message
+        } else if (typeof error === 'string') {
+          errorMessage = error
+        }
+        
+        toast.error(errorMessage)
     }
   }
 
@@ -245,7 +243,7 @@ export default function FacilitiesManagementPage() {
   })
 
   // Filter facilities
-  const filteredFacilities = facilities.filter((facility: Facility) => {
+  const filteredFacilities = facilities.filter((facility: FacilityTypes.Facility) => {
     const matchesSearch = facility.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (facility.address || '').toLowerCase().includes(searchQuery.toLowerCase())
     const matchesType = selectedType === 'all' || facility.facility_type === selectedType
@@ -263,7 +261,7 @@ export default function FacilitiesManagementPage() {
   }
 
   // Facility Card Component
-  const FacilityCard = ({ facility }: { facility: Facility }) => {
+  const FacilityCard = ({ facility }: { facility: FacilityTypes.Facility }) => {
     const facilityType = FACILITY_TYPES.find(t => t.id === facility.facility_type) || FACILITY_TYPES[0]
     const IconComponent = facilityType.icon
 
@@ -338,10 +336,7 @@ export default function FacilitiesManagementPage() {
           <div className="mb-4">
             <div className="text-sm font-medium text-gray-700 mb-2">{t('facilities.activeZones')}</div>
             <div className="flex flex-wrap gap-1">
-              {facility.zones?.slice(0, 4).map(zone => {
-                // Handle both string zones and zone objects
-                const zoneKey = typeof zone === 'string' ? zone : zone.zone_id || zone.id;
-                const zoneName = typeof zone === 'string' ? zone : zone.zone_name || zone.name || zoneKey;
+              {facility.zones?.slice(0, 4).map((zone: FacilityTypes.FacilityZone) => {
                 
                 // Create a mapping function for zone names to translation keys
                 const getZoneDisplayName = (name: string): string => {
@@ -381,12 +376,12 @@ export default function FacilitiesManagementPage() {
                   return name.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                 };
                 
-                const displayName = getZoneDisplayName(zoneName);
-                const ZoneIcon = ZONE_ICONS[zoneKey] || Users;
+                const displayName = getZoneDisplayName(zone.zone_name);
+                const ZoneIcon = ZONE_ICONS[zone.zone_id] || Users;
                 
                 return (
                   <div 
-                    key={zoneKey}
+                    key={zone.id}
                     className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs text-gray-700"
                   >
                     <ZoneIcon className="w-3 h-3" />

@@ -13,44 +13,9 @@ import { useTranslations } from '@/hooks/useTranslations' // Add translation hoo
 import { Users, Building, RefreshCw, AlertTriangle, ArrowRight, Calendar } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { StaffDashboard } from '@/components/staff/StaffDashboard'
-import type { Staff, Facility } from "@/types"
-import type { SwapUrgency } from "@/types/swaps" // keep as type-only
-
-interface SwapRequest {
-  id: string
-  schedule_id: string
-  requesting_staff: {
-    id: string
-    full_name: string
-    role?: string
-  } | null
-  target_staff?: {
-    id: string
-    full_name: string
-    role?: string
-  } | null
-  assigned_staff?: {
-    id: string
-    full_name: string
-    role?: string
-  } | null
-  original_day: number
-  original_shift: number
-  target_day?: number
-  target_shift?: number
-  swap_type: 'specific' | 'auto'
-  reason: string
-  urgency: SwapUrgency
-  status: string
-  target_staff_accepted?: boolean
-  assigned_staff_accepted?: boolean
-  manager_approved?: boolean
-  manager_final_approved?: boolean
-  manager_notes?: string
-  created_at: string
-  updated_at?: string
-  expires_at?: string
-}
+import type { Staff } from "@/types"
+import * as FacilityTypes from '@/types/facility'
+import { SwapRequest, SwapStatus, SwapUrgency} from "@/types/swaps" // keep as type-only
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -59,7 +24,7 @@ export default function DashboardPage() {
   const { t } = useTranslations() // Add translation hook
   
   // Manager-specific state
-  const [facilities, setFacilities] = useState<Facility[]>([])
+  const [facilities, setFacilities] = useState<FacilityTypes.Facility[]>([])
   const [staff, setStaff] = useState<Staff[]>([])
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -99,9 +64,9 @@ export default function DashboardPage() {
     }
   }, [authLoading, isAuthenticated, isManager, loadManagerData]);
 
-  const pendingSwaps = swapRequests.filter((swap: SwapRequest) => swap.status === 'pending')
-  
-  const urgentSwaps = pendingSwaps.filter((swap: SwapRequest) => swap.urgency === 'high' || swap.urgency === 'emergency')
+  const pendingSwaps = swapRequests.filter((swap: SwapRequest) => swap.status === SwapStatus.Pending)
+
+  const urgentSwaps = pendingSwaps.filter((swap: SwapRequest) => swap.urgency === SwapUrgency.High || swap.urgency === SwapUrgency.Emergency)
 
   // Show loading while auth is loading
   if (authLoading) {
@@ -314,12 +279,12 @@ export default function DashboardPage() {
                     <div key={swap.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                          swap.status === 'pending' ? 'bg-orange-100' : 
-                          swap.status === 'approved' ? 'bg-green-100' : 'bg-gray-100'
+                          swap.status === SwapStatus.Pending ? 'bg-orange-100' : 
+                          swap.status === SwapStatus.Executed ? 'bg-green-100' : 'bg-gray-100'
                         }`}>
                           <RefreshCw className={`w-4 h-4 ${
-                            swap.status === 'pending' ? 'text-orange-600' : 
-                            swap.status === 'approved' ? 'text-green-600' : 'text-gray-600'
+                            swap.status === SwapStatus.Pending ? 'text-orange-600' : 
+                            swap.status === SwapStatus.Executed ? 'text-green-600' : 'text-gray-600'
                           }`} />
                         </div>
                         <div>
@@ -333,8 +298,8 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={
-                          swap.status === 'pending' ? 'destructive' : 
-                          swap.status === 'approved' ? 'default' : 'secondary'
+                          swap.status === SwapStatus.Pending ? 'destructive' : 
+                          swap.status === SwapStatus.Executed ? 'default' : 'secondary'
                         }>
                           {t(`status.${swap.status}`)}
                         </Badge>

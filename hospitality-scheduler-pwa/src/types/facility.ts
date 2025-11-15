@@ -166,6 +166,7 @@ export interface BulkShiftUpdateInput {
   color?: string
 }
 
+
 // ==================== ERROR TYPES ====================
 
 export interface ApiError extends Error {

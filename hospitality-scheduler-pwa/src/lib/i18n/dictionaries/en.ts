@@ -183,6 +183,7 @@ export const en = {
     showAll: 'Show All',
     hideAll: 'Hide All',
     saving: 'Saving...',
+    apiClientNotInitialized: 'API client not initialized',
     
     // Selection actions
     select: 'Select',

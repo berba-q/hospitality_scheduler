@@ -26,29 +26,13 @@ import { useFacilities } from '@/hooks/useFacility'
 import { useApiClient } from '@/hooks/useApi'
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
-
-interface Facility {
-  id: string
-  name: string
-  address: string
-  facility_type: string
-  zones: string[]
-  shifts: any[]
-  roles: string[]
-  staff_count: number
-  active_schedules: number
-  created_at: string
-  location?: string
-  phone?: string
-  email?: string
-  description?: string
-}
+import * as FacilityTypes from '@/types/facility'
 
 interface AddFacilityModalProps {
   open: boolean
   onClose: () => void
   onSuccess: () => void
-  facility?: Facility | null // Add facility prop for editing
+  facility?: FacilityTypes.Facility | null // Add facility prop for editing
 }
 
 const FACILITY_TYPES = [
@@ -185,7 +169,8 @@ export function AddFacilityModal({ open, onClose, onSuccess, facility }: AddFaci
           email: formData.email,
           description: formData.description
         }
-        
+        if (!apiClient) throw new Error(t('common.apiClientNotInitialized'))
+
         await apiClient.updateFacility(facility.id, updateData)
         toast.success(t('facilities.updatedSuccessfully', { name: formData.name }))
       } else {
@@ -196,12 +181,12 @@ export function AddFacilityModal({ open, onClose, onSuccess, facility }: AddFaci
       
       onSuccess()
       handleCancel()
-    } catch (error: any) {
+    } catch (error) {
       console.error(isEditMode ? 'Failed to update facility:' : 'Failed to create facility:', error)
       const errorMessage = isEditMode 
         ? t('facilities.failedToUpdate') 
         : t('common.failedToCreate')
-      toast.error(error.message || errorMessage)
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -322,7 +307,7 @@ export function AddFacilityModal({ open, onClose, onSuccess, facility }: AddFaci
           </div>
 
           {/* Step 2: Facility Details (only shown after type selection) */}
-          {(selectedType || facility?.type) && (
+          {(selectedType || facility?.facility_type) && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold">{t('facilities.facilityDetails')}</h3>
               

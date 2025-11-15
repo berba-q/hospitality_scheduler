@@ -1,4 +1,4 @@
-// Fixed ImportFacilitiesModal with proper translations
+// Fixed ImportFacilitiesModal with proper types
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
@@ -14,30 +14,53 @@ import { useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 import React from 'react'
+import * as FacilityTypes from '@/types/facility'
+import * as ApiTypes from '@/types/api'
+
+// Define proper warning structure based on API response
+interface FacilityWarning {
+  facility_name: string
+  severity: 'none' | 'warning' | 'error'
+  duplicate_info: DuplicateInfo
+}
 
 interface ImportFacilitiesModalProps {
   open: boolean
   onClose: () => void
-  onImport: (validFacilities: ParsedFacility[]) => Promise<void>
+  onImport: (validFacilities: FacilityTypes.CreateFacilityInput[]) => Promise<void>
   initialFile?: File | null
 }
 
-interface ParsedFacility {
+// Define proper duplicate info structure based on backend response
+interface DuplicateMatch {
+  id: string
   name: string
-  facility_type: string
-  location?: string
   address?: string
   phone?: string
-  email?: string
-  description?: string
+  similarity_score?: number
+}
+
+interface DuplicateInfo {
+  has_any_duplicates: boolean
+  severity: 'none' | 'warning' | 'error'
+  exact_name_match?: DuplicateMatch
+  similar_names?: DuplicateMatch[]
+  address_matches?: DuplicateMatch[]
+  phone_matches?: DuplicateMatch[]
+  email_matches?: DuplicateMatch[]
+}
+
+// Enhanced ParsedFacility that extends CreateFacilityInput with validation metadata
+interface ParsedFacility extends FacilityTypes.CreateFacilityInput {
   valid: boolean
   errors: string[]
   // Duplicate checking fields
-  duplicateInfo?: any
+  duplicateInfo?: DuplicateInfo
   hasDuplicates?: boolean
   duplicateSeverity?: 'none' | 'warning' | 'error'
   canImport?: boolean
   forceCreate?: boolean
+  rowIndex?: number // For tracking which row this came from
 }
 
 const FACILITY_TYPES = [
@@ -48,9 +71,8 @@ const FACILITY_TYPES = [
   { id: 'bar', name: 'Bar' }
 ]
 
-// Column mapping for translation support (like staff modal)
-const COLUMN_MAPPINGS = {
-  // Name variations
+// Column mapping for translation support
+const COLUMN_MAPPINGS: Record<string, string[]> = {
   name: ['name', 'facility_name', 'facility name', 'nome', 'nom', 'nombre'],
   facility_type: ['type', 'facility_type', 'facility type', 'kind', 'category', 'tipo', 'categoria'],
   location: ['location', 'city', 'place', 'localização', 'lieu', 'ubicación'],
@@ -70,7 +92,7 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
   const [file, setFile] = useState<File | null>(null)
   const [processing, setProcessing] = useState(false)
   
-  // Duplicate checking state (like staff modal)
+  // Duplicate checking state
   const [checkingDuplicates, setCheckingDuplicates] = useState(false)
   const [duplicatesChecked, setDuplicatesChecked] = useState(false)
   const [selectedForImport, setSelectedForImport] = useState<Set<number>>(new Set())
@@ -106,15 +128,20 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
     return null
   }
 
-  // Enhanced Excel parsing with column mapping
+  // Enhanced Excel parsing with proper typing
   const parseExcelFile = async (file: File) => {
+    if (!apiClient) {
+      toast.error('API client not available. Please try again.')
+      return
+    }
+
     setProcessing(true)
     try {
       const arrayBuffer = await file.arrayBuffer()
       const workbook = XLSX.read(arrayBuffer, { type: 'array' })
       const sheetName = workbook.SheetNames[0]
       const worksheet = workbook.Sheets[sheetName]
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (string | number | boolean | null)[][]
 
       if (jsonData.length === 0) {
         throw new Error(t('facilities.noDataFound'))
@@ -144,57 +171,65 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
         const row = jsonData[i]
         if (!row || row.every(cell => !cell)) continue // Skip empty rows
 
-        const facility: any = {}
+        const facilityData: Partial<FacilityTypes.CreateFacilityInput> = {}
         
         // Map row data using column mapping
         Object.entries(columnMapping).forEach(([colIndex, fieldName]) => {
           const value = row[parseInt(colIndex)]
           if (value !== undefined && value !== null && value !== '') {
-            facility[fieldName] = String(value).trim()
+            const trimmedValue = String(value).trim()
+            if (trimmedValue) {
+              (facilityData as Record<string, string>)[fieldName] = trimmedValue
+            }
           }
         })
 
         // Validate and process the facility
         const errors: string[] = []
         
-        if (!facility.name || facility.name.length < 2) {
+        if (!facilityData.name || facilityData.name.length < 2) {
           errors.push(t('facilities.facilityNameRequired'))
         }
 
         // Map facility type
-        const facilityType = FACILITY_TYPES.find(t => 
-          t.name.toLowerCase() === (facility.facility_type || '').toLowerCase()
+        let facilityType = facilityData.facility_type
+        const typeMatch = FACILITY_TYPES.find(t => 
+          t.name.toLowerCase() === (facilityType || '').toLowerCase()
         )
         
-        if (!facilityType) {
-          facility.facility_type = 'hotel' // Default type
-          if (facility.facility_type) {
-            errors.push(t('facilities.unknownFacilityType', { type: facility.facility_type }))
+        if (!typeMatch) {
+          if (facilityType) {
+            errors.push(t('facilities.unknownFacilityType', { type: facilityType }))
           }
+          facilityType = 'hotel' // Default type
         } else {
-          facility.facility_type = facilityType.id
+          facilityType = typeMatch.id
         }
 
         // Email validation
-        if (facility.email && !facility.email.includes('@')) {
+        if (facilityData.email && !facilityData.email.includes('@')) {
           errors.push(t('facilities.invalidEmailFormat'))
         }
 
-        facilities.push({
-          name: facility.name || t('facilities.unnamedFacility'),
-          facility_type: facility.facility_type,
-          location: facility.location || '',
-          address: facility.address || '',
-          phone: facility.phone || '',
-          email: facility.email || '',
-          description: facility.description || '',
+        // Create ParsedFacility with proper typing
+        const parsedFacility: ParsedFacility = {
+          name: facilityData.name || t('facilities.unnamedFacility'),
+          facility_type: facilityType,
+          location: facilityData.location || undefined,
+          address: facilityData.address || undefined,
+          phone: facilityData.phone || undefined,
+          email: facilityData.email || undefined,
+          description: facilityData.description || undefined,
           valid: errors.length === 0,
           errors,
           hasDuplicates: false,
           duplicateSeverity: 'none',
           canImport: true,
-          forceCreate: false
-        })
+          forceCreate: false,
+          rowIndex: i
+        }
+
+        facilities.push(parsedFacility)
       }
 
       setParsedData(facilities)
@@ -214,15 +249,16 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
 
     } catch (error) {
       console.error('Failed to parse file:', error)
-      toast.error(t('facilities.failedToParseExcel'))
+      const errorMessage = error instanceof Error ? error.message : t('facilities.failedToParseExcel')
+      toast.error(errorMessage)
     } finally {
       setProcessing(false)
     }
   }
 
-  // Duplicate checking (similar to staff modal)
+  // Duplicate checking with proper API call signature
   const checkForDuplicates = async (facilitiesList: ParsedFacility[]) => {
-    if (!facilitiesList.length) return
+    if (!facilitiesList.length || !apiClient) return
 
     setCheckingDuplicates(true)
     
@@ -235,7 +271,10 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
         if (!facility.valid) continue
 
         try {
-          const response = await apiClient.validateFacilitiesImport({
+          if (!apiClient) throw new Error(t('common.apiClientNotInitialized'))
+          
+          // Pass array instead of single object and proper typing
+          const response: ApiTypes.ImportResult = await apiClient.validateFacilitiesImport([{
             name: facility.name,
             facility_type: facility.facility_type,
             location: facility.location,
@@ -243,22 +282,27 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
             phone: facility.phone,
             email: facility.email,
             description: facility.description
-          })
+          }])
 
-          if (response.duplicates?.has_any_duplicates) {
+          // Proper typing for facilityWarning
+          const facilityWarning:  | undefined = response.duplicate_warnings?.find(
+            (warning: FacilityWarning) => warning.facility_name === facility.name
+          )
+
+          if (facilityWarning && facilityWarning.duplicate_info?.has_any_duplicates) {
             updatedFacilities[i] = {
               ...facility,
               hasDuplicates: true,
-              duplicateInfo: response.duplicates,
-              duplicateSeverity: response.duplicates.severity,
-              canImport: response.can_create,
-              errors: response.duplicates.severity === 'error' && !forceCreateAll 
+              duplicateInfo: facilityWarning.duplicate_info,
+              duplicateSeverity: facilityWarning.severity || 'warning',
+              canImport: facilityWarning.severity !== 'error',
+              errors: facilityWarning.severity === 'error' && !forceCreateAll 
                 ? [...facility.errors, t('facilities.duplicateDetected')]
                 : facility.errors
             }
             
             // Remove from auto-selection if it's a blocking duplicate
-            if (response.duplicates.severity === 'error') {
+            if (facilityWarning.severity === 'error') {
               setSelectedForImport(prev => {
                 const newSet = new Set(prev)
                 newSet.delete(i)
@@ -334,20 +378,38 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
   }
 
   const handleImport = async () => {
-    const selectedFacilities = Array.from(selectedForImport).map(index => ({
-      ...parsedData[index],
-      force_create: forceCreateAll || parsedData[index].forceCreate
-    }))
+    if (!apiClient) {
+      toast.error('API client not available. Please try again.')
+      return
+    }
+
+    const selectedFacilities: FacilityTypes.CreateFacilityInput[] = Array.from(selectedForImport).map(index => {
+      const facility = parsedData[index]
+      return {
+        name: facility.name,
+        facility_type: facility.facility_type,
+        location: facility.location,
+        address: facility.address,
+        phone: facility.phone,
+        email: facility.email,
+        description: facility.description
+      }
+    })
     
     if (selectedFacilities.length === 0) return
     
     try {
-      // Use the enhanced import API directly
-      const result = await apiClient.importFacilities(selectedFacilities, {
-        force_create_duplicates: forceCreateAll,
-        skip_duplicate_check: false,
-        validate_only: false
-      })
+      setProcessing(true)
+      
+      // Use the enhanced import API with proper options
+      const result: ApiTypes.ImportResult<FacilityTypes.Facility> = await apiClient.importFacilities(
+        selectedFacilities.map(f => ({ ...f, force_create: forceCreateAll })), 
+        {
+          force_create_duplicates: forceCreateAll,
+          skip_duplicate_check: false,
+          validate_only: false
+        }
+      )
       
       // Show results to user
       if (result.successful_imports > 0) {
@@ -362,14 +424,17 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
         toast.error(t('facilities.facilitiesHadErrors', { count: result.validation_errors }))
       }
       
-      // Call the parent's onImport for any additional handling (like refreshing the list)
+      // Call the parent's onImport for any additional handling
       await onImport(selectedFacilities)
       
       reset()
       onClose()
     } catch (error) {
       console.error('Import failed:', error)
-      toast.error(t('facilities.failedToImportFacilities'))
+      const errorMessage = error instanceof Error ? error.message : t('facilities.failedToImportFacilities')
+      toast.error(errorMessage)
+    } finally {
+      setProcessing(false)
     }
   }
 
@@ -383,6 +448,8 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
     setSelectedForImport(new Set())
     setShowDuplicateDetails(new Set())
     setForceCreateAll(false)
+    setDetectedColumns(new Set())
+    setOriginalColumnNames({})
   }
 
   const getDuplicateIcon = (severity: string | undefined) => {
@@ -558,7 +625,7 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
                           
                           {getColumns().map(col => (
                             <td key={col.key} className="p-3 text-sm">
-                              {facility[col.key as keyof ParsedFacility] || '-'}
+                              {facility[col.key as keyof ParsedFacility] as string || '-'}
                             </td>
                           ))}
                           
@@ -609,7 +676,7 @@ export function ImportFacilitiesModal({ open, onClose, onImport, initialFile }: 
               </table>
             </div>
 
-            {/* Actions - with processing state */}
+            {/* Actions */}
             <div className="flex gap-3 justify-end pt-4 border-t">
               <Button variant="outline" onClick={reset} disabled={processing}>
                 {t('facilities.backToUpload')}

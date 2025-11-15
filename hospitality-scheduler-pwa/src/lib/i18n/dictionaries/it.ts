@@ -187,6 +187,7 @@ export const it = {
     or: 'o',
     primary: 'Primario',
     declined: 'Rifiutato',
+    apiClientNotInitialized: 'API client non inizializzato',
 
     // Azioni mostra/nascondi
     show: 'Mostra',
