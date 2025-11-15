@@ -187,6 +187,59 @@ export const handleApiError = (error: unknown, fallbackMessage: string): string 
   return fallbackMessage
 }
 
+// ==================== IMPORT/DUPLICATE CHECKING TYPES ====================
+export interface DuplicateMatch {
+  id: string
+  name: string
+  address?: string
+  phone?: string
+  similarity_score?: number
+}
+
+export interface DuplicateInfo {
+  has_any_duplicates: boolean
+  severity: 'none' | 'warning' | 'error'
+  exact_name_match?: DuplicateMatch
+  similar_names?: DuplicateMatch[]
+  address_matches?: DuplicateMatch[]
+  phone_matches?: DuplicateMatch[]
+  email_matches?: DuplicateMatch[]
+}
+
+export interface FacilityWarning {
+  facility_name: string
+  severity: 'none' | 'warning' | 'error'
+  duplicate_info: DuplicateInfo
+}
+
+// Result structure for facility import operations
+export interface FacilityImportResult {
+  total_processed: number
+  successful_imports: number
+  skipped_duplicates: number
+  validation_errors: number
+  created_entities: Facility[]
+  skipped_entities: Facility[]
+  error_entities: Array<{
+    data: Facility
+    error: string
+  }>
+  duplicate_warnings: FacilityWarning[]  // Facility-specific warning structure
+  processing_details: Record<string, unknown>
+}
+
+// Enhanced ParsedFacility for import UI
+export interface ParsedFacility extends CreateFacilityInput {
+  valid: boolean
+  errors: string[]
+  duplicateInfo?: DuplicateInfo
+  hasDuplicates?: boolean
+  duplicateSeverity?: 'none' | 'warning' | 'error'
+  canImport?: boolean
+  forceCreate?: boolean
+  rowIndex?: number
+}
+
 // ==================== TYPE GUARDS ====================
 
 export const isFacility = (obj: unknown): obj is Facility => {
