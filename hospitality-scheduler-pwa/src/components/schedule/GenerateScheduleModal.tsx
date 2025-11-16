@@ -19,17 +19,19 @@ import {
   Layers
 } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as FacilityTypes from '@/types/facility'
+import * as ScheduleTypes from '@/types/schedule'
 
 interface SmartGenerateModalProps {
   open: boolean
   onClose: () => void
-  facility: any
-  zones: any[]
+  facility: FacilityTypes.Facility
+  zones: FacilityTypes.FacilityZone[]
   selectedZones: string[]
-  staff: any[]
+  staff: ScheduleTypes.Staff[]
   periodStart: Date
   periodType: 'daily' | 'weekly' | 'monthly'
-  onGenerate: (config: any) => void
+  onGenerate: (config: ScheduleTypes.ScheduleGenerationConfig) => void
 }
 
 export function SmartGenerateModal({
@@ -46,7 +48,7 @@ export function SmartGenerateModal({
   const { t } = useTranslations()
   const [generating, setGenerating] = useState(false)
   const [activeTab, setActiveTab] = useState('zones')
-  const [config, setConfig] = useState({
+  const [config, setConfig] = useState<Pick<ScheduleTypes.ScheduleGenerationConfig, 'use_constraints' | 'auto_assign_by_zone' | 'balance_workload' | 'prioritize_skill_match' | 'min_staff_per_shift' | 'max_staff_per_shift' | 'require_manager_per_shift' | 'allow_overtime' | 'coverage_priority' | 'shift_preferences'>>({
     use_constraints: true,
     auto_assign_by_zone: true,
     balance_workload: true,
@@ -55,16 +57,16 @@ export function SmartGenerateModal({
     max_staff_per_shift: 4,
     require_manager_per_shift: true,
     allow_overtime: false,
-    coverage_priority: 'balanced', // 'minimal', 'balanced', 'maximum'
+    coverage_priority: 'balanced' as const,
     shift_preferences: {
       morning_multiplier: 1.0,
       afternoon_multiplier: 1.0,
-      evening_multiplier: 1.2 // Slightly prefer evening coverage
+      evening_multiplier: 1.2
     }
   })
-  
-  const [zoneAssignments, setZoneAssignments] = useState({})
-  const [roleMapping, setRoleMapping] = useState({})
+
+  const [zoneAssignments, setZoneAssignments] = useState<Record<string, ScheduleTypes.ZoneAssignment>>({})
+  const [roleMapping, setRoleMapping] = useState<Record<string, string[]>>({})
 
   // Initialize zone assignments and role mapping
   useEffect(() => {
@@ -75,25 +77,26 @@ export function SmartGenerateModal({
 
   const initializeAssignments = () => {
     // Auto-assign staff to zones based on their roles
-    const newZoneAssignments = {}
-    const newRoleMapping = {}
-    
+    const newZoneAssignments: Record<string, ScheduleTypes.ZoneAssignment> = {}
+    const newRoleMapping: Record<string, string[]> = {}
+
     selectedZones.forEach(zoneId => {
       const zone = zones.find(z => z.id === zoneId)
       if (zone) {
+        const zoneRoles = [...(zone.required_roles || []), ...(zone.preferred_roles || [])]
         newZoneAssignments[zoneId] = {
-          required_staff: getZoneRequiredStaff(zone),
-          assigned_roles: zone.roles || [],
+          required_staff: getZoneRequiredStaff(zone).min,
+          assigned_roles: zoneRoles,
           priority: getZonePriority(zone),
           coverage_hours: {
             morning: true,
             afternoon: true,
-            evening: zone.id === 'security' || zone.id === 'front-desk' // 24/7 zones
+            evening: zone.zone_id === 'security' || zone.zone_id === 'front-desk' // 24/7 zones
           }
         }
-        
+
         // Map roles to zones
-        zone.roles?.forEach(role => {
+        zoneRoles.forEach((role: string) => {
           if (!newRoleMapping[role]) {
             newRoleMapping[role] = []
           }
@@ -103,14 +106,18 @@ export function SmartGenerateModal({
         })
       }
     })
-    
+
     setZoneAssignments(newZoneAssignments)
     setRoleMapping(newRoleMapping)
   }
 
-  const getZoneRequiredStaff = (zone) => {
-    // Smart defaults based on zone type
-    const staffCounts = {
+  const getZoneRequiredStaff = (zone: FacilityTypes.FacilityZone) => {
+    // Use zone's configured staff requirements or smart defaults based on zone type
+    if (zone.min_staff_per_shift && zone.max_staff_per_shift) {
+      return { min: zone.min_staff_per_shift, max: zone.max_staff_per_shift }
+    }
+
+    const staffCounts: Record<string, { min: number; max: number }> = {
       'front-desk': { min: 1, max: 2 },
       'housekeeping': { min: 2, max: 4 },
       'restaurant': { min: 3, max: 6 },
@@ -121,13 +128,13 @@ export function SmartGenerateModal({
       'management': { min: 1, max: 1 },
       'all': { min: 1, max: 3 }
     }
-    
-    return staffCounts[zone.id] || { min: 1, max: 3 }
+
+    return staffCounts[zone.zone_id as string] || { min: 1, max: 3 }
   }
 
-  const getZonePriority = (zone) => {
+  const getZonePriority = (zone: FacilityTypes.FacilityZone): 'low' | 'medium' | 'high' => {
     // Priority order for scheduling
-    const priorities = {
+    const priorities: Record<string, number> = {
       'front-desk': 10, // Highest priority
       'security': 9,
       'kitchen': 8,
@@ -138,24 +145,23 @@ export function SmartGenerateModal({
       'housekeeping': 4,
       'all': 3
     }
-    
-    return priorities[zone.id] || 5
+
+    const priorityValue = priorities[zone.zone_id] || 5
+    if (priorityValue >= 8) return 'high'
+    if (priorityValue >= 5) return 'medium'
+    return 'low'
   }
 
   const handleGenerate = async () => {
     setGenerating(true)
     try {
-      const generateConfig = {
+      const generateConfig: ScheduleTypes.ScheduleGenerationConfig = {
         ...config,
-        period_type: periodType,
-        zones: selectedZones,
         zone_assignments: zoneAssignments,
         role_mapping: roleMapping,
-        total_days: periodType === 'daily' ? 1 : periodType === 'weekly' ? 7 : 30,
-        shifts_per_day: 3
       }
-      
-      await onGenerate(generateConfig)
+
+      onGenerate(generateConfig)
       onClose()
     } catch (error) {
       console.error('Failed to generate schedule:', error)
@@ -164,7 +170,7 @@ export function SmartGenerateModal({
     }
   }
 
-  const updateZoneAssignment = (zoneId, field, value) => {
+  const updateZoneAssignment = (zoneId: string, field: keyof ScheduleTypes.ZoneAssignment, value: number | string[] | ScheduleTypes.ZoneAssignment['coverage_hours'] | ScheduleTypes.ZoneAssignment['priority']) => {
     setZoneAssignments(prev => ({
       ...prev,
       [zoneId]: {
@@ -195,21 +201,22 @@ export function SmartGenerateModal({
   }
 
   // Calculate staffing analytics
-  const totalStaffNeeded = Object.values(zoneAssignments).reduce((sum: number, zone: any) => 
-    sum + (zone?.required_staff?.min || 0), 0
+  const totalStaffNeeded = Object.values(zoneAssignments).reduce((sum: number, zone: ScheduleTypes.ZoneAssignment) =>
+    sum + (zone?.required_staff || 0), 0
   ) * (periodType === 'daily' ? 3 : periodType === 'weekly' ? 21 : 90) // shifts per period
 
-  const availableStaff = staff.filter(s => s.is_active).length
-  const feasibility = totalStaffNeeded <= (availableStaff * (periodType === 'daily' ? 3 : periodType === 'weekly' ? 21 : 90)) 
+  const availableStaff = staff.filter(s => s.is_active || s.isActive).length
+  const feasibility = totalStaffNeeded <= (availableStaff * (periodType === 'daily' ? 3 : periodType === 'weekly' ? 21 : 90))
     ? 'high' : 'medium'
 
   // Get staff distribution by zone
-  const staffByZone = {}
+  const staffByZone: Record<string, ScheduleTypes.Staff[]> = {}
   selectedZones.forEach(zoneId => {
     const zone = zones.find(z => z.id === zoneId)
     if (zone) {
-      staffByZone[zoneId] = staff.filter(s => 
-        zone.roles?.includes(s.role) || zone.roles?.length === 0
+      const zoneRoles = [...(zone.required_roles || []), ...(zone.preferred_roles || [])]
+      staffByZone[zoneId] = staff.filter(s =>
+        zoneRoles.includes(s.role) || zoneRoles.length === 0
       )
     }
   })
@@ -308,13 +315,13 @@ export function SmartGenerateModal({
                       <div key={zoneId} className="p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-center justify-between mb-4">
                           <div>
-                            <h4 className="font-medium text-lg">{zone.name}</h4>
+                            <h4 className="font-medium text-lg">{zone.zone_name}</h4>
                             <p className="text-sm text-gray-600">
                               {zoneStaff.length} {t('schedule.availableStaff')} • {t('common.priority')}: {getZonePriority(zone)}
                             </p>
                           </div>
                           <Badge variant="outline" className="text-xs">
-                            {zone.roles?.length || 0} {t('common.roles')}
+                            {(zone.required_roles?.length || 0) + (zone.preferred_roles?.length || 0)} {t('common.roles')}
                           </Badge>
                         </div>
 
@@ -358,7 +365,7 @@ export function SmartGenerateModal({
                           <div>
                             <Label className="text-sm font-medium mb-2 block">{t('schedule.coverage')}</Label>
                             <div className="space-y-1">
-                              {['morning', 'afternoon', 'evening'].map(shift => (
+                              {(['morning', 'afternoon', 'evening'] as const).map(shift => (
                                 <div key={shift} className="flex items-center gap-2">
                                   <input
                                     type="checkbox"
@@ -381,7 +388,7 @@ export function SmartGenerateModal({
                               {t('schedule.availableStaff')} ({zoneStaff.length})
                             </Label>
                             <div className="max-h-24 overflow-y-auto space-y-1">
-                              {zoneStaff.slice(0, 5).map(member => (
+                              {zoneStaff.slice(0, 5).map((member: ScheduleTypes.Staff) => (
                                 <div key={member.id} className="flex items-center gap-2 text-xs">
                                   <div className="w-4 h-4 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-semibold">
                                     {member.full_name.charAt(0)}
@@ -403,7 +410,7 @@ export function SmartGenerateModal({
                         <div className="mt-4">
                           <Label className="text-sm font-medium mb-2 block">{t('schedule.requiredRoles')}</Label>
                           <div className="flex flex-wrap gap-2">
-                            {zone.roles?.map(role => (
+                            {[...(zone.required_roles || []), ...(zone.preferred_roles || [])].map((role: string) => (
                               <Badge key={role} variant="default" className="text-xs">
                                 {role}
                               </Badge>
@@ -500,7 +507,7 @@ export function SmartGenerateModal({
                     <Label className="text-sm font-medium mb-2 block">{t('schedule.coveragePriority')}</Label>
                     <select
                       value={config.coverage_priority}
-                      onChange={(e) => setConfig(prev => ({ ...prev, coverage_priority: e.target.value }))}
+                      onChange={(e) => setConfig(prev => ({ ...prev, coverage_priority: e.target.value as 'minimal' | 'balanced' | 'maximum' }))}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                     >
                       <option value="minimal">{t('schedule.minimalCoverage')}</option>
@@ -519,12 +526,13 @@ export function SmartGenerateModal({
                           step="0.1"
                           min="0.5"
                           max="2.0"
-                          value={config.shift_preferences.morning_multiplier}
+                          value={config.shift_preferences?.morning_multiplier || 1.0}
                           onChange={(e) => setConfig(prev => ({
                             ...prev,
                             shift_preferences: {
-                              ...prev.shift_preferences,
-                              morning_multiplier: parseFloat(e.target.value)
+                              morning_multiplier: parseFloat(e.target.value),
+                              afternoon_multiplier: prev.shift_preferences?.afternoon_multiplier || 1.0,
+                              evening_multiplier: prev.shift_preferences?.evening_multiplier || 1.0
                             }
                           }))}
                           className="text-sm"
@@ -537,12 +545,13 @@ export function SmartGenerateModal({
                           step="0.1"
                           min="0.5"
                           max="2.0"
-                          value={config.shift_preferences.afternoon_multiplier}
+                          value={config.shift_preferences?.afternoon_multiplier || 1.0}
                           onChange={(e) => setConfig(prev => ({
                             ...prev,
                             shift_preferences: {
-                              ...prev.shift_preferences,
-                              afternoon_multiplier: parseFloat(e.target.value)
+                              morning_multiplier: prev.shift_preferences?.morning_multiplier || 1.0,
+                              afternoon_multiplier: parseFloat(e.target.value),
+                              evening_multiplier: prev.shift_preferences?.evening_multiplier || 1.0
                             }
                           }))}
                           className="text-sm"
@@ -555,11 +564,12 @@ export function SmartGenerateModal({
                           step="0.1"
                           min="0.5"
                           max="2.0"
-                          value={config.shift_preferences.evening_multiplier}
+                          value={config.shift_preferences?.evening_multiplier || 1.2}
                           onChange={(e) => setConfig(prev => ({
                             ...prev,
                             shift_preferences: {
-                              ...prev.shift_preferences,
+                              morning_multiplier: prev.shift_preferences?.morning_multiplier || 1.0,
+                              afternoon_multiplier: prev.shift_preferences?.afternoon_multiplier || 1.0,
                               evening_multiplier: parseFloat(e.target.value)
                             }
                           }))}
@@ -628,16 +638,16 @@ export function SmartGenerateModal({
                         return zone ? (
                           <div key={zoneId} className="p-3 bg-gray-50 rounded-lg">
                             <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium">{zone.name}</span>
+                              <span className="font-medium">{zone.zone_name}</span>
                               <Badge variant="outline" className="text-xs">
-                                {assignment.required_staff?.min || 1}-{assignment.required_staff?.max || 3} {t('common.staff')}
+                                {typeof assignment.required_staff === 'object' ? `${assignment.required_staff.min}-${assignment.required_staff.max}` : assignment.required_staff || 1} {t('common.staff')}
                               </Badge>
                             </div>
                             <div className="text-sm text-gray-600">
-                              {zoneStaff.length} {t('common.available')} • {zone.roles?.length || 0} {t('common.roles')}
+                              {zoneStaff.length} {t('common.available')} • {(zone.required_roles?.length || 0) + (zone.preferred_roles?.length || 0)} {t('common.roles')}
                             </div>
                             <div className="flex gap-1 mt-2">
-                              {['morning', 'afternoon', 'evening'].map(shift => (
+                              {(['morning', 'afternoon', 'evening'] as const).map(shift => (
                                 <Badge 
                                   key={shift} 
                                   variant={assignment.coverage_hours?.[shift] ? 'default' : 'outline'}

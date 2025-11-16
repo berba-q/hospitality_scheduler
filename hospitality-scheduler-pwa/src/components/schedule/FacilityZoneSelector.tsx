@@ -5,28 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Users, CheckCircle, Circle } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
-
-interface Zone {
-  id: string
-  name: string
-  roles?: string[]  // Make this optional with ?
-  // Add other zone properties that might be missing
-  zone_id?: string
-  zone_name?: string
-  required_roles?: string[]
-  preferred_roles?: string[]
-  min_staff_per_shift?: number
-  max_staff_per_shift?: number
-  description?: string
-  is_active?: boolean
-  display_order?: number
-}
+import * as FacilityTypes from '@/types/facility'
+import * as ScheduleTypes from '@/types/schedule'
 
 interface FacilityZoneSelectorProps {
-  zones: Zone[]
+  zones: FacilityTypes.FacilityZone[]
   selectedZones: string[]
   onZoneChange: (zones: string[]) => void
-  staff: any[]
+  staff: ScheduleTypes.Staff[]
 }
 
 export function FacilityZoneSelector({
@@ -53,26 +39,24 @@ export function FacilityZoneSelector({
     onZoneChange([])
   }
 
-  const getZoneStaffCount = (zone: Zone) => {
-    // Add null/undefined checks for zone.roles
-    const zoneRoles = zone.roles || []
-    return staff.filter(member => 
+  const getZoneStaffCount = (zone: FacilityTypes.FacilityZone) => {
+    const zoneRoles = [...(zone.required_roles || []), ...(zone.preferred_roles || [])]
+    return staff.filter(member =>
       zoneRoles.includes(member.role) || zoneRoles.length === 0
     ).length
   }
 
-  const getZoneName = (zone: Zone) => {
-    return zone.name || zone.zone_name || t('facilities.unnamedZone')
+  const getZoneName = (zone: FacilityTypes.FacilityZone) => {
+    return zone.zone_name || t('facilities.unnamedZone')
   }
 
-  const getZoneId = (zone: Zone) => {
-    return zone.id || zone.zone_id || zone.name
+  const getZoneId = (zone: FacilityTypes.FacilityZone) => {
+    return zone.id || zone.zone_id
   }
 
-  const getZoneRoles = (zone: Zone) => {
-  // Handle different possible role properties
-  return zone.roles || zone.required_roles || zone.preferred_roles || []
-}
+  const getZoneRoles = (zone: FacilityTypes.FacilityZone) => {
+    return [...(zone.required_roles || []), ...(zone.preferred_roles || [])]
+  }
 
   const getZoneColor = (zoneId: string) => {
     const colors: Record<string, string> = {
@@ -153,7 +137,7 @@ export function FacilityZoneSelector({
                     
                     {/* Roles */}
                     <div className="flex flex-wrap gap-1">
-                       {getZoneRoles(zone).slice(0, 2).map(role => (
+                       {getZoneRoles(zone).slice(0, 2).map((role: string) => (
                           <Badge 
                             key={role}
                             variant="outline" 
