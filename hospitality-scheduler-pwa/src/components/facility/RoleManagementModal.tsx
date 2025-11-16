@@ -22,11 +22,12 @@ import {
 import { useFacilityRoles } from '@/hooks/useFacility'
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
+import type { Facility } from '@/types/facility'
 
 interface RoleManagementModalProps {
   open: boolean
   onClose: () => void
-  facility: any
+  facility: Facility | null
   onSuccess: () => void
 }
 
@@ -76,7 +77,7 @@ export function RoleManagementModal({ open, onClose, facility, onSuccess }: Role
         is_active: true
       })
       onSuccess()
-    } catch (error) {
+    } catch {
       // Hook already shows error toast
     }
   }
@@ -86,7 +87,7 @@ export function RoleManagementModal({ open, onClose, facility, onSuccess }: Role
       await updateRole(roleId, updatedRole)
       setEditingRole(null)
       onSuccess()
-    } catch (error) {
+    } catch  {
       // Hook already handles error toasts and logging
     }
   }
@@ -99,7 +100,7 @@ export function RoleManagementModal({ open, onClose, facility, onSuccess }: Role
     try {
       await deleteRole(roleId, roleName)
       onSuccess()
-    } catch (error) {
+    } catch {
       // Hook already handles error toasts and logging
     }
   }

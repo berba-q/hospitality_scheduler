@@ -25,11 +25,12 @@ import {
 import { useFacilityZones, useFacilityRoles } from '@/hooks/useFacility'
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
+import type { Facility } from '@/types/facility'
 
 interface ZoneManagementModalProps {
   open: boolean
   onClose: () => void
-  facility: any
+  facility: Facility | null
   onSuccess: () => void
 }
 
@@ -96,7 +97,7 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
         display_order: 0
       })
       onSuccess()
-    } catch (error) {
+    } catch  {
       // Hook already handles error toasts and logging
     }
   }
@@ -106,7 +107,7 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
       await updateZone(zoneId, updatedZone)
       setEditingZone(null)
       onSuccess()
-    } catch (error) {
+    } catch  {
       // Hook handles error display
     }
   }
@@ -119,7 +120,7 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
     try {
       await deleteZone(zoneId, zoneName)
       onSuccess()
-    } catch (error) {
+    } catch {
       // Hook handles error display
     }
   }
@@ -135,7 +136,7 @@ export function ZoneManagementModal({ open, onClose, facility, onSuccess }: Zone
 
     try {
       await updateZone(zoneId, { ...movedZone, display_order: newIndex })
-    } catch (error) {
+    } catch {
       // Hook handles error display
     }
   }

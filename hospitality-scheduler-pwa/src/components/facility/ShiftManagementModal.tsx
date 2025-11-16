@@ -28,24 +28,12 @@ import {
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
 import { useFacilityShifts } from '@/hooks/useFacility'
-
-interface ShiftConfig {
-  id: string
-  name: string
-  start_time: string
-  end_time: string
-  requires_manager: boolean
-  min_staff: number
-  max_staff: number
-  is_active: boolean
-  shift_order: number
-  color?: string
-}
+import * as FacilityTypes from '@/types/facility'
 
 interface ShiftManagementModalProps {
   open: boolean
   onClose: () => void
-  facility: any
+  facility: FacilityTypes.Facility | null
   onShiftsUpdated?: () => void
 }
 
@@ -136,30 +124,30 @@ export function ShiftManagementModal({
   const [showTemplates, setShowTemplates] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
 
-  const [localShifts, setLocalShifts] = useState<ShiftConfig[]>([])
+  const [localShifts, setLocalShifts] = useState<FacilityTypes.FacilityShift[]>([])
   const [hasChanges, setHasChanges] = useState(false)
 
-    useEffect(() => {
+  useEffect(() => {
     if (shifts.length > 0) {
       setLocalShifts([...shifts])
       setHasChanges(false)
     }
   }, [shifts])
 
-  const validateShifts = (shiftsToValidate: ShiftConfig[]): string[] => {
+  const validateShifts = (shiftsToValidate: FacilityTypes.FacilityShift[]): string[] => {
     const errors: string[] = []
     
     shiftsToValidate.forEach((shift, index) => {
-      if (!shift.name.trim()) {
+      if (!shift.shift_name.trim()) {
         errors.push(t('facilities.shiftNameRequired', { index: index + 1 }) || `Shift ${index + 1}: Name is required`)
       }
       
       if (!shift.start_time || !shift.end_time) {
-        errors.push(t('facilities.timeRequired', { name: shift.name }) || `Shift ${index + 1}: Start and end times are required`)
+        errors.push(t('facilities.timeRequired', { name: shift.shift_name }) || `Shift ${index + 1}: Start and end times are required`)
       }
-      
+
       if (shift.min_staff > shift.max_staff) {
-        errors.push(t('facilities.minStaffError', { name: shift.name }) || `Shift ${index + 1}: Minimum staff cannot exceed maximum staff`)
+        errors.push(t('facilities.minStaffError', { name: shift.shift_name }) || `Shift ${index + 1}: Minimum staff cannot exceed maximum staff`)
       }
       
       if (shift.min_staff < 1) {
@@ -175,7 +163,7 @@ export function ShiftManagementModal({
         
         // Simple overlap check (could be enhanced)
         if (shift1.start_time === shift2.start_time) {
-          errors.push(t('facilities.warningOverlap', { name1: shift1.name, name2: shift2.name }) || `Warning: Shifts "${shift1.name}" and "${shift2.name}" have the same start time`)
+          errors.push(t('facilities.warningOverlap', { name1: shift1.shift_name, name2: shift2.shift_name }) || `Warning: Shifts "${shift1.shift_name}" and "${shift2.shift_name}" have the same start time`)
         }
       }
     }
@@ -184,27 +172,29 @@ export function ShiftManagementModal({
   }
 
   const addShift = () => {
-    const newShift: ShiftConfig = {
-      id: `shift-${Date.now()}`,
-      name: t('facilities.newShift') || 'New Shift',
+    const newShift: FacilityTypes.FacilityShift = {
+      id: `temp-${Date.now()}`,
+      facility_id: facility?.id || '',
+      shift_name: t('facilities.newShift') || 'New Shift',
       start_time: '09:00',
       end_time: '17:00',
       requires_manager: false,
       min_staff: 1,
       max_staff: 5,
+      shift_order: localShifts.length,
       is_active: true,
-      shift_order: shifts.length,
-      color: SHIFT_COLORS[shifts.length % SHIFT_COLORS.length].id
+      color: SHIFT_COLORS[localShifts.length % SHIFT_COLORS.length].id,
+      created_at: new Date().toISOString()
     }
-    setLocalShifts([...localShifts, newShift]) // ✅ Use local state for editing
+    setLocalShifts([...localShifts, newShift])
     setHasChanges(true)
   }
 
-  const updateShift = (index: number, field: keyof ShiftConfig, value: any) => {
+  const updateShift = <K extends keyof FacilityTypes.FacilityShift>(index: number, field: K, value: FacilityTypes.FacilityShift[K]) => {
     const updated = localShifts.map((shift, i) => 
       i === index ? { ...shift, [field]: value } : shift
     )
-    setLocalShifts(updated) // ✅ Use local state for editing
+    setLocalShifts(updated) // Use local state for editing
     setHasChanges(true)
     setValidationErrors([])
   }
@@ -214,12 +204,12 @@ export function ShiftManagementModal({
       toast.error(t('facilities.cannotRemoveLastShift') || 'At least one shift is required')
       return
     }
-    setLocalShifts(localShifts.filter((_, i) => i !== index)) // ✅ Use local state
+    setLocalShifts(localShifts.filter((_, i) => i !== index)) // Use local state
     setHasChanges(true)
   }
 
   const moveShift = (index: number, direction: 'up' | 'down') => {
-    const newShifts = [...localShifts] // ✅ Use local state
+    const newShifts = [...localShifts] // Use local state
     const targetIndex = direction === 'up' ? index - 1 : index + 1
     
     if (targetIndex < 0 || targetIndex >= localShifts.length) return
@@ -234,29 +224,38 @@ export function ShiftManagementModal({
     setHasChanges(true)
   }
 
-  const loadTemplate = (facilityType: string) => {
-    const template = SHIFT_TEMPLATES[facilityType]
-    if (template) {
-      setLocalShifts(template.map((shift, index) => ({
-        ...shift,
-        id: `shift-${Date.now()}-${index}`,
-        shift_order: index,
-        is_active: true
-      })))
-      setHasChanges(true)
-      setShowTemplates(false)
-      toast.success(t('facilities.templateApplied', { type: facilityType }) || `Applied ${facilityType} template`)
-    }
+  const loadTemplate = (facilityType: keyof typeof SHIFT_TEMPLATES) => {
+  const template = SHIFT_TEMPLATES[facilityType]
+  if (template) {
+    const mappedShifts: FacilityTypes.FacilityShift[] = template.map((item, index) => ({
+      id: `temp-${Date.now()}-${index}`,
+      facility_id: facility?.id || '',
+      shift_name: item.name,
+      start_time: item.start_time,
+      end_time: item.end_time,
+      requires_manager: item.requires_manager,
+      min_staff: item.min_staff,
+      max_staff: item.max_staff,
+      shift_order: index,
+      is_active: true,
+      color: item.color,
+      created_at: new Date().toISOString()
+    }))
+    setLocalShifts(mappedShifts)
+    setHasChanges(true)
+    setShowTemplates(false)
+    toast.success(t('facilities.templateApplied', { type: facilityType }) || `Applied ${facilityType} template`)
   }
+}
 
   const resetToOriginal = () => {
-    setLocalShifts([...shifts]) // ✅ Reset to hook's original data
+    setLocalShifts([...shifts]) // Reset to hook's original data
     setHasChanges(false)
     setValidationErrors([])
   }
 
   const saveShifts = async () => {
-    const errors = validateShifts(localShifts) // ✅ Validate local edits
+    const errors = validateShifts(localShifts) // Validate local edits
     if (errors.length > 0) {
       setValidationErrors(errors)
       return
@@ -264,7 +263,19 @@ export function ShiftManagementModal({
 
     setSaving(true)
     try {
-      await updateShiftsBulk(localShifts) // ✅ Save local edits via hook
+      // Map FacilityShift[] to BulkShiftUpdateInput[]
+      const bulkInput: FacilityTypes.BulkShiftUpdateInput[] = localShifts.map(shift => ({
+        shift_name: shift.shift_name,
+        start_time: shift.start_time,
+        end_time: shift.end_time,
+        requires_manager: shift.requires_manager,
+        min_staff: shift.min_staff,
+        max_staff: shift.max_staff,
+        shift_order: shift.shift_order,
+        color: shift.color
+      }))
+      
+      await updateShiftsBulk(bulkInput)
       setHasChanges(false)
       setValidationErrors([])
       
@@ -272,16 +283,16 @@ export function ShiftManagementModal({
         onShiftsUpdated()
       }
       onClose()
-    } catch (error) {
+    } catch {
       // Hook handles error display
     } finally {
       setSaving(false)
     }
   }
 
-  const ShiftCard = ({ shift, index }: { shift: ShiftConfig; index: number }) => {
+  const ShiftCard = ({ shift, index }: { shift: FacilityTypes.FacilityShift; index: number }) => {
     const colorConfig = SHIFT_COLORS.find(c => c.id === shift.color) || SHIFT_COLORS[0]
-    const ShiftIcon = getShiftIcon(shift.name)
+    const ShiftIcon = getShiftIcon(shift.shift_name)
     const duration = calculateShiftDuration(shift.start_time, shift.end_time)
 
     return (
@@ -312,8 +323,8 @@ export function ShiftManagementModal({
               
               <div className="flex-1">
                 <Input 
-                  value={shift.name}
-                  onChange={(e) => updateShift(index, 'name', e.target.value)}
+                  value={shift.shift_name}
+                  onChange={(e) => updateShift(index, 'shift_name', e.target.value)}
                   className="text-lg font-semibold bg-transparent border-0 p-0 h-auto focus:bg-white/50 rounded"
                   placeholder={t('facilities.shiftName')}
                 />
@@ -490,7 +501,7 @@ export function ShiftManagementModal({
                   {Object.entries(SHIFT_TEMPLATES).map(([type, template]) => (
                     <Button
                       key={type}
-                      onClick={() => loadTemplate(type)}
+                      onClick={() => loadTemplate(type as keyof typeof SHIFT_TEMPLATES)}
                       variant="outline"
                       size="sm"
                       className="text-xs capitalize"
