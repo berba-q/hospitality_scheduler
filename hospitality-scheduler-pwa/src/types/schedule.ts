@@ -79,7 +79,7 @@ export interface ScheduleGenerationConfig {
 }
 
 export interface ZoneAssignment {
-  required_staff: number | { min: number; max: number }; // Can be either a number or range
+  required_staff: { min: number; max: number };
   assigned_roles: string[];
   priority: 'low' | 'medium' | 'high';
   coverage_hours: {

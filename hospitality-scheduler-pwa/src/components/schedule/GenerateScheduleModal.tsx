@@ -85,7 +85,7 @@ export function SmartGenerateModal({
       if (zone) {
         const zoneRoles = [...(zone.required_roles || []), ...(zone.preferred_roles || [])]
         newZoneAssignments[zoneId] = {
-          required_staff: getZoneRequiredStaff(zone).min,
+          required_staff: getZoneRequiredStaff(zone),
           assigned_roles: zoneRoles,
           priority: getZonePriority(zone),
           coverage_hours: {
@@ -170,7 +170,11 @@ export function SmartGenerateModal({
     }
   }
 
-  const updateZoneAssignment = (zoneId: string, field: keyof ScheduleTypes.ZoneAssignment, value: number | string[] | ScheduleTypes.ZoneAssignment['coverage_hours'] | ScheduleTypes.ZoneAssignment['priority']) => {
+  const updateZoneAssignment = (
+    zoneId: string, 
+    field: keyof ScheduleTypes.ZoneAssignment, 
+    value: ScheduleTypes.ZoneAssignment[keyof ScheduleTypes.ZoneAssignment]
+  ) => {
     setZoneAssignments(prev => ({
       ...prev,
       [zoneId]: {
@@ -202,7 +206,7 @@ export function SmartGenerateModal({
 
   // Calculate staffing analytics
   const totalStaffNeeded = Object.values(zoneAssignments).reduce((sum: number, zone: ScheduleTypes.ZoneAssignment) =>
-    sum + (zone?.required_staff || 0), 0
+    sum + (zone?.required_staff?.min || 0), 0
   ) * (periodType === 'daily' ? 3 : periodType === 'weekly' ? 21 : 90) // shifts per period
 
   const availableStaff = staff.filter(s => s.is_active || s.isActive).length
@@ -338,7 +342,7 @@ export function SmartGenerateModal({
                                   max="10"
                                   value={assignment.required_staff?.min || 1}
                                   onChange={(e) => updateZoneAssignment(zoneId, 'required_staff', {
-                                    ...assignment.required_staff,
+                                    ...(assignment.required_staff || { min: 1, max: 3 }),
                                     min: parseInt(e.target.value)
                                   })}
                                   className="w-16 text-sm"
