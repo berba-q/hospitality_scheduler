@@ -10,12 +10,12 @@ import { DeleteConfirmationDialog } from './DeleteConfirmationDialog'
 import { useApiClient } from '@/hooks/useApi'
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
-import type { Staff, Facility} from "@/types";
+import type { Staff , FacilityTypes} from "@/types";
 
 
 interface StaffTableProps {
   staff: Staff[]
-  facilities: Facility[]
+  facilities: FacilityTypes.Facility[]
   onRefresh: () => void
 }
 interface DeleteActionResult {
@@ -39,7 +39,7 @@ export function StaffTable({ staff, facilities, onRefresh }: StaffTableProps) {
   const [deletingStaff, setDeletingStaff] = useState<Staff | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const getFacilityName = (facilityId: Facility["id"]) => {
+  const getFacilityName = (facilityId: FacilityTypes.Facility["id"]) => {
     const facility = facilities.find(f => f.id === facilityId)
     return facility?.name || t('staff.unknownFacility')
   }
