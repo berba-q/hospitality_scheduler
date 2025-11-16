@@ -19,6 +19,7 @@ import {
   CheckCircle,
   Mail
 } from 'lucide-react'
+import { useTranslations } from '@/hooks/useTranslations'
 import * as ScheduleTypes from '@/types/schedule'
 import * as FacilityTypes from '@/types/facility'
 
@@ -50,6 +51,7 @@ export function ScheduleSaveConfirmationDialog({
   facility,
   isNewSchedule = false
 }: ScheduleSaveConfirmationDialogProps) {
+  const { t } = useTranslations()
   const [saving, setSaving] = useState(false)
   const [options, setOptions] = useState<SaveConfirmationOptions>({
     generatePdf: true,
@@ -100,7 +102,7 @@ export function ScheduleSaveConfirmationDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Save className="w-5 h-5" />
-            {isNewSchedule ? 'Publish New Schedule' : 'Update Schedule'}
+            {isNewSchedule ? t('schedule.publishNewSchedule') : t('schedule.updateSchedule')}
           </DialogTitle>
         </DialogHeader>
 
@@ -112,19 +114,19 @@ export function ScheduleSaveConfirmationDialog({
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Calendar className="w-4 h-4 text-blue-600" />
-                    <span className="font-medium">Schedule Details</span>
+                    <span className="font-medium">{t('schedule.scheduleDetails')}</span>
                   </div>
                   <div className="space-y-1 text-sm text-gray-600">
-                    <p><strong>Facility:</strong> {facility?.name || 'Unknown'}</p>
-                    <p><strong>Week:</strong> {formatWeekRange(schedule?.week_start)}</p>
-                    <p><strong>Assignments:</strong> {schedule?.assignments?.length || 0}</p>
+                    <p><strong>{t('common.facility')}:</strong> {facility?.name || t('facility.unknownFacility')}</p>
+                    <p><strong>{t('common.week')}:</strong> {formatWeekRange(schedule?.week_start)}</p>
+                    <p><strong>{t('common.assignments')}:</strong> {schedule?.assignments?.length || 0}</p>
                   </div>
                 </div>
-                
+
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Users className="w-4 h-4 text-green-600" />
-                    <span className="font-medium">Affected Staff</span>
+                    <span className="font-medium">{t('schedule.affectedStaff')}</span>
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {affectedStaff.slice(0, 4).map(staff => (
@@ -134,7 +136,7 @@ export function ScheduleSaveConfirmationDialog({
                     ))}
                     {affectedStaff.length > 4 && (
                       <Badge variant="secondary" className="text-xs">
-                        +{affectedStaff.length - 4} more
+                        +{affectedStaff.length - 4} {t('common.more')}
                       </Badge>
                     )}
                   </div>
@@ -147,7 +149,7 @@ export function ScheduleSaveConfirmationDialog({
           <div>
             <h3 className="font-medium mb-3 flex items-center gap-2">
               <MessageSquare className="w-4 h-4" />
-              Notification Options
+              {t('schedule.notificationOptions')}
             </h3>
             
             <div className="space-y-4">
@@ -156,20 +158,20 @@ export function ScheduleSaveConfirmationDialog({
                 <Checkbox
                   id="generate-pdf"
                   checked={options.generatePdf}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked) =>
                     updateOption('generatePdf', checked as boolean)
                   }
                 />
                 <div className="grid gap-1.5 leading-none">
-                  <Label 
+                  <Label
                     htmlFor="generate-pdf"
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
                   >
                     <FileText className="w-4 h-4" />
-                    Generate PDF Schedule
+                    {t('schedule.generatePdfSchedule')}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Create a printable PDF version of the schedule
+                    {t('schedule.createPrintablePdf')}
                   </p>
                 </div>
               </div>
@@ -179,21 +181,21 @@ export function ScheduleSaveConfirmationDialog({
                 <Checkbox
                   id="send-whatsapp"
                   checked={options.sendWhatsApp}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked) =>
                     updateOption('sendWhatsApp', checked as boolean)
                   }
                 />
                 <div className="grid gap-1.5 leading-none">
-                  <Label 
+                  <Label
                     htmlFor="send-whatsapp"
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
                   >
                     <MessageSquare className="w-4 h-4 text-green-600" />
-                    Send WhatsApp Messages
-                    <Badge variant="secondary" className="text-xs">Critical</Badge>
+                    {t('schedule.sendWhatsappMessages')}
+                    <Badge variant="secondary" className="text-xs">{t('notifications.critical')}</Badge>
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Send WhatsApp notifications with PDF attachment to all staff
+                    {t('schedule.sendWhatsappNotificationsWithPdf')}
                   </p>
                 </div>
               </div>
@@ -203,20 +205,20 @@ export function ScheduleSaveConfirmationDialog({
                 <Checkbox
                   id="send-push"
                   checked={options.sendPushNotifications}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked) =>
                     updateOption('sendPushNotifications', checked as boolean)
                   }
                 />
                 <div className="grid gap-1.5 leading-none">
-                  <Label 
+                  <Label
                     htmlFor="send-push"
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
                   >
                     <Smartphone className="w-4 h-4 text-blue-600" />
-                    Send Push Notifications
+                    {t('schedule.sendPushNotifications')}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Send mobile push notifications with schedule link (no PDF attachment)
+                    {t('schedule.sendMobilePushNotifications')}
                   </p>
                 </div>
               </div>
@@ -226,20 +228,20 @@ export function ScheduleSaveConfirmationDialog({
                 <Checkbox
                   id="send-email"
                   checked={options.sendEmail}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked) =>
                     updateOption('sendEmail', checked as boolean)
                   }
                 />
                 <div className="grid gap-1.5 leading-none">
-                  <Label 
+                  <Label
                     htmlFor="send-email"
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
                   >
                     <Mail className="w-4 h-4 text-purple-600" />
-                    Send Email Notifications
+                    {t('schedule.sendEmailNotifications')}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Send email notifications with PDF attachment
+                    {t('schedule.sendEmailNotificationsWithPdf')}
                   </p>
                 </div>
               </div>
@@ -252,11 +254,9 @@ export function ScheduleSaveConfirmationDialog({
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
                 <div>
-                  <h4 className="font-medium text-orange-800">Critical Notifications</h4>
+                  <h4 className="font-medium text-orange-800">{t('schedule.criticalNotifications')}</h4>
                   <p className="text-sm text-orange-700 mt-1">
-                    WhatsApp messages and push notifications will be sent regardless of individual 
-                    staff preferences for critical schedule updates. This ensures all staff receive 
-                    important schedule information.
+                    {t('schedule.criticalNotificationsMessage')}
                   </p>
                 </div>
               </div>
@@ -270,11 +270,11 @@ export function ScheduleSaveConfirmationDialog({
                 <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
                 <div>
                   <h4 className="font-medium text-green-800">
-                    Ready to {isNewSchedule ? 'Publish' : 'Update'}
+                    {isNewSchedule ? t('schedule.readyToPublish') : t('schedule.readyToUpdate')}
                   </h4>
                   <p className="text-sm text-green-700 mt-1">
-                    {affectedStaff.length} staff members will be notified through the selected channels.
-                    {options.generatePdf && ' A PDF schedule will be generated and attached to notifications.'}
+                    {t('schedule.staffMembersWillBeNotified', { count: affectedStaff.length })}
+                    {options.generatePdf && ' ' + t('schedule.pdfScheduleWill')}
                   </p>
                 </div>
               </div>
@@ -288,7 +288,7 @@ export function ScheduleSaveConfirmationDialog({
             onClick={onClose}
             disabled={saving}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleConfirm}
@@ -298,12 +298,12 @@ export function ScheduleSaveConfirmationDialog({
             {saving ? (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                {isNewSchedule ? 'Publishing...' : 'Updating...'}
+                {isNewSchedule ? t('schedule.publishing') : t('schedule.updating')}
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Save className="w-4 h-4" />
-                {isNewSchedule ? 'Publish Schedule' : 'Update Schedule'}
+                {isNewSchedule ? t('schedule.publishSchedule') : t('schedule.updateSchedule')}
               </div>
             )}
           </Button>

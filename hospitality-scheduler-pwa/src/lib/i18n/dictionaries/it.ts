@@ -790,7 +790,25 @@ export const it = {
     generatePdfSchedule: 'Genera PDF Pianificazione',
     createPrintablePdf: 'Crea una versione PDF stampabile della pianificazione',
     pdfScheduleWill: 'Verrà generato un PDF della pianificazione e allegato alle notifiche',
-    
+
+    // Save Confirmation Dialog
+    publishNewSchedule: 'Pubblica Nuova Pianificazione',
+    updateSchedule: 'Aggiorna Pianificazione',
+    notificationOptions: 'Opzioni di Notifica',
+    sendWhatsappMessages: 'Invia Messaggi WhatsApp',
+    sendWhatsappNotificationsWithPdf: 'Invia notifiche WhatsApp con allegato PDF a tutto il personale',
+    sendPushNotifications: 'Invia Notifiche Push',
+    sendMobilePushNotifications: 'Invia notifiche push mobile con link alla pianificazione (senza allegato PDF)',
+    sendEmailNotifications: 'Invia Notifiche Email',
+    sendEmailNotificationsWithPdf: 'Invia notifiche email con allegato PDF',
+    criticalNotifications: 'Notifiche Critiche',
+    criticalNotificationsMessage: 'I messaggi WhatsApp e le notifiche push verranno inviati indipendentemente dalle preferenze individuali del personale per aggiornamenti critici della pianificazione. Questo garantisce che tutto il personale riceva informazioni importanti sulla pianificazione.',
+    readyToPublish: 'Pronto per Pubblicare',
+    readyToUpdate: 'Pronto per Aggiornare',
+    staffMembersWillBeNotified: '{count} membri del personale verranno notificati attraverso i canali selezionati.',
+    publishing: 'Pubblicazione...',
+    updating: 'Aggiornamento...',
+
     // Date and Time
     unknownDate: 'Data sconosciuta',
     weekRange: 'Periodo Settimanale',

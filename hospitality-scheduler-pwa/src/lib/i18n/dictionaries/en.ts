@@ -777,7 +777,25 @@ export const en = {
     generatePdfSchedule: 'Generate PDF Schedule',
     createPrintablePdf: 'Create a printable PDF version of the schedule',
     pdfScheduleWill: 'A PDF schedule will be generated and attached to notifications',
-    
+
+    // Save Confirmation Dialog
+    publishNewSchedule: 'Publish New Schedule',
+    updateSchedule: 'Update Schedule',
+    notificationOptions: 'Notification Options',
+    sendWhatsappMessages: 'Send WhatsApp Messages',
+    sendWhatsappNotificationsWithPdf: 'Send WhatsApp notifications with PDF attachment to all staff',
+    sendPushNotifications: 'Send Push Notifications',
+    sendMobilePushNotifications: 'Send mobile push notifications with schedule link (no PDF attachment)',
+    sendEmailNotifications: 'Send Email Notifications',
+    sendEmailNotificationsWithPdf: 'Send email notifications with PDF attachment',
+    criticalNotifications: 'Critical Notifications',
+    criticalNotificationsMessage: 'WhatsApp messages and push notifications will be sent regardless of individual staff preferences for critical schedule updates. This ensures all staff receive important schedule information.',
+    readyToPublish: 'Ready to Publish',
+    readyToUpdate: 'Ready to Update',
+    staffMembersWillBeNotified: '{count} staff members will be notified through the selected channels.',
+    publishing: 'Publishing...',
+    updating: 'Updating...',
+
     // Date and Time
     unknownDate: 'Unknown date',
     weekRange: 'Week Range',
