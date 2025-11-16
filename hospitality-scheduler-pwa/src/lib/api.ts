@@ -2615,6 +2615,12 @@ async updateNotificationSettings(settings: {
     }>('/v1/invitations/stats')
   }
 
+  async resendInvitation(invitationId: string) {
+    return this.request<void>(`/v1/invitations/${invitationId}/resend`, {
+      method: 'POST'
+    })
+  }
+
 // Profile Settings
 async getMyProfile() {
   return this.request<{

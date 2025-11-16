@@ -1,51 +1,67 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Mail, Clock, CheckCircle, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as FacilityTypes from '@/types/facility'
+import type { ApiClient } from '@/hooks/useApi'
+import type { Invitation } from '@/types/api'
 
-export function InvitationStatusPanel({ selectedFacility, apiClient }) {
+interface InvitationStatusPanelProps {
+  selectedFacility: FacilityTypes.Facility
+  apiClient: ApiClient
+}
+
+interface InvitationStatsResponse {
+  accepted: number
+  pending: number
+}
+
+export function InvitationStatusPanel({ selectedFacility, apiClient }: InvitationStatusPanelProps) {
   const { t } = useTranslations()
-  const [invitationStats, setInvitationStats] = useState(null)
-  const [pendingInvitations, setPendingInvitations] = useState([])
+  const [invitationStats, setInvitationStats] = useState<InvitationStatsResponse | null>(null)
+  const [pendingInvitations, setPendingInvitations] = useState<Invitation[]>([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    if (selectedFacility) {
-      loadInvitationData()
-    }
-  }, [selectedFacility])
-
-  const loadInvitationData = async () => {
+  const loadInvitationData = useCallback(async () => {
     if (!selectedFacility) return
-    
+
     setLoading(true)
     try {
       // Load invitation statistics
-      const statsResponse = await apiClient.get('/invitations/stats')
-      setInvitationStats(statsResponse)
-      
+      const statsResponse = await apiClient.getInvitationStats()
+      setInvitationStats({
+        accepted: statsResponse.accepted,
+        pending: statsResponse.pending
+      })
+
       // Load pending invitations
-      const invitationsResponse = await apiClient.get('/invitations/?status=pending')
+      const invitationsResponse = await apiClient.getInvitations('pending')
       setPendingInvitations(invitationsResponse.filter(
-        inv => inv.facility_id === selectedFacility.id
+        (inv) => inv.facility_name === selectedFacility.name
       ))
-      
+
     } catch (error) {
       console.error('Failed to load invitation data:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedFacility, apiClient])
 
-  const resendInvitation = async (invitationId) => {
+  useEffect(() => {
+    if (selectedFacility) {
+      loadInvitationData()
+    }
+  }, [selectedFacility, loadInvitationData])
+
+  const resendInvitation = async (invitationId: string) => {
     try {
-      await apiClient.post(`/invitations/${invitationId}/resend`)
+      await apiClient.resendInvitation(invitationId)
       toast.success(t('staff.invitationResent'))
       loadInvitationData() // Refresh
-    } catch (error) {
+    } catch {
       toast.error(t('staff.failedResendInvitation'))
     }
   }

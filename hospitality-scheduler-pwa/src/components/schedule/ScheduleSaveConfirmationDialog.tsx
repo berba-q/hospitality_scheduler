@@ -8,25 +8,27 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { 
-  Save, 
-  Users, 
-  Calendar, 
-  MessageSquare, 
-  Smartphone, 
+import {
+  Save,
+  Users,
+  Calendar,
+  MessageSquare,
+  Smartphone,
   FileText,
   AlertTriangle,
   CheckCircle,
   Mail
 } from 'lucide-react'
+import * as ScheduleTypes from '@/types/schedule'
+import * as FacilityTypes from '@/types/facility'
 
 interface ScheduleSaveConfirmationDialogProps {
   open: boolean
   onClose: () => void
   onConfirm: (options: SaveConfirmationOptions) => Promise<void>
-  schedule: any
-  staffList: any[]
-  facility: any
+  schedule: ScheduleTypes.Schedule
+  staffList: ScheduleTypes.Staff[]
+  facility: FacilityTypes.Facility
   isNewSchedule?: boolean
 }
 
@@ -57,8 +59,8 @@ export function ScheduleSaveConfirmationDialog({
     notifyAllStaff: true
   })
 
-  const affectedStaff = staffList.filter(staff => 
-    schedule?.assignments?.some((assignment: any) => assignment.staff_id === staff.id)
+  const affectedStaff = staffList.filter(staff =>
+    schedule?.assignments?.some(assignment => assignment.staff_id === staff.id)
   )
 
   const handleConfirm = async () => {

@@ -23,26 +23,13 @@ import { format, startOfWeek, endOfWeek, addDays } from 'date-fns'
 import { toast } from 'sonner'
 import { useApiClient } from '@/hooks/useApi'
 import { useTranslations } from '@/hooks/useTranslations'
-
-interface StaffUnavailability {
-  id: string
-  staff_id: string
-  start: string
-  end: string
-  reason?: string
-  is_recurring: boolean
-  staff: {
-    id: string
-    full_name: string
-    role: string
-    email: string
-  }
-}
+import * as FacilityTypes from '@/types/facility'
+import * as ScheduleTypes from '@/types/schedule'
 
 interface StaffAvailabilityModalProps {
   isOpen: boolean
   onClose: () => void
-  facility: any
+  facility: FacilityTypes.Facility
   currentDate: Date
 }
 
@@ -56,7 +43,7 @@ export function StaffAvailabilityModal({
   const api = useApiClient()
   
   // State
-  const [unavailabilityData, setUnavailabilityData] = useState<StaffUnavailability[]>([])
+  const [unavailabilityData, setUnavailabilityData] = useState<ScheduleTypes.StaffUnavailability[]>([])
   const [loading, setLoading] = useState(false)
   const [dateRange, setDateRange] = useState({
     start: startOfWeek(currentDate, { weekStartsOn: 1 }), // Monday
@@ -135,7 +122,7 @@ export function StaffAvailabilityModal({
     }
     acc[item.staff_id].unavailability.push(item)
     return acc
-  }, {} as Record<string, { staff: any, unavailability: StaffUnavailability[] }>)
+  }, {} as Record<string, { staff: { id: string; full_name: string; role: string; email: string }, unavailability: ScheduleTypes.StaffUnavailability[] }>)
 
   // Get unique roles for filter
   const availableRoles = [...new Set(unavailabilityData.map(item => item.staff.role))].sort()
@@ -146,12 +133,12 @@ export function StaffAvailabilityModal({
   }
 
   // Set quick date range
-  const setQuickRange = (range: any) => {
+  const setQuickRange = (range: { start: Date; end: Date }) => {
     setDateRange({ start: range.start, end: range.end })
   }
 
   // Get status badge for unavailability
-  const getUnavailabilityBadge = (unavail: StaffUnavailability) => {
+  const getUnavailabilityBadge = (unavail: ScheduleTypes.StaffUnavailability) => {
     const now = new Date()
     const start = new Date(unavail.start)
     const end = new Date(unavail.end)

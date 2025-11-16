@@ -19,17 +19,19 @@ import {
   Layers
 } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as FacilityTypes from '@/types/facility'
+import * as ScheduleTypes from '@/types/schedule'
 
 interface SmartGenerateModalProps {
   open: boolean
   onClose: () => void
-  facility: any
-  zones: any[]
+  facility: FacilityTypes.Facility
+  zones: FacilityTypes.FacilityZone[]
   selectedZones: string[]
-  staff: any[]
+  staff: ScheduleTypes.Staff[]
   periodStart: Date
   periodType: 'daily' | 'weekly' | 'monthly'
-  onGenerate: (config: any) => void
+  onGenerate: (config: ScheduleTypes.ScheduleGenerationConfig) => void
 }
 
 export function SmartGenerateModal({
@@ -75,42 +77,30 @@ export function SmartGenerateModal({
 
   const initializeAssignments = () => {
     // Auto-assign staff to zones based on their roles
-    const newZoneAssignments = {}
-    const newRoleMapping = {}
-    
+    const newZoneAssignments: Record<string, ScheduleTypes.ZoneAssignment> = {}
+
     selectedZones.forEach(zoneId => {
       const zone = zones.find(z => z.id === zoneId)
       if (zone) {
         newZoneAssignments[zoneId] = {
           required_staff: getZoneRequiredStaff(zone),
-          assigned_roles: zone.roles || [],
+          assigned_roles: zone.required_roles || [],
           priority: getZonePriority(zone),
           coverage_hours: {
             morning: true,
             afternoon: true,
-            evening: zone.id === 'security' || zone.id === 'front-desk' // 24/7 zones
+            evening: zone.zone_id === 'security' || zone.zone_id === 'front-desk' // 24/7 zones
           }
         }
-        
-        // Map roles to zones
-        zone.roles?.forEach(role => {
-          if (!newRoleMapping[role]) {
-            newRoleMapping[role] = []
-          }
-          if (!newRoleMapping[role].includes(zoneId)) {
-            newRoleMapping[role].push(zoneId)
-          }
-        })
       }
     })
-    
+
     setZoneAssignments(newZoneAssignments)
-    setRoleMapping(newRoleMapping)
   }
 
-  const getZoneRequiredStaff = (zone) => {
+  const getZoneRequiredStaff = (zone: FacilityTypes.FacilityZone): { min: number; max: number } => {
     // Smart defaults based on zone type
-    const staffCounts = {
+    const staffCounts: Record<string, { min: number; max: number }> = {
       'front-desk': { min: 1, max: 2 },
       'housekeeping': { min: 2, max: 4 },
       'restaurant': { min: 3, max: 6 },
@@ -121,39 +111,43 @@ export function SmartGenerateModal({
       'management': { min: 1, max: 1 },
       'all': { min: 1, max: 3 }
     }
-    
-    return staffCounts[zone.id] || { min: 1, max: 3 }
+
+    return staffCounts[zone.zone_id] || { min: 1, max: 3 }
   }
 
-  const getZonePriority = (zone) => {
+  const getZonePriority = (zone: FacilityTypes.FacilityZone): 'low' | 'medium' | 'high' => {
     // Priority order for scheduling
-    const priorities = {
-      'front-desk': 10, // Highest priority
-      'security': 9,
-      'kitchen': 8,
-      'management': 7,
-      'dining': 6,
-      'restaurant': 6,
-      'bar': 5,
-      'housekeeping': 4,
-      'all': 3
+    const priorities: Record<string, 'low' | 'medium' | 'high'> = {
+      'front-desk': 'high',
+      'security': 'high',
+      'kitchen': 'high',
+      'management': 'high',
+      'dining': 'medium',
+      'restaurant': 'medium',
+      'bar': 'medium',
+      'housekeeping': 'low',
+      'all': 'low'
     }
-    
-    return priorities[zone.id] || 5
+
+    return priorities[zone.zone_id] || 'medium'
   }
 
   // generate role mapping from zones
-  const generateRoleMappingFromZones = (selectedZones, zones, staff) => {
-    
-    const roleMapping = {}
-    
+  const generateRoleMappingFromZones = (
+    selectedZones: string[],
+    zones: FacilityTypes.FacilityZone[],
+    staff: ScheduleTypes.Staff[]
+  ): Record<string, string[]> => {
+
+    const roleMapping: Record<string, string[]> = {}
+
     selectedZones.forEach(zoneId => {
       const zone = zones.find(z => z.id === zoneId)
       if (zone) {
-        
-        if (zone.roles && zone.roles.length > 0) {
+
+        if (zone.required_roles && zone.required_roles.length > 0) {
           // Use the predefined roles for this zone
-          roleMapping[zoneId] = [...zone.roles]
+          roleMapping[zoneId] = [...zone.required_roles]
         } else {
           // If no specific roles defined, use all available staff roles
           const availableRoles = [...new Set(staff.map(s => s.role))]
@@ -161,7 +155,7 @@ export function SmartGenerateModal({
         }
       }
     })
-    
+
     return roleMapping
   }
 
@@ -171,17 +165,14 @@ export function SmartGenerateModal({
       // Generate proper role mapping based on selected zones
       const properRoleMapping = generateRoleMappingFromZones(selectedZones, zones, staff)
       
-      const generateConfig = {
+      const generateConfig: ScheduleTypes.ScheduleGenerationConfig = {
         ...config,
-        period_type: periodType,
-        zones: selectedZones,
+        coverage_priority: config.coverage_priority as 'minimal' | 'balanced' | 'maximum',
         zone_assignments: zoneAssignments,
-        role_mapping: properRoleMapping, // Use the generated mapping
-        total_days: periodType === 'daily' ? 1 : periodType === 'weekly' ? 7 : 30,
-        shifts_per_day: 3
+        role_mapping: properRoleMapping
       }
-      
-      await onGenerate(generateConfig)
+
+      onGenerate(generateConfig)
       onClose()
     } catch (error) {
     } finally {
@@ -189,13 +180,13 @@ export function SmartGenerateModal({
     }
   }
 
-  const updateZoneAssignment = (zoneId, field, value) => {
+  const updateZoneAssignment = (zoneId: string, field: keyof ScheduleTypes.ZoneAssignment, value: unknown) => {
     setZoneAssignments(prev => ({
       ...prev,
       [zoneId]: {
         ...prev[zoneId],
         [field]: value
-      }
+      } as ScheduleTypes.ZoneAssignment
     }))
   }
 
@@ -229,12 +220,12 @@ export function SmartGenerateModal({
     ? 'high' : 'medium'
 
   // Get staff distribution by zone
-  const staffByZone = {}
+  const staffByZone: Record<string, ScheduleTypes.Staff[]> = {}
   selectedZones.forEach(zoneId => {
     const zone = zones.find(z => z.id === zoneId)
     if (zone) {
-      staffByZone[zoneId] = staff.filter(s => 
-        zone.roles?.includes(s.role) || zone.roles?.length === 0
+      staffByZone[zoneId] = staff.filter(s =>
+        zone.required_roles?.includes(s.role) || zone.required_roles?.length === 0
       )
     }
   })
@@ -336,13 +327,13 @@ export function SmartGenerateModal({
                       <div key={zoneId} className="p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-center justify-between mb-4">
                           <div>
-                            <h4 className="font-medium text-lg">{zone.name}</h4>
+                            <h4 className="font-medium text-lg">{zone.zone_name}</h4>
                             <p className="text-sm text-gray-600">
                               {zoneStaff.length} {t('schedule.availableStaff')} • {t('common.priority')}: {getZonePriority(zone)}
                             </p>
                           </div>
                           <Badge variant="outline" className="text-xs">
-                            {zone.roles?.length || 0} {t('common.roles')}
+                            {zone.required_roles?.length || 0} {t('common.roles')}
                           </Badge>
                         </div>
 
@@ -409,7 +400,7 @@ export function SmartGenerateModal({
                               {t('schedule.availableStaff')} ({zoneStaff.length})
                             </Label>
                             <div className="max-h-24 overflow-y-auto space-y-1">
-                              {zoneStaff.slice(0, 5).map(member => (
+                              {zoneStaff.slice(0, 5).map((member: ScheduleTypes.Staff) => (
                                 <div key={member.id} className="flex items-center gap-2 text-xs">
                                   <div className="w-4 h-4 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-semibold">
                                     {member.full_name.charAt(0)}
@@ -431,7 +422,7 @@ export function SmartGenerateModal({
                         <div className="mt-4">
                           <Label className="text-sm font-medium mb-2 block">{t('schedule.requiredRoles')}</Label>
                           <div className="flex flex-wrap gap-2">
-                            {zone.roles?.map(role => (
+                            {zone.required_roles?.map((role: string) => (
                               <Badge key={role} variant="default" className="text-xs">
                                 {role}
                               </Badge>
@@ -656,13 +647,13 @@ export function SmartGenerateModal({
                         return zone ? (
                           <div key={zoneId} className="p-3 bg-gray-50 rounded-lg">
                             <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium">{zone.name}</span>
+                              <span className="font-medium">{zone.zone_name}</span>
                               <Badge variant="outline" className="text-xs">
                                 {assignment.required_staff?.min || 1}-{assignment.required_staff?.max || 3} {t('common.staff')}
                               </Badge>
                             </div>
                             <div className="text-sm text-gray-600">
-                              {zoneStaff.length} {t('common.available')} • {zone.roles?.length || 0} {t('common.roles')}
+                              {zoneStaff.length} {t('common.available')} • {zone.required_roles?.length || 0} {t('common.roles')}
                             </div>
                             <div className="flex gap-1 mt-2">
                               {['morning', 'afternoon', 'evening'].map(shift => (

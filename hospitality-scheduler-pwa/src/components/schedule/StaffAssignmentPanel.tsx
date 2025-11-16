@@ -7,27 +7,25 @@ import { Input } from '@/components/ui/input'
 import { Users, Search, Filter, Star, GripVertical, Clock, Phone } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
 import { InvitationStatusPanel } from './InvitationStatusPanel'
+import * as ScheduleTypes from '@/types/schedule'
+import * as FacilityTypes from '@/types/facility'
+import type { ApiClient } from '@/hooks/useApi'
 
-interface Staff {
-  id: string
-  full_name: string
-  email: string
-  role: string
-  skill_level: number
-  phone?: string
-  weekly_hours_max: number
-  is_active: boolean
+interface StaffWithStatus extends ScheduleTypes.Staff {
+  status?: 'registered' | 'invited' | 'no_account' | 'unknown'
+  userActive?: boolean
+  invitationId?: string
 }
 
 interface StaffAssignmentPanelProps {
-  staff: Staff[]
+  staff: ScheduleTypes.Staff[]
   availableRoles: string[]
   filterRole: string
   onFilterChange: (role: string) => void
-  onDragStart: (staff: Staff) => void
+  onDragStart: (staff: ScheduleTypes.Staff) => void
   onDragEnd: () => void
-  selectedFacility?: any
-  apiClient?: any
+  selectedFacility?: FacilityTypes.Facility
+  apiClient?: ApiClient
   showInvitationStatus?: boolean
 }
 
@@ -45,7 +43,7 @@ export function StaffAssignmentPanel({
   const { t } = useTranslations()
   const [searchQuery, setSearchQuery] = useState('')
   const [showInactive, setShowInactive] = useState(false)
-  const [staffWithStatus, setStaffWithStatus] = useState([])
+  const [staffWithStatus, setStaffWithStatus] = useState<StaffWithStatus[]>([])
 
   useEffect(() => {
     if (staff.length > 0) {
@@ -55,45 +53,45 @@ export function StaffAssignmentPanel({
 
   const loadStaffStatus = async () => {
     if (!apiClient) {
-      setStaffWithStatus(staff.map(member => ({ ...member, status: 'unknown' })))
+      setStaffWithStatus(staff.map(member => ({ ...member, status: 'unknown' as const })))
       return
     }
 
     try {
       // Get invitation status for each staff member
       const staffWithInviteStatus = await Promise.all(
-        staff.map(async (member) => {
+        staff.map(async (member): Promise<StaffWithStatus> => {
           try {
             // Check if user account exists
             const userCheck = await apiClient.get(`/users/check-email/${encodeURIComponent(member.email)}`)
-            
+
             if (userCheck.exists) {
-              return { ...member, status: 'registered', userActive: userCheck.is_active }
+              return { ...member, status: 'registered' as const, userActive: userCheck.is_active }
             } else {
               // Check for pending invitation
               const invitations = await apiClient.get(`/invitations/?staff_id=${member.id}`)
-              const pendingInvite = invitations.find(inv => inv.status === 'pending' || inv.status === 'sent')
-              
-              return { 
-                ...member, 
-                status: pendingInvite ? 'invited' : 'no_account',
+              const pendingInvite = invitations.find((inv: { status: string; id: string }) => inv.status === 'pending' || inv.status === 'sent')
+
+              return {
+                ...member,
+                status: pendingInvite ? ('invited' as const) : ('no_account' as const),
                 invitationId: pendingInvite?.id
               }
             }
           } catch (error) {
-            return { ...member, status: 'unknown' }
+            return { ...member, status: 'unknown' as const }
           }
         })
       )
-      
+
       setStaffWithStatus(staffWithInviteStatus)
     } catch (error) {
       console.error('Failed to load staff status:', error)
-      setStaffWithStatus(staff.map(member => ({ ...member, status: 'unknown' })))
+      setStaffWithStatus(staff.map(member => ({ ...member, status: 'unknown' as const })))
     }
   }
 
-  const getStatusBadge = (status, userActive) => {
+  const getStatusBadge = (status?: string, userActive?: boolean) => {
     switch (status) {
       case 'registered':
         return userActive ? 
@@ -151,7 +149,7 @@ export function StaffAssignmentPanel({
     return colors[role] || 'bg-gray-100 text-gray-800 border-gray-200'
   }
 
-  const handleDragStart = (e: React.DragEvent, staff: Staff) => {
+  const handleDragStart = (e: React.DragEvent, staff: ScheduleTypes.Staff) => {
     e.dataTransfer.effectAllowed = 'move'
     onDragStart(staff)
   }
