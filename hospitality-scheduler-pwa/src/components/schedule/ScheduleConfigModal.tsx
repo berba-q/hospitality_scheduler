@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,6 +21,7 @@ import { toast } from 'sonner'
 import { useTranslations } from '@/hooks/useTranslations'
 import * as FacilityTypes from '@/types/facility'
 import * as ScheduleTypes from '@/types/schedule'
+import { apiClient } from '@/lib/api'
 
 interface ScheduleConfigModalProps {
   open: boolean
@@ -28,7 +29,7 @@ interface ScheduleConfigModalProps {
   facility: FacilityTypes.Facility
 }
 
-const DEFAULT_CONFIG = {
+const DEFAULT_CONFIG: ScheduleTypes.ScheduleConfig = {
   min_rest_hours: 8,
   max_consecutive_days: 5,
   max_weekly_hours: 40,
@@ -56,11 +57,12 @@ export function ScheduleConfigModal({
   facility
 }: ScheduleConfigModalProps) {
   const { t } = useTranslations()
-  const [config, setConfig] = useState(DEFAULT_CONFIG)
+  const [config, setConfig] = useState<ScheduleTypes.ScheduleConfig>(DEFAULT_CONFIG)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
-  const [originalConfig, setOriginalConfig] = useState(DEFAULT_CONFIG)
+  const [originalConfig, setOriginalConfig] = useState<ScheduleTypes.ScheduleConfig>(DEFAULT_CONFIG)
+  const [configExists, setConfigExists] = useState(false)
 
   // Define shifts with translations
   const SHIFTS = [
@@ -69,35 +71,87 @@ export function ScheduleConfigModal({
     { id: "2", name: t('schedule.eveningShift'), time: t('schedule.eveningTime') }
   ]
 
+  const loadConfig = useCallback(async () => {
+    setLoading(true)
+    try {
+      const configData = await apiClient.getScheduleConfig(facility.id)
+
+      if (configData) {
+        // Merge API data with defaults to ensure all required fields are present
+        const mergedConfig: ScheduleTypes.ScheduleConfig = {
+          min_rest_hours: configData.min_rest_hours ?? DEFAULT_CONFIG.min_rest_hours,
+          max_consecutive_days: configData.max_consecutive_days ?? DEFAULT_CONFIG.max_consecutive_days,
+          max_weekly_hours: configData.max_weekly_hours ?? DEFAULT_CONFIG.max_weekly_hours,
+          min_staff_per_shift: configData.min_staff_per_shift ?? DEFAULT_CONFIG.min_staff_per_shift,
+          max_staff_per_shift: configData.max_staff_per_shift ?? DEFAULT_CONFIG.max_staff_per_shift,
+          require_manager_per_shift: configData.require_manager_per_shift ?? DEFAULT_CONFIG.require_manager_per_shift,
+          shift_role_requirements: (configData.shift_role_requirements as Record<string, ScheduleTypes.ShiftRoleRequirement>) ?? DEFAULT_CONFIG.shift_role_requirements,
+          allow_overtime: configData.allow_overtime ?? DEFAULT_CONFIG.allow_overtime,
+          weekend_restrictions: configData.weekend_restrictions ?? DEFAULT_CONFIG.weekend_restrictions
+        }
+        setConfig(mergedConfig)
+        setOriginalConfig(mergedConfig)
+        setConfigExists(true)
+      } else {
+        // No config exists yet, use defaults
+        setConfig(DEFAULT_CONFIG)
+        setOriginalConfig(DEFAULT_CONFIG)
+        setConfigExists(false)
+      }
+      setHasChanges(false)
+    } catch (error) {
+      console.error('Failed to load config:', error)
+      toast.error(t('schedule.failedLoadConfiguration'))
+      // Fallback to defaults on error
+      setConfig(DEFAULT_CONFIG)
+      setOriginalConfig(DEFAULT_CONFIG)
+      setConfigExists(false)
+    } finally {
+      setLoading(false)
+    }
+  }, [facility.id, t])
+
   // Load existing config when modal opens
   useEffect(() => {
     if (open && facility) {
       loadConfig()
     }
-  }, [open, facility])
-
-  const loadConfig = async () => {
-    setLoading(true)
-    try {
-      // In a real implementation, load from API
-      // const configData = await apiClient.getScheduleConfig(facility.id)
-      // For demo, use default config
-      setConfig(DEFAULT_CONFIG)
-      setOriginalConfig(DEFAULT_CONFIG)
-      setHasChanges(false)
-    } catch (error) {
-      console.error('Failed to load config:', error)
-      toast.error(t('schedule.failedLoadConfiguration'))
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [open, facility, loadConfig])
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      // In a real implementation, save to API
-      // await apiClient.saveScheduleConfig(facility.id, config)
+      if (configExists) {
+        // Update existing configuration
+        await apiClient.updateScheduleConfig(facility.id, {
+          min_rest_hours: config.min_rest_hours,
+          max_consecutive_days: config.max_consecutive_days,
+          max_weekly_hours: config.max_weekly_hours,
+          min_staff_per_shift: config.min_staff_per_shift,
+          max_staff_per_shift: config.max_staff_per_shift,
+          require_manager_per_shift: config.require_manager_per_shift,
+          shift_role_requirements: config.shift_role_requirements,
+          allow_overtime: config.allow_overtime,
+          weekend_restrictions: config.weekend_restrictions
+        })
+      } else {
+        // Create new configuration
+        await apiClient.createScheduleConfig({
+          facility_id: facility.id,
+          min_rest_hours: config.min_rest_hours,
+          max_consecutive_days: config.max_consecutive_days,
+          max_weekly_hours: config.max_weekly_hours,
+          min_staff_per_shift: config.min_staff_per_shift,
+          max_staff_per_shift: config.max_staff_per_shift,
+          require_manager_per_shift: config.require_manager_per_shift,
+          shift_role_requirements: config.shift_role_requirements,
+          allow_overtime: config.allow_overtime,
+          weekend_restrictions: config.weekend_restrictions
+        })
+        // Mark that config now exists in the database
+        setConfigExists(true)
+      }
+
       toast.success(t('schedule.configurationSavedSuccessfully'))
       setOriginalConfig(config)
       setHasChanges(false)
@@ -115,17 +169,18 @@ export function ScheduleConfigModal({
     setHasChanges(JSON.stringify(DEFAULT_CONFIG) !== JSON.stringify(originalConfig))
   }
 
-  const updateConfig = (updates: Partial<typeof config>) => {
+  const updateConfig = (updates: Partial<ScheduleTypes.ScheduleConfig>) => {
     const newConfig = { ...config, ...updates }
     setConfig(newConfig)
     setHasChanges(JSON.stringify(newConfig) !== JSON.stringify(originalConfig))
   }
 
   const updateShiftRequirement = (shiftId: string, field: keyof ScheduleTypes.ShiftRoleRequirement, value: string[] | number) => {
+    const currentRequirement = config.shift_role_requirements[shiftId] || { required_roles: [], min_skill_level: 1 }
     const newShiftRequirements = {
       ...config.shift_role_requirements,
       [shiftId]: {
-        ...config.shift_role_requirements[shiftId],
+        ...currentRequirement,
         [field]: value
       }
     }
