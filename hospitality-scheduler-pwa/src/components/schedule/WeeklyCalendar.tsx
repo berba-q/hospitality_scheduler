@@ -9,44 +9,21 @@ import { toast } from 'sonner'
 import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
 import { ArrowLeftRight } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
-
-interface Assignment {
-  id: string
-  day: number
-  shift: number
-  staff_id: string
-}
-
-interface Staff {
-  id: string
-  full_name: string
-  role: string
-  skill_level: number
-  is_active: boolean
-  email?: string
-}
-
-interface Shift {
-  id: number
-  name: string
-  time: string
-  color: string
-  shift_index?: number   
-  start_time?: string
-  end_time?: string   
-}
+import * as ScheduleTypes from '@/types/schedule'
+import * as SwapTypes from '@/types/swaps'
+import * as FacilityTypes from '@/types/facility'
 
 interface WeeklyCalendarProps {
   currentWeek: Date
-  schedule: { assignments: Assignment[] } | null
-  staff: Staff[]
-  shifts: Shift[]
+  schedule: ScheduleTypes.Schedule | null
+  staff: ScheduleTypes.Staff[]
+  shifts: FacilityTypes.FacilityShift[]
   days: string[]
   isManager: boolean
-  draggedStaff: Staff | null
+  draggedStaff: ScheduleTypes.Staff | null
   onAssignmentChange: (day: number, shift: number, staffId: string) => void
   onRemoveAssignment: (assignmentId: string) => void
-  swapRequests?: any[]
+  swapRequests?: SwapTypes.SwapRequest[]
   onSwapRequest?: (day: number, shift: number, staffId: string) => void
   highlightStaffId?: string
   showMineOnly?: boolean
@@ -191,12 +168,12 @@ export function WeeklyCalendar({
               <div key={`shift-${shift.id}`} className="grid grid-cols-8 border-b border-gray-100">
                 {/* Shift Header */}
                 <div className={`p-4 border-r border-gray-200 ${shift.color} border-l-4`}>
-                  <div className="font-medium">{shift.name}</div>
-                  <div className="text-xs opacity-75">{shift.time}</div>
+                  <div className="font-medium">{shift.shift_name || shift.name}</div>
+                  <div className="text-xs opacity-75">{shift.start_time} - {shift.end_time}</div>
                 </div>
 
                 {/* Day Cells */}
-                {days.map((day, dayIndex) => {
+                {days.map((_day, dayIndex) => {
                   const shiftIndex = shift.shift_index ?? shiftIdx
                   const assignments = getAssignments(dayIndex, shiftIndex)
                   const isSelected = selectedCell?.day === dayIndex && selectedCell?.shift === shiftIndex

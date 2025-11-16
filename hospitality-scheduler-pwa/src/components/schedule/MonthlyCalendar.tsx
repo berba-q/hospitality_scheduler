@@ -5,14 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as ScheduleTypes from '@/types/schedule'
+import * as SwapTypes from '@/types/swaps'
 
 interface MonthlyCalendarProps {
   currentMonth: Date
-  schedules: any[]
-  staff: any[]
+  schedules: ScheduleTypes.Schedule[]
+  staff: ScheduleTypes.Staff[]
   isManager: boolean
   onDayClick: (date: Date) => void
-  swapRequests?: any[]
+  swapRequests?: SwapTypes.SwapRequest[]
 }
 
 export function MonthlyCalendar({
@@ -42,8 +44,14 @@ export function MonthlyCalendar({
   const daysInMonth = lastDayOfMonth.getDate()
 
   // Generate calendar days including padding days from previous/next month
-  const calendarDays = []
-  
+  interface CalendarDay {
+    date: Date
+    isCurrentMonth: boolean
+    isPrevMonth: boolean
+  }
+
+  const calendarDays: CalendarDay[] = []
+
   // Previous month padding days
   const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 0)
   for (let i = firstDayOfWeek - 1; i >= 0; i--) {
@@ -105,7 +113,7 @@ export function MonthlyCalendar({
   }
 
   // Helper function to check for swaps
-  const hasSwapsOnDate = (date: Date, swapRequests: any[] = []) => {
+  const hasSwapsOnDate = (date: Date, swapRequests: SwapTypes.SwapRequest[] = []) => {
     return swapRequests.some(swap => {
       // Check if this date matches any swap activity
       const schedule = getDateSchedule(date)

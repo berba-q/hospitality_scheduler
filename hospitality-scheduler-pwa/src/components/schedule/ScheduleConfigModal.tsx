@@ -19,11 +19,13 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as FacilityTypes from '@/types/facility'
+import * as ScheduleTypes from '@/types/schedule'
 
 interface ScheduleConfigModalProps {
   open: boolean
   onClose: () => void
-  facility: any
+  facility: FacilityTypes.Facility
 }
 
 const DEFAULT_CONFIG = {
@@ -119,7 +121,7 @@ export function ScheduleConfigModal({
     setHasChanges(JSON.stringify(newConfig) !== JSON.stringify(originalConfig))
   }
 
-  const updateShiftRequirement = (shiftId: string, field: string, value: any) => {
+  const updateShiftRequirement = (shiftId: string, field: keyof ScheduleTypes.ShiftRoleRequirement, value: string[] | number) => {
     const newShiftRequirements = {
       ...config.shift_role_requirements,
       [shiftId]: {

@@ -11,18 +11,21 @@ import { toast } from 'sonner'
 import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
 import { ArrowLeftRight } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as ScheduleTypes from '@/types/schedule'
+import * as SwapTypes from '@/types/swaps'
+import * as FacilityTypes from '@/types/facility'
 
 interface DailyCalendarProps {
   currentDate: Date
-  schedule: any
-  staff: any[]
-  shifts: any[]
+  schedule: ScheduleTypes.Schedule | null
+  staff: ScheduleTypes.Staff[]
+  shifts: FacilityTypes.FacilityShift[]
   isManager: boolean
-  draggedStaff: any
+  draggedStaff: ScheduleTypes.Staff | null
   onAssignmentChange: (shift: number, staffId: string) => void
   onRemoveAssignment: (assignmentId: string) => void
-  getShiftAssignments?: (shift: number) => any[]
-  swapRequests?: any[]
+  getShiftAssignments?: (shift: number) => ScheduleTypes.ScheduleAssignment[]
+  swapRequests?: SwapTypes.SwapRequest[]
   onSwapRequest?: (day: number, shift: number, staffId: string) => void
 }
 
@@ -35,7 +38,6 @@ export function DailyCalendar({
   draggedStaff,
   onAssignmentChange,
   onRemoveAssignment,
-  getShiftAssignments: customGetShiftAssignments,
   swapRequests = [],
   onSwapRequest
 }: DailyCalendarProps) {
@@ -165,10 +167,8 @@ export function DailyCalendar({
         ...shift,
         assignments: dayAssignments.filter(a => {
           // Check multiple possible shift identifiers
-          return a.shift === shift.id || 
-                 a.shift === shift.shift_index || 
-                 a.shift_id === shift.id ||
-                 a.shift_index === shift.shift_index
+          return a.shift === Number(shift.shift_index) ||
+                 (shift.shift_index !== undefined && a.shift_index === shift.shift_index)
         }).length
       }))
     }
@@ -207,39 +207,39 @@ export function DailyCalendar({
         <div className="p-6">
           {/* Shift Cards */}
           <div className="space-y-4">
-            {shifts.map((shift, index) => {
-              // Try multiple possible shift identifiers
-              const shiftId = shift.id || shift.shift_index || shift.shift_id
-              const assignments = getShiftAssignments(shift.shift_index)
-              const isSelected = selectedShift === shiftId
-              
-              console.log(`Rendering shift ${shift.name}:`, {
+            {shifts.map((shift) => {
+              // Use shift_index as the primary identifier, fallback to shift_order
+              const shiftIndex = shift.shift_index ?? shift.shift_order
+              const assignments = getShiftAssignments(shiftIndex)
+              const isSelected = selectedShift === shiftIndex
+
+              console.log(`Rendering shift ${shift.shift_name || shift.name}:`, {
                 shift,
-                shiftId,
+                shiftIndex,
                 assignments_count: assignments.length,
                 assignments
               })
               
               return (
                 <Card
-                  key={`shift-${shiftId}`}
+                  key={`shift-${shiftIndex}`}
                   className={`transition-all duration-200 ${
                     isManager ? 'cursor-pointer hover:shadow-md' : ''
                   } ${isSelected ? 'ring-2 ring-blue-300' : ''} ${
                     draggedStaff ? 'hover:bg-green-50 border-green-200' : ''
                   }`}
-                  onClick={() => isManager && setSelectedShift(isSelected ? null : shiftId)}
-                  onDrop={(e) => handleDrop(e, shiftId)}
+                  onClick={() => isManager && setSelectedShift(isSelected ? null : shiftIndex)}
+                  onDrop={(e) => handleDrop(e, shiftIndex)}
                   onDragOver={handleDragOver}
                 >
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div 
+                        <div
                           className={`w-3 h-3 rounded-full`}
                           style={{ backgroundColor: shift.color || '#3B82F6' }}
                         />
-                        <span className="font-medium">{shift.name}</span>
+                        <span className="font-medium">{shift.shift_name || shift.name}</span>
                         <span className="text-sm text-gray-500">
                           {shift.start_time} - {shift.end_time}
                         </span>
@@ -297,17 +297,13 @@ export function DailyCalendar({
                               </div>
 
                               <div className="flex items-center gap-2">
-                                {swapRequests?.some(swap => 
-                                  swap.original_day === calculateDayIndex() && 
-                                  swap.original_shift === shiftId &&
-                                  swap.requester_id === staffMember.id
-                                ) && (
-                                  <SwapStatusIndicator 
-                                    status={swapRequests.find(swap => 
-                                      swap.original_day === calculateDayIndex() && 
-                                      swap.original_shift === shiftId &&
-                                      swap.requester_id === staffMember.id
-                                    )?.status}
+                                {swapRequests && swapRequests.length > 0 && (
+                                  <SwapStatusIndicator
+                                    swapRequests={swapRequests}
+                                    day={calculateDayIndex()}
+                                    shift={shiftIndex}
+                                    staffId={staffMember.id}
+                                    size="sm"
                                   />
                                 )}
 
@@ -317,7 +313,7 @@ export function DailyCalendar({
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      onSwapRequest(calculateDayIndex(), shiftId, staffMember.id)
+                                      onSwapRequest(calculateDayIndex(), shiftIndex, staffMember.id)
                                     }}
                                   >
                                     <ArrowLeftRight className="w-4 h-4" />

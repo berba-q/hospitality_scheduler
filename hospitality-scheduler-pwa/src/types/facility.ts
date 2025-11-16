@@ -7,6 +7,8 @@ export interface FacilityShift {
   id: string
   facility_id: string
   shift_name: string
+  name?: string // Alias for shift_name for compatibility
+  shift_index?: number // Index position (0, 1, 2) for the shift
   start_time: string // "07:00" format
   end_time: string   // "15:00" format
   requires_manager: boolean

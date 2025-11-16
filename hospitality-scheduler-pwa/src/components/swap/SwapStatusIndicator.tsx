@@ -4,36 +4,18 @@
 import React from 'react'
 import { Badge } from '@/components/ui/badge'
 import { useTranslations } from '@/hooks/useTranslations'
-import { 
-  ArrowLeftRight, 
-  Clock, 
-  AlertTriangle, 
+import {
+  ArrowLeftRight,
+  Clock,
+  AlertTriangle,
   CheckCircle,
   XCircle,
   Zap
 } from 'lucide-react'
-
-// Define proper types first
-type UrgencyLevel = 'low' | 'normal' | 'high' | 'emergency'
-type SwapStatus = 'pending' | 'approved' | 'declined' | 'completed' | 'cancelled'
-
-interface SwapRequest {
-  id: string
-  requesting_staff?: { id: string; full_name: string }
-  target_staff?: { id: string; full_name: string }
-  assigned_staff?: { id: string; full_name: string }
-  original_day: number
-  original_shift: number
-  target_day?: number
-  target_shift?: number
-  swap_type: 'specific' | 'auto'
-  urgency: UrgencyLevel
-  status: SwapStatus
-  reason: string
-}
+import * as SwapTypes from '@/types/swaps'
 
 interface SwapStatusIndicatorProps {
-  swapRequests: SwapRequest[]
+  swapRequests: SwapTypes.SwapRequest[]
   day: number
   shift: number
   staffId: string
@@ -76,86 +58,90 @@ export function SwapStatusIndicator({
 
   if (affectingSwaps.length === 0) return null
 
-  // Get the most relevant swap (highest priority) - FIX THE TYPE ERROR HERE
+  // Get the most relevant swap (highest priority)
   const relevantSwap = affectingSwaps.reduce((prev, current) => {
     // Define urgency order with proper typing
-    const urgencyOrder: Record<UrgencyLevel, number> = { 
-      emergency: 4, 
-      high: 3, 
-      normal: 2, 
-      low: 1 
+    const urgencyOrder: Record<SwapTypes.SwapUrgency, number> = {
+      [SwapTypes.SwapUrgency.Emergency]: 4,
+      [SwapTypes.SwapUrgency.High]: 3,
+      [SwapTypes.SwapUrgency.Normal]: 2,
+      [SwapTypes.SwapUrgency.Low]: 1
     }
-    
+
     const prevUrgency = urgencyOrder[prev.urgency] || 0
     const currentUrgency = urgencyOrder[current.urgency] || 0
-    
+
     if (currentUrgency > prevUrgency) return current
     if (currentUrgency < prevUrgency) return prev
-    
+
     // Same urgency, prefer pending over other statuses
-    if (current.status === 'pending' && prev.status !== 'pending') return current
-    if (prev.status === 'pending' && current.status !== 'pending') return prev
-    
+    if (current.status === SwapTypes.SwapStatus.Pending && prev.status !== SwapTypes.SwapStatus.Pending) return current
+    if (prev.status === SwapTypes.SwapStatus.Pending && current.status !== SwapTypes.SwapStatus.Pending) return prev
+
     return prev
   })
 
-  const getStatusConfig = (swap: SwapRequest) => {
-    if (swap.status === 'completed') {
-      return { 
-        color: 'bg-green-100 text-green-800 border-green-200', 
-        icon: CheckCircle, 
+  const getStatusConfig = (swap: SwapTypes.SwapRequest) => {
+    if (swap.status === SwapTypes.SwapStatus.Executed) {
+      return {
+        color: 'bg-green-100 text-green-800 border-green-200',
+        icon: CheckCircle,
         label: t('swaps.swapped')
       }
     }
-    
-    if (swap.status === 'declined' || swap.status === 'cancelled') {
-      return { 
-        color: 'bg-red-100 text-red-800 border-red-200', 
-        icon: XCircle, 
+
+    if (swap.status === SwapTypes.SwapStatus.Declined ||
+        swap.status === SwapTypes.SwapStatus.Cancelled ||
+        swap.status === SwapTypes.SwapStatus.StaffDeclined ||
+        swap.status === SwapTypes.SwapStatus.AssignmentDeclined) {
+      return {
+        color: 'bg-red-100 text-red-800 border-red-200',
+        icon: XCircle,
         label: t('common.declined')
       }
     }
-    
-    if (swap.status === 'pending') {
-      if (swap.urgency === 'emergency') {
-        return { 
-          color: 'bg-red-100 text-red-800 border-red-300', 
-          icon: AlertTriangle, 
+
+    if (swap.status === SwapTypes.SwapStatus.Pending) {
+      if (swap.urgency === SwapTypes.SwapUrgency.Emergency) {
+        return {
+          color: 'bg-red-100 text-red-800 border-red-300',
+          icon: AlertTriangle,
           label: t('swaps.emergencySwap')
         }
       }
-      if (swap.urgency === 'high') {
-        return { 
-          color: 'bg-orange-100 text-orange-800 border-orange-300', 
-          icon: AlertTriangle, 
+      if (swap.urgency === SwapTypes.SwapUrgency.High) {
+        return {
+          color: 'bg-orange-100 text-orange-800 border-orange-300',
+          icon: AlertTriangle,
           label: t('swaps.urgentSwap')
         }
       }
       if (swap.swap_type === 'auto') {
-        return { 
-          color: 'bg-purple-100 text-purple-800 border-purple-200', 
-          icon: Zap, 
+        return {
+          color: 'bg-purple-100 text-purple-800 border-purple-200',
+          icon: Zap,
           label: t('swaps.autoSwap')
         }
       }
-      return { 
-        color: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
-        icon: ArrowLeftRight, 
+      return {
+        color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        icon: ArrowLeftRight,
         label: t('swaps.swapPending')
       }
     }
-    
-    if (swap.status === 'approved') {
-      return { 
-        color: 'bg-blue-100 text-blue-800 border-blue-200', 
-        icon: CheckCircle, 
+
+    if (swap.status === SwapTypes.SwapStatus.ManagerApproved ||
+        swap.status === SwapTypes.SwapStatus.StaffAccepted) {
+      return {
+        color: 'bg-blue-100 text-blue-800 border-blue-200',
+        icon: CheckCircle,
         label: t('common.approved')
       }
     }
-    
-    return { 
-      color: 'bg-gray-100 text-gray-800 border-gray-200', 
-      icon: Clock, 
+
+    return {
+      color: 'bg-gray-100 text-gray-800 border-gray-200',
+      icon: Clock,
       label: t('swaps.swapRequest')
     }
   }
