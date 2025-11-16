@@ -1,6 +1,6 @@
 'use client'
 // smart schedule generation modal component
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -68,14 +68,7 @@ export function SmartGenerateModal({
   const [zoneAssignments, setZoneAssignments] = useState<Record<string, ScheduleTypes.ZoneAssignment>>({})
   const [roleMapping, setRoleMapping] = useState<Record<string, string[]>>({})
 
-  // Initialize zone assignments and role mapping
-  useEffect(() => {
-    if (zones.length > 0 && staff.length > 0) {
-      initializeAssignments()
-    }
-  }, [zones, staff, selectedZones])
-
-  const initializeAssignments = () => {
+  const initializeAssignments = useCallback(() => {
     // Auto-assign staff to zones based on their roles
     const newZoneAssignments: Record<string, ScheduleTypes.ZoneAssignment> = {}
     const newRoleMapping: Record<string, string[]> = {}
@@ -109,7 +102,15 @@ export function SmartGenerateModal({
 
     setZoneAssignments(newZoneAssignments)
     setRoleMapping(newRoleMapping)
-  }
+  }, [zones, selectedZones]) 
+
+  // Initialize zone assignments and role mapping
+  useEffect(() => {
+    if (zones.length > 0 && staff.length > 0) {
+      initializeAssignments()
+    }
+  }, [zones, staff, selectedZones, initializeAssignments])
+
 
   const getZoneRequiredStaff = (zone: FacilityTypes.FacilityZone) => {
     // Use zone's configured staff requirements or smart defaults based on zone type
