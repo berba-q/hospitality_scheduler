@@ -7,11 +7,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { 
-  Trash2, 
-  Calendar, 
-  Users, 
-  Clock, 
+import {
+  Trash2,
+  Calendar,
+  Users,
+  Clock,
   AlertTriangle,
   CheckCircle,
   Eye,
@@ -20,13 +20,16 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as ScheduleTypes from '@/types/schedule'
+
+type ScheduleStatusKey = 'empty' | 'partial' | 'complete'
 
 interface ScheduleListModalProps {
   open: boolean
   onClose: () => void
-  schedules: any[]
-  currentSchedule: any | null
-  onScheduleSelect: (schedule: any) => void
+  schedules: ScheduleTypes.Schedule[]
+  currentSchedule: ScheduleTypes.Schedule | null
+  onScheduleSelect: (schedule: ScheduleTypes.Schedule) => void
   onScheduleDelete: (scheduleId: string) => void
   isManager: boolean
 }
@@ -43,7 +46,7 @@ export function ScheduleListModal({
   const { t } = useTranslations()
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'empty' | 'partial' | 'complete'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | ScheduleStatusKey>('all')
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -62,44 +65,44 @@ export function ScheduleListModal({
     return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
   }
 
-  const getScheduleStatus = (schedule: any) => {
+  const getScheduleStatus = (schedule: ScheduleTypes.Schedule) => {
     const assignmentCount = schedule.assignments?.length || 0
-    
+
     if (assignmentCount === 0) {
-      return { 
-        label: t('schedule.empty'), 
-        color: 'bg-gray-100 text-gray-600 border-gray-200', 
+      return {
+        label: t('schedule.empty'),
+        color: 'bg-gray-100 text-gray-600 border-gray-200',
         icon: AlertTriangle,
-        key: 'empty'
+        key: 'empty' as const
       }
     } else if (assignmentCount < 10) {
-      return { 
-        label: t('schedule.partial'), 
-        color: 'bg-yellow-100 text-yellow-700 border-yellow-200', 
+      return {
+        label: t('schedule.partial'),
+        color: 'bg-yellow-100 text-yellow-700 border-yellow-200',
         icon: Clock,
-        key: 'partial'
+        key: 'partial' as const
       }
     } else {
-      return { 
-        label: t('schedule.complete'), 
-        color: 'bg-green-100 text-green-700 border-green-200', 
+      return {
+        label: t('schedule.complete'),
+        color: 'bg-green-100 text-green-700 border-green-200',
         icon: CheckCircle,
-        key: 'complete'
+        key: 'complete' as const
       }
     }
   }
 
-  const handleDeleteClick = (schedule: any) => {
+  const handleDeleteClick = (schedule: ScheduleTypes.Schedule) => {
     const assignmentCount = schedule.assignments?.length || 0
     const weekDate = formatDate(schedule.week_start)
-    
+
     const confirmed = window.confirm(
-      t('schedule.deleteScheduleConfirmation', { 
-        weekDate, 
-        assignmentCount 
+      t('schedule.deleteScheduleConfirmation', {
+        weekDate,
+        assignmentCount
       })
     )
-    
+
     if (confirmed) {
       handleDelete(schedule.id)
     }
@@ -118,12 +121,12 @@ export function ScheduleListModal({
     }
   }
 
-  const handleScheduleClick = (schedule: any) => {
+  const handleScheduleClick = (schedule: ScheduleTypes.Schedule) => {
     onScheduleSelect(schedule)
     onClose() // Close modal after selection
   }
 
-  const isCurrentSchedule = (schedule: any) => {
+  const isCurrentSchedule = (schedule: ScheduleTypes.Schedule) => {
     return currentSchedule?.id === schedule.id
   }
 
@@ -173,7 +176,7 @@ export function ScheduleListModal({
             <Filter className="w-4 h-4 text-gray-500" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | ScheduleStatusKey)}
               className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm"
             >
               <option value="all">{t('schedule.allStatus')}</option>
