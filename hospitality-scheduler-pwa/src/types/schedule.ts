@@ -15,6 +15,25 @@ export interface Staff {
   updated_at?: string;
 }
 
+// Input type for creating staff
+export interface CreateStaffInput {
+  full_name: string
+  email?: string
+  role: string
+  skill_level?: number
+  phone?: string
+  facility_id: string
+  weekly_hours_max?: number
+  is_active?: boolean
+  force_create?: boolean
+  skip_duplicate_check?: boolean
+}
+
+// Staff data returned when creating a new staff member
+export interface NewStaffResponse extends Staff {
+  facility_name?: string
+}
+
 // Assignment for schedules
 export interface ScheduleAssignment {
   id?: string;

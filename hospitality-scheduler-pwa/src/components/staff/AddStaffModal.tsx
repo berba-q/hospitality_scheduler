@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import * as React from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,12 +11,21 @@ import { Star, User, MapPin, Phone, Clock, Mail } from 'lucide-react'
 import { useApiClient } from '@/hooks/useApi'
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
+import * as FacilityTypes from '@/types/facility'
+import * as ScheduleTypes from '@/types/schedule'
+
+interface StaffInvitationData {
+  id: string
+  full_name: string
+  email?: string
+  facility_name?: string
+}
 
 interface AddStaffModalProps {
   open: boolean
   onClose: () => void
-  facilities: any[]
-  onSuccess: (newStaff?: { id: string; full_name: string; email?: string; facility_name?: string }) => void
+  facilities: FacilityTypes.Facility[]
+  onSuccess: (newStaff?: StaffInvitationData) => void
 }
 
 const COMMON_ROLES = [
@@ -28,7 +38,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
   const apiClient = useApiClient()
   const { t } = useTranslations()
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ScheduleTypes.CreateStaffInput>({
     full_name: '',
     email: '',
     role: '',
@@ -40,14 +50,19 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.full_name || !formData.role || !formData.facility_id) {
       toast.error(t('staff.fillRequiredFields'))
       return
     }
 
+    if (!apiClient) {
+      toast.error('API client not available')
+      return
+    }
+
     setLoading(true)
-    
+
     try {
       // Check for duplicate staff member
       const duplicateCheck = await apiClient.checkStaffExists(formData.full_name, formData.facility_id)
@@ -58,16 +73,16 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
       const newStaff = await apiClient.createStaff(formData)
       toast.success(t('staff.staffAddedSuccessfully', { name: formData.full_name }))
       // Pass the newly created staff data back
-      const staffForInvitation = newStaff.email ? {
+      const staffForInvitation: StaffInvitationData | undefined = newStaff.email ? {
         id: newStaff.id,
         full_name: newStaff.full_name,
         email: newStaff.email,
         facility_name: facilities.find(f => f.id === formData.facility_id)?.name || 'Unknown'
       } : undefined
-      
+
       onSuccess(staffForInvitation)
       onClose()
-      
+
       // Reset form
       setFormData({
         full_name: '',
@@ -78,8 +93,9 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
         facility_id: '',
         weekly_hours_max: 40
       })
-    } catch (error: any) {
-      if (error.message.includes('409') || error.message.includes('duplicate')) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (errorMessage.includes('409') || errorMessage.includes('duplicate')) {
         toast.error(t('staff.staffWithInfoAlreadyExists'))
       } else {
         toast.error(t('staff.failedAddStaff'))
@@ -105,32 +121,35 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
     return skillLevels[level as keyof typeof skillLevels] || t('staff.skillIntermediate')
   }
 
-  const renderSkillLevel = () => (
-    <div className="space-y-3">
-      <Label>{t('staff.skillLevel')}</Label>
-      <div className="flex items-center gap-2">
-        {[1, 2, 3, 4, 5].map((level) => (
-          <button
-            key={level}
-            type="button"
-            onClick={() => setFormData(prev => ({ ...prev, skill_level: level }))}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <Star 
-              className={`w-6 h-6 ${
-                level <= formData.skill_level 
-                  ? 'text-yellow-400 fill-current' 
-                  : 'text-gray-300'
-              }`} 
-            />
-          </button>
-        ))}
-        <span className="ml-2 text-sm text-gray-600">
-          {t('staff.levelNumber', { level: formData.skill_level })} - {getSkillLevelName(formData.skill_level)}
-        </span>
+  const renderSkillLevel = () => {
+    const currentSkillLevel = formData.skill_level ?? 3
+    return (
+      <div className="space-y-3">
+        <Label>{t('staff.skillLevel')}</Label>
+        <div className="flex items-center gap-2">
+          {[1, 2, 3, 4, 5].map((level) => (
+            <button
+              key={level}
+              type="button"
+              onClick={() => setFormData((prev: ScheduleTypes.CreateStaffInput) => ({ ...prev, skill_level: level }))}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <Star
+                className={`w-6 h-6 ${
+                  level <= currentSkillLevel
+                    ? 'text-yellow-400 fill-current'
+                    : 'text-gray-300'
+                }`}
+              />
+            </button>
+          ))}
+          <span className="ml-2 text-sm text-gray-600">
+            {t('staff.levelNumber', { level: currentSkillLevel })} - {getSkillLevelName(currentSkillLevel)}
+          </span>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -158,7 +177,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
                 <Input
                   id="full_name"
                   value={formData.full_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                  onChange={(e) => setFormData((prev: ScheduleTypes.CreateStaffInput) => ({ ...prev, full_name: e.target.value }))}
                   placeholder={t('staff.fullNamePlaceholder')}
                   className="bg-white"
                   required
@@ -172,8 +191,8 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
                   <Input
                     id="email"
                     type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    value={formData.email ?? ''}
+                    onChange={(e) => setFormData((prev: ScheduleTypes.CreateStaffInput) => ({ ...prev, email: e.target.value }))}
                     placeholder={t('staff.emailPlaceholder')}
                     className="pl-10 bg-white"
                   />
@@ -186,8 +205,8 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
                     id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    value={formData.phone ?? ''}
+                    onChange={(e) => setFormData((prev: ScheduleTypes.CreateStaffInput) => ({ ...prev, phone: e.target.value }))}
                     placeholder={t('staff.phonePlaceholder')}
                     className="pl-10 bg-white"
                   />
@@ -223,7 +242,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
               <div className="flex gap-2 mt-2">
                 <Input
                   value={formData.role}
-                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
+                  onChange={(e) => setFormData((prev: ScheduleTypes.CreateStaffInput) => ({ ...prev, role: e.target.value }))}
                   placeholder={t('staff.customRolePlaceholder')}
                   className="bg-white"
                 />
@@ -246,7 +265,7 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
                 <select
                   id="facility_id"
                   value={formData.facility_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, facility_id: e.target.value }))}
+                  onChange={(e) => setFormData((prev: ScheduleTypes.CreateStaffInput) => ({ ...prev, facility_id: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
                   required
                 >
@@ -268,8 +287,8 @@ export function AddStaffModal({ open, onClose, facilities, onSuccess }: AddStaff
                     type="number"
                     min="1"
                     max="80"
-                    value={formData.weekly_hours_max}
-                    onChange={(e) => setFormData(prev => ({ ...prev, weekly_hours_max: parseInt(e.target.value) }))}
+                    value={formData.weekly_hours_max ?? 40}
+                    onChange={(e) => setFormData((prev: ScheduleTypes.CreateStaffInput) => ({ ...prev, weekly_hours_max: parseInt(e.target.value) || 40 }))}
                     className="pl-10 bg-white"
                   />
                 </div>
