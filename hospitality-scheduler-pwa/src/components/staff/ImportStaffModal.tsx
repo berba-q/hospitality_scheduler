@@ -13,11 +13,13 @@ import { useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 import React from 'react'
+import * as ApiTypes from '@/types/api'
+import * as FacilityTypes from '@/types/facility'
 
 interface ImportStaffModalProps {
   open: boolean
   onClose: () => void
-  facilities: any[]
+  facilities: FacilityTypes.Facility[]
   onImport: (validStaff: ParsedStaffMember[]) => Promise<void>
   initialFile?: File | null
 }
@@ -34,12 +36,26 @@ interface ParsedStaffMember {
   is_active?: boolean
   valid: boolean
   errors: string[]
-  // NEW: Duplicate checking fields
-  duplicateInfo?: any
+  // Duplicate checking fields
+  duplicateInfo?: ApiTypes.ValidationResult['duplicates']
   hasDuplicates?: boolean
   duplicateSeverity?: 'none' | 'warning' | 'error'
   canImport?: boolean
   forceCreate?: boolean
+}
+
+// Enhanced column mappings with more variants - defined outside component as constant
+type FieldName = 'full_name' | 'email' | 'role' | 'phone' | 'facility' | 'skill_level' | 'weekly_hours_max' | 'status'
+
+const COLUMN_MAPPINGS: Record<FieldName, string[]> = {
+  full_name: ['Name', 'Full Name', 'name', 'full_name', 'Nome', 'Nome Completo', 'Nom', 'Nombre'],
+  email: ['Email', 'email', 'Email Address', 'E-mail', 'E-Mail', 'Mail'],
+  role: ['Role', 'Position', 'role', 'position', 'Ruolo', 'Posizione', 'Rôle', 'Rol'],
+  phone: ['Phone', 'phone', 'Phone Number', 'Telefono', 'Cellulare', 'Numero', 'Téléphone'],
+  facility: ['Facility', 'facility', 'Location', 'Struttura', 'Posto', 'Sede', 'Établissement'],
+  skill_level: ['Skill Level', 'skill_level', 'Level', 'Skill', 'Livello', 'Competenza', 'Livello di Competenza'],
+  weekly_hours_max: ['Weekly Hours', 'weekly_hours_max', 'Hours', 'Max Hours', 'Ore settimanali', 'ore_settimanali', 'Ore Massime'],
+  status: ['Status', 'status', 'Active', 'active', 'Is Active', 'Stato', 'Attivo']
 }
 
 export function ImportStaffModal({ open, onClose, facilities, onImport, initialFile }: ImportStaffModalProps) {
@@ -50,7 +66,7 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
   const [originalColumnNames, setOriginalColumnNames] = useState<Record<string, string>>({})
   const [parsedData, setParsedData] = useState<ParsedStaffMember[]>([])
   const [file, setFile] = useState<File | null>(null)
-  
+
   // Duplicate checking state
   const [checkingDuplicates, setCheckingDuplicates] = useState(false)
   const [duplicatesChecked, setDuplicatesChecked] = useState(false)
@@ -58,53 +74,77 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
   const [showDuplicateDetails, setShowDuplicateDetails] = useState<Set<number>>(new Set())
   const [forceCreateAll, setForceCreateAll] = useState(false)
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const uploadedFile = acceptedFiles[0]
-    if (uploadedFile) {
-      setFile(uploadedFile)
-      parseExcelFile(uploadedFile)
-    }
-  }, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'text/csv': ['.csv']
-    },
-    maxFiles: 1
-  })
-
-  useEffect(() => {
-    if (open && initialFile && step === 'upload') {
-      setFile(initialFile)
-      parseExcelFile(initialFile)
-    }
-  }, [open, initialFile, step])
-
-  // Enhanced column mappings with more variants
-  const COLUMN_MAPPINGS = {
-    full_name: ['Name', 'Full Name', 'name', 'full_name', 'Nome', 'Nome Completo', 'Nom', 'Nombre'],
-    email: ['Email', 'email', 'Email Address', 'E-mail', 'E-Mail', 'Mail'],
-    role: ['Role', 'Position', 'role', 'position', 'Ruolo', 'Posizione', 'Rôle', 'Rol'],
-    phone: ['Phone', 'phone', 'Phone Number', 'Telefono', 'Cellulare', 'Numero', 'Téléphone'],
-    facility: ['Facility', 'facility', 'Location', 'Struttura', 'Posto', 'Sede', 'Établissement'],
-    skill_level: ['Skill Level', 'skill_level', 'Level', 'Skill', 'Livello', 'Competenza', 'Livello di Competenza'],
-    weekly_hours_max: ['Weekly Hours', 'weekly_hours_max', 'Hours', 'Max Hours', 'Ore settimanali', 'ore_settimanali', 'Ore Massime'],
-    status: ['Status', 'status', 'Active', 'active', 'Is Active', 'Stato', 'Attivo']
-  }
-
-  function mapColumnValue(row: any, fieldName: string): string {
+  const mapColumnValue = useCallback((row: Record<string, unknown>, fieldName: FieldName): string => {
     const possibleColumns = COLUMN_MAPPINGS[fieldName] || []
     for (const col of possibleColumns) {
       if (row[col] !== undefined && row[col] !== null) {
-        return row[col].toString().trim()
+        return String(row[col]).trim()
       }
     }
     return ''
-  }
+  }, [])
 
-  const parseExcelFile = async (file: File) => {
+  // Check all staff for duplicates
+  const checkForDuplicates = useCallback(async (staffList: ParsedStaffMember[]) => {
+    if (!staffList.length || !apiClient) return
+
+    setCheckingDuplicates(true)
+
+    try {
+      const updatedStaff = [...staffList]
+
+      for (let i = 0; i < updatedStaff.length; i++) {
+        const staff = updatedStaff[i]
+
+        if (!staff.valid || !staff.facility_id) continue
+
+        try {
+          const response = await apiClient.validateStaffBeforeCreate({
+            full_name: staff.full_name,
+            email: staff.email,
+            role: staff.role,
+            phone: staff.phone,
+            skill_level: staff.skill_level,
+            facility_id: staff.facility_id,
+            weekly_hours_max: staff.weekly_hours_max,
+            is_active: staff.is_active
+          })
+
+          if (response.duplicates?.has_any_duplicates) {
+            updatedStaff[i] = {
+              ...staff,
+              hasDuplicates: true,
+              duplicateInfo: response.duplicates,
+              duplicateSeverity: response.duplicates.severity,
+              canImport: response.can_create,
+              errors: response.duplicates.severity === 'error' && !forceCreateAll
+                ? [...staff.errors, t('staff.duplicateDetectedOverride')]
+                : staff.errors
+            }
+
+            // Remove from auto-selection if it's a blocking duplicate
+            if (response.duplicates.severity === 'error') {
+              setSelectedForImport(prev => {
+                const newSet = new Set(prev)
+                newSet.delete(i)
+                return newSet
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Error checking duplicates for:', staff.full_name, error)
+        }
+      }
+
+      setParsedData(updatedStaff)
+      setDuplicatesChecked(true)
+
+    } finally {
+      setCheckingDuplicates(false)
+    }
+  }, [apiClient, forceCreateAll, t])
+
+  const parseExcelFile = useCallback(async (file: File) => {
     try {
       const arrayBuffer = await file.arrayBuffer()
       const workbook = XLSX.read(arrayBuffer, { type: 'array' })
@@ -115,8 +155,8 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
       const detectedColumns = new Set<string>()
       const originalColumnNames: Record<string, string> = {}
 
-      const parsed = jsonData.map((row: any) => {
-        const trackColumn = (fieldName: string) => {
+      const parsed = (jsonData as Record<string, unknown>[]).map((row: Record<string, unknown>) => {
+        const trackColumn = (fieldName: FieldName) => {
           const possibleColumns = COLUMN_MAPPINGS[fieldName] || []
           for (const col of possibleColumns) {
             if (row[col] !== undefined) {
@@ -222,72 +262,36 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
       
       // Check for duplicates after parsing
       await checkForDuplicates(parsed)
-      
+
     } catch (error) {
       console.error('Failed to parse Excel file:', error)
       toast.error(t('common.error'))
     }
-  }
+  }, [checkForDuplicates, facilities, mapColumnValue, t])
 
-  // Check all staff for duplicates
-  const checkForDuplicates = async (staffList: ParsedStaffMember[]) => {
-    if (!staffList.length) return
-
-    setCheckingDuplicates(true)
-    
-    try {
-      const updatedStaff = [...staffList]
-      
-      for (let i = 0; i < updatedStaff.length; i++) {
-        const staff = updatedStaff[i]
-        
-        if (!staff.valid || !staff.facility_id) continue
-
-        try {
-          const response = await apiClient.validateStaffBeforeCreate({
-            full_name: staff.full_name,
-            email: staff.email,
-            role: staff.role,
-            phone: staff.phone,
-            skill_level: staff.skill_level,
-            facility_id: staff.facility_id,
-            weekly_hours_max: staff.weekly_hours_max,
-            is_active: staff.is_active
-          })
-
-          if (response.duplicates?.has_any_duplicates) {
-            updatedStaff[i] = {
-              ...staff,
-              hasDuplicates: true,
-              duplicateInfo: response.duplicates,
-              duplicateSeverity: response.duplicates.severity,
-              canImport: response.can_create,
-              errors: response.duplicates.severity === 'error' && !forceCreateAll 
-                ? [...staff.errors, t('staff.duplicateDetectedOverride')]
-                : staff.errors
-            }
-            
-            // Remove from auto-selection if it's a blocking duplicate
-            if (response.duplicates.severity === 'error') {
-              setSelectedForImport(prev => {
-                const newSet = new Set(prev)
-                newSet.delete(i)
-                return newSet
-              })
-            }
-          }
-        } catch (error) {
-          console.error('Error checking duplicates for:', staff.full_name, error)
-        }
-      }
-
-      setParsedData(updatedStaff)
-      setDuplicatesChecked(true)
-      
-    } finally {
-      setCheckingDuplicates(false)
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const uploadedFile = acceptedFiles[0]
+    if (uploadedFile) {
+      setFile(uploadedFile)
+      parseExcelFile(uploadedFile)
     }
-  }
+  }, [parseExcelFile])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'text/csv': ['.csv']
+    },
+    maxFiles: 1
+  })
+
+  useEffect(() => {
+    if (open && initialFile && step === 'upload') {
+      setFile(initialFile)
+      parseExcelFile(initialFile)
+    }
+  }, [open, initialFile, step, parseExcelFile])
 
   // Toggle selection of individual staff
   const toggleSelection = (index: number) => {
@@ -354,68 +358,74 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
     }
   }
 
-  const getColumns = () => {
-    const columns = []
-    
+  interface ColumnConfig {
+    key: string
+    label: string
+    width: string
+  }
+
+  const getColumns = (): ColumnConfig[] => {
+    const columns: ColumnConfig[] = []
+
     if (detectedColumns.has('full_name')) {
-      columns.push({ 
-        key: 'full_name', 
+      columns.push({
+        key: 'full_name',
         label: `${originalColumnNames['full_name']}`,
         width: 'min-w-[150px]'
       })
     }
 
     if (detectedColumns.has('role')) {
-      columns.push({ 
-        key: 'role', 
+      columns.push({
+        key: 'role',
         label: `${originalColumnNames['role']} `,
         width: 'w-32'
       })
     }
 
     if (detectedColumns.has('email')) {
-      columns.push({ 
-        key: 'email', 
+      columns.push({
+        key: 'email',
         label: `${originalColumnNames['email']} `,
         width: 'w-48'
       })
     }
 
     if (detectedColumns.has('phone')) {
-      columns.push({ 
-        key: 'phone', 
+      columns.push({
+        key: 'phone',
         label: `${originalColumnNames['phone']} `,
         width: 'w-32'
       })
     }
 
     if (detectedColumns.has('facility')) {
-      columns.push({ 
-        key: 'facility_name', 
+      columns.push({
+        key: 'facility_name',
         label: `${originalColumnNames['facility']} `,
         width: 'w-32'
       })
     }
 
     if (detectedColumns.has('skill_level')) {
-      columns.push({ 
-        key: 'skill_level', 
+      columns.push({
+        key: 'skill_level',
         label: `${originalColumnNames['skill_level']} `,
         width: 'w-20'
       })
     }
 
     if (detectedColumns.has('weekly_hours_max')) {
-      columns.push({ 
-        key: 'weekly_hours_max', 
+      columns.push({
+        key: 'weekly_hours_max',
         label: `${t('staff.hours')}`,
         width: 'w-20'
       })
     }
 
     if (detectedColumns.has('status')) {
-      columns.push({ 
-        key: 'is_active', 
+      columns.push({
+        key: 'is_active',
         label: `${t('common.Status')}`,
         width: 'w-20'
       })
@@ -522,11 +532,18 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
       <DialogContent size='2xl'>
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5" />
-              {t('common.previewImport')} - {parsedData.length} {t('common.records')}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5" />
+                {t('common.previewImport')} - {parsedData.length} {t('common.records')}
+              </div>
+              {file && (
+                <div className="text-sm text-gray-500 font-normal">
+                  {file.name}
+                </div>
+              )}
             </div>
-            
+
             {checkingDuplicates && (
               <div className="flex items-center gap-2 text-sm text-blue-600">
                 <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -719,11 +736,12 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
                               </td>
                             )
                           }
-                          
+
                           const value = staff[col.key as keyof ParsedStaffMember]
+                          const displayValue = value !== undefined && value !== null ? String(value) : '-'
                           return (
                             <td key={col.key} className="p-3">
-                              {value?.toString() || '-'}
+                              {displayValue}
                             </td>
                           )
                         })}

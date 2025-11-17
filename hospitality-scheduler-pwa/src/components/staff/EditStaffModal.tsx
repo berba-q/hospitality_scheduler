@@ -10,12 +10,14 @@ import { Star, User, MapPin, Phone, Clock, Save, Mail } from 'lucide-react'
 import { useApiClient } from '@/hooks/useApi'
 import { useTranslations } from '@/hooks/useTranslations'
 import { toast } from 'sonner'
+import * as ScheduleTypes from '@/types/schedule'
+import * as FacilityTypes from '@/types/facility'
 
 interface EditStaffModalProps {
   open: boolean
   onClose: () => void
-  staff: any
-  facilities: any[]
+  staff: ScheduleTypes.Staff
+  facilities: FacilityTypes.Facility[]
   onSuccess: () => void
 }
 
@@ -25,12 +27,23 @@ const COMMON_ROLES = [
   'Security', 'Waiter', 'Waitress', 'Bartender', 'Host/Hostess'
 ]
 
+interface StaffFormData {
+  full_name: string
+  email: string
+  role: string
+  skill_level: number
+  phone: string
+  facility_id: string
+  weekly_hours_max: number
+  is_active: boolean
+}
+
 export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: EditStaffModalProps) {
   const apiClient = useApiClient()
   const { t } = useTranslations()
   const [loading, setLoading] = useState(false)
-  const [originalData, setOriginalData] = useState<any>(null)
-  const [formData, setFormData] = useState({
+  const [originalData, setOriginalData] = useState<StaffFormData | null>(null)
+  const [formData, setFormData] = useState<StaffFormData>({
     full_name: '',
     email: '',
     role: '',
@@ -64,7 +77,7 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.full_name || !formData.role || !formData.facility_id) {
       toast.error(t('staff.fillRequiredFields'))
       return
@@ -75,10 +88,15 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
       return
     }
 
+    if (!apiClient) {
+      toast.error(t('common.authenticationRequired'))
+      return
+    }
+
     setLoading(true)
     try {
       // Check for duplicates if name or facility changed
-      if (formData.full_name !== originalData.full_name || formData.facility_id !== originalData.facility_id) {
+      if (originalData && (formData.full_name !== originalData.full_name || formData.facility_id !== originalData.facility_id)) {
         const duplicateCheck = await apiClient.checkStaffExists(formData.full_name, formData.facility_id)
         if (duplicateCheck.exists) {
           toast.error(t('staff.staffNameExistsAtFacility', { name: formData.full_name }))
@@ -92,8 +110,9 @@ export function EditStaffModal({ open, onClose, staff, facilities, onSuccess }: 
       toast.success(t('staff.staffUpdatedSuccessfully', { name: formData.full_name }))
       onSuccess()
       onClose()
-    } catch (error: any) {
-      if (error.message.includes('409') || error.message.includes('already exists')) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (errorMessage.includes('409') || errorMessage.includes('already exists')) {
         toast.error(t('staff.staffNameAlreadyExists'))
       } else {
         toast.error(t('staff.failedUpdateStaff'))

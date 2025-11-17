@@ -10,15 +10,15 @@ import { Progress } from '@/components/ui/progress'
 import { useTranslations } from '@/hooks/useTranslations'
 import { useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
-import { 
-  Mail, 
-  Send, 
-  CheckCircle, 
-  AlertTriangle, 
-  Users, 
+import * as ApiTypes from '@/types/api'
+import {
+  Mail,
+  Send,
+  CheckCircle,
+  AlertTriangle,
+  Users,
   Clock,
-  Loader2,
-  X
+  Loader2
 } from 'lucide-react'
 
 interface InvitationConfirmationModalProps {
@@ -49,7 +49,7 @@ export function InvitationConfirmationModal({
     failed: number
     noEmail: number
     alreadyExists: number
-    details?: any
+    details?: ApiTypes.BulkInvitationResult
   } | null>(null)
 
   // Separate staff with and without email
@@ -59,6 +59,11 @@ export function InvitationConfirmationModal({
   const handleSendInvitations = async () => {
     if (staffWithEmail.length === 0) {
       toast.error(t('staff.staffWithoutEmailCount', { count: staffWithoutEmail.length }))
+      return
+    }
+
+    if (!apiClient) {
+      toast.error(t('errors.apiClientNotInitialized'))
       return
     }
 

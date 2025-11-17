@@ -18,6 +18,7 @@ import { GlobalDropZone } from '@/components/staff/GlobalDropZone'
 import { InvitationConfirmationModal } from '@/components/staff/InvitationConfirmationModal'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import type { Staff, FacilityTypes } from '@/types'
 
 interface ParsedStaffMember {
   full_name: string
@@ -28,6 +29,7 @@ interface ParsedStaffMember {
   facility_id?: string
   weekly_hours_max?: number
   is_active?: boolean
+  force_create?: boolean
 }
 
 interface ImportedStaffMember {
@@ -42,9 +44,9 @@ export default function StaffPage() {
   const apiClient = useApiClient()
   const router = useRouter()
   const { t } = useTranslations()
-  
-  const [staff, setStaff] = useState([])
-  const [facilities, setFacilities] = useState([])
+
+  const [staff, setStaff] = useState<Staff[]>([])
+  const [facilities, setFacilities] = useState<FacilityTypes.Facility[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFacility, setSelectedFacility] = useState('all')
@@ -57,7 +59,6 @@ export default function StaffPage() {
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
   const [showInvitationConfirmation, setShowInvitationConfirmation] = useState(false)
   const [importedStaffForInvitation, setImportedStaffForInvitation] = useState<ImportedStaffMember[]>([])
-  const [singleStaffForInvitation, setSingleStaffForInvitation] = useState<ImportedStaffMember | null>(null)
 
   // Check if user is manager - redirect if not
   useEffect(() => {
@@ -67,14 +68,9 @@ export default function StaffPage() {
     }
   }, [isManager, authLoading, router, t])
 
-  // Load data
-  useEffect(() => {
-    if (isManager) {
-      loadData()
-    }
-  }, [isManager])
+  const loadData = useCallback(async () => {
+    if (!apiClient) return
 
-  const loadData = async () => {
     try {
       setLoading(true)
       const [staffData, facilitiesData] = await Promise.all([
@@ -90,7 +86,14 @@ export default function StaffPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [apiClient, t])
+
+  // Load data
+  useEffect(() => {
+    if (isManager) {
+      loadData()
+    }
+  }, [isManager, loadData])
 
   const handleInvitationConfirmationClose = () => {
     setShowInvitationConfirmation(false)
@@ -112,10 +115,12 @@ export default function StaffPage() {
 
   // Handle when ImportStaffModal wants to start importing
   const handleStartImport = async (validStaff: ParsedStaffMember[]) => {
+    if (!apiClient) return
+
     // Close preview modal
     setShowImportModal(false)
     setPendingImportFile(null)
-    
+
     // Open progress modal
     setShowImportProgress(true)
     setImportProgress(0)
@@ -125,7 +130,7 @@ export default function StaffPage() {
     try {
       let added = 0
       let errors = 0
-      
+
       // track successful imports
       const newlyImportedStaffWithEmails: ImportedStaffMember[] = []
       // Import with progress tracking
@@ -157,8 +162,8 @@ export default function StaffPage() {
           added++
           setImportResults({ added, errors })
           setImportProgress((i + 1) / validStaff.length * 100)
-          
-        } catch (error: any) {
+
+        } catch (error: unknown) {
           console.error('Failed to create staff:', validStaff[i].full_name, error)
           errors++
           setImportResults({ added, errors })
@@ -202,12 +207,12 @@ export default function StaffPage() {
   })
 
   // Filter staff based on search and facility
-  const filteredStaff = staff.filter((member: any) => {
-    const matchesSearch = !searchQuery || 
+  const filteredStaff = staff.filter((member: Staff) => {
+    const matchesSearch = !searchQuery ||
       member.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.email?.toLowerCase().includes(searchQuery.toLowerCase())
-    
+
     const matchesFacility = selectedFacility === 'all' || member.facility_id === selectedFacility
 
     return matchesSearch && matchesFacility
@@ -333,7 +338,7 @@ export default function StaffPage() {
                     <Badge className="w-6 h-6 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{staff.filter((s: any) => s.is_active).length}</p>
+                    <p className="text-2xl font-bold">{staff.filter((s: Staff) => s.is_active).length}</p>
                     <p className="text-sm text-gray-600">{t('staff.activeStaff')}</p>
                   </div>
                 </div>
@@ -362,7 +367,7 @@ export default function StaffPage() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold">
-                      {new Set(staff.map((s: any) => s.role)).size}
+                      {new Set(staff.map((s: Staff) => s.role)).size}
                     </p>
                     <p className="text-sm text-gray-600">{t('staff.uniqueRoles')}</p>
                   </div>
@@ -391,7 +396,7 @@ export default function StaffPage() {
                   className="px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-blue-500 transition-all duration-200"
                 >
                   <option value="all">{t('staff.allFacilities')}</option>
-                  {facilities.map((facility: any) => (
+                  {facilities.map((facility: FacilityTypes.Facility) => (
                     <option key={facility.id} value={facility.id}>
                       {facility.name}
                     </option>
@@ -442,11 +447,11 @@ export default function StaffPage() {
         </div>
 
         {/* Modals  */}
-        <AddStaffModal 
-          open={showAddModal} 
+        <AddStaffModal
+          open={showAddModal}
           onClose={() => setShowAddModal(false)}
           facilities={facilities}
-          onSuccess={(newStaff) => {
+          onSuccess={(newStaff?: ImportedStaffMember) => {
             setShowAddModal(false)
             loadData()
 
