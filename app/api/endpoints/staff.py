@@ -1171,5 +1171,90 @@ def get_my_swap_requests(
             "assigned_staff": assigned_staff.model_dump() if assigned_staff else None,
             "can_respond": user_role in ["target", "assigned"] and swap.status == SwapStatus.POTENTIAL_ASSIGNMENT
         })
-    
+
     return result
+
+
+@router.post("/bulk-status")
+def get_bulk_staff_status(
+    staff_ids: List[str],
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Get status information for multiple staff members in a single request.
+    Returns user account status and invitation status for each staff member.
+    """
+    if not staff_ids:
+        return []
+
+    # Fetch all staff members
+    staff_members = db.exec(
+        select(Staff)
+        .join(Facility)
+        .where(
+            Staff.id.in_([UUID(sid) for sid in staff_ids]),
+            Facility.tenant_id == current_user.tenant_id
+        )
+    ).all()
+
+    # Create a map for quick lookup
+    staff_map = {str(staff.id): staff for staff in staff_members}
+
+    # Get all emails
+    emails = [staff.email for staff in staff_members if staff.email]
+
+    # Batch check for user accounts
+    users = db.exec(
+        select(User)
+        .where(
+            User.email.in_(emails),
+            User.tenant_id == current_user.tenant_id
+        )
+    ).all()
+    user_by_email = {user.email.lower(): user for user in users}
+
+    # Batch check for invitations
+    invitations = db.exec(
+        select(StaffInvitation)
+        .where(
+            StaffInvitation.staff_id.in_([UUID(sid) for sid in staff_ids]),
+            StaffInvitation.status.in_(['pending', 'sent'])
+        )
+    ).all()
+    invitation_by_staff_id = {str(inv.staff_id): inv for inv in invitations}
+
+    # Build response
+    results = []
+    for staff_id in staff_ids:
+        staff = staff_map.get(staff_id)
+        if not staff:
+            continue
+
+        staff_email_lower = staff.email.lower() if staff.email else None
+        user = user_by_email.get(staff_email_lower) if staff_email_lower else None
+        invitation = invitation_by_staff_id.get(staff_id)
+
+        if user:
+            status = 'registered'
+            user_active = user.is_active
+            invitation_id = None
+        elif invitation:
+            status = 'invited'
+            user_active = None
+            invitation_id = str(invitation.id)
+        else:
+            status = 'no_account'
+            user_active = None
+            invitation_id = None
+
+        results.append({
+            'staff_id': staff_id,
+            'email': staff.email,
+            'full_name': staff.full_name,
+            'status': status,
+            'user_active': user_active,
+            'invitation_id': invitation_id
+        })
+
+    return results

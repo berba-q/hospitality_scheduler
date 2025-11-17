@@ -4,8 +4,11 @@ export interface Staff {
   name: string;
   email: string;
   role: string;
+  facility_id?: string;
   department?: string;
   skill_level?: number; // Skill level rating (1-5)
+  weekly_hours_max?: number; // Maximum weekly hours
+  phone?: string;
   isActive: boolean;
   is_active?: boolean; // Alias for compatibility
   created_at?: string;
@@ -14,14 +17,15 @@ export interface Staff {
 
 // Assignment for schedules
 export interface ScheduleAssignment {
-  id: string;
-  schedule_id: string;
+  id?: string;
+  schedule_id?: string;
   staff_id: string;
   day: number; // 0-6 for days of week
   shift: number; // shift index
   shift_index?: number;
   shift_id?: number | string;
   zone_id?: string;
+  status?: 'pending' | 'scheduled' | 'confirmed' | 'cancelled';
   created_at?: string;
   updated_at?: string;
 }
@@ -29,15 +33,19 @@ export interface ScheduleAssignment {
 // Full schedule with assignments
 export interface Schedule {
   id: string;
-  facility_id: string;
+  facility_id?: string;
   week_start: string; // ISO date string
-  week_end: string;
-  status: 'draft' | 'published' | 'archived';
+  week_end?: string;
+  status?: 'draft' | 'published' | 'archived';
   assignments?: ScheduleAssignment[];
   created_at?: string;
   updated_at?: string;
   created_by?: string;
   name?: string;
+  is_draft?: boolean;
+  is_generated?: boolean;
+  published_at?: string;
+  published_by?: string;
 }
 
 // Schedule configuration for facilities

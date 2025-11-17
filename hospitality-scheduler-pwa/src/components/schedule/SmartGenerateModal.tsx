@@ -65,38 +65,37 @@ export function SmartGenerateModal({
     }
   })
   
-  const [zoneAssignments, setZoneAssignments] = useState({})
-  const [roleMapping, setRoleMapping] = useState({})
+  const [zoneAssignments, setZoneAssignments] = useState<Record<string, ScheduleTypes.ZoneAssignment>>({})
 
   // Initialize zone assignments and role mapping
   useEffect(() => {
+    const initializeAssignments = () => {
+      // Auto-assign staff to zones based on their roles
+      const newZoneAssignments: Record<string, ScheduleTypes.ZoneAssignment> = {}
+
+      selectedZones.forEach(zoneId => {
+        const zone = zones.find(z => z.id === zoneId)
+        if (zone) {
+          newZoneAssignments[zoneId] = {
+            required_staff: getZoneRequiredStaff(zone),
+            assigned_roles: zone.required_roles || [],
+            priority: getZonePriority(zone),
+            coverage_hours: {
+              morning: true,
+              afternoon: true,
+              evening: zone.zone_id === 'security' || zone.zone_id === 'front-desk' // 24/7 zones
+            }
+          }
+        }
+      })
+
+      setZoneAssignments(newZoneAssignments)
+    }
+
     if (zones.length > 0 && staff.length > 0) {
       initializeAssignments()
     }
   }, [zones, staff, selectedZones])
-
-  const initializeAssignments = () => {
-    // Auto-assign staff to zones based on their roles
-    const newZoneAssignments: Record<string, ScheduleTypes.ZoneAssignment> = {}
-
-    selectedZones.forEach(zoneId => {
-      const zone = zones.find(z => z.id === zoneId)
-      if (zone) {
-        newZoneAssignments[zoneId] = {
-          required_staff: getZoneRequiredStaff(zone),
-          assigned_roles: zone.required_roles || [],
-          priority: getZonePriority(zone),
-          coverage_hours: {
-            morning: true,
-            afternoon: true,
-            evening: zone.zone_id === 'security' || zone.zone_id === 'front-desk' // 24/7 zones
-          }
-        }
-      }
-    })
-
-    setZoneAssignments(newZoneAssignments)
-  }
 
   const getZoneRequiredStaff = (zone: FacilityTypes.FacilityZone): { min: number; max: number } => {
     // Smart defaults based on zone type
@@ -174,7 +173,7 @@ export function SmartGenerateModal({
 
       onGenerate(generateConfig)
       onClose()
-    } catch (error) {
+    } catch {
     } finally {
       setGenerating(false)
     }
@@ -211,7 +210,7 @@ export function SmartGenerateModal({
   }
 
   // Calculate staffing analytics
-  const totalStaffNeeded = Object.values(zoneAssignments).reduce((sum: number, zone: any) => 
+  const totalStaffNeeded = Object.values(zoneAssignments).reduce((sum: number, zone: ScheduleTypes.ZoneAssignment) =>
     sum + (zone?.required_staff?.min || 0), 0
   ) * (periodType === 'daily' ? 3 : periodType === 'weekly' ? 21 : 90) // shifts per period
 
@@ -377,7 +376,7 @@ export function SmartGenerateModal({
                           <div>
                             <Label className="text-sm font-medium mb-2 block">{t('schedule.coverage')}</Label>
                             <div className="space-y-1">
-                              {['morning', 'afternoon', 'evening'].map(shift => (
+                              {(['morning', 'afternoon', 'evening'] as const).map(shift => (
                                 <div key={shift} className="flex items-center gap-2">
                                   <input
                                     type="checkbox"
@@ -656,9 +655,9 @@ export function SmartGenerateModal({
                               {zoneStaff.length} {t('common.available')} • {zone.required_roles?.length || 0} {t('common.roles')}
                             </div>
                             <div className="flex gap-1 mt-2">
-                              {['morning', 'afternoon', 'evening'].map(shift => (
-                                <Badge 
-                                  key={shift} 
+                              {(['morning', 'afternoon', 'evening'] as const).map(shift => (
+                                <Badge
+                                  key={shift}
                                   variant={assignment.coverage_hours?.[shift] ? 'default' : 'outline'}
                                   className="text-xs"
                                 >

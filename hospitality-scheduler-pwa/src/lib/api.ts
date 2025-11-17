@@ -735,6 +735,20 @@ export class ApiClient {
     })
   }
 
+  async getStaffBulkStatus(staffIds: string[]) {
+    return this.request<Array<{
+      staff_id: string
+      email: string
+      full_name: string
+      status: 'registered' | 'invited' | 'no_account'
+      user_active?: boolean
+      invitation_id?: string
+    }>>('/v1/staff/bulk-status', {
+      method: 'POST',
+      body: JSON.stringify(staffIds),
+    })
+  }
+
   // Staff deletion validation
   async validateStaffDeletion(staffId: string) {
     return this.request<{
@@ -954,7 +968,7 @@ export class ApiClient {
   async createSchedule(data: {
     facility_id: string
     week_start: string
-    assignments: ApiTypes.ScheduleAssignment[]
+    assignments: ApiTypes.CreateScheduleAssignment[]
   }) {
     return this.request<ApiTypes.ScheduleWithAssignments>('/v1/schedule/create', {
       method: 'POST',
@@ -963,7 +977,7 @@ export class ApiClient {
   }
 
   async updateSchedule(scheduleId: string, data: {
-    assignments?: ApiTypes.ScheduleAssignment[]
+    assignments?: ApiTypes.CreateScheduleAssignment[]
     week_start?: string
     facility_id?: string
   }) {

@@ -7,23 +7,30 @@ import { Calendar } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
 import * as ScheduleTypes from '@/types/schedule'
 import * as SwapTypes from '@/types/swaps'
+import * as FacilityTypes from '@/types/facility'
 
 interface MonthlyCalendarProps {
   currentMonth: Date
   schedules: ScheduleTypes.Schedule[]
   staff: ScheduleTypes.Staff[]
+  shifts?: FacilityTypes.FacilityShift[]
   isManager: boolean
   onDayClick: (date: Date) => void
   swapRequests?: SwapTypes.SwapRequest[]
+  highlightStaffId?: string
+  showMineOnly?: boolean
 }
 
 export function MonthlyCalendar({
   currentMonth,
   schedules,
   staff,
+  shifts,
   isManager,
   onDayClick,
-  swapRequests = []
+  swapRequests = [],
+  highlightStaffId,
+  showMineOnly
 }: MonthlyCalendarProps) {
   const { t } = useTranslations()
   

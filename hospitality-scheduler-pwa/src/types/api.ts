@@ -19,6 +19,17 @@ export interface ScheduleAssignment {
   updated_at?: string
 }
 
+// Input type for creating schedule assignments (without auto-generated fields)
+export interface CreateScheduleAssignment {
+  staff_id: string
+  day: number
+  shift: number
+  zone_id?: string
+  role?: string
+  hours?: number
+  notes?: string
+}
+
 export interface ScheduleWithAssignments {
   id: string
   facility_id: string

@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { X, Plus, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import { SwapStatusIndicator } from '@/components/swap/SwapStatusIndicator'
@@ -27,6 +28,9 @@ interface DailyCalendarProps {
   getShiftAssignments?: (shift: number) => ScheduleTypes.ScheduleAssignment[]
   swapRequests?: SwapTypes.SwapRequest[]
   onSwapRequest?: (day: number, shift: number, staffId: string) => void
+  highlightStaffId?: string
+  showMineOnly?: boolean
+  onToggleMineOnly?: () => void
 }
 
 export function DailyCalendar({
@@ -39,7 +43,10 @@ export function DailyCalendar({
   onAssignmentChange,
   onRemoveAssignment,
   swapRequests = [],
-  onSwapRequest
+  onSwapRequest,
+  highlightStaffId,
+  showMineOnly,
+  onToggleMineOnly
 }: DailyCalendarProps) {
   const [selectedShift, setSelectedShift] = useState<number | null>(null)
   const { t } = useTranslations()
@@ -110,7 +117,7 @@ export function DailyCalendar({
     })
 
     // Filter assignments by day and shift index
-    const assignments = schedule.assignments.filter((assignment) => {
+    let assignments = schedule.assignments.filter((assignment) => {
       const matchesDay = Number(assignment.day) === dayIndex
       const matchesShift =
         Number(assignment.shift) === Number(shiftIndex) || // primary check
@@ -119,6 +126,13 @@ export function DailyCalendar({
 
       return matchesDay && matchesShift
     })
+
+    // Apply "Mine Only" filter if enabled
+    if (showMineOnly && highlightStaffId) {
+      assignments = assignments.filter(
+        (a) => String(a.staff_id) === String(highlightStaffId)
+      )
+    }
 
     console.log(
       `[DailyCalendar] ✅ Found ${assignments.length} assignments for day ${dayIndex}, shift ${shiftIndex}`,
@@ -187,7 +201,18 @@ export function DailyCalendar({
               {stats.totalAssignments} {t('common.assignments')}
             </Badge>
           </span>
-          {!isManager && (
+          {!isManager ? (
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={showMineOnly}
+                onCheckedChange={() => onToggleMineOnly && onToggleMineOnly()}
+                className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+              />
+              <span className="text-xs text-gray-500 uppercase tracking-wide">
+                {t('schedule.mineOnly')}
+              </span>
+            </div>
+          ) : (
             <Badge variant="outline" className="text-xs">
               {t('common.viewOnly')}
             </Badge>
@@ -280,7 +305,11 @@ export function DailyCalendar({
                           return (
                             <div
                               key={assignment.id || `assignment-${index}`}
-                              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                              className={`flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 transition-colors ${
+                                assignment.staff_id === highlightStaffId
+                                  ? 'bg-indigo-50 ring-2 ring-indigo-500'
+                                  : 'bg-gray-50'
+                              }`}
                             >
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
@@ -320,13 +349,13 @@ export function DailyCalendar({
                                   </Button>
                                 )}
 
-                                {isManager && (
+                                {isManager && assignment.id &&(
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      onRemoveAssignment(assignment.id)
+                                      onRemoveAssignment(assignment.id!)
                                     }}
                                   >
                                     <X className="w-4 h-4" />

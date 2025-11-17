@@ -5,15 +5,15 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from '@/hooks/useTranslations'
-import { 
-  Calendar, 
-  Clock,  
-  Settings, 
-  Plus, 
-  ChevronLeft, 
-  ChevronRight, 
-  Save, 
-  Zap, 
+import {
+  Calendar,
+  Clock,
+  Settings,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  Zap,
   Eye,
   EyeOff,
   AlertTriangle,
@@ -30,7 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs,TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { useAuth, useApiClient, apiClient } from '@/hooks/useApi'
+import { useAuth, useApiClient } from '@/hooks/useApi'
 import { DailyCalendar } from '@/components/schedule/DailyCalendar'
 import { WeeklyCalendar } from '@/components/schedule/WeeklyCalendar'
 import { MonthlyCalendar } from '@/components/schedule/MonthlyCalendar'
@@ -50,20 +50,133 @@ import { SaveConfirmationOptions, ScheduleSaveConfirmationDialog } from '@/compo
 import { SwapNotificationDialog } from '@/components/swap/SwapNotificationDialog'
 import { StaffAvailabilityModal } from '@/components/schedule/StaffAvailabilityModal'
 import React from 'react'
+import * as ScheduleTypes from '@/types/schedule'
+import * as FacilityTypes from '@/types/facility'
+import * as SwapTypes from '@/types/swaps'
+import * as AuthTypes from '@/types/auth'
+import * as ApiTypes from '@/types/api'
+import type { SwapSummary } from '@/lib/api'
+import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 
 type ViewPeriod = 'daily' | 'weekly' | 'monthly'
+
+// Helper type for schedule data from API (flexible for different API responses)
+interface ScheduleData {
+  assignments: Array<{
+    date?: string
+    day?: number
+    day_of_week?: number
+    shift: number
+    schedule_id?: string
+    assignment_id?: string
+    staff_id?: string
+    [key: string]: unknown
+  }>
+  week_start?: string
+  [key: string]: unknown
+}
+
+
+interface StaffScheduleViewProps {
+  currentDate: Date
+  viewPeriod: ViewPeriod
+  setCurrentDate: (date: Date) => void
+  setViewPeriod: (period: ViewPeriod) => void
+  navigatePeriod: (direction: number) => void
+  formatPeriodDisplay: (date: Date, period: ViewPeriod) => string
+  schedules: ScheduleTypes.Schedule[]
+  staff: ScheduleTypes.Staff[]
+  currentSchedule: ScheduleTypes.Schedule | null
+  swapRequests: SwapTypes.SwapRequest[]
+  onSwapRequest: (dayIndex: number, shiftIndex: number, staffId: string) => void
+  user: AuthTypes.User | undefined
+  facility: FacilityTypes.Facility | null
+  shifts: FacilityTypes.FacilityShift[]
+  zones: FacilityTypes.FacilityZone[]
+}
+
+interface ManagerScheduleViewProps {
+  router: AppRouterInstance
+  facilities: FacilityTypes.Facility[]
+  selectedFacility: FacilityTypes.Facility | null
+  setSelectedFacility: (facility: FacilityTypes.Facility | null) => void
+  selectedZones: string[]
+  setSelectedZones: (zones: string[]) => void
+  staff: ScheduleTypes.Staff[]
+  schedules: ScheduleTypes.Schedule[]
+  currentSchedule: ScheduleTypes.Schedule | null
+  setCurrentSchedule: (schedule: ScheduleTypes.Schedule | null) => void
+  loading: boolean
+  setLoading: (loading: boolean) => void
+  viewPeriod: ViewPeriod
+  setViewPeriod: (period: ViewPeriod) => void
+  currentDate: Date
+  setCurrentDate: (date: Date) => void
+  showStaffPanel: boolean
+  setShowStaffPanel: (show: boolean) => void
+  filterRole: string
+  setFilterRole: (role: string) => void
+  filterZone: string
+  setFilterZone: (zone: string) => void
+  showSmartGenerateModal: boolean
+  setShowSmartGenerateModal: (show: boolean) => void
+  showConfigModal: boolean
+  setShowConfigModal: (show: boolean) => void
+  showScheduleListModal: boolean
+  setShowScheduleListModal: (show: boolean) => void
+  showStaffAvailabilityModal: boolean
+  setShowStaffAvailabilityModal: (show: boolean) => void
+  showSwapDashboard: boolean
+  setShowSwapDashboard: (show: boolean) => void
+  draggedStaff: ScheduleTypes.Staff | null
+  setDraggedStaff: (staff: ScheduleTypes.Staff | null) => void
+  unsavedChanges: boolean
+  setUnsavedChanges: (changed: boolean) => void
+  swapRequests: SwapTypes.SwapRequest[]
+  swapSummary: SwapSummary | null
+  navigatePeriod: (direction: number) => void
+  formatPeriodDisplay: (date: Date, period: ViewPeriod) => string
+  getPeriodStart: (date: Date, period: ViewPeriod) => Date
+  handleAssignmentChange: (dayIndex: number, shiftIndex: number, staffId: string) => Promise<void>
+  handleRemoveAssignment: (assignmentId: string) => Promise<void>
+  handleSmartGenerate: (config: ScheduleTypes.ScheduleGenerationConfig) => Promise<void>
+  handleSaveSchedule: (notificationOptions?: SaveConfirmationOptions) => Promise<void>
+  handleDeleteSchedule: (scheduleId: string) => Promise<void>
+  handleScheduleSelect: (schedule: ScheduleTypes.Schedule) => void
+  handleSwapRequest: (dayIndex: number, shiftIndex: number, staffId: string) => void
+  createSwapRequest: (data: Record<string, unknown>) => Promise<unknown>
+  approveSwap: (swapId: string, approved: boolean, notes?: string) => Promise<void>
+  retryAutoAssignment: (swapId: string, avoidStaffIds?: string[]) => Promise<void>
+  refreshSwaps: () => Promise<void>
+  handleViewSwapHistory: () => void
+  shifts: FacilityTypes.FacilityShift[]
+  zones: FacilityTypes.FacilityZone[]
+  showSaveDialog: boolean
+  setShowSaveDialog: (show: boolean) => void
+  showSwapNotificationDialog: boolean
+  setShowSwapNotificationDialog: (show: boolean) => void
+  processSwapWithNotifications: (options: {
+    sendWhatsApp: boolean
+    sendPushNotifications: boolean
+    sendInApp: boolean
+    customMessage?: string
+    urgencyOverride?: 'low' | 'normal' | 'high' | 'emergency'
+  }) => Promise<void>
+  pendingSwapData: Record<string, unknown> | null
+  apiClient: ReturnType<typeof useApiClient>
+}
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 // ============================================================================
 // STAFF VIEW COMPONENT
 // ============================================================================
-function StaffScheduleView({ 
-  currentDate, 
-  viewPeriod, 
-  setCurrentDate, 
-  setViewPeriod, 
-  navigatePeriod, 
+function StaffScheduleView({
+  currentDate,
+  viewPeriod,
+  setCurrentDate,
+  setViewPeriod,
+  navigatePeriod,
   formatPeriodDisplay,
   schedules,
   staff,
@@ -72,16 +185,17 @@ function StaffScheduleView({
   onSwapRequest,
   user,
   facility,
-  shifts,
-  zones
-}) {
+  shifts
+  // zones - not used in staff view
+}: StaffScheduleViewProps) {
   const [showMineOnly, setShowMineOnly] = useState(false)
-  const [myScheduleData, setMyScheduleData] = useState(null)
-  const [mySwapRequests, setMySwapRequests] = useState([])
-  const [selectedSwapForDetail, setSelectedSwapForDetail] = useState(null)
+  const [myScheduleData, setMyScheduleData] = useState<ScheduleData | null>(null)
+  const [mySwapRequests, setMySwapRequests] = useState<SwapTypes.SwapRequest[]>([])
+  const [selectedSwapForDetail, setSelectedSwapForDetail] = useState<SwapTypes.SwapRequest | null>(null)
   const [showSwapDetailModal, setShowSwapDetailModal] = useState(false)
   const [showMySwapsModal, setShowMySwapsModal] = useState(false)
-  const [loading, setLoading] = useState(true)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_loading, setLoading] = useState(true)
 
   //translation hook
   const { t } = useTranslations()
@@ -120,12 +234,19 @@ function StaffScheduleView({
 
   useEffect(() => {
     loadMyData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDate, viewPeriod])
 
   const loadMyData = async () => {
     try {
       console.log('=== LOADING STAFF DATA ===')
       setLoading(true)
+
+      if (!apiClient) {
+        console.log('API client not ready yet')
+        setLoading(false)
+        return
+      }
 
       if (!myStaffId) {
         return (
@@ -159,7 +280,7 @@ function StaffScheduleView({
         end: endDate.toISOString().split('T')[0]
       })
 
-      // FIXED: Use existing getMySchedule method
+      // Use getMySchedule method
       try {
         const scheduleData = await apiClient.getMySchedule(
           startDate.toISOString().split('T')[0],
@@ -170,7 +291,7 @@ function StaffScheduleView({
 
         // Handle the correct response structure from backend
         if (scheduleData && scheduleData.assignments) {
-          setMyScheduleData(scheduleData)
+          setMyScheduleData(scheduleData as unknown as ScheduleData)
           console.log('Staff schedule loaded:', {
             assignments_count: scheduleData.assignments.length,
             sample_assignments: scheduleData.assignments.slice(0, 3)
@@ -181,7 +302,7 @@ function StaffScheduleView({
         }
       } catch (error) {
         console.warn('getMySchedule failed:', error)
-        setMyScheduleData({ assignments: [] })
+        setMyScheduleData(null)
       }
 
       // Get swap requests for staff
@@ -196,7 +317,7 @@ function StaffScheduleView({
 
     } catch (error) {
       console.error('Failed to load staff data:', error)
-      setMyScheduleData([])
+      setMyScheduleData(null)
       setMySwapRequests([])
     } finally {
       setLoading(false)
@@ -237,7 +358,8 @@ function StaffScheduleView({
   }
 
   // shift colors
-  const generateShiftColor = (index: number): string => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _generateShiftColor = (index: number): string => {
   const colors = [
     '#3B82F6', // Blue
     '#10B981', // Green  
@@ -254,34 +376,35 @@ function StaffScheduleView({
 
 
   // Get shift names
-  const getShiftName = (shiftIndex) => {
-    console.log('🔍 Looking for shift name:', shiftIndex, 'in shifts:', shifts)
-    
+  const getShiftName = (shiftIndex: number | string): string => {
+    console.log('Looking for shift name:', shiftIndex, 'in shifts:', shifts)
+
+    const shiftNum = typeof shiftIndex === 'string' ? parseInt(shiftIndex) : shiftIndex
+
     // Try multiple matching strategies
-    const shift = shifts?.find(s => 
-      s.shift_index === shiftIndex || 
-      s.id === shiftIndex || 
-      s.shift_index === parseInt(shiftIndex) ||
-      s.id === parseInt(shiftIndex)
+    const shift = shifts?.find(s =>
+      s.shift_index === shiftNum ||
+      String(s.id) === String(shiftIndex) ||
+      s.shift_index === shiftNum
     )
-    
-    const shiftName = shift?.name || `${t('common.shift')} ${shiftIndex}`
+
+    const shiftName = shift?.name || shift?.shift_name || `${t('common.shift')} ${shiftIndex}`
     console.log(' Found shift name:', shiftName, 'for index:', shiftIndex)
-    
+
     return shiftName
   }
 
-  const getShiftTime = (shiftIndex) => {
-    const shift = shifts?.find(s => 
-      s.shift_index === shiftIndex || 
-      s.id === shiftIndex ||
-      s.shift_index === parseInt(shiftIndex) ||
-      s.id === parseInt(shiftIndex)
+  const getShiftTime = (shiftIndex: number | string): string => {
+    const shiftNum = typeof shiftIndex === 'string' ? parseInt(shiftIndex) : shiftIndex
+
+    const shift = shifts?.find(s =>
+      s.shift_index === shiftNum ||
+      String(s.id) === String(shiftIndex)
     )
-    
+
     const timeDisplay = shift ? `${shift.start_time} - ${shift.end_time}` : ''
     console.log('Shift time for', shiftIndex, ':', timeDisplay)
-    
+
     return timeDisplay
   }
     
@@ -289,9 +412,14 @@ function StaffScheduleView({
   // Resolve an assignment's ISO‑date string.
   // Falls back to week_start + day index when no explicit `date`.
   // ------------------------------------------------------------
-  const getAssignmentISODate = (assignment: any) => {
+  const getAssignmentISODate = (assignment: {
+    date?: string
+    day?: number
+    day_of_week?: number
+    [key: string]: unknown
+  }): string => {
     if (assignment?.date) {
-      return assignment.date                   // already ISO "YYYY‑MM‑DD"
+      return assignment.date  // already ISO "YYYY‑MM‑DD"
     }
 
     // Derive from week_start + day index if we can
@@ -454,16 +582,17 @@ function StaffScheduleView({
                       const shift = shifts.find(
                         (s) =>
                           s.shift_index === Number(assignment.shift) ||
-                          s.id === assignment.shift ||
-                          s.id === Number(assignment.shift)
+                          String(s.id) === String(assignment.shift)
                       )
+                      const shiftTime = shift ? `${shift.start_time} - ${shift.end_time}` : getShiftTime(assignment.shift)
+                      const assignmentKey = assignment.id || assignment.assignment_id || `${assignment.shift}-${Math.random()}`
                       return (
                         <div
-                          key={assignment.id || assignment.assignment_id}
+                          key={String(assignmentKey)}
                           className="text-xs text-green-700"
                         >
-                          {shift?.name || getShiftName(assignment.shift)} (
-                          {shift?.time || getShiftTime(assignment.shift)})
+                          {shift?.name || shift?.shift_name || getShiftName(assignment.shift)} (
+                          {shiftTime})
                         </div>
                       )
                     })}
@@ -474,7 +603,7 @@ function StaffScheduleView({
                   variant="outline"
                   size="sm"
                   className="w-full"
-                  onClick={() => onSwapRequest && onSwapRequest(0, 0, user.id)}
+                  onClick={() => onSwapRequest && user && onSwapRequest(0, 0, user.id)}
                 >
                   <ArrowLeftRight className="w-4 h-4 mr-2" />
                   {t('schedule.requestSwap')}
@@ -578,7 +707,7 @@ function StaffScheduleView({
         )}
       </div>
 
-      {/* My Swaps List Modal - FIX: Only show when state is true */}
+      {/* My Swaps List Modal - Only show when state is true */}
       {showMySwapsModal && (
         <Dialog open={showMySwapsModal} onOpenChange={setShowMySwapsModal}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
@@ -595,10 +724,13 @@ function StaffScheduleView({
                   <ArrowLeftRight className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">{t('schedule.noSwapRequests')}</h3>
                   <p className="text-gray-600 mb-4">{t('schedule.noSwapRequestsYet')}</p>
-                  <Button 
+                  <Button
                     onClick={() => {
                       setShowMySwapsModal(false)
-                      onSwapRequest && onSwapRequest(0, 0, user?.staff_id || user?.id)
+                      const staffId = user?.staff_id || user?.id
+                      if (onSwapRequest && staffId) {
+                        onSwapRequest(0, 0, staffId)
+                      }
                     }}
                     className="gap-2"
                   >
@@ -616,8 +748,8 @@ function StaffScheduleView({
                             <div className="flex items-center gap-3 mb-2">
                               <Badge className={
                                 swap.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                swap.status === 'approved' || swap.status === 'executed' ? 'bg-green-100 text-green-800' :
-                                swap.status === 'declined' ? 'bg-red-100 text-red-800' :
+                                swap.status === 'executed' || swap.status === 'manager_approved' || swap.status === 'staff_accepted' || swap.status === 'manager_final_approval' ? 'bg-green-100 text-green-800' :
+                                swap.status === 'declined' || swap.status === 'staff_declined' || swap.status === 'assignment_declined' || swap.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                                 'bg-gray-100 text-gray-800'
                               }>
                                 {swap.status}
@@ -644,7 +776,7 @@ function StaffScheduleView({
                             <div className="flex items-center gap-4 text-xs text-gray-500">
                               <span className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                {DAYS[swap.original_day]} - {shifts?.find(s => s.id === swap.original_shift)?.name || t('common.unknown') + ' ' + t('common.shift')}
+                                {DAYS[swap.original_day]} - {shifts?.find(s => s.shift_index === swap.original_shift)?.name || t('common.unknown') + ' ' + t('common.shift')}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
@@ -697,12 +829,15 @@ function StaffScheduleView({
 
               {mySwapRequests.length > 0 && (
                 <div className="pt-4 border-t">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
                     onClick={() => {
                       setShowMySwapsModal(false)
-                      onSwapRequest && onSwapRequest(0, 0, user?.staff_id || user?.id)
+                      const staffId = user?.staff_id || user?.id
+                      if (onSwapRequest && staffId) {
+                        onSwapRequest(0, 0, staffId)
+                      }
                     }}
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -715,7 +850,7 @@ function StaffScheduleView({
         </Dialog>
       )}
 
-      {/* Swap details modal - FIX: Only show when both conditions are true */}
+      {/* Swap details modal: Only show when both conditions are true */}
       {showSwapDetailModal && selectedSwapForDetail && (
         <SwapDetailModal
           swap={selectedSwapForDetail}
@@ -724,19 +859,27 @@ function StaffScheduleView({
             setShowSwapDetailModal(false)
             setSelectedSwapForDetail(null)
           }}
-          onSwapResponse={async (swapId, accepted, notes) => {
+          onSwapResponse={async (swapId: string, accepted: boolean, notes?: string) => {
+            if (!apiClient) {
+              toast.error('API client not available')
+              return
+            }
             try {
-              await apiClient.respondToSwap(swapId, accepted, notes)
+              await apiClient.RespondToSwap(swapId, { accepted, notes})
               setShowSwapDetailModal(false)
               setSelectedSwapForDetail(null)
               loadMyData() // Refresh the data
               toast.success(accepted ? t('swaps.swapAccepted') : t('swaps.swapDenied'))
             } catch (error) {
-              console.error('❌ SwapResponse error:', error)
+              console.error('SwapResponse error:', error)
               toast.error(t('common.failed') + ' to respond to swap')
             }
           }}
-          onCancelSwap={async (swapId, reason) => {
+          onCancelSwap={async (swapId: string, reason?: string) => {
+            if (!apiClient) {
+              toast.error('API client not available')
+              return
+            }
             try {
               await apiClient.cancelSwapRequest(swapId, reason)
               setShowSwapDetailModal(false)
@@ -744,7 +887,7 @@ function StaffScheduleView({
               loadMyData() // Refresh the data
               toast.success(t('swaps.swapRequest') + ' ' + t('common.cancelled'))
             } catch (error) {
-              console.error('❌ CancelSwap error:', error)
+              console.error(' CancelSwap error:', error)
               toast.error(t('common.failed') + ' to cancel swap')
             }
           }}
@@ -757,10 +900,11 @@ function StaffScheduleView({
 }
 
 // ============================================================================
-// MANAGER VIEW COMPONENT  
+// MANAGER VIEW COMPONENT
 // ============================================================================
-function ManagerScheduleView({ 
-  router,
+function ManagerScheduleView({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  router: _router,
   facilities,
   selectedFacility,
   setSelectedFacility,
@@ -769,9 +913,12 @@ function ManagerScheduleView({
   staff,
   schedules,
   currentSchedule,
-  setCurrentSchedule,
-  loading,
-  setLoading,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setCurrentSchedule: _setCurrentSchedule,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  loading: _loading2,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setLoading: _setLoading2,
   viewPeriod,
   setViewPeriod,
   currentDate,
@@ -795,7 +942,8 @@ function ManagerScheduleView({
   draggedStaff,
   setDraggedStaff,
   unsavedChanges,
-  setUnsavedChanges,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setUnsavedChanges: _setUnsavedChanges,
   swapRequests,
   swapSummary,
   navigatePeriod,
@@ -808,7 +956,8 @@ function ManagerScheduleView({
   handleDeleteSchedule,
   handleScheduleSelect,
   handleSwapRequest,
-  createSwapRequest,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  createSwapRequest: _createSwapRequest,
   approveSwap,
   retryAutoAssignment,
   refreshSwaps,
@@ -820,8 +969,9 @@ function ManagerScheduleView({
   showSwapNotificationDialog,
   setShowSwapNotificationDialog,
   processSwapWithNotifications,
-  pendingSwapData
-}) {
+  pendingSwapData,
+  apiClient
+}: ManagerScheduleViewProps) {
   // Add translation hook for manager view
   const { t } = useTranslations()
 
@@ -834,16 +984,16 @@ function ManagerScheduleView({
     // Zone filter
     if (filterZone !== 'all' && selectedZones.length > 0) {
       const zone = zones.find(z => z.zone_id === filterZone)
-      if (zone && zone.roles.length > 0 && !zone.roles.includes(member.role)) {
+      if (zone && zone.required_roles.length > 0 && !zone.required_roles.includes(member.role)) {
         return false
       }
     }
-    
+
     // Role filter
     if (filterRole !== 'all' && !member.role.toLowerCase().includes(filterRole.toLowerCase())) {
       return false
     }
-    
+
     return true
   })
 
@@ -852,22 +1002,26 @@ function ManagerScheduleView({
   const availableZones = zones || []
 
   const handleFinalApproval = async (swapId: string, approved: boolean, notes?: string) => {
+  if (!apiClient) {
+    toast.error('API client not available')
+    return
+  }
   try {
-    console.log('🎯 Processing final approval:', { swapId, approved, notes })
-    
+    console.log('Processing final approval:', { swapId, approved, notes })
+
     await apiClient.managerFinalApproval(swapId, {
       approved,
       notes,
       override_role_verification: false,
       role_override_reason: undefined
     })
-    
+
     refreshSwaps() // or your equivalent refresh function
     toast.success(approved ? t('swaps.swapExecutedSuccessfully') : t('swaps.swapDenied'))
-    
+
   } catch (error) {
-    console.error('❌ Failed to process final approval:', error)
-    const errorMessage = error?.message || t('common.failed')
+    console.error(' Failed to process final approval:', error)
+    const errorMessage = error instanceof Error ? error.message : t('common.failed')
     toast.error(errorMessage)
   }
 }
@@ -934,16 +1088,16 @@ function ManagerScheduleView({
               </Badge>
             </Button>
 
-            <Button 
+            <Button
               variant={showSwapDashboard ? "default" : "outline"}
-              onClick={() => setShowSwapDashboard(!showSwapDashboard)} 
+              onClick={() => setShowSwapDashboard(!showSwapDashboard)}
               className="relative"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               {t('navigation.swaps')}
-              {swapSummary?.pending_swaps > 0 && (
+              {(swapSummary?.pending_swaps ?? 0) > 0 && (
                 <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs min-w-[20px] h-5">
-                  {swapSummary.pending_swaps}
+                  {swapSummary?.pending_swaps ?? 0}
                 </Badge>
               )}
             </Button>
@@ -976,11 +1130,11 @@ function ManagerScheduleView({
               {/* Facility Selector */}
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">{t('common.facility')}</label>
-                <Select 
-                  value={selectedFacility?.id || ''} 
+                <Select
+                  value={selectedFacility?.id || ''}
                   onValueChange={(value) => {
                     const facility = facilities.find(f => f.id === value)
-                    setSelectedFacility(facility)
+                    setSelectedFacility(facility || null)
                     if (facility?.zones) {
                       setSelectedZones(facility.zones.map(z => z.zone_id || z.id))
                     }
@@ -1121,7 +1275,7 @@ function ManagerScheduleView({
                         const zone = availableZones.find(z => (z.zone_id || z.id) === zoneId)
                         return zone ? (
                           <Badge key={zoneId} variant="outline" className="text-xs">
-                            {zone.zone_name || zone.name}
+                            {zone.zone_name}
                           </Badge>
                         ) : null
                       })}
@@ -1236,7 +1390,7 @@ function ManagerScheduleView({
       </div>
 
       {/* Manager Modals */}
-      {showSmartGenerateModal && (
+      {showSmartGenerateModal && selectedFacility && (
         <SmartGenerateModal
           open={showSmartGenerateModal}
           onClose={() => setShowSmartGenerateModal(false)}
@@ -1250,7 +1404,7 @@ function ManagerScheduleView({
         />
       )}
       
-      {showConfigModal && (
+      {showConfigModal && selectedFacility &&  (
         <ScheduleConfigModal
           open={showConfigModal}
           onClose={() => setShowConfigModal(false)}
@@ -1288,7 +1442,7 @@ function ManagerScheduleView({
       )}
 
       {/* Staff Availability Modal */}
-        {showStaffAvailabilityModal && (
+        {showStaffAvailabilityModal && selectedFacility && (
           <StaffAvailabilityModal
             isOpen={showStaffAvailabilityModal}
             onClose={() => setShowStaffAvailabilityModal(false)}
@@ -1297,8 +1451,8 @@ function ManagerScheduleView({
           />
         )}
 
-      {/* Save Confirmation Dialog - FIX: Only render when needed */}
-      {showSaveDialog && (
+      {/* Save Confirmation Dialog */}
+      {showSaveDialog && currentSchedule && selectedFacility && (
         <ScheduleSaveConfirmationDialog
           open={showSaveDialog}
           onClose={() => setShowSaveDialog(false)}
@@ -1306,7 +1460,7 @@ function ManagerScheduleView({
           schedule={currentSchedule}
           staffList={facilityStaff}
           facility={selectedFacility}
-          isNewSchedule={!currentSchedule?.id || currentSchedule?.is_generated}
+          isNewSchedule={!currentSchedule.id || currentSchedule.is_generated}
         />
       )}
 
@@ -1318,16 +1472,16 @@ function ManagerScheduleView({
           onConfirm={processSwapWithNotifications}
           swapType="staff_to_staff"
           swapDetails={{
-            requesterName: pendingSwapData?.requester_name || t('common.unknown'),
-            targetStaffName: pendingSwapData?.target_staff_name,
-            originalDay: pendingSwapData?.original_day_name || t('common.unknown'),
-            originalShift: pendingSwapData?.original_shift_name || t('common.unknown'),
-            reason: pendingSwapData?.reason,
-            urgency: pendingSwapData?.urgency || 'normal'
+            requesterName: (pendingSwapData.requester_name as string | undefined) || t('common.unknown'),
+            targetStaffName: pendingSwapData.target_staff_name as string | undefined,
+            originalDay: (pendingSwapData.original_day_name as string) || t('common.unknown'),
+            originalShift: (pendingSwapData.original_shift_name as string) || t('common.unknown'),
+            reason: (pendingSwapData.reason as string) || '',
+            urgency: (pendingSwapData.urgency as 'normal' | 'high' | 'emergency' | 'low') || 'normal'
           }}
-          recipientStaff={facilityStaff.filter(s => 
-            pendingSwapData?.target_staff_id ? 
-            s.id === pendingSwapData.target_staff_id : 
+          recipientStaff={facilityStaff.filter(s =>
+            pendingSwapData.target_staff_id ?
+            s.id === pendingSwapData.target_staff_id :
             true
           )}
         />
@@ -1337,16 +1491,20 @@ function ManagerScheduleView({
 }
 
 // Helper function to calculate the correct day index for a specific date within a schedule
-const getCurrentDayIndex = (schedule, currentDate, viewPeriod) => {
+const getCurrentDayIndex = (
+  schedule: ScheduleTypes.Schedule | null,
+  currentDate: Date,
+  viewPeriod: 'daily' | 'weekly' | 'monthly'
+): number => {
   if (!schedule) return 0
-  
+
   const scheduleStart = new Date(schedule.week_start)
-  
+
   if (viewPeriod === 'daily') {
     const daysDiff = Math.floor((currentDate.getTime() - scheduleStart.getTime()) / (24 * 60 * 60 * 1000))
     return Math.max(0, Math.min(6, daysDiff))
   }
-  
+
   return 0
 }
 
@@ -1360,45 +1518,51 @@ export default function SchedulePage() {
   const { t } = useTranslations() // Add translation hook to main component
   
   // Core state
-  const [facilities, setFacilities] = useState([])
-  const [selectedFacility, setSelectedFacility] = useState(null)
-  const [selectedZones, setSelectedZones] = useState([])
-  const [staff, setStaff] = useState([])
-  const [schedules, setSchedules] = useState([])
-  const [currentSchedule, setCurrentSchedule] = useState(null)
+  const [facilities, setFacilities] = useState<FacilityTypes.Facility[]>([])
+  const [selectedFacility, setSelectedFacility] = useState<FacilityTypes.Facility | null>(null)
+  const [selectedZones, setSelectedZones] = useState<string[]>([])
+  const [staff, setStaff] = useState<ScheduleTypes.Staff[]>([])
+  const [schedules, setSchedules] = useState<ScheduleTypes.Schedule[]>([])
+  const [currentSchedule, setCurrentSchedule] = useState<ScheduleTypes.Schedule | null>(null)
   const [loading, setLoading] = useState(true)
   const [showScheduleListModal, setShowScheduleListModal] = useState(false)
-  
+
   // Dynamic facility data
-  const [shifts, setShifts] = useState([])
-  const [zones, setZones] = useState([])
-  
+  const [shifts, setShifts] = useState<FacilityTypes.FacilityShift[]>([])
+  const [zones, setZones] = useState<FacilityTypes.FacilityZone[]>([])
+
   // View state
   const [viewPeriod, setViewPeriod] = useState<ViewPeriod>('weekly')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [showStaffPanel, setShowStaffPanel] = useState(true)
   const [filterRole, setFilterRole] = useState('all')
   const [filterZone, setFilterZone] = useState('all')
-  
+
   // Modal state
   const [showSmartGenerateModal, setShowSmartGenerateModal] = useState(false)
   const [showConfigModal, setShowConfigModal] = useState(false)
   const [showStaffAvailabilityModal, setShowStaffAvailabilityModal] = useState(false)
-  
+
   // Schedule editing state
-  const [draggedStaff, setDraggedStaff] = useState(null)
+  const [draggedStaff, setDraggedStaff] = useState<ScheduleTypes.Staff | null>(null)
   const [unsavedChanges, setUnsavedChanges] = useState(false)
 
   // Swaps states
   const [showSwapModal, setShowSwapModal] = useState(false)
-  const [selectedAssignmentForSwap, setSelectedAssignmentForSwap] = useState(null)
+  const [selectedAssignmentForSwap, setSelectedAssignmentForSwap] = useState<{
+    day: number
+    shift: number
+    staff_id: string
+    staffId: string // For compatibility with SwapRequestModal
+    schedule_id?: string
+  } | null>(null)
   const [showSwapDashboard, setShowSwapDashboard] = useState(false)
   const [facilitiesReady, setFacilitiesReady] = useState(false)
 
   // Notification states
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [showSwapNotificationDialog, setShowSwapNotificationDialog] = useState(false)
-  const [pendingSwapData, setPendingSwapData] = useState(null)
+  const [pendingSwapData, setPendingSwapData] = useState<Record<string, unknown> | null>(null)
 
   // Manager facility ID for swap hooks
   const managerFacilityId = useMemo(() => {
@@ -1416,17 +1580,36 @@ export default function SchedulePage() {
   const {
     swapRequests,
     swapSummary,
-    createSwapRequest,
-    approveSwap,
-    retryAutoAssignment,
+    createSwapRequest: createSwapRequestHook,
+    approveSwap: approveSwapHook,
+    retryAutoAssignment: retryAutoAssignmentHook,
     refresh: refreshSwaps
   } = useSwapRequests(managerFacilityId)
+
+  // Wrapper functions to match interface expectations
+  const createSwapRequest = async (data: Record<string, unknown>): Promise<unknown> => {
+    return await createSwapRequestHook(data as Parameters<typeof createSwapRequestHook>[0])
+  }
+
+  // Wrapper for SwapRequestModal which expects void return
+  const handleCreateSwapRequest = async (data: Record<string, unknown>): Promise<void> => {
+    await createSwapRequestHook(data as Parameters<typeof createSwapRequestHook>[0])
+  }
+
+  const approveSwap = async (swapId: string, approved: boolean, notes?: string): Promise<void> => {
+    await approveSwapHook(swapId, approved, notes)
+  }
+
+  const retryAutoAssignment = async (swapId: string, avoidStaffIds?: string[]): Promise<void> => {
+    await retryAutoAssignmentHook(swapId, avoidStaffIds)
+  }
 
   // Load initial data
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
       loadData()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, isAuthenticated])
 
   // Load facility-specific data when facility changes
@@ -1434,13 +1617,18 @@ export default function SchedulePage() {
     if (selectedFacility) {
       loadFacilityData()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFacility])
 
   const loadData = async () => {
+    if (!apiClient) {
+      console.log('API client not ready yet')
+      return
+    }
     try {
       setLoading(true)
       setFacilitiesReady(false)
-      
+
       if (isManager) {
         console.log('Loading manager data...')
         const [facilitiesData, staffData] = await Promise.all([
@@ -1461,9 +1649,14 @@ export default function SchedulePage() {
         // Load staff data
         try {
           const staffProfile = await apiClient.getMyStaffProfile()
+
+          if (!staffProfile.facility_id) {
+            throw new Error('Staff profile has no facility assigned')
+          }
+
           const facility = await apiClient.getFacility(staffProfile.facility_id)
           const facilityStaff = await apiClient.getFacilityStaff(staffProfile.facility_id)
-          
+
           setFacilities([facility])
           setSelectedFacility(facility)
           setStaff(facilityStaff)
@@ -1483,10 +1676,14 @@ export default function SchedulePage() {
   //  Load facility-specific shifts and zones
   const loadFacilityData = async () => {
     if (!selectedFacility) return
+    if (!apiClient) {
+      console.log('API client not ready yet')
+      return
+    }
 
     try {
-      console.log('🏢 Loading facility data for:', selectedFacility.name)
-      
+      console.log('Loading facility data for:', selectedFacility.name)
+
       // CRITICAL: Load real shifts from API instead of using SHIFTS constant
       let facilityShifts = []
       try {
@@ -1496,26 +1693,36 @@ export default function SchedulePage() {
         console.warn('Failed to load shifts from API, using fallback:', error)
         // Fallback to the working SHIFTS constant format
         facilityShifts = [
-          { id: 0, name: t('schedule.morning'), start_time: '06:00', end_time: '14:00', color: '#3B82F6' },
-          { id: 1, name: t('schedule.afternoon'), start_time: '14:00', end_time: '22:00', color: '#10B981' },
-          { id: 2, name: t('schedule.evening'), start_time: '22:00', end_time: '06:00', color: '#F59E0B' }
-        ]
+          { id: '0', name: t('schedule.morning'), start_time: '06:00', end_time: '14:00', color: '#3B82F6' },
+          { id: '1', name: t('schedule.afternoon'), start_time: '14:00', end_time: '22:00', color: '#10B981' },
+          { id: '2', name: t('schedule.evening'), start_time: '22:00', end_time: '06:00', color: '#F59E0B' }
+        ] as Partial<FacilityTypes.FacilityShift>[]
       }
 
       // Process shifts to match the working format, include shift_index always
-      const processedShifts = facilityShifts.map((shift, index) => ({
+      const processedShifts: FacilityTypes.FacilityShift[] = facilityShifts.map((shift, index) => ({
+        ...shift, // preserve all original properties
         shift_index: index, // stable column index
-        id: shift.id ?? index, // keep original id when present
+        id: shift.id ?? String(index), // ensure id is always a string
+        shift_name: shift.shift_name ?? shift.name ?? `${t('common.shift')} ${index + 1}`,
         name: shift.name ?? shift.shift_name ?? `${t('common.shift')} ${index + 1}`,
         start_time: shift.start_time ?? '09:00',
         end_time: shift.end_time ?? '17:00',
         color:
           shift.color ??
           ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index % 5],
-        time: `${shift.start_time ?? '09:00'} - ${shift.end_time ?? '17:00'}`,
-      }))
+        // Provide defaults for required fields if they're missing (for fallback case)
+        facility_id: shift.facility_id ?? selectedFacility.id,
+        requires_manager: shift.requires_manager ?? false,
+        min_staff: shift.min_staff ?? 1,
+        max_staff: shift.max_staff ?? 10,
+        shift_order: shift.shift_order ?? index,
+        is_active: shift.is_active ?? true,
+        created_at: shift.created_at ?? new Date().toISOString(),
+        updated_at: shift.updated_at,
+      })) as FacilityTypes.FacilityShift[]
 
-      console.log('📅 Processed shifts:', processedShifts)
+      console.log('Processed shifts:', processedShifts)
       setShifts(processedShifts)
 
       // Load zones (keep your existing zone logic)
@@ -1534,28 +1741,25 @@ export default function SchedulePage() {
 
 
   // normalize assignment data
-  const normalizeAssignments = (assignments: any[]): any[] => {
+  const normalizeAssignments = (assignments: unknown[]): ScheduleTypes.ScheduleAssignment[] => {
     if (!assignments) {
-     
       return []
     }
-    
+
     const normalized = assignments.map((assignment, index) => {
-      const normalized = {
-        id: assignment.id || `assignment-${assignment.schedule_id || 'temp'}-${assignment.day}-${assignment.shift}-${assignment.staff_id}-${index}`,
-        day: Number(assignment.day),
-        shift: Number(assignment.shift),
-        staff_id: String(assignment.staff_id),
-        schedule_id: assignment.schedule_id,
-        zone_id: assignment.zone_id,
-        staff_name: assignment.staff_name,
-        staff_role: assignment.staff_role
+      const a = assignment as Record<string, unknown>
+      const normalized: ScheduleTypes.ScheduleAssignment = {
+        id: (a.id as string) || `assignment-${a.schedule_id || 'temp'}-${a.day}-${a.shift}-${a.staff_id}-${index}`,
+        day: Number(a.day),
+        shift: Number(a.shift),
+        staff_id: String(a.staff_id),
+        schedule_id: a.schedule_id as string | undefined,
+        zone_id: a.zone_id as string | undefined
       }
-      
-      
+
       return normalized
     })
-    
+
     return normalized
   }
 
@@ -1564,6 +1768,7 @@ export default function SchedulePage() {
     if (selectedFacility) {
       loadSchedules()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFacility, currentDate, viewPeriod])
 
   // loadSchedules properly
@@ -1572,13 +1777,17 @@ export default function SchedulePage() {
     console.log('No facility selected, skipping schedule load')
     return
   }
-  
+  if (!apiClient) {
+    console.log('API client not ready yet')
+    return
+  }
+
   try {
-    console.log('🔄 Loading schedules for facility:', selectedFacility.name)
-    
+    console.log('Loading schedules for facility:', selectedFacility.name)
+
     const schedulesData = await apiClient.getFacilitySchedules(selectedFacility.id)
     
-    console.log('📊 Raw API response:', {
+    console.log('Raw API response:', {
       schedulesCount: schedulesData.length,
       schedules: schedulesData.map(s => ({
         id: s.id,
@@ -1595,7 +1804,7 @@ export default function SchedulePage() {
         assignments: normalizeAssignments(schedule.assignments || []) // THIS WAS KEY
       }
       
-      console.log(`📋 Normalized schedule ${schedule.id}:`, {
+      console.log(` Normalized schedule ${schedule.id}:`, {
         original_week_start: schedule.week_start,
         normalized_week_start: normalized.week_start,
         assignments_count: normalized.assignments.length
@@ -1604,24 +1813,28 @@ export default function SchedulePage() {
       return normalized
     })
     
-    console.log('✅ Schedules normalized:', normalizedSchedules.length)
+    console.log('Schedules normalized:', normalizedSchedules.length)
     setSchedules(normalizedSchedules)
     
     // Find schedule for current period
     const currentPeriodSchedule = findScheduleForCurrentPeriod(normalizedSchedules, currentDate, viewPeriod)
     
-    console.log('🔍 Current schedule found:', currentPeriodSchedule?.id || 'none')
+    console.log('Current schedule found:', currentPeriodSchedule?.id || 'none')
     setCurrentSchedule(currentPeriodSchedule || null)
     
   } catch (error) {
-    console.error('❌ Failed to load schedules:', error)
+    console.error('Failed to load schedules:', error)
     setSchedules([])
     setCurrentSchedule(null)
   }
 }
 // Helper function to find schedules
-  const findScheduleForCurrentPeriod = (schedules, currentDate, viewPeriod) => {
-    console.log('🔍 Finding schedule for:', {
+  const findScheduleForCurrentPeriod = (
+    schedules: ScheduleTypes.Schedule[],
+    currentDate: Date,
+    viewPeriod: ViewPeriod
+  ): ScheduleTypes.Schedule | null | undefined => {
+    console.log('Finding schedule for:', {
       currentDate: currentDate.toDateString(),
       viewPeriod,
       available_schedules: schedules.map(s => ({ 
@@ -1671,11 +1884,12 @@ export default function SchedulePage() {
   }
 
   // Helper: check if a string is a UUID (v4-style)
-  const isUuid = (val?: string) =>
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _isUuid = (val?: string) =>
     !!val && /^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$/.test(val)
 
   // Helper function to get the end date of a week (6 days after start)
-  const getWeekEndDate = (weekStartString) => {
+  const getWeekEndDate = (weekStartString: string): Date => {
     const weekStart = new Date(weekStartString)
     const weekEnd = new Date(weekStart)
     weekEnd.setDate(weekStart.getDate() + 6)
@@ -1738,7 +1952,7 @@ export default function SchedulePage() {
   }
 
   // Helper function to create draft schedules
-  const createDraftSchedule = () => {
+  const createDraftSchedule = (): ScheduleTypes.Schedule => {
   const weekStartISO = getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0]
   const draft = {
     id: `draft-${selectedFacility?.id || 'facility'}-${weekStartISO}`,
@@ -1752,7 +1966,7 @@ export default function SchedulePage() {
     return draft
   }
 
-  const ensureDraftSchedule = () => {
+  const ensureDraftSchedule = (): ScheduleTypes.Schedule => {
     return currentSchedule ?? createDraftSchedule()
   }
 
@@ -1762,7 +1976,7 @@ export default function SchedulePage() {
     if (!schedule) return
 
     try {
-        console.log('🔍 SHIFT DEBUG - Received parameters:', { 
+        console.log(' SHIFT DEBUG - Received parameters:', { 
         dayIndex, 
         shiftIndex, 
         staffId,
@@ -1776,12 +1990,12 @@ export default function SchedulePage() {
       const normalizedShift = Number(shiftIndex)
       
       if (isNaN(normalizedDay) || isNaN(normalizedShift)) {
-        console.error('❌ Invalid day or shift values:', { dayIndex, shiftIndex })
+        console.error(' Invalid day or shift values:', { dayIndex, shiftIndex })
         toast.error('Invalid assignment data')
         return
       }
 
-      console.log('📝 Assignment change:', { 
+      console.log(' Assignment change:', { 
         normalizedDay, 
         normalizedShift, 
         staffId 
@@ -1800,16 +2014,16 @@ export default function SchedulePage() {
         schedule_id: schedule.id,
         created_at: new Date().toISOString()
       }
-      console.log('📋 Creating assignment object:', newAssignment)
+      console.log('Creating assignment object:', newAssignment)
 
       // Prevent duplicates (same day/shift/staff)
     const exists = (schedule.assignments || []).some(
-      (a: any) => {
+      (a: ScheduleTypes.ScheduleAssignment) => {
         const existingDay = Number(a.day)
         const existingShift = Number(a.shift)
         const existingStaff = String(a.staff_id)
         
-        console.log('🔍 Checking duplicate against:', { existingDay, existingShift, existingStaff })
+        console.log(' Checking duplicate against:', { existingDay, existingShift, existingStaff })
         
         return existingDay === normalizedDay &&
                existingShift === normalizedShift &&
@@ -1834,7 +2048,7 @@ export default function SchedulePage() {
     setUnsavedChanges(true)
 
     console.log(' Local schedule updated. Assignments:', updated.assignments.length)
-    console.log('📊 All assignments now:', updated.assignments.map(a => ({ 
+    console.log(' All assignments now:', updated.assignments.map(a => ({ 
       day: a.day, 
       shift: a.shift, 
       staff_id: a.staff_id 
@@ -1850,11 +2064,11 @@ export default function SchedulePage() {
   const handleRemoveAssignment = async (assignmentId: string) => {
     try {
       const schedule = ensureDraftSchedule()
-      console.log('🗑️ Removing assignment:', assignmentId, 'from schedule', schedule.id)
+      console.log('Removing assignment:', assignmentId, 'from schedule', schedule.id)
 
       const updatedSchedule = {
         ...schedule,
-        assignments: (schedule.assignments || []).filter((a: any) => a.id !== assignmentId),
+        assignments: (schedule.assignments || []).filter((a: ScheduleTypes.ScheduleAssignment) => a.id !== assignmentId),
       }
 
       setCurrentSchedule(updatedSchedule)
@@ -1867,20 +2081,26 @@ export default function SchedulePage() {
     }
   }
 
-  const handleSmartGenerate = async (config: any) => {
+  const handleSmartGenerate = async (config: ScheduleTypes.ScheduleGenerationConfig) => {
     try {
       setLoading(true)
-      console.log('🤖 Smart generating schedule with config:', config)
-      
+      console.log('Smart generating schedule with config:', config)
+
+      if (!apiClient) {
+        throw new Error('API client not initialized')
+      }
+
       const generatedSchedule = await apiClient.generateSmartSchedule({
-        facility_id: selectedFacility.id,
+        facility_id: selectedFacility!.id,
         period_start: getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0],
         period_type: viewPeriod,
         zones: selectedZones,
+        zone_assignments: (config.zone_assignments || {}) as Record<string, unknown>,
+        role_mapping: config.role_mapping || {},
         ...config
-      })
+      } as Parameters<typeof apiClient.generateSmartSchedule>[0])
 
-      console.log('✅ Schedule generated:', generatedSchedule)
+      console.log(' Schedule generated:', generatedSchedule)
       setCurrentSchedule(generatedSchedule)
       setUnsavedChanges(true)
       setShowSmartGenerateModal(false)
@@ -1896,11 +2116,19 @@ export default function SchedulePage() {
 
   const handleSaveSchedule = async (notificationOptions?: SaveConfirmationOptions) => {
   if (!currentSchedule) return
+  if (!apiClient) {
+    toast.error('API client not available')
+    return
+  }
+  if (!selectedFacility) {
+    toast.error('No facility selected')
+    return
+  }
 
   try {
-    console.log('💾 Saving schedule:', currentSchedule.id)
+    console.log(' Saving schedule:', currentSchedule.id)
 
-    console.log('🔍 SAVE DEBUG - Original assignments:', 
+    console.log('SAVE DEBUG - Original assignments:', 
       currentSchedule.assignments?.map(a => ({ 
         id: a.id,
         day: a.day, 
@@ -1913,27 +2141,27 @@ export default function SchedulePage() {
     
     let scheduleId: string
     
-    // FIXED: Better condition to determine create vs update
+    // Step 1: Create or update schedule
     const isDraftSchedule = currentSchedule.is_draft || 
                             currentSchedule.id.startsWith('draft-') || 
                             currentSchedule.is_generated
     
     if (isDraftSchedule) {
       // CREATE PATH - New schedule or draft schedule
-      console.log('🆕 Creating new schedule (draft or generated)')
+      console.log(' Creating new schedule (draft or generated)')
       
       // CRITICAL: Clean the assignment data - remove draft IDs
-      const cleanAssignments = (currentSchedule.assignments || []).map((assignment, index) => {
-        const cleanedAssignment = {
+      const cleanAssignments: ApiTypes.CreateScheduleAssignment[] = (currentSchedule.assignments || []).map((assignment, index) => {
+        const cleanedAssignment: ApiTypes.CreateScheduleAssignment = {
           day: Number(assignment.day),
           shift: Number(assignment.shift),
           staff_id: String(assignment.staff_id),
-          zone_id: assignment.zone_id || null
+          zone_id: assignment.zone_id || undefined
         }
 
         //Validate assignment elements
         if (isNaN(cleanedAssignment.day) || isNaN(cleanedAssignment.shift)) {
-          console.error(`❌ Invalid assignment ${index}:`, { 
+          console.error(` Invalid assignment ${index}:`, { 
             original: assignment, 
             cleaned: cleanedAssignment 
           })
@@ -1943,40 +2171,40 @@ export default function SchedulePage() {
         return cleanedAssignment
       })
 
-      console.log('🧹 SAVE DEBUG - Cleaned assignments:', cleanAssignments)
+      console.log(' SAVE DEBUG - Cleaned assignments:', cleanAssignments)
       
       const createData = {
         facility_id: selectedFacility.id,
         week_start: getPeriodStart(currentDate, viewPeriod).toISOString().split('T')[0],
         assignments: cleanAssignments
       }
-      console.log('📤 SAVE DEBUG - Sending to API:', createData)
+      console.log('SAVE DEBUG - Sending to API:', createData)
       
-      console.log('🔄 Creating schedule with cleaned data:', {
+      console.log('Creating schedule with cleaned data:', {
         ...createData,
         assignments_sample: cleanAssignments.slice(0, 3)
       })
       
       const savedSchedule = await apiClient.createSchedule(createData)
-      console.log('✅ Schedule created successfully:', savedSchedule.id)
+      console.log('Schedule created successfully:', savedSchedule.id)
       
       setCurrentSchedule(savedSchedule)
       scheduleId = savedSchedule.id
       
     } else {
       // UPDATE PATH - Existing real schedule
-      console.log('📝 Updating existing schedule')
+      console.log('Updating existing schedule')
 
-      const cleanAssignments = (currentSchedule.assignments || []).map((assignment, index) => {
-        const cleanedAssignment = {
+      const cleanAssignments: ApiTypes.CreateScheduleAssignment[] = (currentSchedule.assignments || []).map((assignment, index) => {
+        const cleanedAssignment: ApiTypes.CreateScheduleAssignment = {
           day: Number(assignment.day),
           shift: Number(assignment.shift),
           staff_id: String(assignment.staff_id),
-          zone_id: assignment.zone_id || null
+          zone_id: assignment.zone_id || undefined
         }
         
         if (isNaN(cleanedAssignment.day) || isNaN(cleanedAssignment.shift)) {
-          console.error(`❌ Invalid assignment ${index}:`, { 
+          console.error(`Invalid assignment ${index}:`, { 
             original: assignment, 
             cleaned: cleanedAssignment 
           })
@@ -2020,19 +2248,24 @@ export default function SchedulePage() {
     
   } catch (error) {
     console.error('Failed to save schedule:', error)
+    const err = error as { message?: string; response?: { data?: unknown; status?: number } }
     console.error('Error details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
+      message: err.message,
+      response: err.response?.data,
+      status: err.response?.status
     })
-    toast.error(t('common.failedToSave') + ' schedule: ' + (error.message || 'Unknown error'))
+    toast.error(t('common.failedToSave') + ' schedule: ' + (err.message || 'Unknown error'))
   }
 }
 
   const handleDeleteSchedule = async (scheduleId: string) => {
+    if (!apiClient) {
+      toast.error('API client not available')
+      return
+    }
     try {
-      console.log('🗑️ Deleting schedule:', scheduleId)
-      
+      console.log('Deleting schedule:', scheduleId)
+
       await apiClient.deleteSchedule(scheduleId)
       
       // Remove from local state
@@ -2051,12 +2284,12 @@ export default function SchedulePage() {
     }
   }
 
-  const handleScheduleSelect = (schedule: any) => {
-    console.log('📋 Selecting schedule:', schedule.id)
+  const handleScheduleSelect = (schedule: ScheduleTypes.Schedule) => {
+    console.log('Selecting schedule:', schedule.id)
     setCurrentSchedule(schedule)
     setUnsavedChanges(false)
     setShowScheduleListModal(false)
-    
+
     // Update current date to match schedule
     if (schedule.week_start) {
       setCurrentDate(new Date(schedule.week_start))
@@ -2064,36 +2297,45 @@ export default function SchedulePage() {
   }
 
   const handleSwapRequest = (dayIndex: number, shiftIndex: number, staffId: string) => {
-    console.log('🔄 Swap request:', { dayIndex, shiftIndex, staffId })
-    
+    console.log('Swap request:', { dayIndex, shiftIndex, staffId })
+
     // Set up swap request data
     setSelectedAssignmentForSwap({
       day: dayIndex,
       shift: shiftIndex,
       staff_id: staffId,
+      staffId: staffId, // Include both for compatibility
       schedule_id: currentSchedule?.id
     })
-    
+
     setShowSwapModal(true)
   }
 
   const handleViewSwapHistory = () => {
-    console.log('📊 Viewing swap history')
+    console.log('Viewing swap history')
     // Implement swap history view
     toast.info(t('swaps.swapHistory') + ' view coming soon')
   }
 
-  const processSwapWithNotifications = async (swapData: any) => {
+  const processSwapWithNotifications = async (options: {
+    sendWhatsApp: boolean
+    sendPushNotifications: boolean
+    sendInApp: boolean
+    customMessage?: string
+    urgencyOverride?: 'low' | 'normal' | 'high' | 'emergency'
+  }) => {
     try {
-      console.log('🔔 Processing swap with notifications:', swapData)
-      
-      // Process the swap
-      await createSwapRequest(swapData)
-      
+      console.log('Processing swap with notifications:', options)
+
+      // Process the swap with the stored pending data
+      if (pendingSwapData) {
+        await createSwapRequest(pendingSwapData as Parameters<typeof createSwapRequest>[0])
+      }
+
       // Close notification dialog
       setShowSwapNotificationDialog(false)
       setPendingSwapData(null)
-      
+
       toast.success(t('swaps.swapRequest') + ' processed with notifications sent!')
     } catch (error) {
       console.error('Failed to process swap with notifications:', error)
@@ -2101,7 +2343,7 @@ export default function SchedulePage() {
     }
   }
 
-  if (authLoading || loading) {
+  if (authLoading || loading || !apiClient) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-96">
@@ -2179,6 +2421,7 @@ export default function SchedulePage() {
           setShowSwapNotificationDialog={setShowSwapNotificationDialog}
           processSwapWithNotifications={processSwapWithNotifications}
           pendingSwapData={pendingSwapData}
+          apiClient={apiClient}
         />
       ) : (
         <StaffScheduleView
@@ -2214,7 +2457,7 @@ export default function SchedulePage() {
           shifts={shifts}
           days={DAYS}
           isManager={isManager}
-          onSwapRequest={createSwapRequest}
+          onSwapRequest={handleCreateSwapRequest}
         />
       )}
     </AppLayout>

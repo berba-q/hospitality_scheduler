@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -62,70 +62,110 @@ export function StaffAvailabilityModal({
   ]
 
   // Load unavailability data
-  const loadUnavailability = async () => {
-    if (!facility?.id) return
-    
+  const loadUnavailability = useCallback(async (signal?: AbortSignal) => {
+    if (!facility?.id || !api) return
+
     setLoading(true)
     try {
-      // Use the ApiClient method (following same pattern as other methods in api.ts)
+      // call getFacilityUnavailability API
       const response = await api.getFacilityUnavailability(
         facility.id,
         dateRange.start.toISOString(),
         dateRange.end.toISOString()
       )
-      
+
+      // Check if request was aborted
+      if (signal?.aborted) return
+
       setUnavailabilityData(Array.isArray(response) ? response : [])
     } catch (error) {
+      // Don't show error if request was aborted
+      if (signal?.aborted) return
+
       console.error('Error loading staff unavailability:', error)
       toast.error(t('common.errorLoadingData'))
       setUnavailabilityData([])
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) {
+        setLoading(false)
+      }
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [facility?.id, dateRange.start, dateRange.end])
 
   // Load data when modal opens or date range changes
   useEffect(() => {
-    if (isOpen) {
-      loadUnavailability()
-    }
-  }, [isOpen, dateRange, facility?.id])
+    if (!isOpen) return
 
-  // Filter unavailability data
-  const filteredData = unavailabilityData.filter(item => {
-    // Search filter
-    if (searchTerm && !item.staff.full_name.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !item.staff.email.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false
-    }
-    
-    // Role filter
-    if (roleFilter !== 'all' && item.staff.role !== roleFilter) {
-      return false
-    }
-    
-    // Recurring filter
-    if (showRecurringOnly && !item.is_recurring) {
-      return false
-    }
-    
-    return true
-  })
+    const abortController = new AbortController()
+    loadUnavailability(abortController.signal)
 
-  // Group by staff member
-  const groupedByStaff = filteredData.reduce((acc, item) => {
-    if (!acc[item.staff_id]) {
-      acc[item.staff_id] = {
-        staff: item.staff,
-        unavailability: []
+    return () => {
+      abortController.abort()
+    }
+  }, [isOpen, loadUnavailability])
+
+  // Filter unavailability data (memoized for performance)
+  const filteredData = useMemo(() => {
+    return unavailabilityData.filter(item => {
+      // Search filter (with optional chaining for safety)
+      if (searchTerm &&
+          !item.staff?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          !item.staff?.email?.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false
       }
-    }
-    acc[item.staff_id].unavailability.push(item)
-    return acc
-  }, {} as Record<string, { staff: { id: string; full_name: string; role: string; email: string }, unavailability: ScheduleTypes.StaffUnavailability[] }>)
 
-  // Get unique roles for filter
-  const availableRoles = [...new Set(unavailabilityData.map(item => item.staff.role))].sort()
+      // Role filter
+      if (roleFilter !== 'all' && item.staff?.role !== roleFilter) {
+        return false
+      }
+
+      // Recurring filter
+      if (showRecurringOnly && !item.is_recurring) {
+        return false
+      }
+
+      return true
+    })
+  }, [unavailabilityData, searchTerm, roleFilter, showRecurringOnly])
+
+  // Group by staff member (memoized for performance)
+  const groupedByStaff = useMemo(() => {
+    return filteredData.reduce((acc, item) => {
+      if (!item.staff) return acc // Safety check
+
+      if (!acc[item.staff_id]) {
+        acc[item.staff_id] = {
+          staff: item.staff,
+          unavailability: []
+        }
+      }
+      acc[item.staff_id].unavailability.push(item)
+      return acc
+    }, {} as Record<string, { staff: { id: string; full_name: string; role: string; email: string }, unavailability: ScheduleTypes.StaffUnavailability[] }>)
+  }, [filteredData])
+
+  // Get unique roles for filter (memoized for performance)
+  const availableRoles = useMemo(() => {
+    return [...new Set(unavailabilityData.map(item => item.staff?.role).filter(Boolean))].sort()
+  }, [unavailabilityData])
+
+  // Calculate stats (memoized for performance)
+  const stats = useMemo(() => {
+    const now = new Date()
+    const currentlyOff = filteredData.filter(item => {
+      const start = new Date(item.start)
+      const end = new Date(item.end)
+      return start <= now && end >= now
+    }).length
+
+    return {
+      totalStaff: Object.keys(groupedByStaff).length,
+      totalPeriods: filteredData.length,
+      recurringPeriods: filteredData.filter(item => item.is_recurring).length,
+      currentlyOff
+    }
+  }, [filteredData, groupedByStaff])
 
   // Format date range display
   const formatDateRange = () => {
@@ -219,7 +259,7 @@ export function StaffAvailabilityModal({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={loadUnavailability}
+                  onClick={() => loadUnavailability()}
                   disabled={loading}
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -253,7 +293,7 @@ export function StaffAvailabilityModal({
                   <SelectContent>
                     <SelectItem value="all">{t('common.allRoles')}</SelectItem>
                     {availableRoles.map(role => (
-                      <SelectItem key={role} value={role}>{role}</SelectItem>
+                      <SelectItem key={role} value={role || ''}>{role}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -281,50 +321,43 @@ export function StaffAvailabilityModal({
                   <UserX className="w-5 h-5 text-red-500" />
                   <div>
                     <p className="text-sm font-medium">{t('schedule.totalUnavailable')}</p>
-                    <p className="text-2xl font-bold">{Object.keys(groupedByStaff).length}</p>
+                    <p className="text-2xl font-bold">{stats.totalStaff}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
                   <Clock className="w-5 h-5 text-orange-500" />
                   <div>
                     <p className="text-sm font-medium">{t('schedule.timeOffPeriods')}</p>
-                    <p className="text-2xl font-bold">{filteredData.length}</p>
+                    <p className="text-2xl font-bold">{stats.totalPeriods}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
                   <RefreshCw className="w-5 h-5 text-blue-500" />
                   <div>
                     <p className="text-sm font-medium">{t('schedule.recurring')}</p>
-                    <p className="text-2xl font-bold">{filteredData.filter(item => item.is_recurring).length}</p>
+                    <p className="text-2xl font-bold">{stats.recurringPeriods}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-yellow-500" />
                   <div>
                     <p className="text-sm font-medium">{t('schedule.currentlyOff')}</p>
-                    <p className="text-2xl font-bold">
-                      {filteredData.filter(item => {
-                        const now = new Date()
-                        const start = new Date(item.start)
-                        const end = new Date(item.end)
-                        return start <= now && end >= now
-                      }).length}
-                    </p>
+                    <p className="text-2xl font-bold">{stats.currentlyOff}</p>
                   </div>
                 </div>
               </CardContent>

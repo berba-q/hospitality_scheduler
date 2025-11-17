@@ -270,14 +270,14 @@ export function WeeklyCalendar({
                                       )}
 
                                       {/* Remove Assignment Button */}
-                                      {isManager && (
+                                      {isManager && assignment.id && (
                                         <Button
                                           variant="ghost"
                                           size="sm"
                                           className="h-7 w-7 p-0"
                                           onClick={(e) => {
                                             e.stopPropagation()
-                                            onRemoveAssignment(assignment.id)
+                                            onRemoveAssignment(assignment.id!)
                                           }}
                                         >
                                           <X className="w-4 h-4" />

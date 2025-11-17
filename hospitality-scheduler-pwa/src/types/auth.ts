@@ -8,6 +8,7 @@ export interface User {
   image?: string       // Profile picture URL (optional)
   isManager: boolean   // Whether user is a manager or staff
   tenantId?: string    // Which company/organization they belong to
+  staff_id?: string    // Staff ID if the user is staff member
 }
 
 // Session information that includes user data + auth tokens
