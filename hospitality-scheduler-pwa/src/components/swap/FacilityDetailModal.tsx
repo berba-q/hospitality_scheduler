@@ -1,43 +1,48 @@
 // FacilityDetailModal.tsx - Shows detailed swap breakdown for a specific facility
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useTranslations } from '@/hooks/useTranslations'
-import { 
-  Building, 
-  Users, 
-  Clock, 
-  AlertTriangle, 
+import {
+  Building,
+  Users,
+  Clock,
+  AlertTriangle,
   CheckCircle,
   ArrowLeftRight,
   Calendar,
   TrendingUp
 } from 'lucide-react'
 import { SwapManagementDashboard } from './SwapManagementDashboard'
+import * as SwapTypes from '@/types/swaps'
+import * as FacilityTypes from '@/types/facility'
+
+interface FacilityDetail {
+  facility_id: string
+  facility_name: string
+  facility_type: string
+  pending_swaps: number
+  urgent_swaps: number
+  emergency_swaps: number
+  recent_completions: number
+  staff_count: number
+}
 
 interface FacilityDetailModalProps {
   open: boolean
   onClose: () => void
-  facility: {
-    facility_id: string
-    facility_name: string
-    facility_type: string
-    pending_swaps: number
-    urgent_swaps: number
-    emergency_swaps: number
-    recent_completions: number
-    staff_count: number
-  } | null
-  onLoadFacilitySwaps: (facilityId: string) => Promise<any[]>
+  facility: FacilityDetail | null
+  onLoadFacilitySwaps: (facilityId: string) => Promise<SwapTypes.SwapRequest[]>
   onApproveSwap: (swapId: string, approved: boolean, notes?: string) => Promise<void>
+  onFinalApproval: (swapId: string, approved: boolean, notes?: string) => Promise<void>
   onRetryAutoAssignment: (swapId: string, avoidStaffIds?: string[]) => Promise<void>
   onViewSwapHistory: (swapId: string) => void
   days: string[]
-  shifts: any[]
+  shifts: FacilityTypes.FacilityShift[]
 }
 
 export function FacilityDetailModal({
@@ -46,25 +51,20 @@ export function FacilityDetailModal({
   facility,
   onLoadFacilitySwaps,
   onApproveSwap,
+  onFinalApproval,
   onRetryAutoAssignment,
   onViewSwapHistory,
   days,
   shifts
 }: FacilityDetailModalProps) {
   const { t } = useTranslations()
-  const [facilitySwaps, setFacilitySwaps] = useState<any[]>([])
+  const [facilitySwaps, setFacilitySwaps] = useState<SwapTypes.SwapRequest[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (open && facility) {
-      loadFacilitySwaps()
-    }
-  }, [open, facility])
-
-  const loadFacilitySwaps = async () => {
+  const loadFacilitySwaps = useCallback(async () => {
     if (!facility) return
-    
+
     setLoading(true)
     try {
       const swaps = await onLoadFacilitySwaps(facility.facility_id)
@@ -74,7 +74,13 @@ export function FacilityDetailModal({
     } finally {
       setLoading(false)
     }
-  }
+  }, [facility, onLoadFacilitySwaps])
+
+  useEffect(() => {
+    if (open && facility) {
+      loadFacilitySwaps()
+    }
+  }, [open, facility, loadFacilitySwaps])
 
   if (!facility) return null
 
@@ -244,17 +250,17 @@ export function FacilityDetailModal({
                   <h4 className="font-medium text-gray-900 mb-2">{t('swaps.mostActiveRequesters')}</h4>
                   <div className="space-y-2">
                     {(() => {
-                      const staffActivity = facilitySwaps.reduce((acc, swap) => {
+                      const staffActivity = facilitySwaps.reduce<Record<string, number>>((acc, swap) => {
                         const staffName = swap.requesting_staff?.full_name || t('common.unknown')
                         acc[staffName] = (acc[staffName] || 0) + 1
                         return acc
                       }, {})
-                      
+
                       const topStaff = Object.entries(staffActivity)
-                        .sort(([,a], [,b]) => b - a)
+                        .sort(([,a], [,b]) => (b as number) - (a as number))
                         .slice(0, 3)
-                      
-                      return topStaff.map(([name, count], index) => (
+
+                      return topStaff.map(([name, count]) => (
                         <div key={name} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                           <span className="text-sm font-medium">{name}</span>
                           <Badge variant="outline">{count} {t('swaps.requests')}</Badge>
@@ -314,7 +320,40 @@ export function FacilityDetailModal({
               ) : (
                 <SwapManagementDashboard
                   facility={facility}
-                  swapRequests={facilitySwaps}
+                  swapRequests={facilitySwaps as unknown as Array<{
+                    id: string
+                    schedule_id: string
+                    requesting_staff: {
+                      id: string
+                      full_name: string
+                      role: string
+                    }
+                    target_staff?: {
+                      id: string
+                      full_name: string
+                      role: string
+                    }
+                    assigned_staff?: {
+                      id: string
+                      full_name: string
+                      role: string
+                    }
+                    original_day: number
+                    original_shift: number
+                    target_day?: number
+                    target_shift?: number
+                    swap_type: 'specific' | 'auto'
+                    reason: string
+                    urgency: 'low' | 'normal' | 'high' | 'emergency'
+                    status: 'pending' | 'manager_approved' | 'staff_accepted' | 'staff_declined' | 'assigned' | 'executed' | 'declined' | 'assignment_failed' | 'cancelled' | 'manager_final_approval'
+                    target_staff_accepted?: boolean
+                    assigned_staff_accepted?: boolean
+                    manager_approved?: boolean
+                    manager_final_approved?: boolean
+                    manager_notes?: string
+                    created_at: string
+                    expires_at?: string
+                  }>}
                   swapSummary={{
                     facility_id: facility.facility_id,
                     pending_swaps: pendingCount,
@@ -326,6 +365,7 @@ export function FacilityDetailModal({
                   days={days}
                   shifts={shifts}
                   onApproveSwap={onApproveSwap}
+                  onFinalApproval={onFinalApproval}
                   onRetryAutoAssignment={onRetryAutoAssignment}
                   onViewSwapHistory={onViewSwapHistory}
                   onRefresh={loadFacilitySwaps}

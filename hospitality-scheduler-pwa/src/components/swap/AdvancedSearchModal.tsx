@@ -7,17 +7,18 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useTranslations } from '@/hooks/useTranslations'
 import { Search, X, Filter } from 'lucide-react'
+import * as SwapTypes from '@/types/swaps'
 
 interface AdvancedSearchProps {
   open: boolean
   onClose: () => void
-  onSearch: (filters: any) => void
-  facilities: any[]
+  onSearch: (filters: SwapTypes.SwapSearchFilters) => void
+  facilities: SwapTypes.FacilitySummary[]
 }
 
 export function AdvancedSearchModal({ open, onClose, onSearch, facilities }: AdvancedSearchProps) {
   const { t } = useTranslations()
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<SwapTypes.SwapSearchFilters>({
     query: '',
     facility_id: '',
     status: '',

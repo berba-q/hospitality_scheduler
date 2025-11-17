@@ -3,11 +3,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TrendingUp, TrendingDown, AlertTriangle, Users, Clock } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as SwapTypes from '@/types/swaps'
 
 interface AnalyticsTabProps {
-  facilitySummaries: any[]
-  allSwapRequests: any[]
-  apiClient: any
+  facilitySummaries: SwapTypes.FacilitySummary[]
+  allSwapRequests: SwapTypes.SwapRequest[]
 }
 
 export function AnalyticsTab({ facilitySummaries, allSwapRequests }: AnalyticsTabProps) {
@@ -19,42 +19,42 @@ export function AnalyticsTab({ facilitySummaries, allSwapRequests }: AnalyticsTa
     const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
-    const recentSwaps = allSwapRequests.filter(swap => 
+    const recentSwaps = allSwapRequests.filter(swap =>
       new Date(swap.created_at) >= lastWeek
     )
-    
-    const monthlySwaps = allSwapRequests.filter(swap => 
+
+    const monthlySwaps = allSwapRequests.filter(swap =>
       new Date(swap.created_at) >= lastMonth
     )
 
-    const completedSwaps = allSwapRequests.filter(swap => swap.status === 'completed')
-    const successRate = allSwapRequests.length > 0 
-      ? (completedSwaps.length / allSwapRequests.length * 100).toFixed(1)
+    const completedSwaps = allSwapRequests.filter(swap => swap.status === SwapTypes.SwapStatus.Executed)
+    const successRate = allSwapRequests.length > 0
+      ? parseFloat((completedSwaps.length / allSwapRequests.length * 100).toFixed(1))
       : 0
 
     // Urgency breakdown
-    const urgencyBreakdown = allSwapRequests.reduce((acc, swap) => {
+    const urgencyBreakdown = allSwapRequests.reduce<Record<SwapTypes.SwapUrgency, number>>((acc, swap) => {
       acc[swap.urgency] = (acc[swap.urgency] || 0) + 1
       return acc
-    }, {})
+    }, {} as Record<SwapTypes.SwapUrgency, number>)
 
     // Facility performance
     const facilityPerformance = facilitySummaries.map(facility => ({
       name: facility.facility_name,
       pending: facility.pending_swaps,
-      urgent: facility.urgent_swaps,
-      emergency: facility.emergency_swaps,
-      total: facility.pending_swaps + facility.urgent_swaps + facility.emergency_swaps
+      urgent: facility.urgent_swaps ?? 0,
+      emergency: facility.emergency_swaps ?? 0,
+      total: facility.pending_swaps + (facility.urgent_swaps ?? 0) + (facility.emergency_swaps ?? 0)
     })).sort((a, b) => b.total - a.total)
 
     return {
       totalSwaps: allSwapRequests.length,
       recentSwaps: recentSwaps.length,
       monthlySwaps: monthlySwaps.length,
-      successRate: parseFloat(successRate),
+      successRate,
       urgencyBreakdown,
       facilityPerformance,
-      emergencySwaps: allSwapRequests.filter(swap => swap.urgency === 'emergency').length
+      emergencySwaps: allSwapRequests.filter(swap => swap.urgency === SwapTypes.SwapUrgency.Emergency).length
     }
   }
 
@@ -149,7 +149,7 @@ export function AnalyticsTab({ facilitySummaries, allSwapRequests }: AnalyticsTa
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {metrics.facilityPerformance.slice(0, 5).map((facility, index) => (
+              {metrics.facilityPerformance.slice(0, 5).map((facility) => (
                 <div key={facility.name} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{facility.name}</span>
@@ -161,17 +161,17 @@ export function AnalyticsTab({ facilitySummaries, allSwapRequests }: AnalyticsTa
                     {facility.pending > 0 && (
                       <div className="h-2 bg-blue-500 rounded" style={{ width: `${(facility.pending / facility.total) * 100}%` }} />
                     )}
-                    {facility.urgent > 0 && (
-                      <div className="h-2 bg-orange-500 rounded" style={{ width: `${(facility.urgent / facility.total) * 100}%` }} />
+                    {(facility.urgent ?? 0) > 0 && (
+                      <div className="h-2 bg-orange-500 rounded" style={{ width: `${((facility.urgent ?? 0) / facility.total) * 100}%` }} />
                     )}
-                    {facility.emergency > 0 && (
-                      <div className="h-2 bg-red-500 rounded" style={{ width: `${(facility.emergency / facility.total) * 100}%` }} />
+                    {(facility.emergency ?? 0) > 0 && (
+                      <div className="h-2 bg-red-500 rounded" style={{ width: `${((facility.emergency ?? 0) / facility.total) * 100}%` }} />
                     )}
                   </div>
                   <div className="flex gap-4 text-xs text-gray-600">
                     <span>{t('swaps.pending')}: {facility.pending}</span>
-                    <span>{t('swaps.urgent')}: {facility.urgent}</span>
-                    <span>{t('swaps.emergency')}: {facility.emergency}</span>
+                    <span>{t('swaps.urgent')}: {facility.urgent ?? 0}</span>
+                    <span>{t('swaps.emergency')}: {facility.emergency ?? 0}</span>
                   </div>
                 </div>
               ))}

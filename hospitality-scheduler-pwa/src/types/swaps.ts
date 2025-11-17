@@ -121,3 +121,47 @@ export const needsManagerAction = (status: SwapStatus): boolean => {
 export const needsStaffAction = (status: SwapStatus): boolean => {
   return SwapStatusCategories.NEEDS_STAFF_ACTION.includes(status)
 }
+
+// ==================== FACILITY SUMMARY TYPES ====================
+
+export interface FacilitySummary {
+  facility_id: string
+  facility_name: string
+  pending_swaps: number
+  total_swaps: number
+  success_rate: number
+  emergency_swaps?: number
+  urgent_swaps?: number
+}
+
+// Detailed swap summary for management dashboard
+export interface SwapSummary {
+  facility_id: string
+  pending_swaps: number
+  urgent_swaps: number
+  auto_swaps_needing_assignment: number
+  specific_swaps_awaiting_response: number
+  recent_completions: number
+  manager_approval_needed?: number
+  potential_assignments?: number
+  staff_responses_needed?: number
+  manager_final_approval_needed?: number
+  role_compatible_assignments?: number
+  role_override_assignments?: number
+  failed_role_verifications?: number
+  average_approval_time_hours?: number
+  average_staff_response_time_hours?: number
+  pending_over_24h?: number
+}
+
+// ==================== SEARCH AND FILTER TYPES ====================
+
+export interface SwapSearchFilters {
+  query: string
+  facility_id: string
+  status: string
+  urgency: string
+  swap_type: string
+  date_from: string
+  date_to: string
+}

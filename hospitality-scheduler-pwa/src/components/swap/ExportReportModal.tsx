@@ -10,10 +10,11 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { toast } from 'sonner'
 import { useTranslations } from '@/hooks/useTranslations'
-import { 
-  Download, 
-  FileText, 
-  FileSpreadsheet, 
+import * as SwapTypes from '@/types/swaps'
+import {
+  Download,
+  FileText,
+  FileSpreadsheet,
   Calendar as CalendarIcon,
   Loader2
 } from 'lucide-react'
@@ -21,8 +22,8 @@ import {
 interface ExportReportProps {
   open: boolean
   onClose: () => void
-  facilitySummaries: any[]
-  allSwapRequests: any[]
+  facilitySummaries: SwapTypes.FacilitySummary[]
+  allSwapRequests: SwapTypes.SwapRequest[]
   onExport: (config: ExportConfig) => Promise<void>
 }
 
@@ -122,7 +123,7 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
   }
 
   const getFieldLabel = (field: string) => {
-    const labels = {
+    const labels: Record<string, string> = {
       staffDetails: t('swaps.staffDetails'),
       timestamps: t('swaps.timestamps'),
       notes: t('common.notes'),
@@ -152,7 +153,7 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
                 className="flex items-center gap-2"
               >
                 <FileText className="h-4 w-4" />
-                CSV
+                {t('common.csv')}
               </Button>
               <Button
                 variant={config.format === 'excel' ? 'default' : 'outline'}
@@ -160,7 +161,7 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
                 className="flex items-center gap-2"
               >
                 <FileSpreadsheet className="h-4 w-4" />
-                Excel
+                {t('common.excel')}
               </Button>
               <Button
                 variant={config.format === 'pdf' ? 'default' : 'outline'}
@@ -168,7 +169,7 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
                 className="flex items-center gap-2"
               >
                 <FileText className="h-4 w-4" />
-                PDF
+                {t('common.pdf')}
               </Button>
             </div>
           </div>
@@ -403,7 +404,7 @@ export function ExportReportModal({ open, onClose, facilitySummaries, allSwapReq
 }
 
 // Integration function for the main page
-export function useExportFunctionality(apiClient: any) {
+export function useExportFunctionality(apiClient: { exportSwapReport: (data: unknown) => Promise<Blob> }) {
   const { t } = useTranslations()
   const [showExportModal, setShowExportModal] = useState(false)
 

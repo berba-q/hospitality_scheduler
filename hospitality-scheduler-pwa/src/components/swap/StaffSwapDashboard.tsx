@@ -3,12 +3,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
-import { 
-  Clock, 
-  User, 
-  ArrowLeftRight, 
-  CheckCircle, 
-  AlertTriangle, 
+import {
+  Clock,
+  User,
+  ArrowLeftRight,
+  CheckCircle,
+  AlertTriangle,
   Plus,
   RefreshCw,
   Eye,
@@ -25,17 +25,65 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as SwapTypes from '@/types/swaps'
+import * as AuthTypes from '@/types/auth'
+import * as ScheduleTypes from '@/types/schedule'
 
 // Import existing components
 import SwapDetailModal from '@/components/swap/SwapDetailModal'
 import { StaffSwapRequestDialog } from '@/components/swap/StaffSwapRequestDialog'
 import { SwapRequestsList } from '@/components/swap/SwapRequestsList'
 import { PotentialAssignmentCard } from './WorkflowStatusIndicator'
-import { SwapStatus } from '@/types/swaps'
+
+// API Client interface
+interface ApiClient {
+  getFacilities: () => Promise<Array<{ id: string; name: string }>>
+  getFacilitySchedules: (facilityId: string) => Promise<ScheduleTypes.Schedule[]>
+  getStaffSwapRequests: () => Promise<SwapTypes.SwapRequest[] | { data: SwapTypes.SwapRequest[] }>
+  getStaffDashboardStats: () => Promise<PersonalStats & { upcomingShifts: UpcomingShift[] }>
+  respondToPotentialAssignment: (swapId: string, data: { accepted: boolean; notes?: string; availability_confirmed?: boolean }) => Promise<void>
+  RespondToSwap: (swapId: string, data: { accepted: boolean; notes?: string; confirm_availability?: boolean }) => Promise<void>
+  cancelSwapRequest: (swapId: string, reason?: string) => Promise<void>
+  createSwapRequest: (swapData: unknown) => Promise<unknown>
+}
+
+// Personal stats interface
+interface PersonalStats {
+  totalRequests: number
+  acceptanceRate: number
+  helpfulnessScore: number
+  currentStreak: number
+  thisWeekShifts: number
+  avgResponseTime: string
+  availableToHelp: number
+  totalHelped: number
+  teamRating: number
+}
+
+// Upcoming shift interface
+interface UpcomingShift {
+  id: string
+  date: string
+  shift_name: string
+  start_time: string
+  end_time: string
+  facility_name: string
+  zone?: string
+}
+
+// Extended swap request with computed fields
+interface ExtendedSwapRequest extends SwapTypes.SwapRequest {
+  status: SwapTypes.SwapStatus
+  isAutoAssignment: boolean
+  isForCurrentUser: boolean
+  canRespond: boolean
+  user_role?: 'requester' | 'target' | 'assigned'
+  assigned_staff_accepted?: boolean | null
+}
 
 interface StaffSwapDashboardProps {
-  user: any
-  apiClient: any
+  user: AuthTypes.User & { staffId?: string }
+  apiClient: ApiClient
 }
 
 // ✅ NEW: Helper function to normalize status values
@@ -50,60 +98,60 @@ const normalizeSwapStatus = (status: string): string => {
 }
 
 // ✅ NEW: Helper function to determine if user is assigned to a swap
-const isUserAssignedToSwap = (swap: any, userId: string): boolean => {
+const isUserAssignedToSwap = (swap: ExtendedSwapRequest, userId: string): boolean => {
   // Check if user is target staff for specific swaps
   if (swap.swap_type === 'specific' && swap.target_staff_id === userId) {
     return true
   }
-  
+
   // Check if user is auto-assigned staff
   if (swap.swap_type === 'auto' && swap.assigned_staff_id === userId) {
     return true
   }
-  
+
   // Fallback: check user_role from backend
   if (swap.user_role === 'target' || swap.user_role === 'assigned') {
     return true
   }
-  
+
   return false
 }
 
 // ✅ NEW: Helper function to determine if user can respond to a swap
-const canUserRespondToSwap = (swap: any, userId: string): boolean => {
+const canUserRespondToSwap = (swap: ExtendedSwapRequest, userId: string): boolean => {
   const normalizedStatus = normalizeSwapStatus(swap.status)
-  
+
   // Must be assigned to the swap
   if (!isUserAssignedToSwap(swap, userId)) {
     return false
   }
-  
+
   // Must be in a respondable status
   const respondableStatuses = ['pending', 'awaiting_target', 'manager_approved']
   if (!respondableStatuses.includes(normalizedStatus)) {
     return false
   }
-  
+
   // Check if already responded
   if (swap.swap_type === 'specific' && swap.target_staff_accepted !== null) {
     return false
   }
-  
+
   if (swap.swap_type === 'auto' && swap.assigned_staff_accepted !== null) {
     return false
   }
-  
+
   return true
 }
 
 function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
   const { data: session } = useSession()
   const { t } = useTranslations()
-  
+
   // Core data state
-  const [swapRequests, setSwapRequests] = useState([])
-  const [upcomingShifts, setUpcomingShifts] = useState([])
-  const [personalStats, setPersonalStats] = useState({
+  const [swapRequests, setSwapRequests] = useState<ExtendedSwapRequest[]>([])
+  const [, setUpcomingShifts] = useState<UpcomingShift[]>([])
+  const [personalStats, setPersonalStats] = useState<PersonalStats>({
     totalRequests: 0,
     acceptanceRate: 0,
     helpfulnessScore: 0,
@@ -116,29 +164,34 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
   })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [currentSchedule, setCurrentSchedule] = useState(null)
-  const [currentWeek, setCurrentWeek] = useState(null)
-  
+  const [currentSchedule, setCurrentSchedule] = useState<ScheduleTypes.Schedule | null>(null)
+  const [currentWeek, setCurrentWeek] = useState<string | null>(null)
+
   // UI state
   const [activeTab, setActiveTab] = useState('overview')
-  
+
   // Modal state
-  const [selectedSwap, setSelectedSwap] = useState(null)
+  const [selectedSwap, setSelectedSwap] = useState<ExtendedSwapRequest | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [selectedShiftForSwap, setSelectedShiftForSwap] = useState(null)
+  const [selectedShiftForSwap, setSelectedShiftForSwap] = useState<{
+    day: number
+    shift: number
+    date: string
+    shiftName: string
+    shiftTime: string
+  } | null>(null)
 
   // ✅ UPDATED: Better user ID handling and assignment detection
   const userId = user?.staffId || user?.id
 
   const potentialAssignments = swapRequests.filter(swap => {
-    const normalizedStatus = normalizeSwapStatus(swap.status)
-    
     // Must be awaiting target response
-    if (normalizedStatus !== 'awaiting_target') {
+    if (swap.status !== SwapTypes.SwapStatus.PotentialAssignment &&
+        swap.status !== SwapTypes.SwapStatus.ManagerApproved) {
       return false
     }
-    
+
     // Must be assigned to this user
     return isUserAssignedToSwap(swap, userId)
   })
@@ -171,6 +224,7 @@ console.log('🔍 ===== END DEBUGGING =====')
 
   useEffect(() => {
     loadAllData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadAllData = async () => {
@@ -205,16 +259,30 @@ console.log('🔍 ===== END DEBUGGING =====')
       console.log('Raw swaps response:', swapsData)
       
       const swapArray = Array.isArray(swapsData) ? swapsData : (swapsData?.data || [])
-      
+
       // ✅ NEW: Process and normalize swap statuses
-      const processedSwaps = swapArray.map(swap => ({
-        ...swap,
-        status: normalizeSwapStatus(swap.status),
-        // ✅ NEW: Add helper flags for easier filtering
-        isAutoAssignment: swap.swap_type === 'auto',
-        isForCurrentUser: isUserAssignedToSwap(swap, userId),
-        canRespond: canUserRespondToSwap(swap, userId)
-      }))
+      const processedSwaps: ExtendedSwapRequest[] = swapArray.map((swap): ExtendedSwapRequest => {
+        // Type assertion for backend fields not in the base SwapRequest type
+        const swapWithExtras = swap as SwapTypes.SwapRequest & {
+          user_role?: 'requester' | 'target' | 'assigned'
+          assigned_staff_accepted?: boolean | null
+        }
+
+        const extendedSwap: ExtendedSwapRequest = {
+          ...swap,
+          status: swap.status as SwapTypes.SwapStatus,
+          isAutoAssignment: swap.swap_type === 'auto',
+          isForCurrentUser: false,
+          canRespond: false,
+          user_role: swapWithExtras.user_role,
+          assigned_staff_accepted: swapWithExtras.assigned_staff_accepted ?? null
+        }
+
+        extendedSwap.isForCurrentUser = isUserAssignedToSwap(extendedSwap, userId)
+        extendedSwap.canRespond = canUserRespondToSwap(extendedSwap, userId)
+
+        return extendedSwap
+      })
       
       setSwapRequests(processedSwaps)
       
@@ -306,13 +374,19 @@ console.log('🔍 ===== END DEBUGGING =====')
       
       // Historical requests
       history: swapRequests.filter(swap => {
-        const isHistory = ['executed', 'declined', 'cancelled', 'completed'].includes(swap.status)
+        const isHistory = [
+          SwapTypes.SwapStatus.Executed,
+          SwapTypes.SwapStatus.Declined,
+          SwapTypes.SwapStatus.Cancelled,
+          SwapTypes.SwapStatus.StaffDeclined,
+          SwapTypes.SwapStatus.AssignmentDeclined
+        ].includes(swap.status)
         return isHistory
       }),
       
       // All requests involving me
       all: swapRequests.filter(swap => {
-        const involvesMe = ['requester', 'target', 'assigned'].includes(swap.user_role) ||
+        const involvesMe = (swap.user_role && ['requester', 'target', 'assigned'].includes(swap.user_role)) ||
                           swap.requesting_staff_id === userId ||
                           swap.requesting_staff_id === user?.id ||
                           swap.isForCurrentUser
@@ -339,7 +413,7 @@ console.log('🔍 ===== END DEBUGGING =====')
     toast.success(t('messages.dataRefreshed'))
   }
 
-  const handleSwapClick = (swap) => {
+  const handleSwapClick = (swap: ExtendedSwapRequest) => {
     setSelectedSwap(swap)
     setShowDetailModal(true)
   }
@@ -363,9 +437,9 @@ console.log('🔍 ===== END DEBUGGING =====')
       })
 
       // ✅ Detect swap type and status to use correct API method
-      if (swap.swap_type === 'auto' && 
-          ['potential_assignment', 'awaiting_target'].includes(swap.status)) {
-        
+      if (swap.swap_type === 'auto' &&
+          [SwapTypes.SwapStatus.PotentialAssignment, SwapTypes.SwapStatus.ManagerApproved].includes(swap.status)) {
+
         // ✅ For auto assignments awaiting response, use respondToPotentialAssignment
         console.log('🔄 Using respondToPotentialAssignment for auto swap')
         await apiClient.respondToPotentialAssignment(swapId, {
@@ -373,12 +447,11 @@ console.log('🔍 ===== END DEBUGGING =====')
           notes,
           availability_confirmed: true
         })
-        
-      } else if (swap.swap_type === 'specific' && 
-                 ['pending', 'manager_approved', 'awaiting_target'].includes(swap.status)) {
-        
-        // ✅ For specific swaps, use RespondToSwap (correct capitalization)
-        console.log('🔄 Using RespondToSwap for specific swap')
+
+      } else if (swap.swap_type === 'specific' &&
+                 [SwapTypes.SwapStatus.Pending, SwapTypes.SwapStatus.ManagerApproved].includes(swap.status)) {
+
+        console.log('Using RespondToSwap for specific swap')
         await apiClient.RespondToSwap(swapId, {
           accepted,
           notes,
@@ -389,28 +462,28 @@ console.log('🔍 ===== END DEBUGGING =====')
         throw new Error(`${t('errors.cannotRespond')}: ${swap.status} ${t('common.with')} ${swap.swap_type}`)
       }
 
-      // ✅ Refresh data after successful response
+      // Refresh data after successful response
       await loadAllData()
       
-      // ✅ Close modal if it's open
+      //  Close modal if it's open
       setShowDetailModal(false)
       
-      // ✅ Show success toast
+      //  Show success toast
       toast.success(accepted ? t('messages.swapAccepted') : t('messages.swapDeclined'))
       
     } catch (error) {
-      console.error('❌ Failed to respond to swap:', error)
-      
-      // ✅ Show specific error message
-      const errorMessage = error?.message || t('errors.failedToRespond')
+      console.error(' Failed to respond to swap:', error)
+
+      //  Show specific error message
+      const errorMessage = (error instanceof Error ? error.message : null) || t('errors.failedToRespond')
       toast.error(errorMessage)
-      
+
       // Re-throw error so calling components can handle it
       throw error
     }
   }
 
-  const handleCancelSwap = async (swapId, reason = '') => {
+  const handleCancelSwap = async (swapId: string, reason = '') => {
     try {
       await apiClient.cancelSwapRequest(swapId, reason)
       await loadAllData()
@@ -422,7 +495,7 @@ console.log('🔍 ===== END DEBUGGING =====')
     }
   }
 
-  const handleCreateSwap = async (swapData) => {
+  const handleCreateSwap = async (swapData: unknown) => {
     try {
       console.log('🔍 AUTH DEBUG: Current user from useAuth:', user)
       console.log('🔍 AUTH DEBUG: Session data:', session)
@@ -432,7 +505,7 @@ console.log('🔍 ===== END DEBUGGING =====')
       
       const result = await apiClient.createSwapRequest(swapData)
       
-      console.log('✅ Swap created successfully:', result)
+      console.log('Swap created successfully:', result)
       
       await loadAllData()
       setShowCreateModal(false)
@@ -440,8 +513,8 @@ console.log('🔍 ===== END DEBUGGING =====')
       toast.success(t('messages.swapRequestCreated'))
       
     } catch (error) {
-      console.error('❌ Failed to create swap:', error)
-      toast.error(error.message || t('errors.failedToCreateSwap'))
+      console.error(' Failed to create swap:', error)
+      toast.error((error instanceof Error ? error.message : null) || t('errors.failedToCreateSwap'))
       throw error
     }
   }
@@ -460,6 +533,7 @@ console.log('🔍 ===== END DEBUGGING =====')
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <div className="max-w-7xl mx-auto p-6">
+        
         {/* Enhanced Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -641,7 +715,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                           <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
                           <h3 className="font-medium text-green-800">{t('common.completed')}</h3>
                           <p className="text-2xl font-bold text-green-900">
-                            {filteredAndCategorizedData.all.filter(s => s.status === 'executed').length}
+                            {filteredAndCategorizedData.all.filter(s => s.status === SwapTypes.SwapStatus.Executed).length}
                           </p>
                         </CardContent>
                       </Card>
@@ -651,7 +725,7 @@ console.log('🔍 ===== END DEBUGGING =====')
                           <Clock className="w-8 h-8 text-purple-600 mx-auto mb-2" />
                           <h3 className="font-medium text-purple-800">{t('common.pending')}</h3>
                           <p className="text-2xl font-bold text-purple-900">
-                            {filteredAndCategorizedData.all.filter(s => s.status === 'pending').length}
+                            {filteredAndCategorizedData.all.filter(s => s.status === SwapTypes.SwapStatus.Pending).length}
                           </p>
                         </CardContent>
                       </Card>
@@ -713,10 +787,11 @@ console.log('🔍 ===== END DEBUGGING =====')
                                     <div className="flex-1">
                                       <div className="flex items-center gap-2 mb-1">
                                         <Badge className={
-                                          swap.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                          swap.status === 'executed' ? 'bg-green-100 text-green-800' :
-                                          swap.status === 'declined' ? 'bg-red-100 text-red-800' :
-                                          swap.status === 'awaiting_target' ? 'bg-purple-100 text-purple-800' :
+                                          swap.status === SwapTypes.SwapStatus.Pending ? 'bg-yellow-100 text-yellow-800' :
+                                          swap.status === SwapTypes.SwapStatus.Executed ? 'bg-green-100 text-green-800' :
+                                          swap.status === SwapTypes.SwapStatus.Declined ? 'bg-red-100 text-red-800' :
+                                          swap.status === SwapTypes.SwapStatus.PotentialAssignment ? 'bg-purple-100 text-purple-800' :
+                                          swap.status === SwapTypes.SwapStatus.ManagerApproved ? 'bg-purple-100 text-purple-800' :
                                           'bg-gray-100 text-gray-800'
                                         }>
                                           {t(`status.${swap.status}`)}
@@ -932,8 +1007,8 @@ console.log('🔍 ===== END DEBUGGING =====')
           setSelectedShiftForSwap(null)
         }}
         scheduleId={currentSchedule?.id}
-        currentWeek={currentWeek}
-        assignmentDetails={selectedShiftForSwap}
+        currentWeek={currentWeek ?? undefined}
+        assignmentDetails={selectedShiftForSwap || null}
         onSubmitSwap={handleCreateSwap}
         availableStaff={[]}
       />

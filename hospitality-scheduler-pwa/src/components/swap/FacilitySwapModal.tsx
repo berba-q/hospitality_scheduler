@@ -6,15 +6,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ArrowLeftRight, Building} from 'lucide-react'
 import { SwapManagementDashboard } from './SwapManagementDashboard'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as SwapTypes from '@/types/swaps'
+import * as FacilityTypes from '@/types/facility'
 
 interface FacilitySwapModalProps {
   open: boolean
   onClose: () => void
-  facility: any
-  swapRequests: any[]
-  swapSummary: any
+  facility: FacilityTypes.Facility
+  swapRequests: SwapTypes.SwapRequest[]
+  swapSummary: SwapTypes.SwapSummary
   days: string[]
-  shifts: any[]
+  shifts: FacilityTypes.FacilityShift[]
   onApproveSwap: (swapId: string, approved: boolean, notes?: string) => Promise<void>
   onRetryAutoAssignment: (swapId: string, avoidStaffIds?: string[]) => Promise<void>
   onViewSwapHistory: (swapId: string) => void
@@ -54,7 +56,7 @@ export function FacilitySwapModal({
         const modalElement = document.querySelector('[data-radix-dialog-content]')
         if (modalElement) {
           const rect = modalElement.getBoundingClientRect()
-          console.log('📏 Modal element dimensions:', {
+          console.log(' Modal element dimensions:', {
             width: rect.width,
             height: rect.height,
             left: rect.left,
@@ -62,9 +64,9 @@ export function FacilitySwapModal({
             right: rect.right,
             bottom: rect.bottom
           })
-          console.log('📏 Modal computed styles:', window.getComputedStyle(modalElement))
+          console.log('Modal computed styles:', window.getComputedStyle(modalElement))
         } else {
-          console.warn('❌ Modal element not found')
+          console.warn(' Modal element not found')
         }
       }, 100)
     }
