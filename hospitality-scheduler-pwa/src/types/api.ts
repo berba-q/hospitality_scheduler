@@ -362,18 +362,25 @@ export interface TopRequestersResponse {
   period_days: number
   top_requesters: Array<{
     staff_id: string
-    name: string
+    staff_name: string
+    role: string
     total_requests: number
     success_rate: number
     most_common_reason: string
   }>
+  summary?: {
+    total_unique_requesters: number
+    total_requests_period: number
+    avg_success_rate: number
+  }
 }
 
 export interface SwapReasonsAnalysis {
-  reasons: Array<{
+  reason_analysis: Array<{
     reason: string
     count: number
     percentage: number
+    success_rate: number
   }>
   top_reason: string
   patterns: string[]
@@ -407,12 +414,73 @@ export interface TeamInsights {
 }
 
 export interface StaffPerformanceMetrics {
-  staff_id: string
-  name: string
-  requests_made: number
-  requests_fulfilled: number
-  help_provided: number
-  reliability_score: number
+  staff_performance: Array<{
+    staff_id: string
+    staff_name: string
+    role: string
+    overall_helpfulness_score: number
+    times_requested_as_target: number
+    times_assigned_auto: number
+  }>
+  summary?: {
+    most_helpful_staff: string
+  }
+}
+
+export interface ProblemPatternsResponse {
+  facility_id: string
+  period_days: number
+  problem_patterns?: {
+    high_frequency_requesters: Array<{
+      staff_id: string
+      staff_name: string
+      role: string
+      total_requests: number
+    }>
+    frequent_emergency_users: Array<{
+      staff_id: string
+      staff_name: string
+      emergency_requests: number
+    }>
+    low_success_staff: Array<{
+      staff_id: string
+      staff_name: string
+      success_rate: number
+    }>
+  }
+  patterns: Array<{
+    pattern_type: string
+    frequency: number
+    description: string
+    severity: 'low' | 'medium' | 'high'
+  }>
+  recommendations: string[]
+  // Legacy fields (for backward compatibility)
+  high_frequency_requesters?: Array<{
+    staff_id: string
+    staff_name: string
+    role: string
+    total_requests: number
+  }>
+  frequent_emergency_users?: Array<{
+    staff_id: string
+    staff_name: string
+    emergency_requests: number
+  }>
+  low_success_staff?: Array<{
+    staff_id: string
+    staff_name: string
+    success_rate: number
+  }>
+}
+
+export interface ComprehensiveSwapAnalytics {
+  topRequesters: TopRequestersResponse
+  reasons: SwapReasonsAnalysis
+  performance: StaffPerformanceMetrics
+  problems: ProblemPatternsResponse
+  period_days: number
+  facility_id: string
 }
 
 // ==================== SETTINGS TYPES ====================

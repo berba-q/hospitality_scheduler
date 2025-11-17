@@ -1,16 +1,16 @@
 // SwapHistoryModal.tsx - Shows complete timeline and history for a swap
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useTranslations } from '@/hooks/useTranslations'
-import { 
-  History, 
-  User, 
-  CheckCircle, 
+import {
+  History,
+  User,
+  CheckCircle,
   XCircle,
   ArrowLeftRight,
   MessageSquare,
@@ -19,15 +19,14 @@ import {
   X,
   Activity
 } from 'lucide-react'
+import * as SwapTypes from '@/types/swaps'
+import * as ApiTypes from '@/types/api'
 
-interface SwapHistoryEntry {
+interface Shift {
   id: string
-  swap_request_id: string
-  action: string
-  actor_staff_id?: string
-  actor_staff_name?: string
-  notes?: string
-  created_at: string
+  name: string
+  start_time: string
+  end_time: string
 }
 
 interface SwapHistoryModalProps {
@@ -35,11 +34,11 @@ interface SwapHistoryModalProps {
   onClose: () => void
   swapId: string | null
   onLoadSwapHistory: (swapId: string) => Promise<{
-    swap: any
-    history: SwapHistoryEntry[]
+    swap: SwapTypes.SwapRequest
+    history: ApiTypes.SwapHistoryEntry[]
   }>
   days: string[]
-  shifts: any[]
+  shifts: Shift[]
 }
 
 export function SwapHistoryModal({
@@ -51,13 +50,23 @@ export function SwapHistoryModal({
   shifts
 }: SwapHistoryModalProps) {
   const { t } = useTranslations()
-  const [swap, setSwap] = useState<any>(null)
-  const [history, setHistory] = useState<SwapHistoryEntry[]>([])
+  const [swap, setSwap] = useState<SwapTypes.SwapRequest | null>(null)
+  const [history, setHistory] = useState<ApiTypes.SwapHistoryEntry[]>([])
   const [loading, setLoading] = useState(false)
 
   // ACTION_CONFIG with translations
   const getActionConfig = (action: string) => {
-    const ACTION_CONFIG = {
+    type LucideIcon = typeof ArrowLeftRight
+
+    interface ActionConfig {
+      icon: LucideIcon
+      color: string
+      bgColor: string
+      label: string
+      description: string
+    }
+
+    const ACTION_CONFIG: Record<string, ActionConfig> = {
       requested: {
         icon: ArrowLeftRight,
         color: 'text-blue-600',
@@ -116,24 +125,20 @@ export function SwapHistoryModal({
       }
     }
 
-    return ACTION_CONFIG[action] || {
+    const defaultConfig: ActionConfig = {
       icon: Activity,
       color: 'text-gray-600',
       bgColor: 'bg-gray-100',
       label: action.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
       description: t('swaps.actionPerformed')
     }
+
+    return ACTION_CONFIG[action] || defaultConfig
   }
 
-  useEffect(() => {
-    if (open && swapId) {
-      loadHistory()
-    }
-  }, [open, swapId])
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     if (!swapId) return
-    
+
     setLoading(true)
     try {
       const data = await onLoadSwapHistory(swapId)
@@ -144,7 +149,13 @@ export function SwapHistoryModal({
     } finally {
       setLoading(false)
     }
-  }
+  }, [swapId, onLoadSwapHistory])
+
+  useEffect(() => {
+    if (open && swapId) {
+      loadHistory()
+    }
+  }, [open, swapId, loadHistory])
 
   if (!swapId) return null
 
@@ -204,24 +215,61 @@ export function SwapHistoryModal({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium text-gray-500">{t('swaps.requestedBy')}</label>
-                        <p className="font-medium">{swap.requesting_staff_name || t('common.unknown')}</p>
+                        <p className="font-medium">{swap.requesting_staff?.full_name || t('common.unknown')}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-500">{t('swaps.requestDate')}</label>
                         <p className="font-medium">{new Date(swap.created_at).toLocaleDateString()}</p>
                       </div>
-                      {swap.target_staff_name && (
+                      {swap.target_staff && (
                         <div>
                           <label className="text-sm font-medium text-gray-500">{t('swaps.targetStaff')}</label>
-                          <p className="font-medium">{swap.target_staff_name}</p>
+                          <p className="font-medium">{swap.target_staff.full_name}</p>
                         </div>
                       )}
                       <div>
                         <label className="text-sm font-medium text-gray-500">{t('swaps.facility')}</label>
-                        <p className="font-medium">{swap.facility_name || t('common.unknown')}</p>
+                        <p className="font-medium">{swap.facility?.name || t('common.unknown')}</p>
                       </div>
                     </div>
-                    
+
+                    {/* Shift Details */}
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">{t('swaps.shiftDetails')}</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-medium text-gray-500">{t('swaps.originalShift')}</label>
+                          <p className="font-medium text-gray-900">
+                            {days[swap.original_day]} - {shifts[swap.original_shift]?.name || t('common.unknown')}
+                          </p>
+                          {shifts[swap.original_shift] && (
+                            <p className="text-xs text-gray-600">
+                              {shifts[swap.original_shift].start_time} - {shifts[swap.original_shift].end_time}
+                            </p>
+                          )}
+                        </div>
+                        {swap.swap_type === 'specific' && swap.target_day !== undefined && swap.target_shift !== undefined && (
+                          <div>
+                            <label className="text-xs font-medium text-gray-500">{t('swaps.targetShift')}</label>
+                            <p className="font-medium text-gray-900">
+                              {days[swap.target_day]} - {shifts[swap.target_shift]?.name || t('common.unknown')}
+                            </p>
+                            {shifts[swap.target_shift] && (
+                              <p className="text-xs text-gray-600">
+                                {shifts[swap.target_shift].start_time} - {shifts[swap.target_shift].end_time}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {swap.reason && (
+                        <div className="mt-3">
+                          <label className="text-xs font-medium text-gray-500">{t('swaps.reason')}</label>
+                          <p className="text-sm text-gray-700 mt-1">{swap.reason}</p>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex items-center gap-4 mt-4">
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${getActionConfig(swap.status).bgColor} ${getActionConfig(swap.status).color}`}>
@@ -279,21 +327,21 @@ export function SwapHistoryModal({
                                 <div className="flex items-center justify-between mb-2">
                                   <h4 className="font-medium text-gray-900">{config.label}</h4>
                                   <span className="text-sm text-gray-500">
-                                    {formatTimeAgo(entry.created_at)}
+                                    {formatTimeAgo(entry.timestamp)}
                                   </span>
                                 </div>
-                                
+
                                 <p className="text-sm text-gray-600 mb-2">{config.description}</p>
-                                
-                                {entry.actor_staff_name && (
+
+                                {entry.actor_name && (
                                   <div className="flex items-center gap-2 mb-2">
                                     <User className="h-3 w-3 text-gray-400" />
                                     <span className="text-xs text-gray-500">
-                                      {t('common.by')} {entry.actor_staff_name}
+                                      {t('common.by')} {entry.actor_name}
                                     </span>
                                   </div>
                                 )}
-                                
+
                                 {entry.notes && (
                                   <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-700">
                                     <MessageSquare className="h-3 w-3 inline mr-1" />

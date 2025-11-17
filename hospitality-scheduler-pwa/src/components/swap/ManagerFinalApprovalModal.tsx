@@ -25,17 +25,17 @@ import {
   Settings,
   Info
 } from 'lucide-react'
-import { SwapStatus, SwapUrgency } from '@/types/swaps'
+import * as SwapTypes from '@/types/swaps'
 import { useTranslations } from '@/hooks/useTranslations'
 
 interface ManagerFinalApprovalModalProps {
-  swap: any
+  swap: SwapTypes.SwapRequest
   open: boolean
   onClose: () => void
   onApprove: (
-    approved: boolean, 
-    notes?: string, 
-    overrideRole?: boolean, 
+    approved: boolean,
+    notes?: string,
+    overrideRole?: boolean,
     overrideReason?: string
   ) => void
   loading?: boolean
@@ -61,8 +61,8 @@ export function ManagerFinalApprovalModal({
     onApprove(false, notes || undefined)
   }
 
-  const hasRoleIssues = swap?.role_match_override || 
-    (swap?.assigned_staff_role_name && swap?.original_shift_role_name && 
+  const hasRoleIssues = swap?.role_override_applied ||
+    (swap?.assigned_staff_role_name && swap?.original_shift_role_name &&
      swap.assigned_staff_role_name !== swap.original_shift_role_name)
 
   return (
@@ -113,16 +113,16 @@ export function ManagerFinalApprovalModal({
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <div className="font-medium text-gray-700">{t('swaps.originalShift')}:</div>
-                    <div>{_get_day_name(swap?.original_day, t)} - {_get_shift_name(swap?.original_shift, t)}</div>
+                    <div>{_get_day_name(swap.original_day, t)} - {_get_shift_name(swap.original_shift, t)}</div>
                     {swap?.original_zone_id && (
                       <div className="text-gray-500">{t('common.zone')}: {swap.original_zone_id}</div>
                     )}
                   </div>
-                  
-                  {swap?.swap_type === 'specific' && (
+
+                  {swap?.swap_type === 'specific' && swap.target_day !== undefined && swap.target_shift !== undefined && (
                     <div>
                       <div className="font-medium text-gray-700">{t('swaps.targetShift')}:</div>
-                      <div>{_get_day_name(swap?.target_day, t)} - {_get_shift_name(swap?.target_shift, t)}</div>
+                      <div>{_get_day_name(swap.target_day, t)} - {_get_shift_name(swap.target_shift, t)}</div>
                       {swap?.target_zone_id && (
                         <div className="text-gray-500">{t('common.zone')}: {swap.target_zone_id}</div>
                       )}
@@ -144,8 +144,8 @@ export function ManagerFinalApprovalModal({
                 </Badge>
                 <Badge
                   className={
-                    swap?.urgency === SwapUrgency.Emergency ? 'bg-red-100 text-red-800' :
-                    swap?.urgency === SwapUrgency.High      ? 'bg-orange-100 text-orange-800' :
+                    swap?.urgency === SwapTypes.SwapUrgency.Emergency ? 'bg-red-100 text-red-800' :
+                    swap?.urgency === SwapTypes.SwapUrgency.High      ? 'bg-orange-100 text-orange-800' :
                     'bg-blue-100 text-blue-800'
                   }
                 >
@@ -173,9 +173,9 @@ export function ManagerFinalApprovalModal({
                         : swap?.target_staff_role_name}
                     </span>
                   </div>
-                  {swap?.role_match_reason && (
+                  {swap?.role_override_reason && (
                     <div className="mt-2 text-xs bg-orange-100 p-2 rounded">
-                      {swap.role_match_reason}
+                      {swap.role_override_reason}
                     </div>
                   )}
                 </div>
@@ -291,11 +291,16 @@ export function ManagerFinalApprovalModal({
 
 // ==================== BULK SWAP MANAGER COMPONENT ====================
 
+interface BulkActionOptions {
+  ignore_role_mismatches?: boolean
+  role_override_reason?: string
+}
+
 interface BulkSwapManagerProps {
-  swaps: any[]
+  swaps: SwapTypes.SwapRequest[]
   selectedSwaps: string[]
   onSelectionChange: (swapIds: string[]) => void
-  onBulkAction: (action: 'approve' | 'decline', notes?: string, options?: any) => void
+  onBulkAction: (action: 'approve' | 'decline', notes?: string, options?: BulkActionOptions) => void
   loading?: boolean
 }
 
@@ -314,12 +319,12 @@ export function BulkSwapManager({
   const [roleOverrideReason, setRoleOverrideReason] = useState('')
 
   const eligibleSwaps = swaps.filter(
-    swap => swap.status === SwapStatus.ManagerFinalApproval
+    swap => swap.status === SwapTypes.SwapStatus.ManagerFinalApproval
   )
   const selectedEligibleSwaps = eligibleSwaps.filter(swap => selectedSwaps.includes(swap.id))
-  const hasRoleIssues = selectedEligibleSwaps.some(swap => 
-    swap.role_match_override || 
-    (swap.assigned_staff_role_name && swap.original_shift_role_name && 
+  const hasRoleIssues = selectedEligibleSwaps.some(swap =>
+    swap.role_override_applied ||
+    (swap.assigned_staff_role_name && swap.original_shift_role_name &&
      swap.assigned_staff_role_name !== swap.original_shift_role_name)
   )
 
@@ -506,10 +511,12 @@ export function BulkSwapManager({
 }
 
 // Helper functions
-function _get_day_name(day: number, t: any): string {
+type TranslationFunction = (key: string, params?: Record<string, string | number>) => string
+
+function _get_day_name(day: number, t: TranslationFunction): string {
   const days = [
     t('schedule.monday'),
-    t('schedule.tuesday'), 
+    t('schedule.tuesday'),
     t('schedule.wednesday'),
     t('schedule.thursday'),
     t('schedule.friday'),
@@ -519,10 +526,10 @@ function _get_day_name(day: number, t: any): string {
   return days[day] || `${t('schedule.day')} ${day}`
 }
 
-function _get_shift_name(shift: number, t: any): string {
+function _get_shift_name(shift: number, t: TranslationFunction): string {
   const shifts = [
     t('schedule.morning'),
-    t('schedule.afternoon'), 
+    t('schedule.afternoon'),
     t('schedule.evening')
   ]
   return shifts[shift] || `${t('schedule.shift')} ${shift}`

@@ -22,98 +22,119 @@ import {
   ArrowRight
 } from 'lucide-react'
 
-import { SwapStatus, SwapUrgency } from '@/types/swaps'
+import * as SwapTypes from '@/types/swaps'
+
+interface WorkflowStatus {
+  current_status: SwapTypes.SwapStatus
+  next_action_required: string
+  next_action_by: 'manager' | 'staff' | 'system'
+  can_execute: boolean
+  blocking_reasons: string[]
+  estimated_completion?: string
+}
+
+interface ActionItem {
+  id: string
+  label: string
+  variant?: string
+}
+
+interface ApiClient {
+  respondToPotentialAssignment: (swapId: string, data: { accepted: boolean; notes?: string; availability_confirmed: boolean }) => Promise<void>
+  RespondToSwap: (swapId: string, data: { accepted: boolean; notes?: string; confirm_availability: boolean }) => Promise<void>
+  ManagerSwapDecision: (swapId: string, data: { approved: boolean; notes?: string }) => Promise<void>
+  managerFinalApproval: (swapId: string, data: { approved: boolean; notes?: string }) => Promise<void>
+}
 
 interface WorkflowStatusIndicatorProps {
-  swap: any
-  workflowStatus?: {
-    current_status: SwapStatus
-    next_action_required: string
-    next_action_by: 'manager' | 'staff' | 'system'
-    can_execute: boolean
-    blocking_reasons: string[]
-    estimated_completion?: string
-  }
-  availableActions?: (string | { id: string; label: string; variant?: string })[]
+  swap: SwapTypes.SwapRequest
+  workflowStatus?: WorkflowStatus
+  availableActions?: (string | ActionItem)[]
   onActionClick?: (action: string, swapId: string) => void
-  apiClient?: any //API client for direct calls
-  onSuccess?: () => void // Success callback
+  apiClient?: ApiClient
+  onSuccess?: () => void
   compact?: boolean
 }
 
 // Map any legacy status strings from old workflow to current enum values.
 // This lets us display older records without blowing up the UI.
-const LEGACY_STATUS_MAP: Record<string, SwapStatus> = {
-  manager_approved: SwapStatus.ManagerFinalApproval,
-  potential_assignment: SwapStatus.AwaitingTarget,
-  assigned: SwapStatus.AwaitingTarget,
+const LEGACY_STATUS_MAP: Record<string, SwapTypes.SwapStatus> = {
+  manager_approved: SwapTypes.SwapStatus.ManagerFinalApproval,
+  potential_assignment: SwapTypes.SwapStatus.PotentialAssignment,
+  assigned: SwapTypes.SwapStatus.PotentialAssignment,
 }
 
-const STATUS_CONFIG: Record<SwapStatus, {
+const STATUS_CONFIG: Record<SwapTypes.SwapStatus, {
   label: string
   color: string
   icon: React.ComponentType<{ className?: string }>
   progress: number
 }> = {
-  [SwapStatus.Pending]: {
+  [SwapTypes.SwapStatus.Pending]: {
     label: 'workflow.requested',
     color: 'bg-yellow-100 text-yellow-800',
     icon: Clock,
     progress: 10,
   },
-  [SwapStatus.AwaitingTarget]: {
+  [SwapTypes.SwapStatus.PotentialAssignment]: {
     label: 'workflow.awaitingStaffResponse',
     color: 'bg-purple-100 text-purple-800',
     icon: Target,
     progress: 35,
   },
-  [SwapStatus.StaffAccepted]: {
+  [SwapTypes.SwapStatus.StaffAccepted]: {
     label: 'workflow.staffAccepted',
     color: 'bg-green-100 text-green-800',
     icon: CheckCircle,
     progress: 60,
   },
-  [SwapStatus.ManagerFinalApproval]: {
+  [SwapTypes.SwapStatus.ManagerFinalApproval]: {
     label: 'workflow.finalApproval',
     color: 'bg-indigo-100 text-indigo-800',
     icon: Shield,
     progress: 85,
   },
-  [SwapStatus.Executed]: {
+  [SwapTypes.SwapStatus.Executed]: {
     label: 'workflow.completed',
     color: 'bg-green-100 text-green-800',
     icon: CheckCircle,
     progress: 100,
   },
-  [SwapStatus.StaffDeclined]: {
+  [SwapTypes.SwapStatus.StaffDeclined]: {
     label: 'workflow.staffDeclined',
     color: 'bg-red-100 text-red-800',
     icon: XCircle,
     progress: 0,
   },
-  [SwapStatus.AssignmentDeclined]: {
+  [SwapTypes.SwapStatus.AssignmentDeclined]: {
     label: 'workflow.assignmentDeclined',
     color: 'bg-red-100 text-red-800',
     icon: XCircle,
     progress: 0,
   },
-  [SwapStatus.AssignmentFailed]: {
+  [SwapTypes.SwapStatus.AssignmentFailed]: {
     label: 'workflow.assignmentFailed',
     color: 'bg-red-100 text-red-800',
     icon: AlertTriangle,
     progress: 0,
   },
-  [SwapStatus.Declined]: {
+  [SwapTypes.SwapStatus.Declined]: {
     label: 'workflow.declined',
     color: 'bg-red-100 text-red-800',
     icon: XCircle,
     progress: 0,
   },
-  [SwapStatus.Cancelled]: {
+  [SwapTypes.SwapStatus.Cancelled]: {
     label: 'workflow.cancelled',
     color: 'bg-gray-100 text-gray-800',
     icon: XCircle,
     progress: 0,
+  },
+  [SwapTypes.SwapStatus.ManagerApproved]: {
+    label: 'workflow.managerApproved',
+    color: 'bg-blue-100 text-blue-800',
+    icon: CheckCircle,
+    progress: 50,
   },
 }
 
@@ -144,13 +165,13 @@ export function WorkflowStatusIndicator({
 }: WorkflowStatusIndicatorProps) {
   const { t } = useTranslations()
   
-  const rawStatus: string = swap.status
-  const normalizedStatus: SwapStatus =
-    (LEGACY_STATUS_MAP[rawStatus] as SwapStatus) ||
-    (rawStatus as SwapStatus) ||
-    SwapStatus.Pending
+  const rawStatus: string = swap.status as string
+  const normalizedStatus: SwapTypes.SwapStatus =
+    (LEGACY_STATUS_MAP[rawStatus]) ||
+    (swap.status) ||
+    SwapTypes.SwapStatus.Pending
 
-  const statusConfig = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG[SwapStatus.Pending]
+  const statusConfig = STATUS_CONFIG[normalizedStatus as SwapTypes.SwapStatus] || STATUS_CONFIG[SwapTypes.SwapStatus.Pending]
   const StatusIcon = statusConfig.icon
 
   // ✅ FIXED: Handle action clicks with proper API calls and toast messages
@@ -194,42 +215,42 @@ export function WorkflowStatusIndicator({
     } catch (error) {
       console.error('❌ Action failed:', error)
       
-      // ✅ Show specific error message
-      const errorMessage = error?.message || t('workflow.actionFailed', { action })
+      // Show specific error message
+      const errorMessage = (error as Error)?.message || t('workflow.actionFailed', { action })
       toast.error(errorMessage)
     } finally {
-      // ✅ Dismiss loading toast
+      //  Dismiss loading toast
       toast.dismiss(loadingToast)
     }
   }
 
-  // ✅ COMPLETELY FIXED: Handle accept action with correct API method detection
+  // Handle accept action with correct API method detection
   const handleAcceptAction = async () => {
     try {
-      console.log('🔄 Processing accept action for swap:', {
+      console.log('Processing accept action for swap:', {
         id: swap.id,
         type: swap.swap_type,
         status: swap.status
       })
 
-      // ✅ Detect swap type and status to use correct API method
-      if (swap.swap_type === 'auto' && 
-          ['potential_assignment', 'awaiting_target'].includes(swap.status)) {
-        
-        // ✅ For auto assignments awaiting response, use respondToPotentialAssignment
-        console.log('🔄 Using respondToPotentialAssignment')
-        await apiClient.respondToPotentialAssignment(swap.id, {
+      // Detect swap type and status to use correct API method
+      if (swap.swap_type === 'auto' &&
+          ['potential_assignment', 'awaiting_target'].includes(swap.status as string)) {
+
+        // For auto assignments awaiting response, use respondToPotentialAssignment
+        console.log('Using respondToPotentialAssignment')
+        await apiClient!.respondToPotentialAssignment(swap.id, {
           accepted: true,
           notes: '',
           availability_confirmed: true
         })
+
+      } else if (swap.swap_type === 'specific' &&
+                 ['pending', 'manager_approved'].includes(swap.status as string)) {
+
         
-      } else if (swap.swap_type === 'specific' && 
-                 ['pending', 'manager_approved'].includes(swap.status)) {
-        
-        // ✅ For specific swaps, use RespondToSwap (correct capitalization)
-        console.log('🔄 Using RespondToSwap')
-        await apiClient.RespondToSwap(swap.id, {
+        console.log('Using RespondToSwap')
+        await apiClient!.RespondToSwap(swap.id, {
           accepted: true,
           notes: '',
           confirm_availability: true
@@ -242,19 +263,19 @@ export function WorkflowStatusIndicator({
         }))
       }
       
-      // ✅ Show success toast
+      // Show success toast
       toast.success(t('workflow.assignmentAcceptedSuccess'))
       
-      // ✅ Call success callback if provided
+      // Call success callback if provided
       if (onSuccess) onSuccess()
       
     } catch (error) {
-      console.error('❌ Accept action failed:', error)
+      console.error(' Accept action failed:', error)
       throw error // Re-throw so main handler can show error toast
     }
   }
 
-  // ✅ COMPLETELY FIXED: Handle decline action with correct API method detection
+  // Handle decline action with correct API method detection
   const handleDeclineAction = async () => {
     try {
       console.log('🔄 Processing decline action for swap:', {
@@ -263,24 +284,24 @@ export function WorkflowStatusIndicator({
         status: swap.status
       })
 
-      // ✅ Detect swap type and status to use correct API method
+      // Detect swap type and status to use correct API method
       if (swap.swap_type === 'auto' && 
           ['potential_assignment', 'awaiting_target'].includes(swap.status)) {
         
-        // ✅ For auto assignments awaiting response, use respondToPotentialAssignment
-        console.log('🔄 Using respondToPotentialAssignment')
-        await apiClient.respondToPotentialAssignment(swap.id, {
+        // For auto assignments awaiting response, use respondToPotentialAssignment
+        console.log('Using respondToPotentialAssignment')
+        await apiClient!.respondToPotentialAssignment(swap.id, {
           accepted: false,
           notes: '',
           availability_confirmed: true
         })
-        
-      } else if (swap.swap_type === 'specific' && 
-                 ['pending', 'manager_approved'].includes(swap.status)) {
-        
-        // ✅ For specific swaps, use RespondToSwap (correct capitalization)
+
+      } else if (swap.swap_type === 'specific' &&
+                 ['pending', 'manager_approved'].includes(swap.status as string)) {
+
+        // For specific swaps, use RespondToSwap (correct capitalization)
         console.log('🔄 Using RespondToSwap')
-        await apiClient.RespondToSwap(swap.id, {
+        await apiClient!.RespondToSwap(swap.id, {
           accepted: false,
           notes: '',
           confirm_availability: true
@@ -293,58 +314,58 @@ export function WorkflowStatusIndicator({
         }))
       }
       
-      // ✅ Show success toast
+      //  Show success toast
       toast.success(t('workflow.assignmentDeclined'))
       
-      // ✅ Call success callback if provided
+      //  Call success callback if provided
       if (onSuccess) onSuccess()
       
     } catch (error) {
-      console.error('❌ Decline action failed:', error)
+      console.error('Decline action failed:', error)
       throw error // Re-throw so main handler can show error toast
     }
   }
 
-  // ✅ FIXED: Handle manager approve action with correct API method
+  //FIXED: Handle manager approve action with correct API method
   const handleApproveAction = async () => {
     try {
-      console.log('🔄 Processing manager approve action')
-      
-      await apiClient.ManagerSwapDecision(swap.id, {
+      console.log('Processing manager approve action')
+
+      await apiClient!.ManagerSwapDecision(swap.id, {
         approved: true,
         notes: ''
       })
       
-      // ✅ Show success toast
+      // Show success toast
       toast.success(t('workflow.swapRequestApproved'))
       
-      // ✅ Call success callback if provided
+      //  Call success callback if provided
       if (onSuccess) onSuccess()
       
     } catch (error) {
-      console.error('❌ Approve action failed:', error)
+      console.error('Approve action failed:', error)
       throw error
     }
   }
 
-  // ✅ FIXED: Handle final approve action with correct API method
+  // Handle final approve action with correct API method
   const handleFinalApproveAction = async () => {
     try {
       console.log('🔄 Processing final approve action')
-      
-      await apiClient.managerFinalApproval(swap.id, {
+
+      await apiClient!.managerFinalApproval(swap.id, {
         approved: true,
         notes: ''
       })
       
-      // ✅ Show success toast
+      //  Show success toast
       toast.success(t('workflow.swapExecutedSuccess'))
       
-      // ✅ Call success callback if provided
+      
       if (onSuccess) onSuccess()
       
     } catch (error) {
-      console.error('❌ Final approve action failed:', error)
+      console.error('Final approve action failed:', error)
       throw error
     }
   }
@@ -356,13 +377,13 @@ export function WorkflowStatusIndicator({
           <StatusIcon className="h-3 w-3 mr-1" />
           {t(statusConfig.label)}
         </Badge>
-        {swap.urgency === SwapUrgency.Emergency && (
+        {swap.urgency === SwapTypes.SwapUrgency.Emergency && (
           <Badge className="bg-red-100 text-red-800">
             <AlertTriangle className="h-3 w-3 mr-1" />
             {t('workflow.emergency')}
           </Badge>
         )}
-        {swap.role_match_override && (
+        {swap.role_override_applied && (
           <Badge className="bg-orange-100 text-orange-800">
             {t('workflow.roleOverride')}
           </Badge>
@@ -435,23 +456,27 @@ export function WorkflowStatusIndicator({
           </div>
         )}
 
-        {/* ✅ FIXED: Available Actions - Handle both string and object formats */}
+        {/* Available Actions - Handle both string and object formats */}
         {availableActions.length > 0 && (
           <div className="space-y-2">
             <div className="text-sm font-medium text-gray-700">{t('workflow.availableActions')}:</div>
             <div className="flex flex-wrap gap-2">
               {availableActions.map((actionItem, index) => {
-                // ✅ Handle both string and object formats
+                // Handle both string and object formats
                 let actionKey: string
-                let actionConfig: any
+                let actionConfig: {
+                  label: string
+                  variant: string
+                  icon: React.ComponentType<{ className?: string }>
+                }
 
                 if (typeof actionItem === 'string') {
                   // String format: 'accept', 'decline', etc.
                   actionKey = actionItem
-                  actionConfig = ACTION_CONFIG[actionItem] || { 
-                    label: `workflow.${actionItem}`, 
-                    variant: 'outline', 
-                    icon: ArrowRight 
+                  actionConfig = (ACTION_CONFIG as Record<string, { label: string; variant: string; icon: React.ComponentType<{ className?: string }> }>)[actionItem] || {
+                    label: `workflow.${actionItem}`,
+                    variant: 'outline',
+                    icon: ArrowRight
                   }
                 } else if (actionItem && typeof actionItem === 'object' && actionItem.id) {
                   // Object format: { id: 'accept', label: 'Accept', variant: 'primary' }
@@ -459,7 +484,7 @@ export function WorkflowStatusIndicator({
                   actionConfig = {
                     label: actionItem.label || `workflow.${actionItem.id}`,
                     variant: actionItem.variant || 'outline',
-                    icon: ACTION_CONFIG[actionItem.id]?.icon || ArrowRight
+                    icon: (ACTION_CONFIG as Record<string, { label: string; variant: string; icon: React.ComponentType<{ className?: string }> }>)[actionItem.id]?.icon || ArrowRight
                   }
                 } else {
                   // Fallback for invalid items
@@ -473,7 +498,7 @@ export function WorkflowStatusIndicator({
                   <Button
                     key={`action-${actionKey}-${index}`}
                     size="sm"
-                    variant={actionConfig.variant as any}
+                    variant={actionConfig.variant as 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'}
                     onClick={() => handleActionClick(actionKey)} // ✅ FIXED: Use new handler with proper error handling
                     className="flex items-center gap-1"
                   >
@@ -494,16 +519,16 @@ export function WorkflowStatusIndicator({
           
           <Badge
             className={
-              swap.urgency === SwapUrgency.Emergency ? 'bg-red-100 text-red-800' :
-              swap.urgency === SwapUrgency.High      ? 'bg-orange-100 text-orange-800' :
-              swap.urgency === SwapUrgency.Normal    ? 'bg-blue-100 text-blue-800' :
+              swap.urgency === SwapTypes.SwapUrgency.Emergency ? 'bg-red-100 text-red-800' :
+              swap.urgency === SwapTypes.SwapUrgency.High      ? 'bg-orange-100 text-orange-800' :
+              swap.urgency === SwapTypes.SwapUrgency.Normal    ? 'bg-blue-100 text-blue-800' :
               'bg-gray-100 text-gray-800'
             }
           >
-            {t(`workflow.${swap.urgency?.toLowerCase()}Priority`)}
+            {t(`workflow.${String(swap.urgency)?.toLowerCase()}Priority`)}
           </Badge>
 
-          {swap.role_match_override && (
+          {swap.role_override_applied && (
             <Badge className="bg-orange-100 text-orange-800">
               <AlertTriangle className="h-3 w-3 mr-1" />
               {t('workflow.roleOverride')}
@@ -536,23 +561,23 @@ export function WorkflowStatusIndicator({
 // ==================== WORKFLOW STEPPER COMPONENT ====================
 
 interface WorkflowStepperProps {
-  currentStatus: SwapStatus
+  currentStatus: SwapTypes.SwapStatus
   swapType: 'auto' | 'specific'
 }
 
-const WORKFLOW_STEPS: Record<'auto' | 'specific', { id: SwapStatus; label: string; icon: any }[]> = {
+const WORKFLOW_STEPS: Record<'auto' | 'specific', { id: SwapTypes.SwapStatus; label: string; icon: React.ComponentType<{ className?: string }> }[]> = {
   auto: [
-    { id: SwapStatus.Pending,               label: 'workflow.requested',       icon: Clock },
-    { id: SwapStatus.Pending,       label: 'workflow.awaitingStaff',  icon: Target },
-    { id: SwapStatus.StaffAccepted,        label: 'workflow.staffAccepted',  icon: User },
-    { id: SwapStatus.ManagerFinalApproval,label: 'workflow.finalApproval',  icon: Shield },
-    { id: SwapStatus.Executed,              label: 'workflow.completed',       icon: CheckCircle },
+    { id: SwapTypes.SwapStatus.Pending,               label: 'workflow.requested',       icon: Clock },
+    { id: SwapTypes.SwapStatus.Pending,       label: 'workflow.awaitingStaff',  icon: Target },
+    { id: SwapTypes.SwapStatus.StaffAccepted,        label: 'workflow.staffAccepted',  icon: User },
+    { id: SwapTypes.SwapStatus.ManagerFinalApproval,label: 'workflow.finalApproval',  icon: Shield },
+    { id: SwapTypes.SwapStatus.Executed,              label: 'workflow.completed',       icon: CheckCircle },
   ],
   specific: [
-    { id: SwapStatus.Pending,               label: 'workflow.requested',       icon: Clock },
-    { id: SwapStatus.StaffAccepted,        label: 'workflow.staffAccepted',  icon: User },
-    { id: SwapStatus.ManagerFinalApproval,label: 'workflow.finalApproval',  icon: Shield },
-    { id: SwapStatus.Executed,              label: 'workflow.completed',       icon: CheckCircle },
+    { id: SwapTypes.SwapStatus.Pending,               label: 'workflow.requested',       icon: Clock },
+    { id: SwapTypes.SwapStatus.StaffAccepted,        label: 'workflow.staffAccepted',  icon: User },
+    { id: SwapTypes.SwapStatus.ManagerFinalApproval,label: 'workflow.finalApproval',  icon: Shield },
+    { id: SwapTypes.SwapStatus.Executed,              label: 'workflow.completed',       icon: CheckCircle },
   ],
 }
 
@@ -560,28 +585,28 @@ export function WorkflowStepper({ currentStatus, swapType }: WorkflowStepperProp
   const { t } = useTranslations()
   const steps = WORKFLOW_STEPS[swapType] || WORKFLOW_STEPS.auto
   
-  // ✅ Enhanced status matching with fallbacks
-  console.log('🔍 WorkflowStepper Debug:', { currentStatus, swapType, steps: steps.map(s => s.id) })
-  
-  const getStepIndex = (status: SwapStatus | string) => {
+  //  status matching with fallbacks
+  console.log(' WorkflowStepper Debug:', { currentStatus, swapType, steps: steps.map(s => s.id) })
+
+  const getStepIndex = (status: SwapTypes.SwapStatus | string) => {
     // First try exact match
     let index = steps.findIndex(step => step.id === status)
     if (index !== -1) return index
-    
+
     // Try status mappings for common variations
-    const statusMappings = {
-      'requested': SwapStatus.Pending,
-      'pending': SwapStatus.Pending,
-      'awaiting_target': SwapStatus.AwaitingTarget,
-      'potential_assignment': SwapStatus.AwaitingTarget,
-      'assigned': SwapStatus.AwaitingTarget,
-      'staff_accepted': SwapStatus.StaffAccepted,
-      'manager_approved': SwapStatus.AwaitingTarget, // For auto swaps, this means awaiting staff
-      'manager_final_approval': SwapStatus.ManagerFinalApproval,
-      'executed': SwapStatus.Executed,
-      'completed': SwapStatus.Executed
+    const statusMappings: Record<string, SwapTypes.SwapStatus> = {
+      'requested': SwapTypes.SwapStatus.Pending,
+      'pending': SwapTypes.SwapStatus.Pending,
+      'awaiting_target': SwapTypes.SwapStatus.PotentialAssignment,
+      'potential_assignment': SwapTypes.SwapStatus.PotentialAssignment,
+      'assigned': SwapTypes.SwapStatus.PotentialAssignment,
+      'staff_accepted': SwapTypes.SwapStatus.StaffAccepted,
+      'manager_approved': SwapTypes.SwapStatus.PotentialAssignment, // For auto swaps, this means awaiting staff
+      'manager_final_approval': SwapTypes.SwapStatus.ManagerFinalApproval,
+      'executed': SwapTypes.SwapStatus.Executed,
+      'completed': SwapTypes.SwapStatus.Executed
     }
-    
+
     const mappedStatus = statusMappings[status as string]
     if (mappedStatus) {
       index = steps.findIndex(step => step.id === mappedStatus)
@@ -589,12 +614,12 @@ export function WorkflowStepper({ currentStatus, swapType }: WorkflowStepperProp
     }
     
     // Default to first step if no match
-    console.warn('⚠️ No matching step found for status:', status)
+    console.warn('No matching step found for status:', status)
     return 0
   }
   
   const currentIndex = getStepIndex(currentStatus)
-  console.log('📍 Current step index:', currentIndex)
+  console.log('Current step index:', currentIndex)
 
   return (
     <div className="flex items-center justify-between py-6 px-2">
@@ -611,35 +636,56 @@ export function WorkflowStepper({ currentStatus, swapType }: WorkflowStepperProp
             <div className="flex flex-col items-center">
               <div className={`
                 relative flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-500
-                ${isCompleted ? 
+                ${isCompleted ?
                   'bg-blue-500 border-blue-500 text-white transform scale-100' :
-                  isCurrent ? 
+                  isCurrent ?
                     'bg-white border-blue-500 text-blue-500 shadow-lg animate-pulse transform scale-110' :
-                    'bg-gray-100 border-gray-300 text-gray-400 transform scale-90'}
+                  isNextStep ?
+                    'bg-gray-50 border-gray-400 text-gray-500 transform scale-95' :
+                  isUpcoming ?
+                    'bg-gray-100 border-gray-300 text-gray-400 transform scale-90 opacity-50' :
+                    'bg-gray-200 border-gray-300 text-gray-400 transform scale-85 opacity-40'}
               `}>
-                <StepIcon className="h-5 w-5" />
-                
+                <StepIcon className={`transition-all duration-300 ${
+                  isCompleted || isCurrent ? 'h-5 w-5' :
+                  isNextStep ? 'h-4.5 w-4.5' :
+                  'h-4 w-4'
+                }`} />
+
                 {/* ✅ Pulsating ring for current step */}
                 {isCurrent && (
                   <div className="absolute inset-0 rounded-full border-2 border-blue-400 animate-ping opacity-75"></div>
                 )}
+
+                {/* ✅ Subtle glow for next step */}
+                {isNextStep && (
+                  <div className="absolute inset-0 rounded-full bg-gray-300 opacity-20"></div>
+                )}
               </div>
-              
+
               <div className="mt-2 text-center">
                 <div className={`text-xs font-medium transition-colors duration-300 ${
                   isCompleted ? 'text-blue-600' :
-                  isCurrent ? 'text-blue-600 font-semibold' : 
-                  'text-gray-400'
+                  isCurrent ? 'text-blue-600 font-semibold' :
+                  isNextStep ? 'text-gray-500' :
+                  isUpcoming ? 'text-gray-400' :
+                  'text-gray-300'
                 }`}>
                   {t(step.label)}
                 </div>
-                
+
                 {/* Status indicator */}
                 {isCompleted && (
-                  <div className="text-xs text-green-600 mt-1">{t('workflow.done')}</div>
+                  <div className="text-xs text-green-600 mt-1 font-medium">{t('workflow.done')}</div>
                 )}
                 {isCurrent && (
-                  <div className="text-xs text-blue-600 mt-1 animate-pulse">{t('workflow.active')}</div>
+                  <div className="text-xs text-blue-600 mt-1 animate-pulse font-medium">{t('workflow.active')}</div>
+                )}
+                {isNextStep && (
+                  <div className="text-xs text-gray-500 mt-1">{t('workflow.next')}</div>
+                )}
+                {isUpcoming && (
+                  <div className="text-xs text-gray-400 mt-1">{t('workflow.upcoming')}</div>
                 )}
               </div>
             </div>
@@ -678,7 +724,7 @@ export function WorkflowStepper({ currentStatus, swapType }: WorkflowStepperProp
 // ==================== POTENTIAL ASSIGNMENT CARD ====================
 
 interface PotentialAssignmentCardProps {
-  swap: any
+  swap: SwapTypes.SwapRequest
   onRespond: (swapId: string, accepted: boolean, notes?: string) => void
   loading?: boolean
 }
@@ -691,12 +737,12 @@ export function PotentialAssignmentCard({
   const { t } = useTranslations()
   
   // Only render meaningful content if this swap is awaiting the target staff's response.
-  // (Legacy 'potential_assignment' / 'assigned' still treated as awaiting_target.)
-  const rawStatus: string = swap.status
-  const normalizedStatus = rawStatus === 'potential_assignment' ? 'awaiting_target' : rawStatus
+  // (Legacy 'potential_assignment' / 'assigned' still treated as potential_assignment.)
+  const rawStatus: string = swap.status as string
+  const normalizedStatus = rawStatus === 'potential_assignment' ? SwapTypes.SwapStatus.PotentialAssignment : rawStatus
   const isActive =
-  normalizedStatus === 'awaiting_target' ||
-  normalizedStatus === SwapStatus.AwaitingTarget
+  normalizedStatus === 'potential_assignment' ||
+  normalizedStatus === SwapTypes.SwapStatus.PotentialAssignment
 
   // If it isn't active, we still render but visually mute the card.
   const [notes, setNotes] = React.useState('')
@@ -750,12 +796,12 @@ export function PotentialAssignmentCard({
       <CardContent className="space-y-4">
         <div className="text-sm">
           <div className="font-medium text-gray-700">
-            {t('workflow.youveBeenAssignedToCover', { 
-              name: swap.requesting_staff?.full_name 
+            {t('workflow.youveBeenAssignedToCover', {
+              name: swap.requesting_staff?.full_name || 'Unknown'
             })}
           </div>
           <div className="text-gray-600 mt-1">
-            {_get_day_name(swap.original_day, t)} - {_get_shift_name(swap.original_shift, t)}
+            {_get_day_name(swap.original_day, t as (key: string, params?: Record<string, string | number>) => string)} - {_get_shift_name(swap.original_shift, t as (key: string, params?: Record<string, string | number>) => string)}
           </div>
           {swap.original_zone_id && (
             <div className="text-gray-600">{t('workflow.zone')}: {swap.original_zone_id}</div>
@@ -769,15 +815,15 @@ export function PotentialAssignmentCard({
           </div>
         )}
 
-        {swap.role_match_override && (
+        {swap.role_override_applied && (
           <div className="bg-orange-50 border border-orange-200 rounded p-2">
             <div className="flex items-center gap-1 text-orange-800 text-xs">
               <AlertTriangle className="h-3 w-3" />
               {t('workflow.roleOverrideApplied')}
             </div>
-            {swap.role_match_reason && (
+            {(swap as SwapTypes.SwapRequest & { role_match_reason?: string }).role_match_reason && (
               <div className="text-orange-700 text-xs mt-1">
-                {swap.role_match_reason}
+                {(swap as SwapTypes.SwapRequest & { role_match_reason?: string }).role_match_reason}
               </div>
             )}
           </div>
@@ -836,24 +882,24 @@ export function PotentialAssignmentCard({
 
 // ==================== HELPER FUNCTIONS ====================
 
-function _get_day_name(day: number, t: any): string {
+function _get_day_name(day: number, t: (key: string, params?: Record<string, string | number>) => string): string {
   const days = [
     t('workflow.monday'),
-    t('workflow.tuesday'), 
+    t('workflow.tuesday'),
     t('workflow.wednesday'),
     t('workflow.thursday'),
     t('workflow.friday'),
     t('workflow.saturday'),
     t('workflow.sunday')
   ]
-  return days[day] || t('workflow.day', { day })
+  return days[day] || t('workflow.day', { day: day })
 }
 
-function _get_shift_name(shift: number, t: any): string {
+function _get_shift_name(shift: number, t: (key: string, params?: Record<string, string | number>) => string): string {
   const shifts = [
     t('workflow.morning'),
     t('workflow.afternoon'),
     t('workflow.evening')
   ]
-  return shifts[shift] || t('workflow.shift', { shift })
+  return shifts[shift] || t('workflow.shift', { shift: shift })
 }

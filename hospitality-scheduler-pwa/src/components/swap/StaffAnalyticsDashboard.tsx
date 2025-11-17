@@ -1,35 +1,33 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { 
-  Users, 
-  AlertTriangle, 
-  Star, 
+import {
+  Users,
+  AlertTriangle,
+  Star,
   Award,
   BarChart3
 } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as ApiTypes from '@/types/api'
+import type { ApiClient } from '@/lib/api'
 
 interface StaffAnalyticsProps {
   facilityId: string
-  apiClient: any
+  apiClient: ApiClient
 }
 
 export function StaffAnalyticsDashboard({ facilityId, apiClient }: StaffAnalyticsProps) {
   const { t } = useTranslations()
-  const [analyticsData, setAnalyticsData] = useState(null)
+  const [analyticsData, setAnalyticsData] = useState<ApiTypes.ComprehensiveSwapAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState(30)
 
-  useEffect(() => {
-    loadAnalytics()
-  }, [facilityId, selectedPeriod])
-
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     setLoading(true)
     try {
       const data = await apiClient.getComprehensiveSwapAnalytics(facilityId, selectedPeriod)
@@ -39,7 +37,11 @@ export function StaffAnalyticsDashboard({ facilityId, apiClient }: StaffAnalytic
     } finally {
       setLoading(false)
     }
-  }
+  }, [apiClient, facilityId, selectedPeriod])
+
+  useEffect(() => {
+    loadAnalytics()
+  }, [loadAnalytics])
 
   if (loading) {
     return (
@@ -101,7 +103,11 @@ export function StaffAnalyticsDashboard({ facilityId, apiClient }: StaffAnalytic
   )
 }
 
-function TopRequestingStaffCard({ data }) {
+interface TopRequestingStaffCardProps {
+  data: ApiTypes.TopRequestersResponse
+}
+
+function TopRequestingStaffCard({ data }: TopRequestingStaffCardProps) {
   const { t } = useTranslations()
   const topRequesters = data?.top_requesters || []
   
@@ -172,20 +178,28 @@ function TopRequestingStaffCard({ data }) {
   )
 }
 
-function ProblemPatternsCard({ data }) {
+interface ProblemPatternsCardProps {
+  data: ApiTypes.ProblemPatternsResponse
+}
+
+function ProblemPatternsCard({ data }: ProblemPatternsCardProps) {
   const { t } = useTranslations()
-  
+
   console.log('🔍 ProblemPatternsCard received data:', data)
-  
+
   // Safely access the data structure
-  const problems = data?.problem_patterns || data || {}
+  const problems = data?.problem_patterns || {
+    high_frequency_requesters: [],
+    frequent_emergency_users: [],
+    low_success_staff: []
+  }
   console.log('🔍 Problems extracted:', problems)
-  
+
   // Handle both possible data structures
   const highFreqRequesters = problems.high_frequency_requesters || []
   const emergencyUsers = problems.frequent_emergency_users || []
   const lowSuccessStaff = problems.low_success_staff || []
-  
+
   console.log('🔍 Arrays extracted:', {
     highFreqRequesters: highFreqRequesters.length,
     emergencyUsers: emergencyUsers.length,
@@ -282,7 +296,11 @@ function ProblemPatternsCard({ data }) {
   )
 }
 
-function SwapReasonsCard({ data }) {
+interface SwapReasonsCardProps {
+  data: ApiTypes.SwapReasonsAnalysis
+}
+
+function SwapReasonsCard({ data }: SwapReasonsCardProps) {
   const { t } = useTranslations()
   const reasons = data?.reason_analysis || []
   
@@ -339,7 +357,11 @@ function SwapReasonsCard({ data }) {
   )
 }
 
-function StaffPerformanceCard({ data }) {
+interface StaffPerformanceCardProps {
+  data: ApiTypes.StaffPerformanceMetrics
+}
+
+function StaffPerformanceCard({ data }: StaffPerformanceCardProps) {
   const { t } = useTranslations()
   const performers = data?.staff_performance || []
   const topPerformers = performers.slice(0, 5)

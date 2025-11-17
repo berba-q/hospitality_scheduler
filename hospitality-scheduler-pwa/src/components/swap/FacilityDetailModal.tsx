@@ -319,41 +319,8 @@ export function FacilityDetailModal({
                 </div>
               ) : (
                 <SwapManagementDashboard
-                  facility={facility}
-                  swapRequests={facilitySwaps as unknown as Array<{
-                    id: string
-                    schedule_id: string
-                    requesting_staff: {
-                      id: string
-                      full_name: string
-                      role: string
-                    }
-                    target_staff?: {
-                      id: string
-                      full_name: string
-                      role: string
-                    }
-                    assigned_staff?: {
-                      id: string
-                      full_name: string
-                      role: string
-                    }
-                    original_day: number
-                    original_shift: number
-                    target_day?: number
-                    target_shift?: number
-                    swap_type: 'specific' | 'auto'
-                    reason: string
-                    urgency: 'low' | 'normal' | 'high' | 'emergency'
-                    status: 'pending' | 'manager_approved' | 'staff_accepted' | 'staff_declined' | 'assigned' | 'executed' | 'declined' | 'assignment_failed' | 'cancelled' | 'manager_final_approval'
-                    target_staff_accepted?: boolean
-                    assigned_staff_accepted?: boolean
-                    manager_approved?: boolean
-                    manager_final_approved?: boolean
-                    manager_notes?: string
-                    created_at: string
-                    expires_at?: string
-                  }>}
+                  facility={{ name: facility.facility_name }}
+                  swapRequests={facilitySwaps}
                   swapSummary={{
                     facility_id: facility.facility_id,
                     pending_swaps: pendingCount,

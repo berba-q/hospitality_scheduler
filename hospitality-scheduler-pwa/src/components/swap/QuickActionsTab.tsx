@@ -6,14 +6,39 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Users, CheckCircle } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as SwapTypes from '@/types/swaps'
+
+interface UpcomingShift {
+  id: string
+  date: string
+  day_name: string
+  shift_name: string
+  start_time: string
+  end_time: string
+  facility_name: string
+  zone?: string
+  is_today?: boolean
+  is_tomorrow?: boolean
+}
+
+interface PersonalStats {
+  availableToHelp: number
+}
+
+// Extended swap request with enriched display properties
+interface SwapRequestWithDisplayData extends SwapTypes.SwapRequest {
+  requesting_staff_name: string
+  shift_name: string
+  date: string
+}
 
 interface QuickActionsTabProps {
-  upcomingShifts: any[]
-  actionNeeded: any[]
-  personalStats: any
-  onQuickSwapRequest: (shift: any) => void
+  upcomingShifts: UpcomingShift[]
+  actionNeeded: SwapRequestWithDisplayData[]
+  personalStats: PersonalStats
+  onQuickSwapRequest: (shift: UpcomingShift) => void
   onSwapResponse: (swapId: string, accepted: boolean) => void
-  onSwapClick: (swap: any) => void
+  onSwapClick: (swap: SwapRequestWithDisplayData) => void
 }
 
 export function QuickActionsTab({

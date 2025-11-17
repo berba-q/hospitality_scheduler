@@ -4,18 +4,25 @@ import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { 
-  Edit3, 
-  X, 
-  CheckCircle, 
+import {
+  Edit3,
+  X,
+  CheckCircle,
   MoreHorizontal
 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as SwapTypes from '@/types/swaps'
+
+interface SwapUpdateData {
+  urgency?: SwapTypes.SwapUrgency
+  reason?: string
+  expires_at?: string
+}
 
 interface QuickActionsProps {
-  swap: any
-  onUpdateSwap: (swapId: string, updates: any) => Promise<void>
+  swap: SwapTypes.SwapRequest
+  onUpdateSwap: (swapId: string, updates: SwapUpdateData) => Promise<void>
   onCancelSwap: (swapId: string, reason?: string) => Promise<void>
   onApproveSwap: (swapId: string, approved: boolean, notes?: string) => Promise<void>
 }
@@ -35,7 +42,7 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
   const handleUpdateUrgency = async (newUrgency: string) => {
     setLoading(true)
     try {
-      await onUpdateSwap(swap.id, { urgency: newUrgency })
+      await onUpdateSwap(swap.id, { urgency: newUrgency as SwapTypes.SwapUrgency })
     } finally {
       setLoading(false)
     }
@@ -61,12 +68,12 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
     }
   }
 
-  const getUrgencyColor = (urgency: string) => {
+  const getUrgencyColor = (urgency: SwapTypes.SwapUrgency): string => {
     switch (urgency) {
-      case 'emergency': return 'bg-red-100 text-red-800 border-red-200'
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200'
-      case 'normal': return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'low': return 'bg-gray-100 text-gray-800 border-gray-200'
+      case SwapTypes.SwapUrgency.Emergency: return 'bg-red-100 text-red-800 border-red-200'
+      case SwapTypes.SwapUrgency.High: return 'bg-orange-100 text-orange-800 border-orange-200'
+      case SwapTypes.SwapUrgency.Normal: return 'bg-blue-100 text-blue-800 border-blue-200'
+      case SwapTypes.SwapUrgency.Low: return 'bg-gray-100 text-gray-800 border-gray-200'
       default: return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
@@ -74,11 +81,16 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
   return (
     <>
       <div className="flex items-center gap-2">
+        {/* Visual Urgency Badge */}
+        <div className={`px-2 py-1 rounded-md text-xs font-medium border ${getUrgencyColor(swap.urgency)}`}>
+          {swap.urgency.charAt(0).toUpperCase() + swap.urgency.slice(1)}
+        </div>
+
         {/* Quick Urgency Update */}
         <Select
           value={swap.urgency}
           onValueChange={handleUpdateUrgency}
-          disabled={loading || swap.status === 'completed'}
+          disabled={loading || swap.status === SwapTypes.SwapStatus.Executed}
         >
           <option value="low">{t('swaps.lowPriority')}</option>
           <option value="normal">{t('swaps.normalPriority')}</option>
@@ -87,7 +99,7 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
         </Select>
 
         {/* Quick Approve/Decline if pending */}
-        {swap.status === 'pending' && (
+        {swap.status === SwapTypes.SwapStatus.Pending && (
           <>
             <Button
               size="sm"
@@ -124,8 +136,8 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
               <Edit3 className="h-4 w-4 mr-2" />
               {t('swaps.editDetails')}
             </DropdownMenuItem>
-            {swap.status === 'pending' && (
-              <DropdownMenuItem 
+            {swap.status === SwapTypes.SwapStatus.Pending && (
+              <DropdownMenuItem
                 onClick={() => setShowCancelDialog(true)}
                 className="text-red-600"
               >
@@ -149,7 +161,7 @@ export function QuickActions({ swap, onUpdateSwap, onCancelSwap, onApproveSwap }
               <label className="text-sm font-medium mb-2 block">{t('swaps.urgencyLevel')}</label>
               <Select
                 value={editForm.urgency}
-                onValueChange={(value) => setEditForm({ ...editForm, urgency: value })}
+                onValueChange={(value) => setEditForm({ ...editForm, urgency: value as SwapTypes.SwapUrgency })}
               >
                 <option value="low">{t('swaps.lowPriority')}</option>
                 <option value="normal">{t('swaps.normalPriority')}</option>

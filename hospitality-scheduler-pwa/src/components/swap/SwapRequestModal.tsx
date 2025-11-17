@@ -12,31 +12,56 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useTranslations } from '@/hooks/useTranslations'
-import { 
-  ArrowLeftRight, 
-  Users, 
-  Clock, 
-  AlertTriangle, 
+import {
+  ArrowLeftRight,
+  Users,
+  Clock,
+  AlertTriangle,
   Calendar,
   User,
   Zap
 } from 'lucide-react'
 import { toast } from 'sonner'
+import * as ScheduleTypes from '@/types/schedule'
+import * as ApiTypes from '@/types/api'
+
+interface ShiftInfo {
+  name: string
+  time: string
+  color?: string
+}
+
+interface CurrentAssignment {
+  day: number
+  shift: number
+  staffId: string
+}
 
 interface SwapRequestModalProps {
   open: boolean
   onClose: () => void
-  schedule: any
-  currentAssignment?: {
-    day: number
-    shift: number
-    staffId: string
-  }
-  staff: any[]
-  shifts: any[]
+  schedule: ApiTypes.ScheduleWithAssignments
+  currentAssignment?: CurrentAssignment
+  staff: ScheduleTypes.Staff[]
+  shifts: ShiftInfo[]
   days: string[]
   isManager: boolean
-  onSwapRequest: (swapData: any) => Promise<void>
+  onSwapRequest: (swapData: SwapRequestData) => Promise<void>
+}
+
+interface SwapRequestData {
+  schedule_id: string
+  original_day?: number
+  original_shift?: number
+  reason: string
+  urgency: string
+  swap_type: 'specific' | 'auto'
+  target_staff_id?: string
+  target_day?: number
+  target_shift?: number
+  requesting_staff_id?: string
+  preferred_skills?: string[]
+  avoid_staff_ids?: string[]
 }
 
 export function SwapRequestModal({
@@ -91,49 +116,49 @@ export function SwapRequestModal({
   const targetStaff = staff.find(s => s.id === selectedTargetStaff)
 
   // Get assignments for target validation
-  const getAssignments = (day: number, shift: number) => {
+  const getAssignments = (day: number, shift: number): ApiTypes.ScheduleAssignment[] => {
     if (!schedule?.assignments) return []
-    return schedule.assignments.filter((a: any) => a.day === day && a.shift === shift)
+    return schedule.assignments.filter((a) => a.day === day && a.shift === shift)
   }
 
   // Get available staff for specific swaps
-  const getAvailableStaff = () => {
+  const getAvailableStaff = (): ScheduleTypes.Staff[] => {
     console.log('🔍 getAvailableStaff called with:', {
       selectedTargetDay,
       selectedTargetShift,
       schedule: schedule,
       staffCount: staff?.length
     })
-    
+
     if (!selectedTargetDay || selectedTargetShift === '') {
       console.log('⚠️ Missing target day or shift selection')
       return []
     }
-    
+
     const dayIndex = parseInt(selectedTargetDay)
     const shiftIndex = parseInt(selectedTargetShift)
-    
+
     console.log('🔍 Looking for assignments on day', dayIndex, 'shift', shiftIndex)
     console.log('🔍 Schedule assignments:', schedule?.assignments)
-    
+
     const assignments = getAssignments(dayIndex, shiftIndex)
     console.log('🔍 Found assignments for target day/shift:', assignments)
-    
+
     // Get staff who are NOT already assigned to a shift on the target day
     const availableStaff = staff.filter(s => {
       if (!s.is_active || s.id === currentAssignment?.staffId) return false
-      
+
       // Check if staff is already assigned on the target day (any shift)
-      const hasConflict = schedule?.assignments?.some((a: any) => 
+      const hasConflict = schedule?.assignments?.some((a) =>
         a.staff_id === s.id && a.day === dayIndex
       )
-      
+
       return !hasConflict
     })
-    
+
     console.log('📊 Available staff (no conflicts):', availableStaff.length)
     console.log('✅ Returning available staff:', availableStaff.map(s => ({ id: s.id, name: s.full_name })))
-    
+
     return availableStaff
   }
 
@@ -178,15 +203,13 @@ export function SwapRequestModal({
       await onSwapRequest(swapData)
       toast.success(t('swaps.swapRequestCreatedSuccessfully'))
       onClose()
-    } catch (error: any) {
-      toast.error(error.message || t('swaps.failedToCreateSwapRequest'))
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : t('swaps.failedToCreateSwapRequest')
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
   }
-
-  const urgencyLevel = URGENCY_LEVELS.find(u => u.value === urgency)
-  const UrgencyIcon = urgencyLevel?.icon || Clock
 
   return (
     <Dialog open={open} onOpenChange={onClose}>

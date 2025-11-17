@@ -7,22 +7,24 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useTranslations } from '@/hooks/useTranslations'
-import { 
-  Search, 
-  ArrowLeftRight, 
-  Calendar, 
-  Clock, 
-  ChevronRight, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Search,
+  ArrowLeftRight,
+  Calendar,
+  Clock,
+  ChevronRight,
+  CheckCircle,
+  XCircle,
   Eye,
   Trash2
 } from 'lucide-react'
+import * as SwapTypes from '@/types/swaps'
+import * as AuthTypes from '@/types/auth'
 
 interface SwapRequestsListProps {
-  swaps: any[]
-  user: any
-  onSwapClick: (swap: any) => void
+  swaps: SwapTypes.SwapRequest[]
+  user: AuthTypes.User
+  onSwapClick: (swap: SwapTypes.SwapRequest) => void
   onSwapResponse: (swapId: string, accepted: boolean) => void
   onCancelSwap: (swapId: string, reason?: string) => void
   showFilters?: boolean
@@ -56,7 +58,7 @@ export function SwapRequestsList({
 }: SwapRequestsListProps) {
   const { t } = useTranslations()
 
-  const getSwapActions = (swap) => {
+  const getSwapActions = (swap: SwapTypes.SwapRequest) => {
     const isMyRequest = swap.requesting_staff_id === user.id
     const isForMe = swap.target_staff_id === user.id
     const canRespond = isForMe && swap.status === 'pending' && swap.target_staff_accepted === null
@@ -65,12 +67,25 @@ export function SwapRequestsList({
     return { isMyRequest, isForMe, canRespond, canCancel }
   }
 
-  const urgencyColors = {
+  const urgencyColors: Record<string, string> = {
     'emergency': 'border-l-red-500 bg-red-50',
     'high': 'border-l-orange-500 bg-orange-50',
     'normal': 'border-l-blue-500 bg-blue-50',
     'low': 'border-l-gray-500 bg-gray-50'
   }
+
+  // Prioritize urgent swaps if enabled
+  const displaySwaps = prioritizeUrgent
+    ? [...swaps].sort((a, b) => {
+        const urgencyOrder: Record<string, number> = {
+          emergency: 0,
+          high: 1,
+          normal: 2,
+          low: 3
+        }
+        return urgencyOrder[a.urgency] - urgencyOrder[b.urgency]
+      })
+    : swaps
 
   return (
     <div className="space-y-4">
@@ -111,7 +126,7 @@ export function SwapRequestsList({
       )}
 
       {/* Swap List */}
-      {swaps.length === 0 ? (
+      {displaySwaps.length === 0 ? (
         <div className="text-center py-16">
           <ArrowLeftRight className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold mb-2">
@@ -123,7 +138,7 @@ export function SwapRequestsList({
         </div>
       ) : (
         <div className="space-y-3">
-          {swaps.map((swap) => {
+          {displaySwaps.map((swap) => {
             const actions = getSwapActions(swap)
             const needsMyAction = actions.isForMe && swap.status === 'pending' && swap.target_staff_accepted === null
             
@@ -203,15 +218,15 @@ export function SwapRequestsList({
                         {/* Reason */}
                         {swap.reason && (
                           <p className="text-sm text-gray-700 italic">
-                            "{swap.reason}"
+                            &quot;{swap.reason}&quot;
                           </p>
                         )}
 
                         {/* Target Info */}
-                        {swap.target_staff_name && (
+                        {swap.target_staff?.full_name && (
                           <div className="text-sm">
                             <span className="text-gray-500">{t('swaps.targetStaff')}:</span>
-                            <span className="font-medium ml-1">{swap.target_staff_name}</span>
+                            <span className="font-medium ml-1">{swap.target_staff.full_name}</span>
                           </div>
                         )}
                       </div>

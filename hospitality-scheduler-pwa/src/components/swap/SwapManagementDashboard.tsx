@@ -31,7 +31,7 @@ import * as SwapTypes from '@/types/swaps'
 import * as FacilityTypes from '@/types/facility'
 
 interface SwapManagementDashboardProps {
-  facility: FacilityTypes.Facility
+  facility: { name: string } | FacilityTypes.Facility | null
   swapRequests: SwapTypes.SwapRequest[]
   swapSummary: SwapTypes.SwapSummary
   days: string[]
@@ -478,11 +478,11 @@ export function SwapManagementDashboard({
                   </p>
                 </div>
               </div>
-              {onFacilityClick && (
+              {onFacilityClick && facility && 'id' in facility && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onFacilityClick(facility)}
+                  onClick={() => onFacilityClick(facility as FacilityTypes.Facility)}
                 >
                   {t('facility.viewDetails')}
                 </Button>

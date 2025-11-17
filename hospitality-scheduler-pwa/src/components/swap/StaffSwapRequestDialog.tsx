@@ -33,11 +33,11 @@ interface StaffSwapRequestDialogProps {
     shiftTime: string
   } | null
   onSubmitSwap: (swapData: {
-    schedule_id: string    // 🔥 FIX: Add schedule_id to the interface
+    schedule_id: string    
     swap_type: 'auto' | 'specific'
     reason: string
     urgency: 'low' | 'normal' | 'high' | 'emergency'
-    original_day: number   // 🔥 FIX: Add required fields
+    original_day: number   
     original_shift: number
     target_staff_id?: string
   }) => Promise<void>
@@ -124,7 +124,7 @@ export function StaffSwapRequestDialog({
         })
       }
 
-      console.log('🚀 Submitting swap request:', swapData)
+      console.log('Submitting swap request:', swapData)
       await onSubmitSwap(swapData)
       
       // Reset form
@@ -135,8 +135,13 @@ export function StaffSwapRequestDialog({
       onClose()
       
     } catch (error) {
-      console.error('❌ Swap request failed:', error)
-      toast.error(error.message || t('swaps.failedSubmitSwap'))
+      console.error('Swap request failed:', error)
+      const errorMessage = error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+        ? error
+        : t('swaps.failedSubmitSwap')
+      toast.error(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -284,7 +289,7 @@ export function StaffSwapRequestDialog({
           {/* Urgency Level */}
           <div className="space-y-2">
             <Label htmlFor="urgency">{t('swaps.urgencyLevel')}</Label>
-            <Select value={urgency} onValueChange={(value: 'low' | 'normal' | 'high' | 'emergency') => setUrgency(value)}>
+            <Select value={urgency} onValueChange={(value) => setUrgency(value as 'low' | 'normal' | 'high' | 'emergency')}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

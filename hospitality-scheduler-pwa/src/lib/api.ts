@@ -2185,31 +2185,11 @@ async getGlobalSwapStatistics() {
     return this.request<ApiTypes.StaffPerformanceMetrics>(`/v1/swaps/analytics/staff-performance/${facilityId}?days=${days}`)
   }
 
-  async getProblemPatterns(facilityId: string, days: number = 30): Promise<{
-    facility_id: string
-    period_days: number
-    patterns: Array<{
-      pattern_type: string
-      frequency: number
-      description: string
-      severity: 'low' | 'medium' | 'high'
-    }>
-    recommendations: string[]
-  }> {
-    return this.request<{
-      facility_id: string
-      period_days: number
-      patterns: Array<{
-        pattern_type: string
-        frequency: number
-        description: string
-        severity: 'low' | 'medium' | 'high'
-      }>
-      recommendations: string[]
-    }>(`/v1/swaps/analytics/problem-patterns/${facilityId}?days=${days}`)
+  async getProblemPatterns(facilityId: string, days: number = 30): Promise<ApiTypes.ProblemPatternsResponse> {
+    return this.request<ApiTypes.ProblemPatternsResponse>(`/v1/swaps/analytics/problem-patterns/${facilityId}?days=${days}`)
   }
 
-  async getComprehensiveSwapAnalytics(facilityId: string, days: number = 30) {
+  async getComprehensiveSwapAnalytics(facilityId: string, days: number = 30): Promise<ApiTypes.ComprehensiveSwapAnalytics> {
     const [topRequesters, reasons, performance, problems] = await Promise.all([
       this.getTopRequestingStaff(facilityId, { days }),
       this.getSwapReasonsAnalysis(facilityId, days),

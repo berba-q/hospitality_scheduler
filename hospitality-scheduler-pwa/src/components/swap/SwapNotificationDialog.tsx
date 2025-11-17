@@ -9,10 +9,10 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { 
-  ArrowLeftRight, 
-  MessageSquare, 
-  Smartphone, 
+import {
+  ArrowLeftRight,
+  MessageSquare,
+  Smartphone,
   Bell,
   AlertTriangle,
   CheckCircle,
@@ -20,6 +20,7 @@ import {
   User
 } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as ScheduleTypes from '@/types/schedule'
 
 interface SwapNotificationDialogProps {
   open: boolean
@@ -36,7 +37,7 @@ interface SwapNotificationDialogProps {
     reason?: string
     urgency: 'low' | 'normal' | 'high' | 'emergency'
   }
-  recipientStaff: any[]
+  recipientStaff: ScheduleTypes.Staff[]
 }
 
 interface SwapNotificationOptions {

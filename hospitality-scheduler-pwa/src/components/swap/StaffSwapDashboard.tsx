@@ -1,7 +1,7 @@
 //staff swap dashboard
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   Clock,
@@ -86,7 +86,7 @@ interface StaffSwapDashboardProps {
   apiClient: ApiClient
 }
 
-// ✅ NEW: Helper function to normalize status values
+// Helper function to normalize status values
 const normalizeSwapStatus = (status: string): string => {
   const statusMap: Record<string, string> = {
     'potential_assignment': 'awaiting_target',
@@ -97,7 +97,7 @@ const normalizeSwapStatus = (status: string): string => {
   return statusMap[status] || status
 }
 
-// ✅ NEW: Helper function to determine if user is assigned to a swap
+// Helper function to determine if user is assigned to a swap
 const isUserAssignedToSwap = (swap: ExtendedSwapRequest, userId: string): boolean => {
   // Check if user is target staff for specific swaps
   if (swap.swap_type === 'specific' && swap.target_staff_id === userId) {
@@ -117,7 +117,7 @@ const isUserAssignedToSwap = (swap: ExtendedSwapRequest, userId: string): boolea
   return false
 }
 
-// ✅ NEW: Helper function to determine if user can respond to a swap
+//  Helper function to determine if user can respond to a swap
 const canUserRespondToSwap = (swap: ExtendedSwapRequest, userId: string): boolean => {
   const normalizedStatus = normalizeSwapStatus(swap.status)
 
@@ -182,29 +182,29 @@ function StaffSwapDashboard({ user, apiClient }: StaffSwapDashboardProps) {
     shiftTime: string
   } | null>(null)
 
-  // ✅ UPDATED: Better user ID handling and assignment detection
+  //  user ID handling and assignment detection
   const userId = user?.staffId || user?.id
 
   const potentialAssignments = swapRequests.filter(swap => {
-    // Must be awaiting target response
+    //  awaiting target response
     if (swap.status !== SwapTypes.SwapStatus.PotentialAssignment &&
         swap.status !== SwapTypes.SwapStatus.ManagerApproved) {
       return false
     }
 
-    // Must be assigned to this user
+    // assigned to this user
     return isUserAssignedToSwap(swap, userId)
   })
 
-  console.log('🔍 ===== DEBUGGING DISABLED BUTTONS =====')
-console.log('👤 Current user:', user)
-console.log('🆔 User ID:', userId)
-console.log('📊 Potential assignments:', potentialAssignments.length)
+  console.log(' ===== DEBUGGING DISABLED BUTTONS =====')
+console.log('Current user:', user)
+console.log(' User ID:', userId)
+console.log('Potential assignments:', potentialAssignments.length)
 
 // Debug the first assignment in detail
 if (potentialAssignments.length > 0) {
   const assignment = potentialAssignments[0]
-  console.log('📋 Assignment Details:')
+  console.log('Assignment Details:')
   console.log('   Swap ID:', assignment.id)
   console.log('   Swap Type:', assignment.swap_type)
   console.log('   Status:', assignment.status)
@@ -216,28 +216,23 @@ if (potentialAssignments.length > 0) {
 
   // Check what's blocking buttons
   const canRespond = (userId === assignment.assigned_staff_id) && (assignment.assigned_staff_accepted === null)
-  console.log('🎯 CAN RESPOND?', canRespond)
+  console.log('CAN RESPOND?', canRespond)
 } else {
-  console.log('❌ No potential assignments found!')
+  console.log('No potential assignments found!')
 }
-console.log('🔍 ===== END DEBUGGING =====')
+console.log(' ===== END DEBUGGING =====')
 
-  useEffect(() => {
-    loadAllData()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
     setLoading(true)
     try {
       console.log('Loading staff swap data...')
-      
+
       // Load current schedule context
       try {
         const facilitiesData = await apiClient.getFacilities()
         if (facilitiesData && facilitiesData.length > 0) {
           const facility = facilitiesData[0] // Get user's facility
-          
+
           // Get current week's schedule
           const schedulesData = await apiClient.getFacilitySchedules(facility.id)
           if (schedulesData && schedulesData.length > 0) {
@@ -253,11 +248,11 @@ console.log('🔍 ===== END DEBUGGING =====')
       } catch (schedError) {
         console.warn('Could not load schedule context:', schedError)
       }
-      
+
       // Load swap requests
       const swapsData = await apiClient.getStaffSwapRequests()
       console.log('Raw swaps response:', swapsData)
-      
+
       const swapArray = Array.isArray(swapsData) ? swapsData : (swapsData?.data || [])
 
       // ✅ NEW: Process and normalize swap statuses
@@ -283,15 +278,15 @@ console.log('🔍 ===== END DEBUGGING =====')
 
         return extendedSwap
       })
-      
+
       setSwapRequests(processedSwaps)
-      
+
       console.log('✅ Processed swap requests:', processedSwaps.length)
       if (processedSwaps.length > 0) {
         console.log('📋 Sample processed swap:', processedSwaps[0])
         console.log('🎯 Auto-assignments for user:', processedSwaps.filter(s => s.isAutoAssignment && s.isForCurrentUser).length)
       }
-      
+
       // Load additional staff data if available
       try {
         const statsData = await apiClient.getStaffDashboardStats()
@@ -309,7 +304,7 @@ console.log('🔍 ===== END DEBUGGING =====')
           totalRequests: processedSwaps.length
         }))
       }
-      
+
     } catch (error) {
       console.error(' Failed to load data:', error)
       toast.error(t('errors.failedToLoad'))
@@ -317,7 +312,11 @@ console.log('🔍 ===== END DEBUGGING =====')
     } finally {
       setLoading(false)
     }
-  }
+  }, [apiClient, userId, t])
+
+  useEffect(() => {
+    loadAllData()
+  }, [loadAllData])
 
   const filteredAndCategorizedData = useMemo(() => {
     console.log('🔍 Starting data categorization...')

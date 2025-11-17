@@ -3,22 +3,24 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { 
-  TrendingUp, 
-  Clock, 
-  CheckCircle, 
+import {
+  TrendingUp,
+  Clock,
+  CheckCircle,
   BarChart3,
   Calendar,
   Users,
   Award
 } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as SwapTypes from '@/types/swaps'
+import * as AuthTypes from '@/types/auth'
 
 interface SwapHistoryAnalyticsProps {
   isOpen: boolean
   onClose: () => void
-  swapRequests: any[]
-  user: any
+  swapRequests: SwapTypes.SwapRequest[]
+  user: AuthTypes.User
 }
 
 export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: SwapHistoryAnalyticsProps) {
@@ -35,9 +37,9 @@ export function SwapHistoryAnalytics({ isOpen, onClose, swapRequests, user }: Sw
   const acceptedForOthers = requestsForMe.filter(s => s.target_staff_accepted === true).length
   const declinedForOthers = requestsForMe.filter(s => s.target_staff_accepted === false).length
   const helpfulnessRate = requestsForMe.length > 0 ? Math.round((acceptedForOthers / requestsForMe.length) * 100) : 0
-  
+
   // Monthly breakdown (last 6 months)
-  const monthlyData = []
+  const monthlyData: Array<{ month: string; requests: number; completed: number }> = []
   for (let i = 5; i >= 0; i--) {
     const date = new Date()
     date.setMonth(date.getMonth() - i)
