@@ -142,20 +142,26 @@ export function MonthlyCalendar({
       console.log(`🔭 No assignments found for ${date.toDateString()}`)
       return []
     }
-    
+
     // Calculate day index within the week (0 = Monday, but we need to handle Sunday start)
     const scheduleStart = new Date(schedule.week_start)
     const dayIndex = Math.floor((date.getTime() - scheduleStart.getTime()) / (24 * 60 * 60 * 1000))
-    
-    const assignments = schedule.assignments.filter(a => a.day === dayIndex)
-    
+
+    let assignments = schedule.assignments.filter(a => a.day === dayIndex)
+
+    // Filter to show only specific staff member's assignments if showMineOnly is enabled
+    if (showMineOnly && highlightStaffId) {
+      assignments = assignments.filter(a => a.staff_id === highlightStaffId)
+    }
+
     console.log(`📋 Assignments for ${date.toDateString()}:`, {
       schedule_id: schedule.id,
       day_index: dayIndex,
       assignments_count: assignments.length,
-      assignments: assignments.map(a => ({ shift: a.shift, staff_id: a.staff_id }))
+      assignments: assignments.map(a => ({ shift: a.shift, staff_id: a.staff_id })),
+      filtered_by_staff: showMineOnly && highlightStaffId
     })
-    
+
     return assignments
   }
 
@@ -287,20 +293,27 @@ export function MonthlyCalendar({
                           </div>
                           {/* Show shift distribution */}
                           <div className="flex gap-1">
-                            {[0, 1, 2].map(shiftId => {
+                            {(shifts && shifts.length > 0 ? shifts : [0, 1, 2]).map((shift, index) => {
+                              const shiftId = typeof shift === 'number' ? shift : index
                               const shiftAssignments = assignments.filter(a => a.shift === shiftId)
-                              const shiftNames = [t('common.morning'), t('common.afternoon'), t('common.evening')]
+                              const shiftName = typeof shift === 'object' && shift.name
+                                ? shift.name
+                                : [t('common.morning'), t('common.afternoon'), t('common.evening')][shiftId]
+                              const shiftColor = typeof shift === 'object' && shift.color
+                                ? shift.color
+                                : shiftId === 0 ? 'bg-yellow-500'
+                                  : shiftId === 1 ? 'bg-blue-500'
+                                  : 'bg-purple-500'
+
                               return (
                                 <div
                                   key={shiftId}
                                   className={`w-2 h-2 rounded-full ${
-                                    shiftAssignments.length > 0 
-                                      ? shiftId === 0 ? 'bg-yellow-500' 
-                                        : shiftId === 1 ? 'bg-blue-500' 
-                                        : 'bg-purple-500'
+                                    shiftAssignments.length > 0
+                                      ? shiftColor
                                       : 'bg-gray-300'
                                   }`}
-                                  title={`${shiftNames[shiftId]}: ${shiftAssignments.length} ${t('common.staff')}`}
+                                  title={`${shiftName}: ${shiftAssignments.length} ${t('common.staff')}`}
                                 />
                               )
                             })}
@@ -308,9 +321,18 @@ export function MonthlyCalendar({
                           {/* Show some staff names if space allows */}
                           {assignments.slice(0, 2).map((assignment, idx) => {
                             const staffMember = staff.find(s => s.id === assignment.staff_id)
+                            const isHighlighted = highlightStaffId && assignment.staff_id === highlightStaffId
                             return staffMember ? (
-                              <div key={idx} className="text-xs text-gray-600 truncate">
+                              <div
+                                key={idx}
+                                className={`text-xs truncate ${
+                                  isHighlighted
+                                    ? 'text-blue-700 font-semibold'
+                                    : 'text-gray-600'
+                                }`}
+                              >
                                 {staffMember.full_name.split(' ')[0]}
+                                {isHighlighted && ' ★'}
                               </div>
                             ) : null
                           })}

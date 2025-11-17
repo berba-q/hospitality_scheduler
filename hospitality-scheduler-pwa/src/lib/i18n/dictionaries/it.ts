@@ -961,6 +961,8 @@ export const it = {
     availableStaff: 'Personale Disponibile',
     filterByRole: 'Filtra per Ruolo',
     allRoles: 'Tutti i Ruoli',
+    filterByZone: 'Filtra per Zona',
+    allZones: 'Tutte le Zone',
     dragDropAssignment: 'Assegnazione Trascina e Rilascia',
     dragStaffToCalendar: 'Trascina i membri del personale da questo pannello e rilasciali sugli slot del calendario per creare assegnazioni',
     

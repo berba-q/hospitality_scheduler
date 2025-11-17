@@ -236,6 +236,28 @@ export function StaffAssignmentPanel({
             </select>
           </div>
 
+          {/* Zone Filter */}
+          {availableZones && availableZones.length > 0 && onZoneFilterChange && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">{t('staff.filterByZone')}</span>
+              </div>
+              <select
+                value={filterZone || 'all'}
+                onChange={(e) => onZoneFilterChange(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-blue-500 transition-all duration-200"
+              >
+                <option value="all">{t('staff.allZones')}</option>
+                {availableZones.map((zone) => (
+                  <option key={zone.zone_id} value={zone.zone_id}>
+                    {zone.zone_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Show Inactive Toggle */}
           <div className="flex items-center gap-2">
             <input

@@ -952,6 +952,8 @@ export const en = {
     availableStaff: 'Available Staff',
     filterByRole: 'Filter by Role',
     allRoles: 'All Roles',
+    filterByZone: 'Filter by Zone',
+    allZones: 'All Zones',
     dragDropAssignment: 'Drag & Drop Assignment',
     dragStaffToCalendar: 'Drag staff members from this panel and drop them onto calendar slots to create assignments',
     
