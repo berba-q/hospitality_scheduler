@@ -5,35 +5,22 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, X, Calendar } from 'lucide-react';
 import { useTranslations } from '@/hooks/useTranslations';
+import * as PWATypes from '@/types/pwa';
 
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed';
-    platform: string;
-  }>;
-  prompt(): Promise<void>;
-}
-
-interface PWAInstallPromptProps {
-  onInstall?: () => void;
-  onDismiss?: () => void;
-}
-
-export function PWAInstallPrompt({ onInstall, onDismiss }: PWAInstallPromptProps) {
+export function PWAInstallPrompt({ onInstall, onDismiss }: PWATypes.PWAInstallPromptProps) {
   const { t } = useTranslations();
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<PWATypes.BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-  const [deviceType, setDeviceType] = useState<'mobile' | 'desktop'>('mobile');
+  const [deviceType, setDeviceType] = useState<PWATypes.DeviceType>('mobile');
 
   useEffect(() => {
     // Check if app is already installed/running in standalone mode
     const checkStandalone = () => {
       const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as any).standalone ||
+        (window.navigator as PWATypes.NavigatorWithStandalone).standalone ||
         document.referrer.includes('android-app://');
       setIsStandalone(isStandaloneMode);
     };
@@ -56,13 +43,13 @@ export function PWAInstallPrompt({ onInstall, onDismiss }: PWAInstallPromptProps
     checkDeviceType();
 
     // Listen for PWA install prompt
-    const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
+    const handleBeforeInstallPrompt = (e: PWATypes.BeforeInstallPromptEvent) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setIsInstallable(true);
-      
+
       console.log(t('pwa.install.installPromptAvailable'));
-      
+
       // Show prompt after a delay to avoid interrupting user
       setTimeout(() => setShowPrompt(true), 5000); // 5 seconds delay
     };
@@ -195,7 +182,7 @@ export function PWAInstallPrompt({ onInstall, onDismiss }: PWAInstallPromptProps
 }
 
 // Hook for PWA status - useful for other components
-export function usePWAInstall() {
+export function usePWAInstall(): PWATypes.PWAStatus {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -204,9 +191,9 @@ export function usePWAInstall() {
     const checkPWAStatus = () => {
       // Check if running in standalone mode
       const standalone = window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as any).standalone ||
+        (window.navigator as PWATypes.NavigatorWithStandalone).standalone ||
         document.referrer.includes('android-app://');
-      
+
       setIsStandalone(standalone);
       setIsInstalled(standalone);
     };
@@ -234,13 +221,13 @@ export function usePWAInstall() {
 }
 
 // Optional: Install button component for manual placement
-export function PWAInstallButton({ className = "", children }: { className?: string, children?: React.ReactNode }) {
+export function PWAInstallButton({ className = "", children }: PWATypes.PWAInstallButtonProps) {
   const { t } = useTranslations();
   const { isInstallable, isStandalone } = usePWAInstall();
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<PWATypes.BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
+    const handleBeforeInstallPrompt = (e: PWATypes.BeforeInstallPromptEvent) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };

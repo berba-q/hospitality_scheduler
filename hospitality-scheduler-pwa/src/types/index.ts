@@ -5,3 +5,4 @@ export * from './common';
 export * as ApiTypes from './api';
 export * as FacilityTypes from './facility';
 export * as AvailabilityTypes from './availability';
+export * as PWATypes from './pwa';
