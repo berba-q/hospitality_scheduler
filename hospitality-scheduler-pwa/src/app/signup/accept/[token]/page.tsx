@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
@@ -49,14 +49,10 @@ export default function AcceptInvitationPage({ params }: AcceptInvitationPagePro
   const { t } = useTranslations()
   const { token } = params
 
-  useEffect(() => {
-    verifyInvitation()
-  }, [token])
-
-  const verifyInvitation = async () => {
+  const verifyInvitation = useCallback(async () => {
     try {
       const response = await fetch(`/api/v1/invitations/verify/${token}`)
-      
+
       if (response.ok) {
         const data = await response.json()
         setInvitationData(data)
@@ -64,10 +60,14 @@ export default function AcceptInvitationPage({ params }: AcceptInvitationPagePro
       } else {
         setStatus('invalid')
       }
-    } catch (error) {
+    } catch {
       setStatus('invalid')
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    verifyInvitation()
+  }, [verifyInvitation])
 
   const handleAcceptInvitation = async (method: 'google' | 'credentials') => {
     setIsLoading(true)
@@ -117,7 +117,7 @@ export default function AcceptInvitationPage({ params }: AcceptInvitationPagePro
           setError(data.detail || t('invitations.acceptFailed'))
         }
       }
-    } catch (error) {
+    } catch {
       setError(t('auth.networkError'))
     } finally {
       setIsLoading(false)
@@ -203,12 +203,12 @@ export default function AcceptInvitationPage({ params }: AcceptInvitationPagePro
             <UserPlus className="w-8 h-8 text-blue-600" />
           </div>
           <CardTitle className="text-2xl">
-            {t('invitations.joinTeam', { organizationName: invitationData?.organization_name })}
+            {t('invitations.joinTeam', { organizationName: invitationData?.organization_name || '' })}
           </CardTitle>
           <CardDescription>
             {t('invitations.welcomeMessage', {
-              organizationName: invitationData?.organization_name,
-              role: invitationData?.role
+              organizationName: invitationData?.organization_name || '',
+              role: invitationData?.role || ''
             })}
           </CardDescription>
         </CardHeader>

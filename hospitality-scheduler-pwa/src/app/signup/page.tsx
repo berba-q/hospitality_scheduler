@@ -48,7 +48,7 @@ export default function SignUpPage() {
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   
   const router = useRouter()
-  const { data: session, status: sessionStatus } = useSession()
+  const { status: sessionStatus } = useSession()
   const { t } = useTranslations()
 
   // Redirect if already authenticated
@@ -119,7 +119,7 @@ export default function SignUpPage() {
       } else {
         setError(data.detail || t('auth.signUpFailed'))
       }
-    } catch (error) {
+    } catch {
       setError(t('auth.networkError'))
     } finally {
       setIsLoading(false)
@@ -132,7 +132,7 @@ export default function SignUpPage() {
       await signIn('google', {
         callbackUrl: '/dashboard',
       })
-    } catch (error) {
+    } catch {
       setError(t('auth.googleSignUpFailed'))
     } finally {
       setIsLoading(false)
