@@ -891,8 +891,8 @@ function StaffScheduleView({
               toast.error(t('common.failed') + ' to cancel swap')
             }
           }}
-          user={user}
-          apiClient={apiClient}
+          user={user ?? null}
+          apiClient={apiClient!}
         />
       )}
     </div>
@@ -1428,9 +1428,9 @@ function ManagerScheduleView({
         <FacilitySwapModal
           open={showSwapDashboard}
           onClose={() => setShowSwapDashboard(false)}
-          facility={selectedFacility}
+          facility={selectedFacility!}
           swapRequests={swapRequests}
-          swapSummary={swapSummary}
+          swapSummary={swapSummary!}
           days={DAYS}
           shifts={shifts}
           onApproveSwap={approveSwap}
@@ -1592,7 +1592,20 @@ export default function SchedulePage() {
   }
 
   // Wrapper for SwapRequestModal which expects void return
-  const handleCreateSwapRequest = async (data: Record<string, unknown>): Promise<void> => {
+  const handleCreateSwapRequest = async (data: {
+    schedule_id: string
+    original_day?: number
+    original_shift?: number
+    reason: string
+    urgency: string
+    swap_type: 'specific' | 'auto'
+    target_staff_id?: string
+    target_day?: number
+    target_shift?: number
+    requesting_staff_id?: string
+    preferred_skills?: string[]
+    avoid_staff_ids?: string[]
+  }): Promise<void> => {
     await createSwapRequestHook(data as Parameters<typeof createSwapRequestHook>[0])
   }
 
@@ -2451,10 +2464,14 @@ export default function SchedulePage() {
             setShowSwapModal(false)
             setSelectedAssignmentForSwap(null)
           }}
-          schedule={currentSchedule}
+          schedule={currentSchedule! as ApiTypes.ScheduleWithAssignments}
           currentAssignment={selectedAssignmentForSwap}
           staff={staff}
-          shifts={shifts}
+          shifts={shifts.map(s => ({
+            name: s.shift_name || s.name || '',
+            time: `${s.start_time}-${s.end_time}`,
+            color: s.color
+          }))}
           days={DAYS}
           isManager={isManager}
           onSwapRequest={handleCreateSwapRequest}
