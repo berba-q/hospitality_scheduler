@@ -2351,7 +2351,7 @@ async getGlobalSwapStatistics() {
   }
 
   async getNotificationPreferences() {
-    return this.request<ApiTypes.NotificationPreferences>('/v1/notifications/preferences')
+    return this.request<ApiTypes.NotificationPreferences[]>('/v1/notifications/preferences')
   }
 
   async updateNotificationPreferences(preferences: {

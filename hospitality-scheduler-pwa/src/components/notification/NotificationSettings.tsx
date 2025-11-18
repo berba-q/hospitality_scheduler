@@ -1,7 +1,7 @@
 // src/components/notification/NotificationSettings.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,6 +26,7 @@ import { toast } from 'sonner'
 import { useApiClient, useAuth } from '@/hooks/useApi'
 import { usePushNotificationContext } from '@/components/providers/PushNotificationProvider'
 import { useTranslations } from '@/hooks/useTranslations'
+import { PushStatsResponse } from '@/types/api'
 
 interface NotificationPreference {
   notification_type: string
@@ -63,7 +64,7 @@ export function NotificationSettings() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [whatsappSaving, setWhatsappSaving] = useState(false)
-  const [pushStats, setPushStats] = useState(null);
+  const [pushStats, setPushStats] = useState<PushStatsResponse | null>(null);
   
   const apiClient = useApiClient()
   const { user } = useAuth()
@@ -142,11 +143,27 @@ export function NotificationSettings() {
     }
   ]
 
+  // Define loadPreferences with useCallback
+  const loadPreferences = useCallback(async () => {
+    if (!apiClient) return
+
+    setLoading(true)
+    try {
+      const data = await apiClient.getNotificationPreferences()
+      setPreferences(data || [])
+    } catch (error) {
+      console.error('Failed to load preferences:', error)
+      toast.error(t('notifications.failedToLoad'))
+    } finally {
+      setLoading(false)
+    }
+  }, [apiClient, t])
+
   // load push stats
   useEffect(() => {
   const loadPushStats = async () => {
     if (!apiClient) return;
-    
+
     try {
       const stats = await apiClient.getPushStats();
       setPushStats(stats);
@@ -165,22 +182,7 @@ export function NotificationSettings() {
       setWhatsappNumber(user.whatsapp_number)
       setTempWhatsappNumber(user.whatsapp_number)
     }
-  }, [user])
-
-  const loadPreferences = async () => {
-    if (!apiClient) return
-    
-    setLoading(true)
-    try {
-      const data = await apiClient.getNotificationPreferences()
-      setPreferences(data || [])
-    } catch (error) {
-      console.error('Failed to load preferences:', error)
-      toast.error(t('notifications.failedToLoad'))
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [user, loadPreferences])
 
   const updatePreference = async (
     notificationType: string, 
@@ -461,7 +463,7 @@ export function NotificationSettings() {
                       {/* Push stats */}
                       {pushStats && (
                         <div className="text-sm text-gray-600 mt-2">
-                          <p>{pushStats.devices_with_valid_tokens} {t('common.of')} {pushStats.total_devices} {t('notifications.devicesHaveValidNotifications')}</p>
+                          <p>{pushStats.active_devices} {t('common.of')} {pushStats.total_devices} {t('notifications.devicesHaveValidNotifications')}</p>
                           {pushStats.devices_needing_reauth > 0 && (
                             <p className="text-orange-600">
                               {pushStats.devices_needing_reauth} {t('notifications.devicesNeedReauth')}

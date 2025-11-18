@@ -104,7 +104,7 @@ export function PushReauthModal({
             await apiClient.updateTokenAfterReauth({
               device_id: device.id,
               success: true,
-              new_token: state.token
+              new_token: state.token ?? undefined
             });
             
             setCompletedDevices(prev => new Set(prev).add(device.id));
@@ -140,7 +140,7 @@ export function PushReauthModal({
             await apiClient.updateTokenAfterReauth({
               device_id: device.id,
               success: false,
-              new_token: null
+              new_token: undefined
             });
           } catch (error) {
             console.error(`Failed to update device ${device.id} denial:`, error);
@@ -175,7 +175,7 @@ export function PushReauthModal({
         apiClient.updateTokenAfterReauth({
           device_id: device.id,
           success: false,
-          new_token: null
+          new_token: undefined
         })
       );
 
