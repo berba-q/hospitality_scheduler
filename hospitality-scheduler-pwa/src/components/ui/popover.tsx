@@ -27,13 +27,30 @@ import { cn } from "@/lib/utils"
 
 interface PopoverProps {
   children: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function Popover({
   children,
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
 }: PopoverProps & { defaultOpen?: boolean }) {
-  const [open, setOpen] = React.useState(defaultOpen)
+  const [internalOpen, setInternalOpen] = React.useState(defaultOpen)
+
+  // Use controlled state if provided, otherwise use internal state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen
+
+  const setOpen = React.useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    const newValue = typeof value === 'function' ? value(open) : value
+    if (onOpenChange) {
+      onOpenChange(newValue)
+    }
+    if (controlledOpen === undefined) {
+      setInternalOpen(newValue)
+    }
+  }, [open, onOpenChange, controlledOpen])
 
   return (
     <PopoverContext.Provider value={{ open, setOpen }}>
@@ -55,15 +72,21 @@ export function PopoverTrigger({
 
   function handleClick(e: React.MouseEvent) {
     setOpen(!open)
-    if (children && (children as React.ReactElement).props.onClick) {
-      ;(children as React.ReactElement).props.onClick(e)
+    if (React.isValidElement(children)) {
+      const childProps = children.props as { onClick?: (e: React.MouseEvent) => void }
+      if (typeof childProps.onClick === 'function') {
+        childProps.onClick(e)
+      }
     }
   }
 
   if (asChild) {
-    return React.cloneElement(children as React.ReactElement, {
+    if (!React.isValidElement(children)) {
+      throw new Error('asChild requires a valid React element as child')
+    }
+    return React.cloneElement(children, {
       onClick: handleClick,
-    })
+    } as React.HTMLAttributes<HTMLElement>)
   }
 
   return (

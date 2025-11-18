@@ -9,6 +9,7 @@ export interface User {
   isManager: boolean   // Whether user is a manager or staff
   tenantId?: string    // Which company/organization they belong to
   staff_id?: string    // Staff ID if the user is staff member
+  whatsapp_number?: string  // User's WhatsApp number for notifications
 }
 
 // Session information that includes user data + auth tokens

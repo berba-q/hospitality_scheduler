@@ -198,6 +198,16 @@ export interface SwapStaffResponse {
 }
 
 // ==================== NOTIFICATION TYPES ====================
+export interface QuickAction {
+  id: string
+  label: string
+  action: 'approve' | 'decline' | 'view' | 'respond' | 'cover'
+  variant?: 'default' | 'outline' | 'destructive' | 'secondary'
+  api_endpoint?: string
+  method?: string
+  url?: string
+}
+
 export interface Notification {
   id: string
   user_id: string
@@ -211,7 +221,12 @@ export interface Notification {
   related_entity_id?: string
   action_url?: string
   action_text?: string
-  metadata: Record<string, unknown>
+  metadata: Record<string, unknown> & {
+    quick_actions?: QuickAction[]
+    swap_id?: string
+    schedule_id?: string
+    shift_id?: string
+  }
   created_at: string
   sent_at?: string
   delivered_at?: string

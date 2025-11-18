@@ -2,13 +2,13 @@
 // Beautiful notification bell component with clean UI - Italian Translation
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Bell, 
-  BellRing, 
-  Settings as SettingsIcon, 
+import {
+  Bell,
+  BellRing,
+  Settings as SettingsIcon,
   Check,
   X,
   ExternalLink,
@@ -32,68 +32,33 @@ import { toast } from 'sonner'
 import { useApiClient, useAuth } from '@/hooks/useApi'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as ApiTypes from '@/types/api'
 
-interface QuickAction {
-  id: string
-  label: string
-  action: 'approve' | 'decline' | 'view' | 'respond' | 'cover'
-  variant?: 'default' | 'outline' | 'destructive' | 'secondary'
-  api_endpoint?: string
-  method?: string
-  url?: string
-}
-
-interface Notification {
-  id: string
-  title: string
-  message: string
-  notification_type: string
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
-  is_read: boolean
-  created_at: string
-  action_url?: string
-  action_text?: string
-  data?: {
-    quick_actions?: QuickAction[]
-    swap_id?: string
-    schedule_id?: string
-    shift_id?: string
-    [key: string]: any
-  }
-}
-
-interface NotificationPreference {
-  notification_type: string
-  in_app_enabled: boolean
-  push_enabled: boolean
-  whatsapp_enabled: boolean
-  email_enabled: boolean
-}
+// Create type aliases to avoid conflict with browser's Notification API
+type AppNotification = ApiTypes.Notification
+type AppQuickAction = ApiTypes.QuickAction
 
 export function NotificationBell() {
   const { t } = useTranslations()
   const [open, setOpen] = useState(false)
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [preferences, setPreferences] = useState<NotificationPreference[]>([])
+  const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [loading, setLoading] = useState(false)
   const [filterType, setFilterType] = useState<string>('all')
   const [filterPriority, setFilterPriority] = useState<string>('all')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [isOpen, setIsOpen] = useState(false)
   const [showDetailedSettings, setShowDetailedSettings] = useState(false);
 
-  
+
   const apiClient = useApiClient()
   const { isAuthenticated, accessToken, user } = useAuth()
 
-  const unreadCount = notifications.filter(n => !n.is_read).length
+  const unreadCount = notifications.filter(n => n.status !== 'read').length
 
    // ADD: Push notification integration
   const {
     hasPermission: hasPushPermission,
     needsPermission: needsPushPermission,
     isSupported: isPushSupported,
-    token: pushToken,
     requestPermission: requestPushPermission
   } = usePushNotificationContext();
 
@@ -128,21 +93,9 @@ export function NotificationBell() {
   };
 
 
-  useEffect(() => {
-    if (isAuthenticated && apiClient) {
-      loadNotifications()
-    }
-  }, [apiClient, isAuthenticated])
-
-  useEffect(() => {
-    if (open && isAuthenticated && apiClient) {
-      loadPreferences()
-    }
-  }, [open, isAuthenticated, apiClient])
-
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     if (!apiClient) return
-    
+
     try {
       setLoading(true)
       const response = await apiClient.getMyNotifications({
@@ -158,26 +111,21 @@ export function NotificationBell() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [apiClient, t])
 
-  const loadPreferences = async () => {
-    if (!apiClient) return
-    
-    try {
-      const preferences = await apiClient.getNotificationPreferences()
-      setPreferences(preferences || [])
-    } catch (error) {
-      console.error('Failed to load preferences:', error)
+  useEffect(() => {
+    if (isAuthenticated && apiClient) {
+      loadNotifications()
     }
-  }
+  }, [apiClient, isAuthenticated, loadNotifications])
 
   const markAsRead = async (notificationId: string) => {
     if (!apiClient) return
-    
+
     try {
       await apiClient.markNotificationRead(notificationId)
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, status: 'read' as const } : n)
       )
     } catch (error) {
       console.error('Failed to mark notification as read:', error)
@@ -186,33 +134,14 @@ export function NotificationBell() {
 
   const markAllAsRead = async () => {
     if (!apiClient) return
-    
+
     try {
       await apiClient.markAllNotificationsRead()
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+      setNotifications(prev => prev.map(n => ({ ...n, status: 'read' as const })))
       toast.success(t('notifications.markAllRead'))
     } catch (error) {
       console.error('Failed to mark all as read:', error)
       toast.error(t('notifications.failedToMarkAllAsRead'))
-    }
-  }
-
-  const updatePreference = async (notificationType: string, field: string, value: boolean) => {
-    if (!apiClient) return
-    
-    try {
-      await apiClient.updateNotificationPreferences({
-        notification_type: notificationType,
-        [field]: value
-      })
-      setPreferences(prev => 
-        prev.map(p => 
-          p.notification_type === notificationType ? { ...p, [field]: value } : p)
-      )
-      toast.success(t('common.updatedSuccessfully'))
-    } catch (error) {
-      console.error('Failed to update preferences:', error)
-      toast.error(t('common.failedToUpdate'))
     }
   }
 
@@ -223,18 +152,18 @@ export function NotificationBell() {
     return 'http://localhost:8000'
   }
 
-  const handleQuickAction = async (notification: Notification, action: QuickAction) => {
+  const handleQuickAction = async (notification: AppNotification, action: AppQuickAction) => {
     if (!accessToken) {
       toast.error(t('auth.authenticationRequired'))
       return
     }
-    
+
     setActionLoading(action.id)
-    
+
     try {
       if (action.api_endpoint) {
         const backendUrl = getBackendUrl()
-        
+
         const response = await fetch(`${backendUrl}${action.api_endpoint}`, {
           method: action.method || 'POST',
           headers: {
@@ -242,10 +171,8 @@ export function NotificationBell() {
             'Authorization': `Bearer ${accessToken}`
           }
         })
-        
+
         if (response.ok) {
-          const result = await response.json()
-          
           switch (action.action) {
             case 'approve':
               toast.success('✅ ' + t('workflow.approve') + '!')
@@ -259,31 +186,32 @@ export function NotificationBell() {
             default:
               toast.success('✅ ' + t('common.success') + '!')
           }
-          
+
           await markAsRead(notification.id)
           await loadNotifications()
-          
+
         } else {
           const errorData = await response.json().catch(() => ({}))
           throw new Error(errorData.detail || `HTTP ${response.status}`)
         }
-        
+
       } else if (action.url) {
         window.open(action.url, '_blank')
         await markAsRead(notification.id)
       }
-      
+
     } catch (error) {
       console.error('Quick action failed:', error)
-      toast.error(`${t('common.failed')} ${action.action}: ${error.message}`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      toast.error(`${t('common.failed')} ${action.action}: ${errorMessage}`)
     } finally {
       setActionLoading(null)
     }
   }
 
-  const handleNotificationClick = async (notification: Notification) => {
+  const handleNotificationClick = async (notification: AppNotification) => {
     await markAsRead(notification.id)
-    
+
     if (notification.action_url) {
       window.open(notification.action_url, '_blank')
     }
@@ -365,7 +293,7 @@ export function NotificationBell() {
   }
 
   const filteredNotifications = notifications.filter(notification => {
-    if (filterType !== 'all' && notification.notification_type !== filterType) return false
+    if (filterType !== 'all' && notification.type !== filterType) return false
     if (filterPriority !== 'all' && notification.priority !== filterPriority) return false
     return true
   })
@@ -536,16 +464,16 @@ export function NotificationBell() {
                     <div
                       key={notification.id}
                       className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                        !notification.is_read ? 'bg-blue-50/50 border-l-2 border-l-blue-500' : ''
+                        notification.status !== 'read' ? 'bg-blue-50/50 border-l-2 border-l-blue-500' : ''
                       }`}
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex gap-3">
                         {/* Icon */}
                         <div className="flex-shrink-0 mt-0.5">
-                          {getNotificationIcon(notification.notification_type)}
+                          {getNotificationIcon(notification.type)}
                         </div>
-                        
+
                         {/* Content */}
                         <div className="flex-1 min-w-0 space-y-2">
                           {/* Header */}
@@ -555,21 +483,21 @@ export function NotificationBell() {
                             </h4>
                             <div className="flex items-center gap-1">
                               {getPriorityBadge(notification.priority)}
-                              {!notification.is_read && (
+                              {notification.status !== 'read' && (
                                 <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
                               )}
                             </div>
                           </div>
-                          
+
                           {/* Message */}
                           <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
                             {notification.message}
                           </p>
-                          
+
                           {/* Quick Actions */}
-                          {notification.data?.quick_actions && notification.data.quick_actions.length > 0 && (
+                          {notification.metadata?.quick_actions && notification.metadata.quick_actions.length > 0 && (
                             <div className="flex gap-2 pt-1">
-                              {notification.data.quick_actions.map((action) => (
+                              {notification.metadata.quick_actions.map((action) => (
                                 <Button
                                   key={action.id}
                                   variant={getQuickActionVariant(action.variant)}
@@ -591,14 +519,14 @@ export function NotificationBell() {
                               ))}
                             </div>
                           )}
-                          
+
                           {/* Footer */}
                           <div className="flex items-center justify-between pt-1">
                             <span className="text-xs text-gray-400">
                               {formatTimeAgo(notification.created_at)}
                             </span>
-                            
-                            {!notification.is_read && (
+
+                            {notification.status !== 'read' && (
                               <Button
                                 variant="ghost"
                                 size="sm"

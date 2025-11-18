@@ -14,14 +14,27 @@ interface FloatingNotificationIndicatorProps {
   showOnlyWhenHidden?: boolean // Only show when main notification bell is not visible
 }
 
-export function FloatingNotificationIndicator({ 
+interface InAppNotification {
+  id: string
+  title: string
+  message: string
+  notification_type: string
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  is_read: boolean
+  created_at: string
+  action_url?: string
+  action_text?: string
+  data?: unknown
+}
+
+export function FloatingNotificationIndicator({
   position = 'bottom-right',
-  showOnlyWhenHidden = true 
+  showOnlyWhenHidden = true
 }: FloatingNotificationIndicatorProps) {
   const { t } = useTranslations()
   const { notifications, unreadCount, markAsRead } = useNotifications()
   const [isVisible, setIsVisible] = useState(false)
-  const [currentNotification, setCurrentNotification] = useState<any>(null)
+  const [currentNotification, setCurrentNotification] = useState<InAppNotification | null>(null)
   const [isScrolledDown, setIsScrolledDown] = useState(false)
 
   // Track scroll position to show/hide indicator
@@ -47,7 +60,7 @@ export function FloatingNotificationIndicator({
     // Set the most recent unread notification for display
     if (shouldShow) {
       const latestUnread = notifications.find(n => !n.is_read)
-      setCurrentNotification(latestUnread)
+      setCurrentNotification(latestUnread ?? null)
     }
   }, [unreadCount, isScrolledDown, notifications, showOnlyWhenHidden])
 
