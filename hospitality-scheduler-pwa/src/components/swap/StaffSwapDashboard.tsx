@@ -35,17 +35,8 @@ import { StaffSwapRequestDialog } from '@/components/swap/StaffSwapRequestDialog
 import { SwapRequestsList } from '@/components/swap/SwapRequestsList'
 import { PotentialAssignmentCard } from './WorkflowStatusIndicator'
 
-// API Client interface
-interface ApiClient {
-  getFacilities: () => Promise<Array<{ id: string; name: string }>>
-  getFacilitySchedules: (facilityId: string) => Promise<ScheduleTypes.Schedule[]>
-  getStaffSwapRequests: () => Promise<SwapTypes.SwapRequest[] | { data: SwapTypes.SwapRequest[] }>
-  getStaffDashboardStats: () => Promise<PersonalStats & { upcomingShifts: UpcomingShift[] }>
-  respondToPotentialAssignment: (swapId: string, data: { accepted: boolean; notes?: string; availability_confirmed?: boolean }) => Promise<void>
-  RespondToSwap: (swapId: string, data: { accepted: boolean; notes?: string; confirm_availability?: boolean }) => Promise<void>
-  cancelSwapRequest: (swapId: string, reason?: string) => Promise<void>
-  createSwapRequest: (swapData: unknown) => Promise<unknown>
-}
+// Import API client type
+import type { ApiClient } from '@/lib/api'
 
 // Personal stats interface
 interface PersonalStats {
@@ -253,7 +244,10 @@ console.log(' ===== END DEBUGGING =====')
       const swapsData = await apiClient.getStaffSwapRequests()
       console.log('Raw swaps response:', swapsData)
 
-      const swapArray = Array.isArray(swapsData) ? swapsData : (swapsData?.data || [])
+      // API returns SwapRequest[] but handle both array and wrapped response for backward compatibility
+      const swapArray: SwapTypes.SwapRequest[] = Array.isArray(swapsData)
+        ? swapsData
+        : (swapsData as { data?: SwapTypes.SwapRequest[] })?.data || []
 
       // ✅ NEW: Process and normalize swap statuses
       const processedSwaps: ExtendedSwapRequest[] = swapArray.map((swap): ExtendedSwapRequest => {
@@ -494,15 +488,29 @@ console.log(' ===== END DEBUGGING =====')
     }
   }
 
-  const handleCreateSwap = async (swapData: unknown) => {
+  const handleCreateSwap = async (swapData: {
+    schedule_id: string
+    swap_type: 'auto' | 'specific'
+    reason: string
+    urgency: 'low' | 'normal' | 'high' | 'emergency'
+    original_day: number
+    original_shift: number
+    target_staff_id?: string
+  }) => {
     try {
       console.log('🔍 AUTH DEBUG: Current user from useAuth:', user)
       console.log('🔍 AUTH DEBUG: Session data:', session)
       console.log('🔍 AUTH DEBUG: User ID being used:', user?.id)
       console.log('🔍 AUTH DEBUG: Staff ID being used:', user?.staff_id)
       console.log('Creating swap with data:', swapData)
-      
-      const result = await apiClient.createSwapRequest(swapData)
+
+      // Convert string urgency to SwapUrgency enum
+      const swapRequestData: Partial<SwapTypes.SwapRequest> = {
+        ...swapData,
+        urgency: swapData.urgency as SwapTypes.SwapUrgency
+      }
+
+      const result = await apiClient.createSwapRequest(swapRequestData)
       
       console.log('Swap created successfully:', result)
       

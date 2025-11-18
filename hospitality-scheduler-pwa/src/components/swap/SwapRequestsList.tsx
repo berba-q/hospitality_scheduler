@@ -21,10 +21,20 @@ import {
 import * as SwapTypes from '@/types/swaps'
 import * as AuthTypes from '@/types/auth'
 
+// Extended swap request with computed fields
+interface ExtendedSwapRequest extends SwapTypes.SwapRequest {
+  status: SwapTypes.SwapStatus
+  isAutoAssignment: boolean
+  isForCurrentUser: boolean
+  canRespond: boolean
+  user_role?: 'requester' | 'target' | 'assigned'
+  assigned_staff_accepted?: boolean | null
+}
+
 interface SwapRequestsListProps {
-  swaps: SwapTypes.SwapRequest[]
+  swaps: ExtendedSwapRequest[]
   user: AuthTypes.User
-  onSwapClick: (swap: SwapTypes.SwapRequest) => void
+  onSwapClick: (swap: ExtendedSwapRequest) => void
   onSwapResponse: (swapId: string, accepted: boolean) => void
   onCancelSwap: (swapId: string, reason?: string) => void
   showFilters?: boolean
@@ -58,10 +68,10 @@ export function SwapRequestsList({
 }: SwapRequestsListProps) {
   const { t } = useTranslations()
 
-  const getSwapActions = (swap: SwapTypes.SwapRequest) => {
-    const isMyRequest = swap.requesting_staff_id === user.id
-    const isForMe = swap.target_staff_id === user.id
-    const canRespond = isForMe && swap.status === 'pending' && swap.target_staff_accepted === null
+  const getSwapActions = (swap: ExtendedSwapRequest) => {
+    const isMyRequest = swap.requesting_staff_id === user.id || swap.user_role === 'requester'
+    const isForMe = swap.isForCurrentUser || swap.user_role === 'target' || swap.user_role === 'assigned'
+    const canRespond = swap.canRespond
     const canCancel = isMyRequest && ['pending', 'manager_approved'].includes(swap.status)
 
     return { isMyRequest, isForMe, canRespond, canCancel }
