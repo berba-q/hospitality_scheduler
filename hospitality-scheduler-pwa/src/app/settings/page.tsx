@@ -51,9 +51,9 @@ export default function SettingsPage() {
     saving,
     hasUnsavedChanges,
     updateSystemSettings,
-    updateNotificationSettings,
+    //updateNotificationSettings,
     saveSystemSettings,
-    saveNotificationSettings,
+    //saveNotificationSettings,
     resetToDefaults,         
     toggleNotificationService,  
     refreshServiceStatus,                  
@@ -68,17 +68,6 @@ export default function SettingsPage() {
   } catch (error) {
     toast.error(t('settings.failedToSaveSystemSettings'))
     console.error('Failed to save system settings:', error)
-  }
-}
-
-const handleSaveNotificationSettings = async () => {
-  try {
-    await saveNotificationSettings()
-    toast.success(t('settings.notificationSettingsSavedSuccessfully'))
-    console.log('Notification settings saved successfully')
-  } catch (error) {
-    toast.error(t('settings.failedToSaveNotificationSettings'))
-    console.error('Failed to save notification settings:', error)
   }
 }
 
@@ -363,16 +352,36 @@ const handleSaveNotificationSettings = async () => {
               {/* Notification Channels - with autosave feature*/}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bell className="w-5 h-5" />
-                    {t('settings.notificationChannels')}
-                  </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    {t('settings.chooseHowTeamReceivesNotifications')}
-                    <span className="block text-xs text-green-600 mt-1">
-                      ✓ {t('settings.changesAreSavedAutomatically')}
-                    </span>
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Bell className="w-5 h-5" />
+                        {t('settings.notificationChannels')}
+                      </CardTitle>
+                      <p className="text-sm text-gray-600 mt-2">
+                        {t('settings.chooseHowTeamReceivesNotifications')}
+                        <span className="block text-xs text-green-600 mt-1">
+                          ✓ {t('settings.changesAreSavedAutomatically')}
+                        </span>
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await refreshServiceStatus()
+                          toast.success(t('settings.serviceStatusRefreshed'))
+                        } catch {
+                          toast.error(t('settings.failedToRefreshServiceStatus'))
+                        }
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      {t('settings.refreshStatus')}
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Email Notifications */}
@@ -481,21 +490,41 @@ const handleSaveNotificationSettings = async () => {
                   </div>
 
                   {/* Setup Alert */}
-                  {(!serviceStatus?.smtp.configured || 
-                    !serviceStatus?.whatsapp.configured || 
+                  {(!serviceStatus?.smtp.configured ||
+                    !serviceStatus?.whatsapp.configured ||
                     !serviceStatus?.push.configured) && (
                     <Alert className="border-blue-200 bg-blue-50">
                       <AlertTriangle className="h-4 w-4 text-blue-600" />
                       <AlertDescription className="text-blue-800">
-                        <strong>{t('settings.setupRequired')}:</strong> {t('settings.contactSystemAdminToConfigureNotifications')}
-                        <br />
-                        <span className="text-sm mt-1 block">
-                          {t('settings.servicesNeedingSetup')} {[
-                            !serviceStatus?.smtp.configured && t('settings.emailService'),
-                            !serviceStatus?.whatsapp.configured && t('settings.whatsappService'), 
-                            !serviceStatus?.push.configured && t('settings.pushService')
-                          ].filter(Boolean).join(', ')}
-                        </span>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <strong>{t('settings.setupRequired')}:</strong> {t('settings.contactSystemAdminToConfigureNotifications')}
+                            <br />
+                            <span className="text-sm mt-1 block">
+                              {t('settings.servicesNeedingSetup')} {[
+                                !serviceStatus?.smtp.configured && t('settings.emailService'),
+                                !serviceStatus?.whatsapp.configured && t('settings.whatsappService'),
+                                !serviceStatus?.push.configured && t('settings.pushService')
+                              ].filter(Boolean).join(', ')}
+                            </span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={async () => {
+                              try {
+                                await refreshServiceStatus()
+                                toast.success(t('settings.serviceStatusRefreshed'))
+                              } catch {
+                                toast.error(t('settings.failedToRefreshServiceStatus'))
+                              }
+                            }}
+                            className="shrink-0 text-blue-700 hover:text-blue-900 hover:bg-blue-100"
+                          >
+                            <RotateCcw className="w-4 h-4 mr-2" />
+                            {t('settings.checkAgain')}
+                          </Button>
+                        </div>
                       </AlertDescription>
                     </Alert>
                   )}
