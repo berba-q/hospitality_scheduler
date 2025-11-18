@@ -2862,18 +2862,22 @@ async importSettings(data: unknown, options: {
   async getDevicesNeedingReauth(): Promise<{
     devices: Array<{
       id: string
-      device_name: string
-      last_failure: string
-      failure_reason: string
+      device_name?: string
+      device_type: string
+      last_seen: string
+      push_failures: number
+      status: string
     }>
     total_count: number
   }> {
     return this.request<{
       devices: Array<{
         id: string
-        device_name: string
-        last_failure: string
-        failure_reason: string
+        device_name?: string
+        device_type: string
+        last_seen: string
+        push_failures: number
+        status: string
       }>
       total_count: number
     }>('/v1/devices/needing-reauth')

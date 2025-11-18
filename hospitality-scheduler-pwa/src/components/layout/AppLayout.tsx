@@ -99,21 +99,25 @@ function AppLayoutInner({ children }: AppLayoutProps) {
   // Initialize real-time notifications
   useRealtimeNotifications()
   const [showReauthModal, setShowReauthModal] = useState(false);
-  const [devicesNeedingReauth, setDevicesNeedingReauth] = useState([]);
+  const [devicesNeedingReauth, setDevicesNeedingReauth] = useState<Array<{
+    id: string;
+    device_name?: string;
+    device_type: string;
+    last_seen: string;
+    push_failures: number;
+    status: string;
+  }>>([]);
   const apiClient = useApiClient();
   const { t } = useTranslations();
-
-  // PWA install tracking
-  const [pwaInstallCount, setPwaInstallCount] = useState(0);
 
   useEffect(() => {
     const checkForReauthNeeded = async () => {
       if (!apiClient) return;
-      
+
       try {
-        const devices = await apiClient.getDevicesNeedingReauth();
-        if (devices.length > 0) {
-          setDevicesNeedingReauth(devices);
+        const response = await apiClient.getDevicesNeedingReauth();
+        if (response.devices.length > 0) {
+          setDevicesNeedingReauth(response.devices);
           setShowReauthModal(true);
         }
       } catch (error) {
@@ -137,13 +141,12 @@ function AppLayoutInner({ children }: AppLayoutProps) {
   useEffect(() => {
     const handlePWAInstalled = () => {
       console.log('Schedula PWA installed successfully!');
-      setPwaInstallCount(prev => prev + 1);
-      
+
       // Track installation analytics if needed
       // analytics.track('pwa_installed', { timestamp: Date.now() });
     };
 
-    const handleBeforeInstallPrompt = (e: Event) => {
+    const handleBeforeInstallPrompt = () => {
       console.log('PWA install prompt available');
       // The PWAInstallPrompt component will handle this
     };
