@@ -1,6 +1,8 @@
 // src/lib/exportUtils.ts
 // Utility functions for exporting data
 
+import { SwapRequest } from '../types/swaps'
+
 export interface ExportConfig {
   format: 'csv' | 'excel' | 'pdf'
   facility_id?: string
@@ -11,7 +13,7 @@ export interface ExportConfig {
   include_notes?: boolean
 }
 
-export function generateSwapCSV(swapRequests: any[], config: ExportConfig): string {
+export function generateSwapCSV(swapRequests: SwapRequest[], config: ExportConfig): string {
   // Build headers based on config
   const headers = [
     'ID',

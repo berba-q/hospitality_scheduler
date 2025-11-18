@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react'
 import { useApiClient } from './useApi'
+import { Facility } from '../types/facility'
+import { Staff } from '../types/schedule'
+import { ScheduleWithAssignments } from '../types/api'
 
 export function useFacilities() {
-  const [facilities, setFacilities] = useState([])
+  const [facilities, setFacilities] = useState<Facility[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const apiClient = useApiClient()
 
   useEffect(() => {
     const loadFacilities = async () => {
+      if (!apiClient) {
+        setError('API client not initialized')
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
         const data = await apiClient.getFacilities()
@@ -28,13 +37,19 @@ export function useFacilities() {
 }
 
 export function useStaff() {
-  const [staff, setStaff] = useState([])
+  const [staff, setStaff] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const apiClient = useApiClient()
 
   useEffect(() => {
     const loadStaff = async () => {
+      if (!apiClient) {
+        setError('API client not initialized')
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
         const data = await apiClient.getStaff()
@@ -54,7 +69,7 @@ export function useStaff() {
 }
 
 export function useSchedules(facilityId: string | null) {
-  const [schedules, setSchedules] = useState([])
+  const [schedules, setSchedules] = useState<ScheduleWithAssignments[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const apiClient = useApiClient()
@@ -62,6 +77,12 @@ export function useSchedules(facilityId: string | null) {
   useEffect(() => {
     if (!facilityId) {
       setSchedules([])
+      setLoading(false)
+      return
+    }
+
+    if (!apiClient) {
+      setError('API client not initialized')
       setLoading(false)
       return
     }

@@ -85,76 +85,13 @@ export function usePushNotifications() {
 
   const apiClient = useApiClient();
 
-  const getBrowserName = (): string => {
-    const userAgent = navigator.userAgent;
-    
-    if (userAgent.includes('Chrome')) return 'Chrome Browser';
-    if (userAgent.includes('Firefox')) return 'Firefox Browser';
-    if (userAgent.includes('Safari')) return 'Safari Browser';
-    if (userAgent.includes('Edge')) return 'Edge Browser';
-    
-    return 'Web Browser';
-  };
-
-const getPlatformName = (): string => {
-    const userAgent = navigator.userAgent.toLowerCase();
-    
-    if (userAgent.includes('mac')) return 'macOS';
-    if (userAgent.includes('win')) return 'Windows';
-    if (userAgent.includes('linux')) return 'Linux';
-    if (userAgent.includes('android')) return 'Android';
-    if (userAgent.includes('iphone') || userAgent.includes('ipad')) return 'iOS';
-    
-    return 'Web';
-  };
-
-  // Initialize push notifications
-  useEffect(() => {
-    const initializePushNotifications = async () => {
-      if (typeof window === 'undefined') return;
-
-      try {
-        const isSupported = await isPushNotificationSupported();
-        
-        setState(prev => ({ 
-          ...prev, 
-          isSupported,
-          permission: Notification.permission 
-        }));
-
-        if (isSupported && Notification.permission === 'granted') {
-          // Try to get existing token
-          const token = await getCurrentToken();
-          if (token) {
-            setState(prev => ({ ...prev, token }));
-            
-            // Register/update device with current token
-            await registerCurrentDevice(token);
-          }
-        }
-
-        // Load device stats
-        await loadDeviceStats();
-
-      } catch (error) {
-        console.error('Failed to initialize push notifications:', error);
-        setState(prev => ({ 
-          ...prev, 
-          error: 'Failed to initialize push notifications' 
-        }));
-      }
-    };
-
-    initializePushNotifications();
-  }, []);
-
   // Register current device
-  const registerCurrentDevice = async (token?: string) => {
+  const registerCurrentDevice = useCallback(async (token?: string) => {
     if (!apiClient) return null;
 
     try {
       const deviceInfo = getDeviceInfo();
-      
+
       const response = await apiClient.registerDevice({
         ...deviceInfo,
         push_token: token || undefined
@@ -172,10 +109,10 @@ const getPlatformName = (): string => {
       console.error('Failed to register device:', error);
       return null;
     }
-  };
+  }, [apiClient]);
 
   // Load device statistics
-  const loadDeviceStats = async () => {
+  const loadDeviceStats = useCallback(async () => {
     if (!apiClient) return;
 
     try {
@@ -184,7 +121,47 @@ const getPlatformName = (): string => {
     } catch (error) {
       console.error('Failed to load device stats:', error);
     }
-  };
+  }, [apiClient]);
+
+  // Initialize push notifications
+  useEffect(() => {
+    const initializePushNotifications = async () => {
+      if (typeof window === 'undefined') return;
+
+      try {
+        const isSupported = await isPushNotificationSupported();
+
+        setState(prev => ({
+          ...prev,
+          isSupported,
+          permission: Notification.permission
+        }));
+
+        if (isSupported && Notification.permission === 'granted') {
+          // Try to get existing token
+          const token = await getCurrentToken();
+          if (token) {
+            setState(prev => ({ ...prev, token }));
+
+            // Register/update device with current token
+            await registerCurrentDevice(token);
+          }
+        }
+
+        // Load device stats
+        await loadDeviceStats();
+
+      } catch (error) {
+        console.error('Failed to initialize push notifications:', error);
+        setState(prev => ({
+          ...prev,
+          error: 'Failed to initialize push notifications'
+        }));
+      }
+    };
+
+    initializePushNotifications();
+  }, [registerCurrentDevice, loadDeviceStats]);
 
   // Request permission and register device
   const requestPermission = useCallback(async (): Promise<boolean> => {
@@ -254,7 +231,7 @@ const getPlatformName = (): string => {
       toast.error('Failed to enable push notifications');
       return false;
     }
-  }, [state.isSupported, apiClient]);
+  }, [state.isSupported, registerCurrentDevice, loadDeviceStats]);
 
   // Refresh token and re-register device
   const refreshToken = useCallback(async (): Promise<string | null> => {
@@ -289,7 +266,7 @@ const getPlatformName = (): string => {
       toast.error('Failed to refresh push notification settings');
       return null;
     }
-  }, [state.isSupported, state.permission, apiClient]);
+  }, [state.isSupported, state.permission, registerCurrentDevice, loadDeviceStats]);
 
   // Validate push tokens
   const validateTokens = useCallback(async (sendTest: boolean = false) => {
@@ -321,7 +298,8 @@ const getPlatformName = (): string => {
     if (!apiClient) return [];
 
     try {
-      return await apiClient.getDevicesNeedingReauth();
+      const response = await apiClient.getDevicesNeedingReauth();
+      return response.devices;
     } catch (error) {
       console.error('Failed to get devices needing reauth:', error);
       return [];

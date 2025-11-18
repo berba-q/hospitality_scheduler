@@ -4,13 +4,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
+import * as ApiTypes from '@/types/api'
 
 // Default settings constants
-const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+const DEFAULT_SYSTEM_SETTINGS: Partial<ApiTypes.SystemSettings> = {
   company_name: '',
   timezone: 'UTC',
   date_format: 'MM/dd/yyyy',
-  time_format: '24h',
   currency: 'USD',
   language: 'en',
   smart_scheduling_enabled: true,
@@ -20,34 +20,24 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   balance_workload: true,
   require_manager_per_shift: false,
   allow_overtime: false,
-  default_shift_duration: 8,
-  max_weekly_hours: 40,
   email_notifications_enabled: true,
   whatsapp_notifications_enabled: false,
   push_notifications_enabled: true,
   schedule_published_notify: true,
   swap_request_notify: true,
   urgent_swap_notify: true,
-  shift_reminder_notify: true,
   daily_reminder_notify: false,
   session_timeout_hours: 24,
-  session_timeout: 1440,
   require_two_factor: false,
-  require_2fa: false,
-  password_min_length: 8,
-  require_password_complexity: true,
   enforce_strong_passwords: true,
   allow_google_auth: true,
   allow_apple_auth: true,
-  audit_enabled: false,
-  log_retention_days: 90,
-  log_sensitive_data: false,
   analytics_cache_ttl: 3600,
   enable_usage_tracking: true,
   enable_performance_monitoring: true
 }
 
-const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+const DEFAULT_NOTIFICATION_SETTINGS: Partial<ApiTypes.NotificationSettings> = {
   smtp_enabled: false,
   smtp_use_tls: true,
   smtp_use_ssl: false,
@@ -55,200 +45,27 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   push_enabled: false
 }
 
-// Types
-interface SystemSettings {
-  id?: string
-  tenant_id?: string
-  company_name: string
-  timezone: string
-  date_format: string
-  time_format: string
-  currency: string
-  language: string
-  smart_scheduling_enabled: boolean
-  max_optimization_iterations: number
-  conflict_check_enabled: boolean
-  auto_assign_by_zone: boolean
-  balance_workload: boolean
-  require_manager_per_shift: boolean
-  allow_overtime: boolean
-  default_shift_duration: number
-  max_weekly_hours: number
-  email_notifications_enabled: boolean
-  whatsapp_notifications_enabled: boolean
-  push_notifications_enabled: boolean
-  schedule_published_notify: boolean
-  swap_request_notify: boolean
-  urgent_swap_notify: boolean
-  shift_reminder_notify: boolean
-  daily_reminder_notify: boolean
-  session_timeout_hours: number
-  session_timeout: number
-  require_two_factor: boolean
-  require_2fa: boolean
-  password_min_length: number
-  require_password_complexity: boolean
-  enforce_strong_passwords: boolean
-  allow_google_auth: boolean
-  allow_apple_auth: boolean
-  audit_enabled: boolean
-  log_retention_days: number
-  log_sensitive_data: boolean
-  analytics_cache_ttl: number
-  enable_usage_tracking: boolean
-  enable_performance_monitoring: boolean
-  created_at?: string
-  updated_at?: string
-}
+// Avatar type validation (moved outside component to avoid re-creation)
+type AvatarType = 'initials' | 'uploaded' | 'gravatar'
 
-interface ServiceInfo {
-  enabled: boolean      // Is the manager toggle ON/OFF?
-  configured: boolean   // Is the service technically set up?
-  status: 'active' | 'setup_required'  // Simple status for UI
-}
-
-interface ServiceStatus {
-  smtp: ServiceInfo
-  whatsapp: ServiceInfo
-  push: ServiceInfo
-}
-
-interface NotificationSettings {
-  id?: string
-  tenant_id?: string
-  smtp_enabled: boolean
-  smtp_server?: string
-  smtp_port?: number
-  smtp_username?: string
-  smtp_password?: string
-  smtp_use_tls: boolean
-  smtp_use_ssl: boolean
-  whatsapp_enabled: boolean
-  twilio_account_sid?: string
-  twilio_auth_token?: string
-  twilio_whatsapp_number?: string
-  push_enabled: boolean
-  firebase_config?: any
-  created_at?: string
-  updated_at?: string
-}
-
-// UserProfile interface with all missing fields
-interface UserProfile {
-  id?: string
-  user_id?: string
-  
-  // Personal Information
-  display_name?: string  
-  bio?: string           
-  title?: string        
-  department?: string    
-  phone_number?: string  
-  
-  // Avatar & Profile Picture
-  avatar_url?: string
-  avatar_type: string
-  avatar_color: string
-  
-  // Contact Information
-  whatsapp_number?: string
-  emergency_contact_name?: string
-  emergency_contact_phone?: string
-  preferred_name?: string
-  date_of_birth?: string
-  address?: string
-  city?: string
-  state?: string
-  zip_code?: string
-  country?: string
-  
-  // UI/UX Preferences
-  timezone?: string
-  language?: string
-  theme?: string
-  date_format?: string    
-  time_format?: string    
-  currency?: string      
-  
-  // Dashboard & Layout 
-  dashboard_layout?: Record<string, any>  
-  sidebar_collapsed?: boolean             
-  cards_per_row?: number                  
-  show_welcome_tour?: boolean             
-  
-  // Notification Preferences 
-  notifications_enabled: boolean
-  email_notifications: boolean
-  push_notifications: boolean
-  whatsapp_notifications: boolean
-  notification_sound: boolean
-  notification_vibration: boolean
-
-  // Advanced Notification Settings
-  enable_desktop_notifications?: boolean
-  enable_sound_notifications?: boolean
-  quiet_hours_enabled?: boolean
-  quiet_hours_start?: string
-  quiet_hours_end?: string
-  weekend_notifications?: boolean
-  
-  // Privacy & Security  
-  privacy_level: string
-  profile_visibility?: string             
-  show_email?: boolean                    
-  show_phone?: boolean                     
-  show_online_status?: boolean          
-  two_factor_enabled: boolean
-  login_alerts: boolean
-  data_sharing_consent: boolean
-  marketing_emails: boolean
-  
-  // Work Preferences (NEW - from backend model)
-  preferred_shifts?: string[]             
-  max_consecutive_days?: number           
-  preferred_days_off?: number[]           
-  
-  // App Settings (NEW - from backend model)
-  auto_accept_swaps?: boolean            
-  show_analytics?: boolean               
-  
-  // Onboarding (NEW - from backend model)
-  onboarding_completed?: boolean          
-  onboarding_step?: number                
-  last_help_viewed?: string              
-  feature_hints_enabled?: boolean         
-  
-  // Audit fields
-  created_at?: string
-  updated_at?: string
-  last_active?: string
-}
-
-interface TestResult {
-  service: string
-  success: boolean
-  message: string
-  details: Record<string, any>
-  tested_at: string
+const isValidAvatarType = (type: string): type is AvatarType => {
+  return ['initials', 'uploaded', 'gravatar'].includes(type)
 }
 
 interface SettingsState {
-  systemSettings: SystemSettings | null
-  notificationSettings: NotificationSettings | null
-  userProfile: UserProfile | null
-  serviceStatus: ServiceStatus | null
+  systemSettings: ApiTypes.SystemSettings | null
+  notificationSettings: ApiTypes.NotificationSettings | null
+  userProfile: ApiTypes.UserProfile | null
+  serviceStatus: ApiTypes.ServiceStatus | null
   loading: boolean
   saving: boolean
   hasUnsavedChanges: boolean
-  testResults: Record<string, TestResult>
+  testResults: Record<string, ApiTypes.ServiceTestResult>
 }
 
 export function useSettings() {
   const apiClient = useApiClient()
-  
-  // Early return if apiClient is not available
-  const isReady = apiClient !== null
-  
+
   const [state, setState] = useState<SettingsState>({
     systemSettings: null,
     notificationSettings: null,
@@ -279,8 +96,8 @@ export function useSettings() {
 
       setState(prev => ({
         ...prev,
-        systemSettings: systemResponse.status === 'fulfilled' ? (systemResponse.value ?? DEFAULT_SYSTEM_SETTINGS) : DEFAULT_SYSTEM_SETTINGS,
-        notificationSettings: notificationResponse.status === 'fulfilled' ? (notificationResponse.value ?? DEFAULT_NOTIFICATION_SETTINGS) : DEFAULT_NOTIFICATION_SETTINGS,
+        systemSettings: systemResponse.status === 'fulfilled' ? systemResponse.value : null,
+        notificationSettings: notificationResponse.status === 'fulfilled' ? notificationResponse.value : null,
         userProfile: profileResponse.status === 'fulfilled' ? profileResponse.value : null,
         serviceStatus: serviceStatusResponse.status === 'fulfilled' ? serviceStatusResponse.value : null,
         loading: false,
@@ -314,25 +131,25 @@ export function useSettings() {
   }, [loadSettings])
 
   // Update system settings locally
-  const updateSystemSettings = useCallback((updates: Partial<SystemSettings>) => {
+  const updateSystemSettings = useCallback((updates: Partial<ApiTypes.SystemSettings>) => {
     setState(prev => ({
       ...prev,
-      systemSettings: { ...(prev.systemSettings ?? DEFAULT_SYSTEM_SETTINGS), ...updates },
+      systemSettings: prev.systemSettings ? { ...prev.systemSettings, ...updates } : null,
       hasUnsavedChanges: true
     }))
   }, [])
 
   // Update notification settings locally
-  const updateNotificationSettings = useCallback((updates: Partial<NotificationSettings>) => {
+  const updateNotificationSettings = useCallback((updates: Partial<ApiTypes.NotificationSettings>) => {
     setState(prev => ({
       ...prev,
-      notificationSettings: { ...(prev.notificationSettings ?? DEFAULT_NOTIFICATION_SETTINGS), ...updates },
+      notificationSettings: prev.notificationSettings ? { ...prev.notificationSettings, ...updates } : null,
       hasUnsavedChanges: true
     }))
   }, [])
 
   // Update user profile locally
-  const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
+  const updateUserProfile = useCallback((updates: Partial<ApiTypes.UserProfile>) => {
     setState(prev => ({
       ...prev,
       userProfile: prev.userProfile ? { ...prev.userProfile, ...updates } : null,
@@ -359,9 +176,10 @@ export function useSettings() {
       
       toast.success('System settings saved successfully!')
       return response
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } }
       setState(prev => ({ ...prev, saving: false }))
-      toast.error(error.response?.data?.detail || 'Failed to save system settings')
+      toast.error(err.response?.data?.detail || 'Failed to save system settings')
       throw error
     }
   }, [apiClient, state.systemSettings])
@@ -374,17 +192,18 @@ export function useSettings() {
 
     try {
       const body = state.notificationSettings
-      let saved: any
+      let saved: ApiTypes.NotificationSettings | null = null
 
       // If record has an id, update directly
-      if ((body as any).id) {
+      if (body.id) {
         saved = await apiClient.updateNotificationSettings(body)
       } else {
         try {
           // Try create first
           saved = await apiClient.createNotificationSettings(body)
-        } catch (e: any) {
-          const status = e?.response?.status
+        } catch (e: unknown) {
+          const err = e as { response?: { status?: number } }
+          const status = err?.response?.status
           // If backend reports resource already exists, retry with PUT
           if (status === 400 || status === 409) {
             saved = await apiClient.updateNotificationSettings(body)
@@ -403,9 +222,10 @@ export function useSettings() {
 
       toast.success('Notification settings saved successfully!')
       return saved ?? body
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } }
       setState(prev => ({ ...prev, saving: false }))
-      toast.error(error?.response?.data?.detail || 'Failed to save notification settings')
+      toast.error(err.response?.data?.detail || 'Failed to save notification settings')
       throw error
     }
   }, [apiClient, state.notificationSettings])
@@ -431,9 +251,10 @@ export function useSettings() {
       
       toast.success('Profile updated successfully!')
       return response
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } }
       setState(prev => ({ ...prev, saving: false }))
-      toast.error(error.response?.data?.detail || 'Failed to update profile')
+      toast.error(err.response?.data?.detail || 'Failed to update profile')
       throw error
     }
   }, [apiClient, state.userProfile])
@@ -445,8 +266,8 @@ export function useSettings() {
       return
     }
     try {
-      let response: TestResult
-      
+      let response: ApiTypes.ServiceTestResult
+
       switch (service) {
         case 'smtp':
           response = await apiClient.testSmtpConnection()
@@ -460,7 +281,7 @@ export function useSettings() {
         default:
           throw new Error(`Unknown service: ${service}`)
       }
-      
+
       setState(prev => ({
         ...prev,
         testResults: {
@@ -468,15 +289,15 @@ export function useSettings() {
           [service]: response
         }
       }))
-      
+
       if (response.success) {
         toast.success(`${service.toUpperCase()} connection test successful!`)
       } else {
         toast.error(`${service.toUpperCase()} connection test failed: ${response.message}`)
       }
-      
+
       return response
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error testing ${service}:`, error)
       toast.error(`Failed to test ${service} connection`)
       throw error
@@ -485,16 +306,19 @@ export function useSettings() {
 
   // Reset to defaults
   const resetToDefaults = useCallback(() => {
-    const defaultSystemSettings = DEFAULT_SYSTEM_SETTINGS
-    const defaultNotificationSettings = DEFAULT_NOTIFICATION_SETTINGS
-
     setState(prev => ({
       ...prev,
-      systemSettings: defaultSystemSettings,
-      notificationSettings: defaultNotificationSettings,
+      systemSettings: prev.systemSettings ? {
+        ...prev.systemSettings,
+        ...DEFAULT_SYSTEM_SETTINGS
+      } : null,
+      notificationSettings: prev.notificationSettings ? {
+        ...prev.notificationSettings,
+        ...DEFAULT_NOTIFICATION_SETTINGS
+      } : null,
       hasUnsavedChanges: true
     }))
-    
+
     toast.info('Settings reset to defaults. Remember to save your changes.')
   }, [])
 
@@ -522,64 +346,59 @@ export function useSettings() {
       
       toast.success('Avatar uploaded successfully!')
       return response
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } }
       setState(prev => ({ ...prev, saving: false }))
-      toast.error(error.response?.data?.detail || 'Failed to upload avatar')
+      toast.error(err.response?.data?.detail || 'Failed to upload avatar')
       throw error
     }
   }, [apiClient])
 
-  // Avatar type validation
-type AvatarType = 'initials' | 'uploaded' | 'gravatar'
+  // Update avatar settings with proper type validation
+  const updateAvatarSettings = useCallback(async (settings: {
+    avatar_type: string
+    avatar_color?: string
+  }) => {
+    if (!apiClient) {
+      toast.error('API client not ready')
+      return
+    }
 
-const isValidAvatarType = (type: string): type is AvatarType => {
-  return ['initials', 'uploaded', 'gravatar'].includes(type)
-}
+    // Validate avatar type before calling API
+    if (!isValidAvatarType(settings.avatar_type)) {
+      toast.error('Invalid avatar type')
+      return
+    }
 
-// Update avatar settings with proper type validation
-const updateAvatarSettings = useCallback(async (settings: {
-  avatar_type: string
-  avatar_color?: string
-}) => {
-  if (!apiClient) {
-    toast.error('API client not ready')
-    return
-  }
+    setState(prev => ({ ...prev, saving: true }))
 
-  // Validate avatar type before calling API
-  if (!isValidAvatarType(settings.avatar_type)) {
-    toast.error('Invalid avatar type')
-    return
-  }
+    try {
+      // Cast to the expected type after validation
+      const response = await apiClient.updateAvatarSettings({
+        avatar_type: settings.avatar_type as AvatarType,
+        avatar_color: settings.avatar_color
+      })
 
-  setState(prev => ({ ...prev, saving: true }))
-  
-  try {
-    // Cast to the expected type after validation
-    const response = await apiClient.updateAvatarSettings({
-      avatar_type: settings.avatar_type as AvatarType,
-      avatar_color: settings.avatar_color
-    })
-    
-    setState(prev => ({
-      ...prev,
-      userProfile: prev.userProfile ? {
-        ...prev.userProfile,
-        avatar_url: response.avatar_url,
-        avatar_type: response.avatar_type,
-        avatar_color: response.avatar_color
-      } : null,
-      saving: false
-    }))
-    
-    toast.success('Avatar settings updated!')
-    return response
-  } catch (error: any) {
-    setState(prev => ({ ...prev, saving: false }))
-    toast.error(error.response?.data?.detail || 'Failed to update avatar')
-    throw error
-  }
-}, [apiClient, isValidAvatarType])
+      setState(prev => ({
+        ...prev,
+        userProfile: prev.userProfile ? {
+          ...prev.userProfile,
+          avatar_url: response.avatar_url,
+          avatar_type: response.avatar_type,
+          avatar_color: response.avatar_color
+        } : null,
+        saving: false
+      }))
+
+      toast.success('Avatar settings updated!')
+      return response
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } }
+      setState(prev => ({ ...prev, saving: false }))
+      toast.error(err.response?.data?.detail || 'Failed to update avatar')
+      throw error
+    }
+  }, [apiClient])
 
   // Export settings
   const exportSettings = useCallback(async (options?: {
@@ -608,7 +427,7 @@ const updateAvatarSettings = useCallback(async (settings: {
       
       toast.success('Settings exported successfully!')
       return blob
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error exporting settings:', error)
       toast.error('Failed to export settings')
       throw error
@@ -651,10 +470,11 @@ const updateAvatarSettings = useCallback(async (settings: {
     }))
     
     toast.success(`${service.charAt(0).toUpperCase() + service.slice(1)} notifications ${enabled ? 'enabled' : 'disabled'}`)
-    
-  } catch (error: any) {
+
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { detail?: string } }; message?: string }
     setState(prev => ({ ...prev, saving: false }))
-    toast.error(`Failed to update ${service} notifications: ${error.response?.data?.detail || error.message}`)
+    toast.error(`Failed to update ${service} notifications: ${err.response?.data?.detail || err.message}`)
     throw error
   }
 }, [apiClient])

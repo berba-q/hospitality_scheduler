@@ -59,7 +59,7 @@ export function useSafeApiClient() {
   const apiClient = useApiClient()
   const { isLoading } = useAuth()
   
-  const makeApiCall = async (apiFunction: () => Promise<any>) => {
+  const makeApiCall = async <T>(apiFunction: () => Promise<T>): Promise<T> => {
     if (isLoading || !apiClient) {
       throw new Error('Cannot make API calls while authentication is loading')
     }

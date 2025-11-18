@@ -3,8 +3,10 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import type { SwapRequest, SwapStatus, SwapUrgency } from '@/types/swaps'
+import type { ApiClient } from '@/lib/api'
 
-// Define the config interface to match what your modal sends
+// Define the simplified config interface to match what the modal sends
 interface ExportConfig {
   format: 'excel' | 'csv' | 'pdf'
   facility_id?: string
@@ -14,7 +16,7 @@ interface ExportConfig {
   include_timestamps?: boolean
 }
 
-export function useExportFunctionality(apiClient: any, swapRequests: any[] = []) {
+export function useExportFunctionality(apiClient: ApiClient, swapRequests: SwapRequest[] = []) {
   const [showExportModal, setShowExportModal] = useState(false)
 
   const handleExport = async (config: ExportConfig) => {
@@ -26,21 +28,44 @@ export function useExportFunctionality(apiClient: any, swapRequests: any[] = [])
       } else {
         // For Excel/PDF, try the API endpoint if available
         try {
-          const blob = await apiClient.exportSwapReport(config)
+          // Transform simplified config to match what the API expects
+          // Using type assertion since the API method has an extended inline type
+          const blob = await apiClient.exportSwapReport({
+            format: config.format,
+            dateRange: {
+              from: undefined,
+              to: undefined
+            },
+            facilities: config.facility_id ? [config.facility_id] : [],
+            includeFields: {
+              staffDetails: config.include_staff_details ?? false,
+              timestamps: config.include_timestamps ?? false,
+              notes: false,
+              history: false,
+              roleInformation: false,
+              workflowStatus: false,
+              timingMetrics: false
+            },
+            filters: {
+              status: config.status ? [config.status as SwapStatus] : undefined,
+              urgency: config.urgency ? [config.urgency as SwapUrgency] : undefined,
+              swapType: undefined
+            }
+          })
           const link = document.createElement('a')
           const url = URL.createObjectURL(blob)
           link.href = url
           link.download = `swap-report-${new Date().toISOString().split('T')[0]}.${config.format}`
           link.click()
           URL.revokeObjectURL(url)
-        } catch (apiError) {
+        } catch {
           // Fallback to CSV if API not available
           console.warn('API export not available, falling back to CSV')
           const csvData = generateSwapCSV(swapRequests, config)
           downloadCSV(csvData, `swap-report-${new Date().toISOString().split('T')[0]}.csv`)
         }
       }
-      
+
       toast.success('Report exported successfully!')
     } catch (error) {
       console.error('Export failed:', error)
@@ -56,7 +81,7 @@ export function useExportFunctionality(apiClient: any, swapRequests: any[] = [])
 }
 
 // Helper functions
-function generateSwapCSV(swapRequests: any[], config: ExportConfig): string {
+function generateSwapCSV(swapRequests: SwapRequest[], config: ExportConfig): string {
   // Build headers based on config
   const headers = [
     'ID',

@@ -4,48 +4,36 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useApiClient, useAuth } from '@/hooks/useApi'
 import { toast } from 'sonner'
-
-interface Notification {
-  id: string
-  title: string
-  message: string
-  notification_type: string
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-  is_read: boolean
-  created_at: string
-  action_url?: string
-  action_text?: string
-  data?: any
-}
+import * as ApiTypes from '@/types/api'
 
 interface NotificationContextType {
-  notifications: Notification[]
+  notifications: ApiTypes.Notification[]
   unreadCount: number
   loading: boolean
   refreshNotifications: () => Promise<{ ok: boolean; retryAfterMs?: number }>
   markAsRead: (id: string) => Promise<void>
   markAllAsRead: () => Promise<void>
-  addNotification: (notification: Notification) => void
+  addNotification: (notification: ApiTypes.Notification) => void
   removeNotification: (id: string) => void
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [notifications, setNotifications] = useState<ApiTypes.Notification[]>([])
   const [loading, setLoading] = useState(false)
-  
-  // FIXED: Get both apiClient and auth status
+
+  // Get both apiClient and auth status
   const apiClient = useApiClient()
   const { isLoading: authLoading, isAuthenticated } = useAuth()
 
   const refreshNotifications = useCallback(async (): Promise<{ ok: boolean; retryAfterMs?: number }> => {
-    // FIXED: Don't make API calls if auth is not ready
+    // Don't make API calls if auth is not ready
     if (authLoading || !apiClient || !isAuthenticated) {
-      console.log('🔔 Skipping notification refresh - auth not ready:', { 
-        authLoading, 
-        hasApiClient: !!apiClient, 
-        isAuthenticated 
+      console.log('🔔 Skipping notification refresh - auth not ready:', {
+        authLoading,
+        hasApiClient: !!apiClient,
+        isAuthenticated
       })
       return { ok: false }
     }
@@ -53,7 +41,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       setLoading(true)
       console.log('🔔 Refreshing notifications...')
-      
+
       const newNotifications = await apiClient.getMyNotifications({
         unreadOnly: true,
         inAppOnly: true,
@@ -62,15 +50,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       // Check for new unread notifications to show toast
       const previousUnreadIds = new Set(
-        notifications.filter(n => !n.is_read).map(n => n.id)
+        notifications.filter(n => n.status !== 'read').map(n => n.id)
       )
       const newUnreadNotifications = newNotifications.filter(
-        (n: Notification) => !n.is_read && !previousUnreadIds.has(n.id)
+        (n: ApiTypes.Notification) => n.status !== 'read' && !previousUnreadIds.has(n.id)
       )
 
       // Show toast for new notifications
-      newUnreadNotifications.forEach((notification: Notification) => {
-        if (notification.priority === 'CRITICAL') {
+      newUnreadNotifications.forEach((notification: ApiTypes.Notification) => {
+        if (notification.priority === 'URGENT') {
           toast.error(notification.title, {
             description: notification.message,
             duration: 10000,
@@ -95,15 +83,27 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       console.error('Failed to refresh notifications:', error)
       // Respect server rate-limit hints when available
       let retryAfterMs: number | undefined
-      const anyErr: any = error
       try {
         // fetch Response-like
-        const hdrGet = anyErr?.response?.headers?.get?.bind?.(anyErr.response.headers)
-        const hdrObj = anyErr?.response?.headers
-        const retryAfter = hdrGet ? hdrGet('Retry-After') : (hdrObj ? (hdrObj['retry-after'] || hdrObj['Retry-After']) : undefined)
-        if (retryAfter) {
-          const s = parseInt(String(retryAfter), 10)
-          if (!Number.isNaN(s) && s > 0) retryAfterMs = s * 1000
+        if (error && typeof error === 'object' && 'response' in error) {
+          const response = (error as { response?: { headers?: unknown } }).response
+          if (response && typeof response === 'object' && 'headers' in response) {
+            const headers = response.headers
+            let retryAfter: string | undefined
+
+            if (typeof headers === 'object' && headers !== null) {
+              if ('get' in headers && typeof (headers as { get: unknown }).get === 'function') {
+                retryAfter = (headers as { get: (key: string) => string | null }).get('Retry-After') ?? undefined
+              } else {
+                retryAfter = (headers as Record<string, string>)['retry-after'] || (headers as Record<string, string>)['Retry-After']
+              }
+            }
+
+            if (retryAfter) {
+              const s = parseInt(String(retryAfter), 10)
+              if (!Number.isNaN(s) && s > 0) retryAfterMs = s * 1000
+            }
+          }
         }
       } catch {}
       // Don't show error toast if it's just auth not ready
@@ -115,9 +115,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setLoading(false)
     }
     return { ok: false }
-  }, [notifications, apiClient, authLoading, isAuthenticated]) // FIXED: Added auth dependencies
+  }, [notifications, apiClient, authLoading, isAuthenticated]) 
 
-  // FIXED: Initial load only when auth is ready
+  // Initial load only when auth is ready
   useEffect(() => {
     // Only load when auth is completely ready
     if (!authLoading && isAuthenticated && apiClient) {
@@ -126,10 +126,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     } else {
       console.log('🔔 Auth not ready - waiting...', { authLoading, isAuthenticated, hasApiClient: !!apiClient })
     }
-  }, [authLoading, isAuthenticated, apiClient]) // FIXED: Simpler dependencies
+  }, [authLoading, isAuthenticated, apiClient, refreshNotifications])
 
   const markAsRead = useCallback(async (id: string) => {
-    // FIXED: Check auth before making API call
+    // Check auth before making API call
     if (!apiClient || !isAuthenticated) {
       toast.error('Authentication required')
       return
@@ -137,8 +137,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     try {
       await apiClient.markNotificationRead(id)
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
+      setNotifications(prev =>
+        prev.map(n => n.id === id ? { ...n, status: 'read' as const } : n)
       )
     } catch (error) {
       console.error('Failed to mark notification as read:', error)
@@ -155,7 +155,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     try {
       await apiClient.markAllNotificationsRead()
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+      setNotifications(prev => prev.map(n => ({ ...n, status: 'read' as const })))
       toast.success('All notifications marked as read')
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error)
@@ -163,7 +163,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [apiClient, isAuthenticated])
 
-  const addNotification = useCallback((notification: Notification) => {
+  const addNotification = useCallback((notification: ApiTypes.Notification) => {
     setNotifications(prev => [notification, ...prev])
   }, [])
 
@@ -171,12 +171,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setNotifications(prev => prev.filter(n => n.id !== id))
   }, [])
 
-  const unreadCount = notifications.filter(n => !n.is_read).length
+  const unreadCount = notifications.filter(n => n.status !== 'read').length
 
   const value: NotificationContextType = {
     notifications,
     unreadCount,
-    loading: loading || authLoading, // FIXED: Include auth loading
+    loading: loading || authLoading, 
     refreshNotifications,
     markAsRead,
     markAllAsRead,
@@ -199,14 +199,14 @@ export function useNotifications() {
   return context
 }
 
-// FIXED: Real-time notification hook with auth checks
+// Real-time notification hook with auth checks
 export function useRealtimeNotifications() {
   const { addNotification, refreshNotifications } = useNotifications()
   const { isLoading: authLoading, isAuthenticated } = useAuth()
   const apiClient = useApiClient()
 
   useEffect(() => {
-    // FIXED: Don't start polling if auth is not ready
+    // Don't start polling if auth is not ready
     if (authLoading || !apiClient || !isAuthenticated) {
       console.log('🔔 Realtime notifications waiting for auth...')
       return
