@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 
 import * as SwapTypes from '@/types/swaps'
+import * as ApiTypes from '@/types/api'
 
 interface WorkflowStatus {
   current_status: SwapTypes.SwapStatus
@@ -40,10 +41,10 @@ interface ActionItem {
 }
 
 interface ApiClient {
-  respondToPotentialAssignment: (swapId: string, data: { accepted: boolean; notes?: string; availability_confirmed: boolean }) => Promise<void>
-  RespondToSwap: (swapId: string, data: { accepted: boolean; notes?: string; confirm_availability: boolean }) => Promise<void>
-  ManagerSwapDecision: (swapId: string, data: { approved: boolean; notes?: string }) => Promise<void>
-  managerFinalApproval: (swapId: string, data: { approved: boolean; notes?: string }) => Promise<void>
+  respondToPotentialAssignment: (swapId: string, data: { accepted: boolean; notes?: string; availability_confirmed: boolean }) => Promise<ApiTypes.SwapStaffResponse>
+  RespondToSwap: (swapId: string, data: { accepted: boolean; notes?: string; confirm_availability: boolean }) => Promise<ApiTypes.SwapStaffResponse>
+  ManagerSwapDecision: (swapId: string, data: { approved: boolean; notes?: string }) => Promise<ApiTypes.SwapDecisionResponse>
+  managerFinalApproval: (swapId: string, data: { approved: boolean; notes?: string }) => Promise<ApiTypes.SwapDecisionResponse>
 }
 
 interface WorkflowStatusIndicatorProps {
