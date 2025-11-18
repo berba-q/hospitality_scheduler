@@ -69,8 +69,8 @@ export function NotificationSettings() {
   const apiClient = useApiClient()
   const { user } = useAuth()
   const {
-    hasPermission: hasPushPermission,
-    needsPermission: needsPushPermission,
+    hasPushPermission,
+    needsPushPermission,
     isSupported: isPushSupported,
     token: pushToken,
     requestPermission: requestPushPermission

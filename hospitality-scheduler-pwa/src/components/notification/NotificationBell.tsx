@@ -56,8 +56,8 @@ export function NotificationBell() {
 
    // ADD: Push notification integration
   const {
-    hasPermission: hasPushPermission,
-    needsPermission: needsPushPermission,
+    hasPushPermission,
+    needsPushPermission,
     isSupported: isPushSupported,
     requestPermission: requestPushPermission
   } = usePushNotificationContext();

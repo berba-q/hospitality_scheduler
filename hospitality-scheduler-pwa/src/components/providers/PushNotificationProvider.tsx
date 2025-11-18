@@ -6,8 +6,8 @@ import { useAuth } from '@/hooks/useApi';
 import { toast } from 'sonner';
 
 interface PushNotificationContextType {
-  hasPermission: boolean;
-  needsPermission: boolean;
+  hasPushPermission: boolean;
+  needsPushPermission: boolean;
   isSupported: boolean;
   token: string | null;
   requestPermission: () => Promise<boolean>;
@@ -31,14 +31,14 @@ interface PushNotificationProviderProps {
   maxAutoRequests?: number; // Max auto-request attempts
 }
 
-export function PushNotificationProvider({ 
-  children, 
+export function PushNotificationProvider({
+  children,
   autoRequestDelay = 5000, // 5 seconds default
   maxAutoRequests = 1 // Only auto-request once per session
 }: PushNotificationProviderProps) {
   const {
-    hasPermission,
-    needsPermission,
+    hasPushPermission,
+    needsPushPermission,
     isSupported,
     token,
     requestPermission: hookRequestPermission,
@@ -61,11 +61,11 @@ export function PushNotificationProvider({
     // - Already attempted auto-request
     // - Permission is denied
     if (
-      authLoading || 
-      isLoading || 
-      !isAuthenticated || 
-      !isSupported || 
-      hasPermission || 
+      authLoading ||
+      isLoading ||
+      !isAuthenticated ||
+      !isSupported ||
+      hasPushPermission ||
       hasAttemptedAutoRequest ||
       Notification.permission === 'denied'
     ) {
@@ -105,10 +105,10 @@ export function PushNotificationProvider({
     return () => clearTimeout(timer);
   }, [
     authLoading,
-    isLoading, 
-    isAuthenticated, 
-    isSupported, 
-    hasPermission, 
+    isLoading,
+    isAuthenticated,
+    isSupported,
+    hasPushPermission,
     hasAttemptedAutoRequest,
     autoRequestDelay,
     autoRequestAttempts,
@@ -148,8 +148,8 @@ export function PushNotificationProvider({
   }, []);
 
   const contextValue: PushNotificationContextType = {
-    hasPermission,
-    needsPermission,
+    hasPushPermission,
+    needsPushPermission,
     isSupported,
     token,
     requestPermission,
