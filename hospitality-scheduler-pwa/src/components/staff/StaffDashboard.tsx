@@ -29,8 +29,10 @@ import { SwapRequestModal } from '@/components/swap/SwapRequestModal'
 import * as ScheduleTypes from '@/types/schedule'
 import * as FacilityTypes from '@/types/facility'
 import * as ApiTypes from '@/types/api'
+import * as SwapTypes from '@/types/swaps'
 import type { User } from '@/types/auth'
-import type { ApiClient } from '@/lib/api'
+import type { ApiClient, QuickUnavailabilityRequest } from '@/lib/api'
+import type { TimeOffRequest } from '@/types/availability'
 
 // Dashboard stats interface
 interface DashboardStats {
@@ -474,12 +476,30 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
               startDate: startDate.toISOString().split('T')[0],
               endDate: endDate.toISOString().split('T')[0]
             })
-            
-            scheduleData = await apiClient.getMySchedule(
+
+            const staffScheduleResponse = await apiClient.getMySchedule(
               startDate.toISOString().split('T')[0],
               endDate.toISOString().split('T')[0]
             )
-            
+
+            // Transform StaffScheduleResponse to Schedule type
+            if (staffScheduleResponse && staffScheduleResponse.assignments) {
+              scheduleData = {
+                id: staffScheduleResponse.assignments[0]?.schedule_id || 'staff-schedule',
+                facility_id: staffScheduleResponse.facility_id,
+                week_start: startDate.toISOString().split('T')[0],
+                week_end: endDate.toISOString().split('T')[0],
+                status: 'published' as const,
+                assignments: staffScheduleResponse.assignments.map(a => ({
+                  id: a.assignment_id,
+                  schedule_id: a.schedule_id,
+                  staff_id: staffScheduleResponse.staff_id,
+                  day: a.day_of_week,
+                  shift: a.shift
+                }))
+              }
+            }
+
             console.log('getMySchedule worked! Schedule data:', scheduleData)
             
           } catch (error) {
@@ -588,7 +608,20 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
   }
 
   // Create the swap request
-  const createSwapRequest = async (swapData: Record<string, unknown>) => {
+  const createSwapRequest = async (swapData: {
+    schedule_id: string
+    original_day?: number
+    original_shift?: number
+    reason: string
+    urgency: string // Will be converted to SwapUrgency in enhancedSwapData
+    swap_type: 'specific' | 'auto'
+    target_staff_id?: string
+    target_day?: number
+    target_shift?: number
+    requesting_staff_id?: string
+    preferred_skills?: string[]
+    avoid_staff_ids?: string[]
+  }) => {
     try {
       console.log(' Creating swap request with real data:', swapData)
       console.log('Current schedule:', currentSchedule)
@@ -607,11 +640,11 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
       }
 
       // Create the swap request with real data
-      const enhancedSwapData = {
+      const enhancedSwapData: Partial<SwapTypes.SwapRequest> = {
         ...swapData,
+        urgency: swapData.urgency as SwapTypes.SwapUrgency,
         requesting_staff_id: staffId,
         schedule_id: scheduleId, // This should now be a real schedule ID
-        assignment_id: selectedAssignmentForSwap?.id,
         original_day: selectedAssignmentForSwap?.day,
         original_shift: selectedAssignmentForSwap?.shift,
       }
@@ -639,10 +672,59 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
     }
   }
 
-  const handleTimeOffRequest = async (requestData: Record<string, unknown>) => {
+  const handleTimeOffRequest = async (requestData: TimeOffRequest) => {
     try {
+      // Transform TimeOffRequest to QuickUnavailabilityRequest
+      let apiRequestData: QuickUnavailabilityRequest
+
+      if ('start' in requestData && 'end' in requestData) {
+        // CustomTimeRequest format - already has start/end
+        apiRequestData = {
+          start: requestData.start,
+          end: requestData.end,
+          reason: requestData.reason,
+          is_recurring: requestData.is_recurring
+        }
+      } else {
+        // PatternBasedRequest format - needs to be converted
+        const date = new Date(requestData.date)
+        const dateStr = date.toISOString().split('T')[0]
+
+        // Map pattern to time ranges
+        let startTime: string
+        let endTime: string
+
+        switch (requestData.pattern) {
+          case 'morning':
+            startTime = '06:00:00'
+            endTime = '12:00:00'
+            break
+          case 'afternoon':
+            startTime = '12:00:00'
+            endTime = '18:00:00'
+            break
+          case 'evening':
+            startTime = '18:00:00'
+            endTime = '23:59:59'
+            break
+          case 'fullday':
+          default:
+            startTime = '00:00:00'
+            endTime = '23:59:59'
+            break
+        }
+
+        apiRequestData = {
+          start: `${dateStr}T${startTime}`,
+          end: `${dateStr}T${endTime}`,
+          reason: requestData.reason,
+          is_recurring: requestData.is_recurring,
+          pattern: requestData.pattern
+        }
+      }
+
       // No need to resolve staff ID anymore - the backend handles it
-      await apiClient.createUnavailabilityRequest('', requestData) // staffId not needed
+      await apiClient.createUnavailabilityRequest('', apiRequestData) // staffId not needed
       toast.success(t('dashboard.timeOffRequestSubmitted'))
       loadDashboardData()
     } catch (error) {
@@ -684,7 +766,7 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
     ...shift,
     // Add the fields the modal expects
     time: `${shift.start_time} - ${shift.end_time}`, // This is what the modal looks for!
-    name: shift.shift_name || shift.name,
+    name: shift.shift_name || shift.name || `Shift ${index + 1}`,
     shift_index: index,
     color: shift.color || 'bg-gray-100'
   }))
@@ -921,20 +1003,22 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
       />
 
       {/* Swap Request Modal */}
-      <SwapRequestModal
-        open={showSwapModal}
-        onClose={() => {
-          setShowSwapModal(false)
-          setSelectedAssignmentForSwap(null)
-        }}
-        schedule={currentSchedule}
-        currentAssignment={selectedAssignmentForSwap as { day: number; shift: number; staffId: string } | undefined}
-        staff={staff}
-        shifts={transformShiftsForModal(facilityShifts)} // Use dynamic facility shifts
-        days={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']}
-        isManager={false} // Staff dashboard, so not a manager
-        onSwapRequest={createSwapRequest}
-      />
+      {currentSchedule && (
+        <SwapRequestModal
+          open={showSwapModal}
+          onClose={() => {
+            setShowSwapModal(false)
+            setSelectedAssignmentForSwap(null)
+          }}
+          schedule={currentSchedule as ApiTypes.ScheduleWithAssignments}
+          currentAssignment={selectedAssignmentForSwap as { day: number; shift: number; staffId: string } | undefined}
+          staff={staff}
+          shifts={transformShiftsForModal(facilityShifts)} // Use dynamic facility shifts
+          days={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']}
+          isManager={false} // Staff dashboard, so not a manager
+          onSwapRequest={createSwapRequest}
+        />
+      )}
     </div>
   )
 }
