@@ -1,4 +1,4 @@
-// Main facilities page - TRANSLATED
+// Main facilities page
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'

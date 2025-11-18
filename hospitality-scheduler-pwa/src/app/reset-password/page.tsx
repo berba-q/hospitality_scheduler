@@ -55,7 +55,7 @@ export default function ResetPasswordPage() {
           setStatus('invalid-token')
           setMessage(t('auth.invalidOrExpiredToken'))
         }
-      } catch (error) {
+      } catch {
         setTokenValid(false)
         setStatus('invalid-token')
         setMessage(t('auth.tokenVerificationFailed'))
@@ -105,7 +105,7 @@ export default function ResetPasswordPage() {
         setStatus('error')
         setMessage(data.detail || t('auth.passwordResetFailed'))
       }
-    } catch (error) {
+    } catch {
       setStatus('error')
       setMessage(t('auth.networkError'))
     } finally {
