@@ -2734,6 +2734,12 @@ If you have any questions, please contact our support team.`,
     notificationServicesAreFullyConfigured: "All notification services are fully configured.",
     changesAreSavedAutomatically: "All changes are saved automatically.",
 
+    // Service status refresh
+    refreshStatus: "Refresh Status",
+    checkAgain: "Check Again",
+    serviceStatusRefreshed: "Service status refreshed successfully",
+    failedToRefreshServiceStatus: "Failed to refresh service status",
+
     // Error messages
     failedToSaveSystemSettings: "Failed to save system settings",
     failedToSaveNotificationSettings: "Failed to save notification settings",

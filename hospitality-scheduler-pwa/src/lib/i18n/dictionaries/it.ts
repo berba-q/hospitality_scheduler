@@ -2697,11 +2697,13 @@ Se hai domande, contatta il nostro team di supporto.`,
     "saveSystemSettings": "Salva Impostazioni Sistema",
     "servicesNeedingSetup": "Servizi che necessitano configurazione:",
 
-    // Additional translations 
+    // Additional translations
     "allReady": "Tutto Pronto!",
     "notificationServicesAreFullyConfigured": "Tutti i servizi di notifica sono configurati e pronti all'uso.",
     "refreshStatus": "Aggiorna Stato",
-    "serviceStatusRefreshed": "Stato dei servizi aggiornato",
+    "checkAgain": "Verifica Ancora",
+    "serviceStatusRefreshed": "Stato dei servizi aggiornato con successo",
+    "failedToRefreshServiceStatus": "Impossibile aggiornare lo stato dei servizi",
     contactSystemAdministratorForTechnicalConfiguration: "Contatta l'amministratore di sistema per la configurazione tecnica.",
     changesAreSavedAutomatically: "Tutte le modifiche vengono salvate automaticamente.",
 
