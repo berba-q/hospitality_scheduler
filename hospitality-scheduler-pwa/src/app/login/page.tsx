@@ -58,7 +58,7 @@ export default function LoginPage() {
       } else {
         router.push('/dashboard')
       }
-    } catch (error) {
+    } catch {
       setError(t('auth.loginFailed'))
     } finally {
       setIsLoading(false)

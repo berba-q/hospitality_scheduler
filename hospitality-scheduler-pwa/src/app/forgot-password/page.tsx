@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
         setStatus('error')
         setMessage(data.detail || t('auth.resetLinkFailed'))
       }
-    } catch (error) {
+    } catch{
       setStatus('error')
       setMessage(t('auth.networkError'))
     } finally {
