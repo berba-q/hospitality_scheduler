@@ -475,7 +475,6 @@ export default function SwapsPage() {
           <div className="max-w-7xl mx-auto">
             <StaffSwapDashboard
               user={user}
-              // @ts-expect-error - ApiClient type mismatch between lib/api and component expectations
               apiClient={apiClient}
             />
           </div>

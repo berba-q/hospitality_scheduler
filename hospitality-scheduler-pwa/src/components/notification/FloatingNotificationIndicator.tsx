@@ -8,24 +8,15 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Bell, X, Eye, ArrowUp, AlertTriangle, Clock, CheckCircle } from 'lucide-react'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as ApiTypes from '@/types/api'
 
 interface FloatingNotificationIndicatorProps {
   position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'
   showOnlyWhenHidden?: boolean // Only show when main notification bell is not visible
 }
 
-interface InAppNotification {
-  id: string
-  title: string
-  message: string
-  notification_type: string
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-  is_read: boolean
-  created_at: string
-  action_url?: string
-  action_text?: string
-  data?: unknown
-}
+// Using the Notification type from API types instead of defining a separate interface
+type InAppNotification = ApiTypes.Notification
 
 export function FloatingNotificationIndicator({
   position = 'bottom-right',
@@ -59,7 +50,7 @@ export function FloatingNotificationIndicator({
 
     // Set the most recent unread notification for display
     if (shouldShow) {
-      const latestUnread = notifications.find(n => !n.is_read)
+      const latestUnread = notifications.find(n => n.status !== 'read')
       setCurrentNotification(latestUnread ?? null)
     }
   }, [unreadCount, isScrolledDown, notifications, showOnlyWhenHidden])

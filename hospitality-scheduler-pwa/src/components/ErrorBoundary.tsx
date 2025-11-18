@@ -83,7 +83,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 }
 
 // Default error fallback component
-export const DefaultErrorFallback: React.FC<{ error: Error; reset: () => void }> = ({ error, reset }) => (
+export const DefaultErrorFallback: React.FC<{ error: Error; reset: () => void }> = ({ reset }) => (
   <div className="min-h-screen flex items-center justify-center p-4">
     <Card className="w-full max-w-md">
       <CardHeader>
