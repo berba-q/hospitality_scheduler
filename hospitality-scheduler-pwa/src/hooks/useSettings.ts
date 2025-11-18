@@ -10,6 +10,7 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   company_name: '',
   timezone: 'UTC',
   date_format: 'MM/dd/yyyy',
+  time_format: '24h',
   currency: 'USD',
   language: 'en',
   smart_scheduling_enabled: true,
@@ -19,18 +20,28 @@ const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   balance_workload: true,
   require_manager_per_shift: false,
   allow_overtime: false,
+  default_shift_duration: 8,
+  max_weekly_hours: 40,
   email_notifications_enabled: true,
   whatsapp_notifications_enabled: false,
   push_notifications_enabled: true,
   schedule_published_notify: true,
   swap_request_notify: true,
   urgent_swap_notify: true,
+  shift_reminder_notify: true,
   daily_reminder_notify: false,
   session_timeout_hours: 24,
+  session_timeout: 1440,
   require_two_factor: false,
+  require_2fa: false,
+  password_min_length: 8,
+  require_password_complexity: true,
   enforce_strong_passwords: true,
   allow_google_auth: true,
   allow_apple_auth: true,
+  audit_enabled: false,
+  log_retention_days: 90,
+  log_sensitive_data: false,
   analytics_cache_ttl: 3600,
   enable_usage_tracking: true,
   enable_performance_monitoring: true
@@ -51,6 +62,7 @@ interface SystemSettings {
   company_name: string
   timezone: string
   date_format: string
+  time_format: string
   currency: string
   language: string
   smart_scheduling_enabled: boolean
@@ -60,18 +72,28 @@ interface SystemSettings {
   balance_workload: boolean
   require_manager_per_shift: boolean
   allow_overtime: boolean
+  default_shift_duration: number
+  max_weekly_hours: number
   email_notifications_enabled: boolean
   whatsapp_notifications_enabled: boolean
   push_notifications_enabled: boolean
   schedule_published_notify: boolean
   swap_request_notify: boolean
   urgent_swap_notify: boolean
+  shift_reminder_notify: boolean
   daily_reminder_notify: boolean
   session_timeout_hours: number
+  session_timeout: number
   require_two_factor: boolean
+  require_2fa: boolean
+  password_min_length: number
+  require_password_complexity: boolean
   enforce_strong_passwords: boolean
   allow_google_auth: boolean
   allow_apple_auth: boolean
+  audit_enabled: boolean
+  log_retention_days: number
+  log_sensitive_data: boolean
   analytics_cache_ttl: number
   enable_usage_tracking: boolean
   enable_performance_monitoring: boolean
