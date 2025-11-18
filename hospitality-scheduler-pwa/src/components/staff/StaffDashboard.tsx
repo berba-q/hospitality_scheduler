@@ -30,6 +30,7 @@ import * as ScheduleTypes from '@/types/schedule'
 import * as FacilityTypes from '@/types/facility'
 import * as ApiTypes from '@/types/api'
 import type { User } from '@/types/auth'
+import type { ApiClient } from '@/lib/api'
 
 // Dashboard stats interface
 interface DashboardStats {
@@ -63,14 +64,7 @@ interface UpcomingShift {
   is_tomorrow?: boolean
 }
 
-// Team insights interface
-interface TeamInsights {
-  busyDays: string[]
-  needyShifts: string[]
-  teamCoverage: number
-  yourContribution: number
-  recentTrends: string
-}
+// Use TeamInsights from API types (imported as ApiTypes.TeamInsights)
 
 // Assignment for swap modal
 interface SwapAssignmentDetails {
@@ -93,17 +87,7 @@ interface ShiftDetails {
   id: string
 }
 
-// API Client interface
-interface ApiClient {
-  getMyDashboardStats: () => Promise<ApiTypes.StaffDashboardStats>
-  getTeamInsights: (facilityId: string) => Promise<TeamInsights>
-  getFacilityShifts: (facilityId: string) => Promise<FacilityTypes.FacilityShift[]>
-  getFacilityStaff: (facilityId: string) => Promise<ScheduleTypes.Staff[]>
-  getMySchedule: (startDate: string, endDate: string) => Promise<ScheduleTypes.Schedule>
-  getFacilitySchedules: (facilityId: string) => Promise<ScheduleTypes.Schedule[]>
-  createSwapRequest: (swapData: Record<string, unknown>) => Promise<void>
-  createUnavailabilityRequest: (staffId: string, requestData: Record<string, unknown>) => Promise<void>
-}
+// Use ApiClient from @/lib/api (imported above)
 
 interface StaffDashboardProps {
   user: User & {
@@ -136,12 +120,19 @@ export function StaffDashboard({ user, apiClient }: StaffDashboardProps) {
     avgResponseTime: '1.2 hours'
   })
 
-  const [teamInsights, setTeamInsights] = useState<TeamInsights>({
+  const [teamInsights, setTeamInsights] = useState<ApiTypes.TeamInsights>({
+    facility_id: '',
+    analysis_period_days: 30,
     busyDays: ['Friday', 'Saturday', 'Sunday'],
-    needyShifts: ['Evening', 'Weekend Morning'],
+    needyShifts: [
+      { name: 'Evening', frequency: 5 },
+      { name: 'Weekend Morning', frequency: 3 }
+    ],
     teamCoverage: 78,
     yourContribution: 12,
-    recentTrends: 'Team coverage has improved 15% this month'
+    recentTrends: 'Team coverage has improved 15% this month',
+    day_distribution: {},
+    shift_distribution: {}
   })
 
   const [loading, setLoading] = useState(true)

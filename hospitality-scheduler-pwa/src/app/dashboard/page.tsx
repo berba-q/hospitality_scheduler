@@ -1,5 +1,4 @@
 'use client'
-
 // Dashboard page for both staff and manager roles
 // Displays role-specific dashboards with appropriate data and functionality
 
@@ -82,15 +81,29 @@ export default function DashboardPage() {
     )
   }
 
-  // Staff Dashboard - Completely different interface
+  // Staff Dashboard: Staff dashboard page
   if (!isManager) {
+    // Show loading if user or apiClient not ready
+    if (!user || !apiClient) {
+      return (
+        <AppLayout>
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-gray-600">{t('dashboard.loadingData')}</p>
+            </div>
+          </div>
+        </AppLayout>
+      )
+    }
+
     return (
       <AppLayout>
         <div className="p-6">
           <div className="max-w-7xl mx-auto">
-            <StaffDashboard 
-              user={user} 
-              apiClient={apiClient} 
+            <StaffDashboard
+              user={user}
+              apiClient={apiClient}
             />
           </div>
         </div>
@@ -98,7 +111,7 @@ export default function DashboardPage() {
     )
   }
 
-  // Manager Dashboard - Original functionality
+  // Manager Dashboard
   if (loading) {
     return (
       <AppLayout>

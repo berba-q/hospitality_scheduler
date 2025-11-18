@@ -3,23 +3,18 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Users 
-  //Clock, 
-  //TrendingUp, 
+import {
+  Users
+  //Clock,
+  //TrendingUp,
   //Calendar,
   //AlertTriangle
 } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
+import type { TeamInsights } from '@/types/api'
 
 interface TeamSupportInsightsProps {
-  insights: {
-    busyDays: string[]
-    needyShifts: string[]
-    teamCoverage: number
-    yourContribution: number
-    recentTrends: string
-  }
+  insights: TeamInsights
 }
 
 export function TeamSupportInsights({ insights }: TeamSupportInsightsProps) {
@@ -66,8 +61,8 @@ export function TeamSupportInsights({ insights }: TeamSupportInsightsProps) {
             <p className="text-xs font-medium text-gray-700 mb-1">{t('gamification.shiftsNeedSupport')}</p>
             <div className="flex flex-wrap gap-1">
               {insights.needyShifts.map((shift) => (
-                <Badge key={shift} variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                  {shift}
+                <Badge key={shift.name} variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                  {shift.name} ({shift.frequency})
                 </Badge>
               ))}
             </div>
