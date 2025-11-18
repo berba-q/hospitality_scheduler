@@ -10,9 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { 
+import {
   Calendar as CalendarIcon,
-  Clock, 
+  Clock,
   Info,
   Sun,
   Sunset,
@@ -22,15 +22,9 @@ import {
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { useTranslations } from '@/hooks/useTranslations'
+import * as AvailabilityTypes from '@/types/availability'
 
-interface TimeOffRequestModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSubmit: (requestData: any) => Promise<void>
-  userStaffId: string
-}
-
-const QUICK_PATTERNS = [
+const QUICK_PATTERNS: AvailabilityTypes.QuickPattern[] = [
   {
     id: 'morning',
     name: 'swaps.morningShift', // Reusing existing key
@@ -39,7 +33,7 @@ const QUICK_PATTERNS = [
     color: 'bg-yellow-100 text-yellow-800'
   },
   {
-    id: 'afternoon', 
+    id: 'afternoon',
     name: 'swaps.afternoonShift', // Reusing existing key
     description: 'availability.afternoonShiftTime', // New key needed
     icon: Sunset,
@@ -68,19 +62,19 @@ const QUICK_PATTERNS = [
   }
 ]
 
-export function TimeOffRequestModal({ 
-  isOpen, 
-  onClose, 
-  onSubmit, 
-  userStaffId 
-}: TimeOffRequestModalProps) {
+export function TimeOffRequestModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  //userStaffId
+}: AvailabilityTypes.TimeOffRequestModalProps) {
   const { t } = useTranslations()
-  
-  const [requestType, setRequestType] = useState<'single' | 'range'>('single')
+
+  const [requestType, setRequestType] = useState<AvailabilityTypes.RequestType>('single')
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [startDate, setStartDate] = useState<Date>()
   const [endDate, setEndDate] = useState<Date>()
-  const [selectedPattern, setSelectedPattern] = useState('fullday')
+  const [selectedPattern, setSelectedPattern] = useState<AvailabilityTypes.TimePattern>('fullday')
   const [reason, setReason] = useState('')
   const [isRecurring, setIsRecurring] = useState(false)
   const [customStartHour, setCustomStartHour] = useState<number>(9)
@@ -92,7 +86,7 @@ export function TimeOffRequestModal({
       toast.error(t('availability.selectDateError'))
       return
     }
-    
+
     if (requestType === 'range' && (!startDate || !endDate)) {
       toast.error(t('availability.selectDatesError'))
       return
@@ -104,20 +98,20 @@ export function TimeOffRequestModal({
     }
 
     setIsSubmitting(true)
-    
+
     try {
       if (requestType === 'single') {
         // Single date request
-        let requestData;
-        
+        let requestData: AvailabilityTypes.TimeOffRequest
+
         if (selectedPattern === 'custom') {
           // For custom patterns, create start/end datetime strings
           const startDateTime = new Date(selectedDate!)
           startDateTime.setHours(customStartHour, 0, 0, 0)
-          
+
           const endDateTime = new Date(selectedDate!)
           endDateTime.setHours(customEndHour, 0, 0, 0)
-          
+
           requestData = {
             start: startDateTime.toISOString(),
             end: endDateTime.toISOString(),
@@ -128,29 +122,29 @@ export function TimeOffRequestModal({
           // For quick patterns, use existing structure
           requestData = {
             pattern: selectedPattern,
-            date: selectedDate,
+            date: selectedDate!,
             reason: reason || undefined,
             is_recurring: isRecurring
           }
         }
-        
+
         await onSubmit(requestData)
       } else {
         // Date range request - create multiple requests
-        const requests = []
+        const requests: AvailabilityTypes.TimeOffRequest[] = []
         const current = new Date(startDate!)
-        
+
         while (current <= endDate!) {
-          let requestData;
-          
+          let requestData: AvailabilityTypes.TimeOffRequest
+
           if (selectedPattern === 'custom') {
             // For custom patterns in ranges
             const startDateTime = new Date(current)
             startDateTime.setHours(customStartHour, 0, 0, 0)
-            
+
             const endDateTime = new Date(current)
             endDateTime.setHours(customEndHour, 0, 0, 0)
-            
+
             requestData = {
               start: startDateTime.toISOString(),
               end: endDateTime.toISOString(),
@@ -166,11 +160,11 @@ export function TimeOffRequestModal({
               is_recurring: false
             }
           }
-          
+
           requests.push(requestData)
           current.setDate(current.getDate() + 1)
         }
-        
+
         // Submit all requests
         for (const request of requests) {
           await onSubmit(request)
@@ -200,7 +194,7 @@ export function TimeOffRequestModal({
     onClose()
   }
 
-  const selectedPatternInfo = QUICK_PATTERNS.find(p => p.id === selectedPattern)
+  //const selectedPatternInfo = QUICK_PATTERNS.find(p => p.id === selectedPattern)
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -302,7 +296,7 @@ export function TimeOffRequestModal({
                       mode="single"
                       selected={endDate}
                       onSelect={setEndDate}
-                      disabled={(date) => date < new Date() || (startDate && date < startDate)}
+                      disabled={(date) => date < new Date() || (startDate ? date < startDate : false)}
                       initialFocus
                     />
                   </PopoverContent>
@@ -378,7 +372,7 @@ export function TimeOffRequestModal({
               <Checkbox
                 id="recurring"
                 checked={isRecurring}
-                onCheckedChange={setIsRecurring}
+                onCheckedChange={(checked) => setIsRecurring(checked === true)}
               />
               <Label htmlFor="recurring" className="text-sm">
                 {t('availability.recurringUnavailability')}

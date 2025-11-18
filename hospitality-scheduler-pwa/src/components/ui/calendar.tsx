@@ -9,6 +9,7 @@ interface CalendarProps {
   mode?: "single"
   selected?: Date
   onSelect?: (date: Date | undefined) => void
+  disabled?: (date: Date) => boolean
   initialFocus?: boolean
   className?: string
 }
@@ -17,6 +18,7 @@ export function Calendar({
   mode = "single",
   selected,
   onSelect,
+  disabled,
   initialFocus,
   className
 }: CalendarProps) {
@@ -97,18 +99,27 @@ export function Calendar({
         
         {/* Days of the month */}
         {days.map((day) => {
-          const isSelected = selected && 
+          const date = new Date(
+            currentMonth.getFullYear(),
+            currentMonth.getMonth(),
+            day
+          )
+          const isSelected = selected &&
             selected.getDate() === day &&
             selected.getMonth() === currentMonth.getMonth() &&
             selected.getFullYear() === currentMonth.getFullYear()
+          const isDisabled = disabled ? disabled(date) : false
 
           return (
             <button
               key={day}
               onClick={() => handleDateClick(day)}
+              disabled={isDisabled}
               className={cn(
-                "p-2 text-sm hover:bg-gray-100 rounded",
-                isSelected && "bg-blue-600 text-white hover:bg-blue-700"
+                "p-2 text-sm rounded",
+                !isDisabled && "hover:bg-gray-100",
+                isSelected && "bg-blue-600 text-white hover:bg-blue-700",
+                isDisabled && "text-gray-300 cursor-not-allowed"
               )}
             >
               {day}
