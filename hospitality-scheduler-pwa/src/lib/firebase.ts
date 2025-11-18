@@ -1,6 +1,6 @@
 // src/lib/firebase.ts
 import { initializeApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
+import { getMessaging, getToken, onMessage, isSupported, type Messaging, type MessagePayload } from 'firebase/messaging';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -33,7 +33,7 @@ if (!VAPID_KEY) {
 }
 
 // Messaging instance - only initialize on client side
-let messaging: any = null;
+let messaging: Messaging | null = null;
 
 if (typeof window !== 'undefined') {
   // Check if messaging is supported before initializing
@@ -113,7 +113,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
  * Set up foreground message listener
  */
 export function setupForegroundMessageListener(
-  onMessageReceived: (payload: any) => void
+  onMessageReceived: (payload: MessagePayload) => void
 ) {
   if (!messaging) {
     console.warn('Cannot set up message listener - messaging not available');

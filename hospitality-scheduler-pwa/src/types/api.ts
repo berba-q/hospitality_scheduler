@@ -273,6 +273,24 @@ export interface PushStatsResponse {
   notifications_sent_today: number
   delivery_rate: number
   devices_needing_reauth: number
+  devices_with_valid_tokens: number
+}
+
+export interface RegisterDeviceResponse {
+  success: boolean
+  message: string
+  device_id: string
+}
+
+export interface ValidatePushTokensResponse {
+  valid_tokens: number
+  invalid_tokens: number
+  tokens_checked: number
+  details?: Array<{
+    device_id: string
+    token_valid: boolean
+    error?: string
+  }>
 }
 
 // ==================== ANALYTICS TYPES ====================
@@ -505,6 +523,7 @@ export interface SystemSettings {
   company_name: string
   timezone: string
   date_format: string
+  time_format?: string
   currency: string
   language: string
   smart_scheduling_enabled: boolean
@@ -520,15 +539,25 @@ export interface SystemSettings {
   schedule_published_notify: boolean
   swap_request_notify: boolean
   urgent_swap_notify: boolean
+  shift_reminder_notify?: boolean
   daily_reminder_notify: boolean
   session_timeout_hours: number
+  session_timeout?: number
   require_two_factor: boolean
+  require_2fa?: boolean
   enforce_strong_passwords: boolean
   allow_google_auth: boolean
   allow_apple_auth: boolean
   analytics_cache_ttl: number
   enable_usage_tracking: boolean
   enable_performance_monitoring: boolean
+  default_shift_duration?: number
+  max_weekly_hours?: number
+  password_min_length?: number
+  require_password_complexity?: boolean
+  audit_enabled?: boolean
+  log_retention_days?: number
+  log_sensitive_data?: boolean
   created_at: string
   updated_at: string
 }
@@ -557,15 +586,20 @@ export interface UserProfile {
   id: string
   user_id: string
   full_name?: string
+  display_name?: string
   avatar_url?: string
   avatar_type: string
   avatar_color: string
   phone?: string
+  phone_number?: string
   whatsapp_number?: string
   emergency_contact_name?: string
   emergency_contact_phone?: string
   preferred_name?: string
   date_of_birth?: string
+  bio?: string
+  title?: string
+  department?: string
   address?: string
   city?: string
   state?: string
@@ -574,12 +608,21 @@ export interface UserProfile {
   timezone?: string
   language?: string
   theme?: string
+  currency?: string
+  date_format?: string
+  time_format?: string
   notifications_enabled: boolean
   email_notifications: boolean
   push_notifications: boolean
+  enable_desktop_notifications?: boolean
+  enable_sound_notifications?: boolean
   whatsapp_notifications: boolean
   notification_sound: boolean
   notification_vibration: boolean
+  quiet_hours_enabled?: boolean
+  quiet_hours_start?: string
+  quiet_hours_end?: string
+  weekend_notifications?: boolean
   privacy_level: string
   two_factor_enabled: boolean
   login_alerts: boolean

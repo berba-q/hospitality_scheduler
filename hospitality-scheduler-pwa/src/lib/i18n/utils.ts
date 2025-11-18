@@ -1,26 +1,13 @@
 // src/lib/i18n/utils.ts
 import { Locale, defaultLocale, isValidLocale } from './config';
-import en from './dictionaries/en';
-import it from './dictionaries/it';
+import { en } from './dictionaries/en';
+import { it } from './dictionaries/it';
 
-// Create a more flexible type that accepts any string values
-export type Dictionary = {
-  auth: Record<string, string>;
-  common: Record<string, string>;
-  errors: Record<string, string>;
-  facilities: Record<string, string>;
-  messages: Record<string, string>;
-  navigation: Record<string, string>;
-  notifications: Record<string, string>;
-  schedule: Record<string, string>;
-  staff: Record<string, string>;
-  swaps: Record<string, string>;
-  test?: {
-    welcome: string;
-    currentLanguage: string;
-    switchLanguage: string;
-  };
-};
+// Recursive type for nested translation objects
+type TranslationValue = string | { [key: string]: TranslationValue };
+
+// Dictionary type that accepts any nested structure of strings
+export type Dictionary = Record<string, TranslationValue>;
 
 // Get dictionary synchronously for client-side usage
 export function getDictionary(locale: Locale): Dictionary {
@@ -70,8 +57,8 @@ export function setLocale(locale: Locale): void {
 // Simple nested key access for translations
 export function getTranslation(dict: Dictionary, key: string): string {
   const keys = key.split('.');
-  let value: any = dict;
-  
+  let value: TranslationValue = dict;
+
   for (const k of keys) {
     if (value && typeof value === 'object' && k in value) {
       value = value[k];
@@ -80,6 +67,6 @@ export function getTranslation(dict: Dictionary, key: string): string {
       return key;
     }
   }
-  
+
   return typeof value === 'string' ? value : key;
 }

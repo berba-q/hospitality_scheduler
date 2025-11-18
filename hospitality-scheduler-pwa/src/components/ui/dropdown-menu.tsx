@@ -48,10 +48,10 @@ export function DropdownMenuTrigger({ asChild, children }: DropdownMenuTriggerPr
   
   const handleClick = () => setIsOpen(!isOpen)
   
-  const element = asChild ? 
-    React.cloneElement(children as React.ReactElement, {
+  const element = asChild ?
+    React.cloneElement(children as React.ReactElement<{ onClick?: () => void }>, {
       onClick: handleClick
-    }) : 
+    }) :
     <button onClick={handleClick}>{children}</button>
 
   return (

@@ -34,17 +34,15 @@ export function Select({ onValueChange, onChange, className, children, ...props 
 
 // These components are for compatibility with shadcn/ui API but render as simple elements
 // since we're using native HTML select
-export function SelectTrigger({ 
-  children: _children, 
-  className: _className,
-  ..._props 
-}: React.HTMLAttributes<HTMLDivElement>) {
+export function SelectTrigger(..._args: [React.HTMLAttributes<HTMLDivElement>?]) {
   // Don't render anything - the Select component handles the trigger
+  void _args
   return null
 }
 
-export function SelectValue({ placeholder: _placeholder }: { placeholder?: string }) {
+export function SelectValue(..._args: [{ placeholder?: string }?]) {
   // Don't render anything - this will be handled by the native select
+  void _args
   return null
 }
 
@@ -53,29 +51,30 @@ export function SelectContent({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-// 🔥 FIX: Extract text content from complex JSX to prevent hydration errors
+//  Extract text content from complex JSX to prevent hydration errors
 function extractTextContent(children: React.ReactNode): string {
   if (typeof children === 'string') {
     return children
   }
-  
+
   if (typeof children === 'number') {
     return children.toString()
   }
-  
+
   if (React.isValidElement(children)) {
     // If it's a React element, recursively extract text from its children
-    if (children.props.children) {
-      return extractTextContent(children.props.children)
+    const props = children.props as { children?: React.ReactNode }
+    if (props.children) {
+      return extractTextContent(props.children)
     }
     return ''
   }
-  
+
   if (Array.isArray(children)) {
     // If it's an array of children, extract text from each and join
     return children.map(child => extractTextContent(child)).join('')
   }
-  
+
   // Fallback for other types
   return String(children || '')
 }
@@ -90,7 +89,7 @@ export function SelectItem({
   children: React.ReactNode
   className?: string
 }) {
-  // 🔥 FIX: Extract only text content for the <option> element
+  // Extract only text content for the <option> element
   const textContent = extractTextContent(children)
   
   return (

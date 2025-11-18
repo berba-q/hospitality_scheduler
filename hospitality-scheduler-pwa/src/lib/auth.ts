@@ -32,24 +32,35 @@ async function checkAccountLinking(provider: string, email: string) {
   return null
 }
 
-// Helper function to link accounts
-async function linkAccount(userId: string, linkRequest: any, accessToken: string) {
-  try {
-    const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/account/link-provider`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify(linkRequest),
-    })
-    
-    return response.ok
-  } catch (error) {
-    console.error('Account linking failed:', error)
-    return false
-  }
+// Account linking request interface
+interface AccountLinkRequest {
+  provider: string
+  provider_id: string
+  provider_email: string
+  provider_data?: Record<string, unknown>
 }
+
+// Helper function to link accounts
+// NOTE: Currently unused - account linking is handled via /api/account/link-provider route
+// which has proper session access. This function would require a service-level access token
+// to work from the NextAuth events context.
+// async function linkAccount(linkRequest: AccountLinkRequest, accessToken: string) {
+//   try {
+//     const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/account/link-provider`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'Authorization': `Bearer ${accessToken}`
+//       },
+//       body: JSON.stringify(linkRequest),
+//     })
+//
+//     return response.ok
+//   } catch (error) {
+//     console.error('Account linking failed:', error)
+//     return false
+//   }
+// }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -141,7 +152,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return true
         } catch (error) {
           // If error message contains URL, it's a redirect
-          if (error.message.includes('http')) {
+          if (error instanceof Error && error.message.includes('http')) {
             return error.message
           }
           console.error('SignIn callback error:', error)
@@ -166,20 +177,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
     async session({ session, token }) {
       // Send properties to the client
-      session.user.id = token.sub
+      if (token.sub) {
+        session.user.id = token.sub
+      }
       session.user.isManager = token.isManager
       session.user.tenantId = token.tenantId
       session.accessToken = token.accessToken
       session.provider = token.provider
-      
+
       return session
     }
   },
 
   pages: {
     signIn: '/login',
-    signUp: '/signup',
     error: '/auth/error',
+    // Note: NextAuth doesn't support 'signUp' - handle signup separately in your app
   },
 
   session: {
@@ -190,11 +203,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   events: {
     async linkAccount({ user, account, profile }) {
       console.log('LINK ACCOUNT EVENT:', { user, account, profile })
-      
-      // This fires when an account is successfully linked
-      // You could send notifications, audit logs, etc.
+
+      // This fires when an account is successfully linked via OAuth
+      // Sync the account linking with FastAPI backend
+      if (account && profile && user.email) {
+        try {
+          // Get the access token from the user object (set during JWT callback)
+          // Note: In events, we don't have direct access to the token, so this is a best-effort attempt
+          // The frontend should also handle this via the /api/account/link-provider endpoint
+          const linkRequest: AccountLinkRequest = {
+            provider: account.provider,
+            provider_id: account.providerAccountId,
+            provider_email: profile.email as string,
+            provider_data: {
+              name: profile.name,
+              image: profile.image,
+            }
+          }
+
+          console.log('Attempting to sync account link with backend:', linkRequest)
+          // Note: This would require a service-level access token or different auth mechanism
+          // For now, the frontend handles this through the API route which has proper session access
+        } catch (error) {
+          console.error('Failed to sync account linking with backend:', error)
+        }
+      }
     },
-    
+
     async createUser({ user }) {
       console.log('CREATE USER EVENT:', user)
       // Handle new user creation

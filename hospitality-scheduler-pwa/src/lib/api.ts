@@ -2844,8 +2844,8 @@ async importSettings(data: unknown, options: {
     push_token?: string;
     user_agent: string;
     platform: string;
-  }) {
-    return this.request('/v1/devices/register', {
+  }): Promise<ApiTypes.RegisterDeviceResponse> {
+    return this.request<ApiTypes.RegisterDeviceResponse>('/v1/devices/register', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -2894,8 +2894,8 @@ async importSettings(data: unknown, options: {
     });
   }
 
-  async validatePushTokens(data: { test_notification?: boolean }) {
-    return this.request('/v1/devices/validate-tokens', {
+  async validatePushTokens(data: { test_notification?: boolean }): Promise<ApiTypes.ValidatePushTokensResponse> {
+    return this.request<ApiTypes.ValidatePushTokensResponse>('/v1/devices/validate-tokens', {
       method: 'POST',
       body: JSON.stringify(data),
     });
