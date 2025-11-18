@@ -19,6 +19,13 @@ export default function LoginPage() {
   const { data: session, status } = useSession()
   const { t } = useTranslations()
 
+  // Pre-fill email from session if available
+  useEffect(() => {
+    if (session?.user?.email && credentials.email === '' && typeof session.user.email === 'string') {
+      setCredentials(prev => ({ ...prev, email: session.user?.email || '' }))
+    }
+  }, [session, credentials.email])
+
   // Check if user is already logged in
   useEffect(() => {
     if (status === 'authenticated') {
@@ -71,6 +78,21 @@ export default function LoginPage() {
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-600">{t('common.loading')}</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show welcome message if authenticated (before redirect)
+  if (status === 'authenticated' && session?.user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">
+            {t('auth.welcome')}, {session.user.name || session.user.email}!
+          </p>
+          <p className="text-gray-500 text-sm mt-2">{t('auth.redirecting')}</p>
         </div>
       </div>
     )
