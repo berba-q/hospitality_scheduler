@@ -11,6 +11,16 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    ignores: [
+      "**/debug/**",
+      "**/test-notification/**",
+      "src/app/debug/**",
+      "src/app/test-notification/**",
+      "src/components/debug/**",
+      "**/FirebaseTestComponent.tsx"
+    ]
+  }
 ];
 
 export default eslintConfig;

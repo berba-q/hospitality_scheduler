@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useSession, signIn } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -83,16 +83,15 @@ export default function AccountLinking({ mode = 'management', className = '' }: 
     }
   }, [session, fetchLinkedProviders])
 
-  const handleLinkProvider = async (providerName: string) => {
+  const handleLinkProvider = async () => {
     setIsLoading(true)
     setError('')
-    
+
     try {
-      // Start OAuth flow for linking
-      await signIn(providerName, {
-        callbackUrl: '/profile?tab=linked-accounts',
-        redirect: true
-      })
+      setError(
+        'To link your Google account: 1) Sign out from this page, 2) On the login page, click "Sign in with Google", ' +
+        '3) You\'ll be prompted to link it to your existing ' + (session?.user?.email || 'account')
+      )
     } catch {
       setError(t('auth.accountLinkingFailed'))
     } finally {
@@ -373,7 +372,7 @@ export default function AccountLinking({ mode = 'management', className = '' }: 
             {!linkedProviders.some(p => p.provider === 'google') && (
               <Button
                 variant="outline"
-                onClick={() => handleLinkProvider('google')}
+                onClick={handleLinkProvider}
                 disabled={isLoading}
                 className="w-full justify-start"
               >

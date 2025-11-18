@@ -63,6 +63,8 @@ interface AccountLinkRequest {
 // }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true, // Trust the host from the request (required for localhost and production)
+
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,

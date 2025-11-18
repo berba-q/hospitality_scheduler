@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, AlertCircle, Eye, EyeOff, Lock } from 'lucide-react'
 import { useTranslations } from '@/hooks/useTranslations'
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const [passwords, setPasswords] = useState({
     new_password: '',
     confirm_password: ''
@@ -313,12 +313,32 @@ export default function ResetPasswordPage() {
 // Helper function for password strength
 function getPasswordStrength(password: string): number {
   let strength = 0
-  
+
   if (password.length >= 8) strength++
   if (/[a-z]/.test(password)) strength++
   if (/[A-Z]/.test(password)) strength++
   if (/[0-9]/.test(password)) strength++
   if (/[^a-zA-Z0-9]/.test(password)) strength++
-  
+
   return Math.min(strength, 4)
+}
+
+// Main page component with Suspense boundary
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-gray-600">Loading...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
+  )
 }

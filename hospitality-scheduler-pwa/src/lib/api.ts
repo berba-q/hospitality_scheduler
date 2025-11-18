@@ -2859,28 +2859,22 @@ async importSettings(data: unknown, options: {
     return this.request<ApiTypes.PushStatsResponse>('/v1/devices/push-stats');
   }
 
-  async getDevicesNeedingReauth(): Promise<{
-    devices: Array<{
+  async getDevicesNeedingReauth(): Promise<Array<{
+    id: string
+    device_name?: string
+    device_type: string
+    last_seen: string
+    push_failures: number
+    status: string
+  }>> {
+    return this.request<Array<{
       id: string
       device_name?: string
       device_type: string
       last_seen: string
       push_failures: number
       status: string
-    }>
-    total_count: number
-  }> {
-    return this.request<{
-      devices: Array<{
-        id: string
-        device_name?: string
-        device_type: string
-        last_seen: string
-        push_failures: number
-        status: string
-      }>
-      total_count: number
-    }>('/v1/devices/needing-reauth')
+    }>>('/v1/devices/needing-reauth')
   }
 
   async updateTokenAfterReauth(data: {

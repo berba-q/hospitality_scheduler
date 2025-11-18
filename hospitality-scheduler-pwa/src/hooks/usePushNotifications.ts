@@ -298,8 +298,8 @@ export function usePushNotifications() {
     if (!apiClient) return [];
 
     try {
-      const response = await apiClient.getDevicesNeedingReauth();
-      return response.devices;
+      const devices = await apiClient.getDevicesNeedingReauth();
+      return devices;
     } catch (error) {
       console.error('Failed to get devices needing reauth:', error);
       return [];

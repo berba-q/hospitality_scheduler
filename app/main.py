@@ -102,6 +102,7 @@ app = FastAPI(
 _allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://192.168.1.101:3000",  # Local network access
 ]
 if hasattr(settings, "FRONTEND_URL") and settings.FRONTEND_URL:
     _allowed_origins.append(settings.FRONTEND_URL)

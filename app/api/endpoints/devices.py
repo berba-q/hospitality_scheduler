@@ -36,7 +36,7 @@ def devices_preflight(rest_of_path: str, request: Request) -> Response:
     acr_method = request.headers.get("access-control-request-method", "*")
     acr_headers = request.headers.get("access-control-request-headers", "*")
 
-    allowed_dev_origins = {"http://localhost:3000", "http://127.0.0.1:3000"}
+    allowed_dev_origins = {"http://localhost:3000", "http://127.0.0.1:3000", "http://192.168.1.101:3000"}
 
     headers = {
         "Access-Control-Allow-Methods": acr_method or "*",

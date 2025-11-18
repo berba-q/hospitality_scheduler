@@ -115,9 +115,9 @@ function AppLayoutInner({ children }: AppLayoutProps) {
       if (!apiClient) return;
 
       try {
-        const response = await apiClient.getDevicesNeedingReauth();
-        if (response.devices.length > 0) {
-          setDevicesNeedingReauth(response.devices);
+        const devices = await apiClient.getDevicesNeedingReauth();
+        if (devices.length > 0) {
+          setDevicesNeedingReauth(devices);
           setShowReauthModal(true);
         }
       } catch (error) {

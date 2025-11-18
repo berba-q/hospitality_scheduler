@@ -32,7 +32,7 @@ interface InvitationData {
 }
 
 interface AcceptInvitationPageProps {
-  params: { token: string }
+  params: Promise<{ token: string }>
 }
 
 export default function AcceptInvitationPage({ params }: AcceptInvitationPageProps) {
@@ -44,12 +44,14 @@ export default function AcceptInvitationPage({ params }: AcceptInvitationPagePro
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [status, setStatus] = useState<'loading' | 'valid' | 'invalid' | 'success'>('loading')
-  
+  const [token, setToken] = useState<string>('')
+
   const router = useRouter()
   const { t } = useTranslations()
-  const { token } = params
 
   const verifyInvitation = useCallback(async () => {
+    if (!token) return
+
     try {
       const response = await fetch(`/api/v1/invitations/verify/${token}`)
 
@@ -64,6 +66,13 @@ export default function AcceptInvitationPage({ params }: AcceptInvitationPagePro
       setStatus('invalid')
     }
   }, [token])
+
+  useEffect(() => {
+    // Unwrap the params promise
+    params.then(({ token: tokenValue }) => {
+      setToken(tokenValue)
+    })
+  }, [params])
 
   useEffect(() => {
     verifyInvitation()
