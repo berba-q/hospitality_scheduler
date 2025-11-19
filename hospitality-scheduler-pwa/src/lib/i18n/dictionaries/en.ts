@@ -80,6 +80,7 @@ export const en = {
     fullNamePlaceholder: "Enter your full name",
     agreeToTerms: "I agree to the Terms of Service and Privacy Policy",
     alreadyHaveAccount: "Already have an account?",
+    dontHaveAccount: "Don't have an account?",
     signUpWithGoogle: "Sign up with Google",
     signUpWithCredentials: "Sign up with Email",
     orSignUpWith: "Or sign up with",

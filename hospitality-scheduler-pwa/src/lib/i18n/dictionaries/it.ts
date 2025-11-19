@@ -79,6 +79,7 @@ export const it = {
     fullNamePlaceholder: "Inserisci il tuo nome completo",
     agreeToTerms: "Accetto i Termini di servizio e la Privacy Policy",
     alreadyHaveAccount: "Hai già un account?",
+    dontHaveAccount: "Non hai un account?",
     signUpWithGoogle: "Registrati con Google",
     signUpWithCredentials: "Registrati con email",
     orSignUpWith: "Oppure registrati con",

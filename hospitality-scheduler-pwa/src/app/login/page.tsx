@@ -213,10 +213,10 @@ export default function LoginPage() {
                 </Button>
 
                              {/* Forgotten password */}
-             <div className="text-center">
-              <Link 
-                href="/forgot-password" 
-                className="text-sm text-blue-600 hover:text-blue-500"
+             <div className="text-center space-y-2">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-blue-600 hover:text-blue-500 block"
               >
                 {t('auth.forgotPassword')}
               </Link>
@@ -239,6 +239,19 @@ export default function LoginPage() {
              </div>
            </>
          )}
+
+         {/* Sign Up Link */}
+         <div className="pt-4 text-center border-t border-gray-200 mt-6">
+           <p className="text-sm text-gray-600 mb-2">
+             {t('auth.dontHaveAccount') || "Don't have an account?"}
+           </p>
+           <Link
+             href="/signup"
+             className="text-blue-600 hover:text-blue-700 font-medium text-sm hover:underline"
+           >
+             {t('auth.createAccount') || "Create a free account"}
+           </Link>
+         </div>
 
          {/* Footer */}
          <div className="pt-4 text-center">
