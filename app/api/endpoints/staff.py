@@ -780,20 +780,41 @@ def delete_staff(
             for unavail in future_unavailability:
                 db.delete(unavail)
         
+        # Handle associated User record
+        associated_user = None
+        if staff.email:
+            associated_user = db.exec(
+                select(User).where(
+                    func.lower(User.email) == func.lower(staff.email),
+                    User.tenant_id == current_user.tenant_id
+                )
+            ).first()
+
         # Delete or deactivate the staff member
         if soft_delete:
             # Soft delete - mark as inactive
             staff.is_active = False
             staff.updated_at = datetime.now()
+
+            # Also deactivate associated user account
+            if associated_user:
+                associated_user.is_active = False
+
             db.commit()
             message = f"Staff member '{staff.full_name}' deactivated successfully"
+            if associated_user:
+                message += " (user account deactivated)"
             if cancelled_invitations_count > 0:
                 message += f" ({cancelled_invitations_count} pending invitation(s) cancelled)"
         else:
-            # Hard delete
+            # Hard delete - delete both staff and user records
+            if associated_user:
+                db.delete(associated_user)
             db.delete(staff)
             db.commit()
             message = f"Staff member '{staff.full_name}' deleted successfully"
+            if associated_user:
+                message += " (user account deleted)"
             if cancelled_invitations_count > 0:
                 message += f" ({cancelled_invitations_count} invitation record(s) removed)"
         

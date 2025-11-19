@@ -41,14 +41,18 @@ class InvitationService:
             logger.error(f"❌ Staff {staff.full_name} has no email address")
             raise ValueError("Staff member must have an email address")
 
-        # Check if user already exists
+        # Check if active user already exists
         existing_user = self.db.exec(
             select(User).where(User.email == staff.email)
         ).first()
 
-        if existing_user:
-            logger.warning(f"⚠️ User already exists for email: {staff.email}")
-            raise ValueError("User already exists for this email address")
+        if existing_user and existing_user.is_active:
+            logger.warning(f"⚠️ Active user already exists for email: {staff.email}")
+            raise ValueError("Active user already exists for this email address")
+
+        # If inactive user exists, log it but allow invitation
+        if existing_user and not existing_user.is_active:
+            logger.info(f"ℹ️ Inactive user exists for {staff.email}, allowing re-invitation")
 
         # Check for existing valid invitation
         cond: ColumnElement[bool] = (
@@ -231,32 +235,44 @@ class InvitationService:
             raise ValueError("Invalid or expired invitation")
         
         staff = invitation.staff
-        
+
         # Check if user already exists
         existing_user = self.db.exec(
             select(User).where(User.email == staff.email)
         ).first()
-        
-        if existing_user:
-            raise ValueError("User account already exists")
-        
+
+        if existing_user and existing_user.is_active:
+            raise ValueError("Active user account already exists")
+
         if not staff.email:
             raise ValueError("Staff member must have an email address")
-        
-        # Create user account
-        user = User(
-            email=cast(str, staff.email),
-            is_manager=False,
-            is_active=True,
-            tenant_id=invitation.tenant_id,
-            hashed_password="",
-        )
-        
-        if signup_method == "credentials" and password:
-            from ..core.security import hash_password
-            user.hashed_password = hash_password(password)
-        
-        self.db.add(user)
+
+        # Reactivate existing inactive user or create new user
+        if existing_user and not existing_user.is_active:
+            logger.info(f"♻️ Reactivating inactive user account for {staff.email}")
+            user = existing_user
+            user.is_active = True
+            user.tenant_id = invitation.tenant_id  # Update tenant if needed
+
+            if signup_method == "credentials" and password:
+                from ..core.security import hash_password
+                user.hashed_password = hash_password(password)
+        else:
+            # Create new user account
+            logger.info(f"✨ Creating new user account for {staff.email}")
+            user = User(
+                email=cast(str, staff.email),
+                is_manager=False,
+                is_active=True,
+                tenant_id=invitation.tenant_id,
+                hashed_password="",
+            )
+
+            if signup_method == "credentials" and password:
+                from ..core.security import hash_password
+                user.hashed_password = hash_password(password)
+
+            self.db.add(user)
         
         # Mark staff as active and link to user
         staff.is_active = True
