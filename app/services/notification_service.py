@@ -369,8 +369,15 @@ class NotificationService:
 
             if title == title_key:  # Key not found, use fallback
                 title = notification_type.value.replace('_', ' ').title()
+            else:
+                # Render the i18n title
+                title = self._render_template(title, template_data)
+                
             if message == message_key:  # Key not found, use fallback
                 message = template_data.get('message', 'You have a new message')
+            else:
+                # Render the i18n message
+                message = self._render_template(message, template_data)
 
         logger.info(f"📧 EMAIL: Sending to {to_email} (locale: {target_locale})")
         logger.info(f"📧 Subject: {title}")

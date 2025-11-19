@@ -22,7 +22,7 @@ async function checkAccountLinking(provider: string, email: string) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider, provider_email: email }),
     })
-    
+
     if (response.ok) {
       return await response.json()
     }
@@ -80,7 +80,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         try {
           console.log('AUTH DEBUG: Attempting login for:', credentials.email)
-          
+
           const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -93,10 +93,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (response.ok) {
             const data = await response.json()
             console.log('AUTH DEBUG: Login response:', data)
-            
+
             // Use the user object from the API response
             let userInfo = null
-            
+
             if (data.user) {
               userInfo = data.user
             } else if (data.access_token) {
@@ -115,26 +115,60 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               }
             }
           }
-          
+
           return null
         } catch (error) {
           console.error('Authentication error:', error)
           return null
         }
       }
+    }),
+    CredentialsProvider({
+      id: "token-login",
+      name: "Token Login",
+      credentials: {
+        token: { label: "Token", type: "text" }
+      },
+      async authorize(credentials) {
+        try {
+          console.log('AUTH DEBUG: Attempting token login')
+
+          if (!credentials?.token) return null
+
+          const accessToken = credentials.token as string
+          const userInfo = decodeJWT(accessToken)
+
+          if (userInfo) {
+            return {
+              id: userInfo.sub || userInfo.user_id,
+              email: userInfo.email,
+              name: userInfo.full_name || userInfo.name,
+              isManager: userInfo.is_manager,
+              tenantId: userInfo.tenant_id,
+              accessToken: accessToken,
+              provider: 'fastapi'
+            }
+          }
+
+          return null
+        } catch (error) {
+          console.error('Token login error:', error)
+          return null
+        }
+      }
     })
   ],
-  
+
   callbacks: {
     async signIn({ user, account, profile }) {
       console.log('SIGNIN CALLBACK:', { user, account, profile })
-      
+
       // Handle OAuth providers (Google, etc.)
       if (account?.provider === 'google' && profile?.email) {
         try {
           // Check if account linking is suggested
           const linkingSuggestion = await checkAccountLinking('google', profile.email)
-          
+
           if (linkingSuggestion?.link_suggestion) {
             // Store linking suggestion in URL params for frontend to handle
             const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
@@ -145,11 +179,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               existing_user_id: linkingSuggestion.user_id,
               existing_providers: JSON.stringify(linkingSuggestion.existing_providers)
             })
-            
+
             // Redirect to account linking page
             throw new Error(`${baseUrl}/auth/link-accounts?${params.toString()}`)
           }
-          
+
           // If no existing account, proceed with normal OAuth flow
           return true
         } catch (error) {
@@ -161,7 +195,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return false
         }
       }
-      
+
       return true
     },
 
@@ -173,7 +207,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.tenantId = user.tenantId
         token.provider = user.provider || account?.provider
       }
-      
+
       return token
     },
 

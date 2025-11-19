@@ -314,6 +314,7 @@ app.include_router(security_router, prefix="/v1/security", tags=["security"])
 
 # Include your existing API router
 app.include_router(api_router, prefix="/v1")
+app.include_router(api_router, prefix="/api/v1")
 
 #  Add root endpoint with API info
 @app.get("/")

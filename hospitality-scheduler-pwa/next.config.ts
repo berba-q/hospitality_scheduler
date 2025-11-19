@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
     // Ignore TypeScript errors during build to allow debug files
     ignoreBuildErrors: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: 'http://127.0.0.1:8000/api/v1/:path*', // Proxy only API v1 to Backend
+      },
+    ];
+  },
 };
 
 export default withPWA({

@@ -102,12 +102,44 @@ def list_invitations(
     
     return result
 
+@router.get("/verify/{token}", response_model=InvitationRead)
+def get_invitation_by_token(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """Get invitation details by token (for validation)"""
+    logger.info(f"🔍 Validating invitation token: {token}")
+    
+    invitation = db.exec(
+        select(StaffInvitation).where(StaffInvitation.token == token)
+    ).first()
+    
+    if not invitation:
+        logger.warning(f"❌ Invitation token not found: {token}")
+        raise HTTPException(status_code=404, detail="Invitation not found")
+        
+    if not invitation.is_valid():
+        logger.warning(f"❌ Invitation invalid or expired. Status: {invitation.status}, Expires: {invitation.expires_at}")
+        raise HTTPException(status_code=400, detail="Invitation is invalid or expired")
+        
+    logger.info(f"✅ Invitation valid for: {invitation.email}")
+    return {
+        **invitation.dict(),
+        "status": invitation.status,
+        "staff_name": invitation.staff.full_name,
+        "facility_name": invitation.facility.name,
+        "invited_by_name": invitation.invited_by_user.email
+    }
+
+from app.core.security import create_access_token
+
 @router.post("/accept")
 def accept_invitation(
     request: InvitationAcceptRequest,
     db: Session = Depends(get_db)
 ):
     """Accept an invitation and create user account"""
+    logger.info(f"📝 Accept invitation request received for token: {request.token}")
     service = InvitationService(db)
     
     try:
@@ -116,8 +148,20 @@ def accept_invitation(
             request.signup_method,
             request.password
         )
-        return result
+        
+        # Generate access token for the new user
+        access_token = create_access_token(subject=str(result["user_id"]))
+        
+        logger.info(f"✅ Invitation accepted successfully for user: {result.get('email', 'unknown')}")
+        
+        # Return result with token
+        return {
+            **result,
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
     except ValueError as e:
+        logger.error(f"❌ Failed to accept invitation: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/stats", response_model=InvitationStatsResponse)
