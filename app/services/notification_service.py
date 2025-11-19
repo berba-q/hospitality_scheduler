@@ -500,9 +500,9 @@ class NotificationService:
             server.starttls(context=ssl.create_default_context())
             server.ehlo()
 
-            # Login - Resend uses API key as password, username is "resend"
-            logger.info(f"📧 Authenticating with Resend...")
-            server.login("resend", smtp_password)
+            # Login
+            logger.info(f"📧 Authenticating with SMTP server...")
+            server.login(settings.SMTP_USERNAME, smtp_password)
 
             # Send message
             logger.info(f"📧 Sending email to {to_email}...")
@@ -1093,9 +1093,9 @@ class NotificationService:
             server.starttls(context=ssl.create_default_context())
             server.ehlo()
 
-            # Login - Resend uses API key as password, username is "resend"
-            logger.info(f"📧 Authenticating with Resend...")
-            server.login("resend", smtp_password)
+            # Login
+            logger.info(f"📧 Authenticating with SMTP server...")
+            server.login(settings.SMTP_USERNAME, smtp_password)
 
             # Send message
             logger.info(f"📧 Sending email to {user.email}...")

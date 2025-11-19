@@ -30,7 +30,7 @@ notif_handler.setFormatter(
 notif_logger = logging.getLogger("app.services.notification_service")
 notif_logger.setLevel(logging.INFO)  # or DEBUG for local debugging
 notif_logger.addHandler(notif_handler)
-notif_logger.propagate = False  # prevent duplication in console
+notif_logger.propagate = True  # Allow logs to bubble up to root logger (console)
 
 # --------------------- Silence third-party chatty libs ------------------------
 #logging.getLogger("fcm_django").setLevel(logging.WARNING)
@@ -68,4 +68,4 @@ firebase_handler.setFormatter(
 firebase_logger = logging.getLogger("firebase")
 firebase_logger.setLevel(logging.INFO)
 firebase_logger.addHandler(firebase_handler)
-firebase_logger.propagate = False  # prevent duplication in console
+firebase_logger.propagate = True  # Allow logs to bubble up to root logger (console)
