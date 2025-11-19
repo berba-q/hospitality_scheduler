@@ -166,16 +166,16 @@ def create_staff(
     skip_duplicate_check: bool = Query(False, description="Skip all duplicate validation")
 ):
     """Create a staff member with comprehensive duplicate checking"""
-    
+
     # Verify facility access
     facility = db.get(Facility, staff_in.facility_id)
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid facility")
-    
+
     # Perform duplicate checking unless explicitly skipped
     if not skip_duplicate_check:
         duplicates = check_for_duplicates(db, staff_in, current_user)
-        
+
         # Block creation if exact email duplicate found and not forced
         if duplicates["exact_email_match"] and not force_create:
             existing_staff = duplicates["exact_email_match"]
@@ -193,24 +193,24 @@ def create_staff(
                     ]
                 }
             )
-        
+
         # Warn about potential duplicates but allow creation
         if duplicates["severity"] == "warning" and not force_create:
             # For API consistency, we'll still create but include warnings in response
             # Frontend can handle this by showing warnings to user
             pass
-    
+
     # Create the staff member
     staff = Staff(**staff_in.model_dump())
     db.add(staff)
     db.commit()
     db.refresh(staff)
-    
+
     # Include duplicate warnings in response if any were found
     response_data = staff.model_dump()
     if not skip_duplicate_check and 'duplicates' in locals():
         response_data["_duplicate_warnings"] = duplicates if duplicates["has_any_duplicates"] else None # type: ignore
-    
+
     return staff
 
 @router.post("/validate-before-create")

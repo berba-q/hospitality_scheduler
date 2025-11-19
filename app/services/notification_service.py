@@ -66,7 +66,7 @@ class NotificationService:
             # If template is an i18n key, resolve it first
             if template.startswith("notifications."):
                 template = i18n_service.resolve_template_key(template, locale)
-                print(f"🌍 Resolved i18n key to: {template} (locale: {locale})")
+                logger.debug(f"🌍 Resolved i18n key to: {template} (locale: {locale})")
             
             # Add default values for common template variables
             safe_data = {
@@ -91,23 +91,23 @@ class NotificationService:
             }
             return string.Template(template).safe_substitute(safe_data)
         except Exception as e:
-            print(f"⚠️ Template rendering error: {e}")
+            logger.warning(f"⚠️ Template rendering error: {e}")
             return template  # Return original if rendering fails
     
     def _get_validated_user_from_staff(self, staff_id: uuid.UUID) -> Optional[User]:
         """Get and validate user from staff ID"""
         mapping_service = UserStaffMappingService(self.db)
         user = mapping_service.get_user_from_staff_id(staff_id)
-        
+
         if not user:
-            print(f"No user found for staff ID {staff_id}")
+            logger.warning(f"No user found for staff ID {staff_id}")
             return None
-        
+
         if not user.is_active:
-            print(f"User {user.email} is not active")
+            logger.info(f"User {user.email} is not active")
             return None
-        
-        print(f"Validated user {user.email} for staff ID {staff_id}")
+
+        logger.debug(f"Validated user {user.email} for staff ID {staff_id}")
         return user
     
     # ==================== BULK NOTIFICATION WITH DEVICE SUPPORT ====================
@@ -261,8 +261,8 @@ class NotificationService:
         override_recipient_email: Optional[str] = None
     ) -> Notification:
         """Send a notification through multiple channels with i18n support"""
-        
-        print(f"📬 Creating notification: {notification_type} for user {recipient_user_id}")
+
+        logger.info(f"📬 Creating notification: {notification_type} for user {recipient_user_id}")
     
         # Validate recipient exists and is active
         user = self.db.get(User, recipient_user_id)
@@ -271,17 +271,17 @@ class NotificationService:
         
         if not user.is_active:
             raise ValueError(f"User {user.email} is not active")
-        
-        print(f"✅ Validated recipient: {user.email} (User ID: {user.id})")
-        
+
+        logger.info(f"✅ Validated recipient: {user.email} (User ID: {user.id})")
+
         # Get user's locale
         user_locale = self._get_user_locale(user.id)
-        print(f"🌍 User locale: {user_locale}")
-        
+        logger.debug(f"🌍 User locale: {user_locale}")
+
         # Get template
         template = self._get_template(notification_type, user.tenant_id)
         if not template:
-            print(f"⚠️ No template found for {notification_type}, creating basic notification")
+            logger.warning(f"⚠️ No template found for {notification_type}, creating basic notification")
             return await self._create_basic_notification(
                 notification_type, user, template_data, channels, priority, action_url, action_text, pdf_attachment_url
             )
@@ -301,7 +301,7 @@ class NotificationService:
         notification_data = template_data.copy()
         if pdf_attachment_url:
             notification_data["pdf_attachment_url"] = pdf_attachment_url
-            print(f"📎 PDF attachment added: {pdf_attachment_url}")
+            logger.info(f"📎 PDF attachment added: {pdf_attachment_url}")
         
         # Create notification record with tenant_id
         notification = Notification(
@@ -320,8 +320,8 @@ class NotificationService:
         self.db.add(notification)
         self.db.commit()
         self.db.refresh(notification)
-        
-        print(f"✅ Notification {notification.id} created for {user.email}")
+
+        logger.info(f"✅ Notification {notification.id} created for {user.email}")
         
         # Send through channels
         if background_tasks:
@@ -348,7 +348,7 @@ class NotificationService:
         action_text: Optional[str] = None,
         pdf_attachment_url: Optional[str] = None,
         background_tasks: Optional[BackgroundTasks] = None,
-        target_locale: str = "en" 
+        target_locale: str = "en"
     ) -> Dict[str, Any]:
         """Render and send an email to a raw address (no user/notification row)."""
 
@@ -372,11 +372,11 @@ class NotificationService:
             if message == message_key:  # Key not found, use fallback
                 message = template_data.get('message', 'You have a new message')
 
-        print(f"📧 EMAIL: Sending to {to_email} (locale: {target_locale})")
-        print(f"📧 Subject: {title}")
-        print(f"📧 Body: {message}")
+        logger.info(f"📧 EMAIL: Sending to {to_email} (locale: {target_locale})")
+        logger.info(f"📧 Subject: {title}")
+        logger.info(f"📧 Body: {message}")
         if pdf_attachment_url:
-            print(f"📎 PDF Attachment: {pdf_attachment_url}")
+            logger.info(f"📎 PDF Attachment: {pdf_attachment_url}")
 
         # Actually send the email via SMTP
         success = await self._send_email_via_smtp(
@@ -411,8 +411,8 @@ class NotificationService:
 
         # Check if SMTP is configured in environment
         if not all([settings.SMTP_HOST, settings.SMTP_USERNAME, settings.SMTP_PASSWORD]):
-            print(f"⚠️ SMTP not configured in environment variables")
-            print("💡 Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD in your .env file")
+            logger.warning(f"⚠️ SMTP not configured in environment variables")
+            logger.info("💡 Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD in your .env file")
             return False
 
         try:
@@ -422,12 +422,14 @@ class NotificationService:
             from_email = settings.SMTP_FROM_EMAIL
 
             if not from_email:
-                print(f"❌ SMTP_FROM_EMAIL not configured")
+                logger.error(f"❌ SMTP_FROM_EMAIL not configured")
                 return False
 
             msg['From'] = f"{from_name} <{from_email}>"
             msg['To'] = to_email
             msg['Subject'] = subject
+
+            logger.info(f"📧 Preparing email message for {to_email}")
 
             # Pre-process the message content
             html_message = message.replace('\n', '<br>')
@@ -489,7 +491,7 @@ class NotificationService:
             smtp_port = settings.SMTP_PORT or 587
             smtp_password = settings.SMTP_PASSWORD
 
-            print(f"📧 Connecting to SMTP: {smtp_host}:{smtp_port}")
+            logger.info(f"📧 Connecting to SMTP: {smtp_host}:{smtp_port}")
 
             # Use STARTTLS for port 587 (Resend's recommended method)
             server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
@@ -499,19 +501,19 @@ class NotificationService:
             server.ehlo()
 
             # Login - Resend uses API key as password, username is "resend"
-            print(f"📧 Authenticating with Resend...")
+            logger.info(f"📧 Authenticating with Resend...")
             server.login("resend", smtp_password)
 
             # Send message
-            print(f"📧 Sending email to {to_email}...")
+            logger.info(f"📧 Sending email to {to_email}...")
             server.send_message(msg)
             server.quit()
 
-            print(f"✅ EMAIL SENT: {subject} to {to_email}")
+            logger.info(f"✅ EMAIL SENT: {subject} to {to_email}")
             return True
 
         except Exception as e:
-            print(f"❌ Failed to send email to {to_email}: {e}")
+            logger.error(f"❌ Failed to send email to {to_email}: {e}")
             return False
 
     #  Basic notification with i18n support
@@ -992,20 +994,20 @@ class NotificationService:
         """Send email notification with i18n support"""
         user = self.db.get(User, notification.recipient_user_id)
         if not user or not user.email:
-            print(f"⚠️ No email for user {user.email if user else 'unknown'}")
+            logger.warning(f"⚠️ No email for user {user.email if user else 'unknown'}")
             return False
-        
-        print(f"📧 EMAIL: Would send to {user.email}")
-        print(f"📧 Subject: {notification.title}")
-        print(f"📧 Body: {notification.message}")
+
+        logger.info(f"📧 EMAIL: Preparing to send to {user.email}")
+        logger.info(f"📧 Subject: {notification.title}")
+        logger.debug(f"📧 Body: {notification.message}")
         
         # Get SMTP settings from environment variables
         settings = get_settings()
 
         # Check if SMTP is configured in environment
         if not all([settings.SMTP_HOST, settings.SMTP_USERNAME, settings.SMTP_PASSWORD]):
-            print(f"⚠️ SMTP not configured in environment variables")
-            print("💡 Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD in your .env file")
+            logger.warning(f"⚠️ SMTP not configured in environment variables")
+            logger.info("💡 Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD in your .env file")
             return False
         
         try:
@@ -1015,7 +1017,7 @@ class NotificationService:
             from_email = settings.SMTP_FROM_EMAIL
 
             if not from_email:
-                print(f"❌ SMTP_FROM_EMAIL not configured")
+                logger.error(f"❌ SMTP_FROM_EMAIL not configured")
                 return False
 
             msg['From'] = f"{from_name} <{from_email}>"
@@ -1082,7 +1084,7 @@ class NotificationService:
             smtp_port = settings.SMTP_PORT or 587
             smtp_password = settings.SMTP_PASSWORD
 
-            print(f"📧 Connecting to SMTP: {smtp_host}:{smtp_port}")
+            logger.info(f"📧 Connecting to SMTP: {smtp_host}:{smtp_port}")
 
             # Use STARTTLS for port 587 (Resend's recommended method)
             server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
@@ -1092,19 +1094,19 @@ class NotificationService:
             server.ehlo()
 
             # Login - Resend uses API key as password, username is "resend"
-            print(f"📧 Authenticating with Resend...")
+            logger.info(f"📧 Authenticating with Resend...")
             server.login("resend", smtp_password)
 
             # Send message
-            print(f"📧 Sending email to {user.email}...")
+            logger.info(f"📧 Sending email to {user.email}...")
             server.send_message(msg)
             server.quit()
 
-            print(f"✅ EMAIL SENT: {notification.title} to {user.email}")
+            logger.info(f"✅ EMAIL SENT: {notification.title} to {user.email}")
             return True
-            
+
         except Exception as e:
-            print(f"❌ Failed to send email to {user.email}: {e}")
+            logger.error(f"❌ Failed to send email to {user.email}: {e}")
             return False
     
     #  Helper method to attach PDF to email
