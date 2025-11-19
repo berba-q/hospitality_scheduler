@@ -882,9 +882,13 @@ class NotificationService:
         try:
             # Create message
             msg = MIMEMultipart()
-            from_name = "Hospitality Scheduler"
-            from_email = settings.SMTP_USERNAME  # Use SMTP username as from email
-            
+            from_name = settings.SMTP_FROM_NAME or "Schedula"
+            from_email = settings.SMTP_FROM_EMAIL
+
+            if not from_email:
+                print(f"❌ SMTP_FROM_EMAIL not configured")
+                return False
+
             msg['From'] = f"{from_name} <{from_email}>"
             msg['To'] = user.email
             msg['Subject'] = notification.title
@@ -947,18 +951,26 @@ class NotificationService:
             # Connect to SMTP server and send
             smtp_host = settings.SMTP_HOST
             smtp_port = settings.SMTP_PORT or 587
-            smtp_username = settings.SMTP_USERNAME
             smtp_password = settings.SMTP_PASSWORD
-            
-            # Use STARTTLS by default
-            server = smtplib.SMTP(smtp_host, smtp_port)
+
+            print(f"📧 Connecting to SMTP: {smtp_host}:{smtp_port}")
+
+            # Use STARTTLS for port 587 (Resend's recommended method)
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
+            server.set_debuglevel(0)  # Set to 1 for debugging
+            server.ehlo()
             server.starttls(context=ssl.create_default_context())
-            
-            # Login and send
-            server.login(smtp_username, smtp_password)
+            server.ehlo()
+
+            # Login - Resend uses API key as password, username is "resend"
+            print(f"📧 Authenticating with Resend...")
+            server.login("resend", smtp_password)
+
+            # Send message
+            print(f"📧 Sending email to {user.email}...")
             server.send_message(msg)
             server.quit()
-            
+
             print(f"✅ EMAIL SENT: {notification.title} to {user.email}")
             return True
             

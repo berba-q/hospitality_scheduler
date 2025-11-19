@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     SMTP_PORT: Optional[int] = 587
     SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = None  # Sender email address
+    SMTP_FROM_NAME: Optional[str] = "Schedula"  # Sender name
     
     # New scheduling-related settings
     SMART_SCHEDULING_ENABLED: bool = True
