@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import uuid
+import logging
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlmodel import Session, select
 from typing import List, Optional
@@ -11,6 +12,8 @@ from ...schemas import (
     InvitationAcceptRequest, InvitationStatsResponse
 )
 from ...services.invitation_service import InvitationService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/invitations", tags=["invitations"])
 
@@ -44,10 +47,17 @@ async def create_bulk_invitations(
     db: Session = Depends(get_db)
 ):
     """Create invitations for multiple staff members"""
+    logger.info(f"🎯 Bulk invitation endpoint called by user: {current_user.email}")
+    logger.info(f"📊 Request details - Staff IDs: {request.staff_ids}, "
+               f"Custom message: {bool(request.custom_message)}, "
+               f"Expires in: {request.expires_in_hours} hours")
+
     if not current_user.is_manager:
+        logger.warning(f"⚠️ Non-manager user {current_user.email} attempted to send invitations")
         raise HTTPException(status_code=403, detail="Only managers can send invitations")
-    
+
     service = InvitationService(db)
+    logger.info(f"🚀 Starting bulk invitation service")
     results = await service.create_bulk_invitations(
         request.staff_ids,
         current_user.id,
@@ -55,7 +65,9 @@ async def create_bulk_invitations(
         request.expires_in_hours,
         background_tasks
     )
-    
+
+    logger.info(f"✅ Bulk invitation endpoint returning results: {results}")
+
     return results
 
 @router.get("/", response_model=List[InvitationRead])

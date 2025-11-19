@@ -2,6 +2,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any, cast
 import uuid
+import logging
 from sqlmodel import Session, select
 from sqlalchemy.sql.elements import ColumnElement
 from fastapi import BackgroundTasks
@@ -10,6 +11,8 @@ from ..models import NotificationPriority, StaffInvitation, Staff, User, Facilit
 from ..schemas import InvitationCreate, InvitationRead
 from .notification_service import NotificationService, NotificationType
 from ..core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 class InvitationService:
     def __init__(self, db: Session):
@@ -23,23 +26,30 @@ class InvitationService:
         background_tasks: Optional[BackgroundTasks] = None,
     ) -> StaffInvitation:
         """Create and send a staff invitation"""
-        
+
+        logger.info(f"🎟️ Creating invitation for staff_id: {invitation_data.staff_id}")
+
         # Get staff member details
         staff = self.db.get(Staff, invitation_data.staff_id)
         if not staff:
+            logger.error(f"❌ Staff member not found: {invitation_data.staff_id}")
             raise ValueError("Staff member not found")
-        
+
+        logger.info(f"✅ Found staff: {staff.full_name} ({staff.email})")
+
         if not staff.email:
+            logger.error(f"❌ Staff {staff.full_name} has no email address")
             raise ValueError("Staff member must have an email address")
-        
+
         # Check if user already exists
         existing_user = self.db.exec(
             select(User).where(User.email == staff.email)
         ).first()
-        
+
         if existing_user:
+            logger.warning(f"⚠️ User already exists for email: {staff.email}")
             raise ValueError("User already exists for this email address")
-        
+
         # Check for existing valid invitation
         cond: ColumnElement[bool] = (
             (StaffInvitation.staff_id == staff.id)
@@ -50,11 +60,13 @@ class InvitationService:
         existing_invitation = self.db.exec(
             select(StaffInvitation).where(cond)  # type: ignore[arg-type]
         ).first()
-        
+
         if existing_invitation:
+            logger.warning(f"⚠️ Valid invitation already exists for staff: {staff.full_name}")
             raise ValueError("Valid invitation already exists for this staff member")
-        
+
         # Create invitation
+        logger.info(f"📝 Creating invitation record in database for {staff.email}")
         invitation = StaffInvitation(
             staff_id=staff.id,
             email=staff.email,
@@ -65,18 +77,23 @@ class InvitationService:
             expires_at=datetime.now(timezone.utc) + timedelta(hours=invitation_data.expires_in_hours),
             custom_message=invitation_data.custom_message
         )
-        
+
         self.db.add(invitation)
         self.db.commit()
         self.db.refresh(invitation)
-        
+
+        logger.info(f"✅ Invitation record created with ID: {invitation.id}")
+
         # Send invitation email
+        logger.info(f"📧 Attempting to send invitation email to {staff.email}")
         await self._send_invitation_email(invitation, background_tasks)
-        
+
         # Update sent timestamp
         invitation.sent_at = datetime.now(timezone.utc)
         self.db.commit()
-        
+
+        logger.info(f"✅ Invitation process completed for {staff.email}")
+
         return invitation
     
     async def create_bulk_invitations(
@@ -88,36 +105,42 @@ class InvitationService:
         background_tasks: Optional[BackgroundTasks] = None
     ) -> Dict[str, Any]:
         """Create invitations for multiple staff members"""
-        
+
+        logger.info(f"🎟️ Starting bulk invitation creation for {len(staff_ids)} staff members")
+
         results = {
             "successful": [],
             "failed": [],
             "already_exists": [],
             "no_email": []
         }
-        
-        for staff_id in staff_ids:
+
+        for i, staff_id in enumerate(staff_ids, 1):
+            logger.info(f"📤 Processing invitation {i}/{len(staff_ids)} for staff_id: {staff_id}")
             try:
                 invitation_data = InvitationCreate(
                     staff_id=staff_id,
                     custom_message=custom_message,
                     expires_in_hours=expires_in_hours
                 )
-                
+
                 invitation = await self.create_invitation(
-                    invitation_data, 
-                    invited_by, 
+                    invitation_data,
+                    invited_by,
                     background_tasks
                 )
-                
+
                 results["successful"].append({
                     "staff_id": staff_id,
                     "invitation_id": invitation.id,
                     "email": invitation.email
                 })
-                
+
+                logger.info(f"✅ Successfully created invitation {i}/{len(staff_ids)}")
+
             except ValueError as e:
                 error_msg = str(e)
+                logger.warning(f"⚠️ ValueError for staff {staff_id}: {error_msg}")
                 if "already exists" in error_msg:
                     results["already_exists"].append(staff_id)
                 elif "email address" in error_msg:
@@ -128,11 +151,16 @@ class InvitationService:
                         "error": error_msg
                     })
             except Exception as e:
+                logger.error(f"❌ Exception for staff {staff_id}: {str(e)}")
                 results["failed"].append({
                     "staff_id": staff_id,
                     "error": str(e)
                 })
-        
+
+        logger.info(f"✅ Bulk invitation completed: {len(results['successful'])} successful, "
+                   f"{len(results['failed'])} failed, {len(results['already_exists'])} already exist, "
+                   f"{len(results['no_email'])} without email")
+
         return results
     
     async def _send_invitation_email(
@@ -141,39 +169,50 @@ class InvitationService:
         background_tasks: Optional[BackgroundTasks] = None,
     ) -> None:
         """Send invitation email to staff member"""
-        
+
+        logger.info(f"📧 Preparing invitation email for {invitation.email}")
+
         # Get related data
         staff = invitation.staff
         facility = invitation.facility
         tenant = invitation.tenant
         invited_by = invitation.invited_by_user
-        
+
+        logger.info(f"📋 Email data - Staff: {staff.full_name}, Facility: {facility.name}, Tenant: {tenant.name}")
+
         settings = get_settings()
-        
+
         # Create invitation accept URL
         accept_url = f"{settings.FRONTEND_URL}/signup/accept/{invitation.token}"
-        
+        logger.info(f"🔗 Invitation URL: {accept_url}")
+
         # Send notification
-        await self.notification_service.send_email_to_address(
-            notification_type=NotificationType.STAFF_INVITATION,
-            to_email=invitation.email,
-            template_data={
-                "staff_name": staff.full_name,
-                "organization_name": tenant.name,
-                "facility_name": facility.name,
-                "role": staff.role,
-                "invited_by_name": invited_by.email.split('@')[0],
-                "accept_url": accept_url,
-                "recipient_email": invitation.email,
-                "custom_message": invitation.custom_message or "",
-                "expires_at": invitation.expires_at.strftime("%B %d, %Y at %I:%M %p"),
-            },
-            tenant_id=tenant.id,
-            priority=NotificationPriority.MEDIUM,
-            action_url=accept_url,
-            action_text="Accept invitation",
-            background_tasks=background_tasks,
-        )
+        logger.info(f"📨 Calling notification service to send email to {invitation.email}")
+        try:
+            result = await self.notification_service.send_email_to_address(
+                notification_type=NotificationType.STAFF_INVITATION,
+                to_email=invitation.email,
+                template_data={
+                    "staff_name": staff.full_name,
+                    "organization_name": tenant.name,
+                    "facility_name": facility.name,
+                    "role": staff.role,
+                    "invited_by_name": invited_by.email.split('@')[0],
+                    "accept_url": accept_url,
+                    "recipient_email": invitation.email,
+                    "custom_message": invitation.custom_message or "",
+                    "expires_at": invitation.expires_at.strftime("%B %d, %Y at %I:%M %p"),
+                },
+                tenant_id=tenant.id,
+                priority=NotificationPriority.MEDIUM,
+                action_url=accept_url,
+                action_text="Accept invitation",
+                background_tasks=background_tasks,
+            )
+            logger.info(f"✅ Notification service returned: {result}")
+        except Exception as e:
+            logger.error(f"❌ Failed to send invitation email: {str(e)}")
+            raise
     
     def accept_invitation(
         self, 
