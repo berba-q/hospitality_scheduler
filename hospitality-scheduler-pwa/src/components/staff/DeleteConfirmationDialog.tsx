@@ -48,10 +48,14 @@ export function DeleteConfirmationDialog({
     try {
       const result: DeletionValidation = await apiClient.validateStaffDeletion(staffMember.id);
       setValidation(result);
+      // Auto-select the appropriate action based on validation
       if (result.can_delete) {
         setSelectedAction('deactivate');
-      } else {
+      } else if (result.future_assignments_count > 0) {
+        // If there are future assignments blocking, auto-select the cascade option
         setSelectedAction('transfer_and_deactivate');
+      } else {
+        setSelectedAction('deactivate');
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -137,6 +141,11 @@ export function DeleteConfirmationDialog({
                           <li key={index}>• {error}</li>
                         ))}
                       </ul>
+                      {validation.future_assignments_count > 0 && (
+                        <p className="mt-2 text-sm text-red-800 font-medium">
+                          💡 {t('staff.solutionUseRemoveAndClearSchedule')}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -223,7 +232,9 @@ export function DeleteConfirmationDialog({
 
                 {/* Transfer and Deactivate */}
                 {validation.future_assignments_count > 0 && (
-                  <label className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 ${
+                    !validation.can_delete ? 'border-blue-300 bg-blue-50' : ''
+                  }`}>
                     <input
                       type="radio"
                       name="action"
@@ -233,7 +244,14 @@ export function DeleteConfirmationDialog({
                       className="mt-1"
                     />
                     <div className="flex-1">
-                      <span className="font-medium text-gray-900">{t('staff.removeAndClearSchedule')}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900">{t('staff.removeAndClearSchedule')}</span>
+                        {!validation.can_delete && (
+                          <Badge className="bg-blue-100 text-blue-800">
+                            {t('staff.requiredForDeletion')}
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-600 mt-1">
                         {t('staff.removesAssignmentsAndDeactivates', { count: validation.future_assignments_count })}
                       </p>
