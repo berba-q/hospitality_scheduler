@@ -16,16 +16,25 @@ pwd_context = CryptContext(
 ALGORITHM = "HS256"
 
 
-def create_access_token(subject: str, expires_delta: Optional[int] = None) -> str:
+def create_access_token(
+    subject: str,
+    expires_delta: Optional[int] = None,
+    extra_data: Optional[Dict[str, Any]] = None
+) -> str:
     if expires_delta is None:
         expires_delta = get_settings().ACCESS_TOKEN_EXPIRE_MINUTES
     expire = datetime.now(timezone.utc) + timedelta(minutes=expires_delta)
     to_encode: dict[str, Any] = {
-        "exp": expire, 
+        "exp": expire,
         "sub": str(subject),
-        "iat": datetime.now(timezone.utc), 
+        "iat": datetime.now(timezone.utc),
         "type": "access"
     }
+
+    # Add extra data to JWT payload if provided
+    if extra_data:
+        to_encode.update(extra_data)
+
     encoded_jwt = jwt.encode(to_encode, get_settings().SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 

@@ -184,7 +184,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             throw new Error(`${baseUrl}/auth/link-accounts?${params.toString()}`)
           }
 
-          // If no existing account, proceed with normal OAuth flow
+          // Exchange OAuth credentials for backend token
+          try {
+            console.log('Calling backend OAuth login for:', profile.email)
+            const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/auth/oauth-login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: profile.email,
+                provider: 'google'
+              })
+            })
+
+            console.log('OAuth backend response status:', response.status)
+
+            if (response.ok) {
+              const data = await response.json()
+              console.log('OAuth backend login success:', data)
+              // Store backend token and user data in the user object
+              // @ts-ignore - Adding custom properties to user object
+              user.accessToken = data.access_token
+              // @ts-ignore
+              user.isManager = data.user.is_manager
+              // @ts-ignore
+              user.tenantId = data.user.tenant_id
+              // @ts-ignore
+              user.staff_id = data.user.staff_id
+              // @ts-ignore
+              user.facility_id = data.user.facility_id
+              // @ts-ignore
+              user.provider = 'google'
+            } else {
+              const errorText = await response.text()
+              console.error('OAuth backend login failed:', response.status, errorText)
+              return false
+            }
+          } catch (oauthError) {
+            console.error('OAuth backend login error:', oauthError)
+            return false
+          }
+
           return true
         } catch (error) {
           // If error message contains URL, it's a redirect
@@ -206,6 +245,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.isManager = user.isManager
         token.tenantId = user.tenantId
         token.provider = user.provider || account?.provider
+        // @ts-ignore - Custom properties from OAuth
+        token.staff_id = user.staff_id
+        // @ts-ignore
+        token.facility_id = user.facility_id
       }
 
       return token
@@ -218,6 +261,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       session.user.isManager = token.isManager
       session.user.tenantId = token.tenantId
+      // @ts-ignore - Custom properties
+      session.user.staff_id = token.staff_id
+      // @ts-ignore
+      session.user.facility_id = token.facility_id
       session.accessToken = token.accessToken
       session.provider = token.provider
 

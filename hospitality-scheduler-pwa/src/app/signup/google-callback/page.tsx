@@ -25,7 +25,7 @@ export default function GoogleCallbackPage() {
             }
 
             try {
-                // Call backend to accept invitation
+                // Call backend to accept invitation (no auth required for this endpoint)
                 const response = await fetch('/api/v1/invitations/accept', {
                     method: 'POST',
                     headers: {

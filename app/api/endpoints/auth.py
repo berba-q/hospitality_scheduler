@@ -4,6 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from sqlmodel import Session, select
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_limiter.depends import RateLimiter
+from pydantic import BaseModel
 import logging
 
 from ...core.config import get_settings
@@ -528,3 +529,153 @@ async def revoke_all_sessions(
     )
     
     return {"message": f"Successfully revoked {revoked_count} sessions"}
+
+# ======================= OAuth Login =========================
+class OAuthLoginRequest(BaseModel):
+    email: str
+    provider: str
+
+@router.post("/oauth-login")
+async def oauth_login(
+    oauth_request: OAuthLoginRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Exchange OAuth authentication for backend token"""
+    audit_service = AuditService(db)
+    session_service = SessionService(db)
+
+    email = oauth_request.email
+    provider = oauth_request.provider
+
+    logger.info(f"🔐 OAuth login attempt for email: {email}, provider: {provider}")
+
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "")
+
+    # Find user by email (case-insensitive)
+    from sqlalchemy import func
+    user = db.exec(
+        select(User).where(func.lower(User.email) == email.lower())
+    ).first()
+
+    logger.info(f"User lookup result: {user.email if user else 'Not found'}, is_active: {user.is_active if user else 'N/A'}")
+
+    # If user doesn't exist, fail immediately
+    if not user:
+        await audit_service.log_event(
+            AuditEvent.LOGIN_FAILED,
+            ip_address=client_ip,
+            user_agent=user_agent,
+            details={"email": email, "provider": provider, "reason": "user_not_found"}
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # If user is inactive, check if there's an active staff member with this email
+    # If yes, reactivate the user (handles case where staff was deleted and recreated)
+    if not user.is_active:
+        logger.info(f"User {email} is inactive. Checking for active staff member...")
+
+        # Check if there's an active staff with this email
+        active_staff = db.exec(
+            select(Staff).join(Facility).where(
+                func.lower(Staff.email) == email.lower(),
+                Staff.is_active == True
+            )
+        ).first()
+
+        if active_staff:
+            logger.info(f"Found active staff member for {email}. Reactivating user account.")
+            user.is_active = True
+            user.tenant_id = active_staff.facility.tenant_id  # Update tenant if needed
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        else:
+            logger.warning(f"User {email} is inactive and no active staff found.")
+            await audit_service.log_event(
+                AuditEvent.LOGIN_FAILED,
+                ip_address=client_ip,
+                user_agent=user_agent,
+                details={"email": email, "provider": provider, "reason": "user_inactive_no_staff"}
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account is inactive"
+            )
+
+    # Build user data for JWT
+    jwt_extra_data = {
+        "email": user.email,
+        "is_manager": user.is_manager,
+        "tenant_id": str(user.tenant_id)
+    }
+
+    # Look up staff record for non-managers
+    if not user.is_manager:
+        staff = db.exec(
+            select(Staff).join(Facility).where(
+                Staff.email == user.email,
+                Facility.tenant_id == user.tenant_id,
+                Staff.is_active == True
+            )
+        ).first()
+
+        if staff:
+            jwt_extra_data.update({
+                "staff_id": str(staff.id),
+                "facility_id": str(staff.facility_id),
+                "full_name": staff.full_name
+            })
+
+    # Create access token with enriched data
+    token = create_access_token(subject=str(user.id), extra_data=jwt_extra_data)
+
+    # Create session
+    try:
+        await session_service.create_session(
+            user_id=user.id,
+            token=token,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+        logger.info(f"Created OAuth session for user {user.email}")
+    except Exception as e:
+        logger.error(f"Failed to create session for user {user.email}: {e}")
+
+    # Update last login
+    if hasattr(user, "last_login"):
+        user.last_login = datetime.now(timezone.utc)
+
+    db.commit()
+
+    # Log successful login
+    await audit_service.log_event(
+        AuditEvent.LOGIN_SUCCESS,
+        user_id=user.id,
+        tenant_id=user.tenant_id,
+        ip_address=client_ip,
+        user_agent=user_agent,
+        details={"email": user.email, "provider": provider}
+    )
+
+    # Build user data response
+    user_data = {
+        "sub": str(user.id),
+        "email": user.email,
+        "is_manager": user.is_manager,
+        "is_active": user.is_active,
+        "tenant_id": str(user.tenant_id),
+        "facility_id": jwt_extra_data.get("facility_id"),
+        "staff_id": jwt_extra_data.get("staff_id"),
+        "name": jwt_extra_data.get("full_name", user.email)
+    }
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user_data
+    }

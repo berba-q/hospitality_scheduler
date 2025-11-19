@@ -807,14 +807,44 @@ def delete_staff(
             if cancelled_invitations_count > 0:
                 message += f" ({cancelled_invitations_count} pending invitation(s) cancelled)"
         else:
-            # Hard delete - delete both staff and user records
+            # Hard delete - delete staff record and properly clean up user account
             if associated_user:
-                db.delete(associated_user)
+                # For hard delete, we need to clean up user dependencies before we can delete the user
+                # But since audit logs and other critical records reference the user, we can only deactivate
+                # This ensures data integrity while preventing orphaned inactive accounts from blocking new signups
+
+                # Delete user-specific records that can be safely removed
+                from app.models import UserSession, UserDevice, UserProvider
+
+                # Delete user sessions
+                user_sessions = db.exec(
+                    select(UserSession).where(UserSession.user_id == associated_user.id)
+                ).all()
+                for session in user_sessions:
+                    db.delete(session)
+
+                # Delete user devices
+                user_devices = db.exec(
+                    select(UserDevice).where(UserDevice.user_id == associated_user.id)
+                ).all()
+                for device in user_devices:
+                    db.delete(device)
+
+                # Delete user providers (OAuth links)
+                user_providers = db.exec(
+                    select(UserProvider).where(UserProvider.user_id == associated_user.id)
+                ).all()
+                for provider in user_providers:
+                    db.delete(provider)
+
+                # Deactivate user (can't fully delete due to FK constraints from audit logs, notifications, etc.)
+                associated_user.is_active = False
+
             db.delete(staff)
             db.commit()
-            message = f"Staff member '{staff.full_name}' deleted successfully"
+            message = f"Staff member '{staff.full_name}' permanently deleted"
             if associated_user:
-                message += " (user account deleted)"
+                message += " (user account deactivated and cleaned up)"
             if cancelled_invitations_count > 0:
                 message += f" ({cancelled_invitations_count} invitation record(s) removed)"
         
@@ -831,10 +861,16 @@ def delete_staff(
         db.rollback()
         # Handle the specific foreign key constraint error
         if "ForeignKeyViolation" in str(e) or "violates foreign key constraint" in str(e):
-            raise HTTPException(
-                status_code=400, 
-                detail="Cannot delete staff member due to existing assignments. Use cascade_assignments=true or soft_delete=true to handle dependencies, or remove assignments manually first."
-            )
+            error_detail = str(e)
+            # Provide more specific error messages based on the constraint
+            if "shiftassignment" in error_detail.lower():
+                detail = "Cannot delete staff member due to existing shift assignments. Use cascade_assignments=true to remove assignments, or use soft_delete=true to deactivate instead."
+            elif "swaprequest" in error_detail.lower():
+                detail = "Cannot delete staff member due to existing swap requests. Please cancel pending swaps first or use soft_delete=true to deactivate instead."
+            else:
+                detail = f"Cannot delete staff member due to database dependencies. Use soft_delete=true (recommended) to deactivate instead of deleting."
+
+            raise HTTPException(status_code=400, detail=detail)
         else:
             raise HTTPException(status_code=500, detail=f"Failed to delete staff member: {str(e)}")
 

@@ -279,13 +279,14 @@ class InvitationService:
         
         # Mark invitation as accepted
         invitation.accepted_at = datetime.now(timezone.utc)
-        
+
         self.db.commit()
         self.db.refresh(user)
-        
+
         return {
             "user_id": user.id,
             "staff_id": staff.id,
+            "email": user.email,
             "message": "Account created successfully"
         }
     

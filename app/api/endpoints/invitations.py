@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import uuid
 import logging
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Request
 from sqlmodel import Session, select
 from typing import List, Optional
 
@@ -134,31 +134,80 @@ def get_invitation_by_token(
 from app.core.security import create_access_token
 
 @router.post("/accept")
-def accept_invitation(
+async def accept_invitation(
     request: InvitationAcceptRequest,
+    http_request: Request,
     db: Session = Depends(get_db)
 ):
     """Accept an invitation and create user account"""
     logger.info(f"📝 Accept invitation request received for token: {request.token}")
     service = InvitationService(db)
-    
+
     try:
         result = service.accept_invitation(
             request.token,
             request.signup_method,
             request.password
         )
-        
-        # Generate access token for the new user
-        access_token = create_access_token(subject=str(result["user_id"]))
-        
+
+        # Build user data for JWT and response
+        user = db.get(User, result["user_id"])
+        jwt_extra_data = {
+            "email": user.email,
+            "is_manager": user.is_manager,
+            "tenant_id": str(user.tenant_id)
+        }
+
+        # Add staff details if not a manager
+        if not user.is_manager and result.get("staff_id"):
+            staff = db.get(Staff, result["staff_id"])
+            if staff:
+                jwt_extra_data.update({
+                    "staff_id": str(staff.id),
+                    "facility_id": str(staff.facility_id),
+                    "full_name": staff.full_name
+                })
+
+        # Generate access token with enriched data
+        access_token = create_access_token(
+            subject=str(result["user_id"]),
+            extra_data=jwt_extra_data
+        )
+
+        # Create session for the new user
+        from ...services.session_service import SessionService
+        session_service = SessionService(db)
+
+        client_ip = http_request.client.host if http_request.client else "unknown"
+        user_agent = http_request.headers.get("user-agent", "")
+
+        await session_service.create_session(
+            user_id=result["user_id"],
+            token=access_token,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+
         logger.info(f"✅ Invitation accepted successfully for user: {result.get('email', 'unknown')}")
-        
-        # Return result with token
+
+        # Build user data response (reuse the data we already fetched)
+        user_data = {
+            "sub": str(user.id),
+            "email": user.email,
+            "is_manager": user.is_manager,
+            "is_active": user.is_active,
+            "tenant_id": str(user.tenant_id),
+            "facility_id": jwt_extra_data.get("facility_id"),
+            "staff_id": jwt_extra_data.get("staff_id"),
+            "name": jwt_extra_data.get("full_name", user.email)
+        }
+
+        # Return result with token and user data
         return {
-            **result,
             "access_token": access_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
+            "user": user_data,
+            "message": result.get("message", "Account created successfully")
         }
     except ValueError as e:
         logger.error(f"❌ Failed to accept invitation: {str(e)}")

@@ -23,17 +23,26 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.security = HTTPBearer(auto_error=False)
         
-        # Paths that don't require session validation
+        # Paths that don't require session validation (exact matches)
         self.excluded_paths = {
+            "/api/v1/auth/login",
+            "/api/v1/auth/signup",
+            "/api/v1/auth/forgot-password",
+            "/api/v1/auth/reset-password",
+            "/api/v1/auth/verify-reset-token",
+            "/api/v1/auth/oauth-login",
+            "/api/v1/invitations/accept",
+            "/api/v1/notifications",
             "/v1/auth/login",
-            "/v1/auth/signup", 
+            "/v1/auth/signup",
             "/v1/auth/forgot-password",
             "/v1/auth/reset-password",
             "/v1/auth/verify-reset-token",
+            "/v1/auth/oauth-login",
             "/v1/invitations/accept",
             "/v1/notifications",
             "/docs",
-            "/redoc", 
+            "/redoc",
             "/openapi.json",
             "/health",           # Health checks
             "/metrics",          # Monitoring
@@ -42,6 +51,12 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             "/sitemap.xml",      # SEO crawlers
             "/.well-known/",     # Various discovery protocols
         }
+
+        # Path prefixes that don't require session validation (for paths with dynamic parameters)
+        self.excluded_path_prefixes = [
+            "/api/v1/invitations/verify/",
+            "/v1/invitations/verify/",
+        ]
         
         self.monitoring_paths = {
             "/health",
@@ -72,9 +87,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         is_notification_path = any(request.url.path.startswith(p) for p in self.notification_paths)
         
         # ✅ FIX: Skip middleware completely for excluded paths
-        if (request.url.path in self.excluded_paths or 
-            request.url.path.startswith("/static") or 
-            any(request.url.path.startswith(path) for path in self.monitoring_paths)):
+        if (request.url.path in self.excluded_paths or
+            request.url.path.startswith("/static") or
+            any(request.url.path.startswith(path) for path in self.monitoring_paths) or
+            any(request.url.path.startswith(prefix) for prefix in self.excluded_path_prefixes)):
             response = await call_next(request)
             return response
         
@@ -90,7 +106,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         user_id = None
         try:
             # Validate session for protected routes
-            if request.url.path.startswith("/v1/") and request.method not in ("OPTIONS",):
+            if (request.url.path.startswith("/v1/") or request.url.path.startswith("/api/v1/")) and request.method not in ("OPTIONS",):
                 # For notifications, still require auth but avoid excessive audit noise
                 user_id = await self._validate_session(request, session_service, audit_service, is_monitoring_request)
                 request.state.user_id = user_id
@@ -268,8 +284,13 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         
         # Only log sensitive operations, not every API call
         sensitive_paths = [
+            "/api/v1/staff",
+            "/api/v1/schedules",
+            "/api/v1/facilities",
+            "/api/v1/admin",
+            "/api/v1/reports",
             "/v1/staff",
-            "/v1/schedules", 
+            "/v1/schedules",
             "/v1/facilities",
             "/v1/admin",
             "/v1/reports"
