@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from .notification_service import NotificationService
 from ..models import Schedule, Staff, User, Facility, NotificationType, NotificationPriority
+from ..core.config import get_settings
 
 class ScheduleNotificationHandler:
     """Handles all schedule-related notifications"""
@@ -35,14 +36,20 @@ class ScheduleNotificationHandler:
         facility_name = facility.name if facility else "Your facility"
         
         print(f" Sending schedule notifications to {len(staff_list)} staff members")
-        
+
+        # Get frontend URL for absolute links
+        settings = get_settings()
+
         for staff in staff_list:
             # Find their user account
             user = self.db.exec(
                 select(User).where(User.email == staff.email)
             ).first()
-            
+
             if user:
+                # Build absolute URL for email links
+                action_url = f"{settings.FRONTEND_URL}/schedule/{schedule.id}"
+
                 await self.notification_service.send_notification(
                     notification_type=NotificationType.SCHEDULE_PUBLISHED,
                     recipient_user_id=user.id,
@@ -53,7 +60,7 @@ class ScheduleNotificationHandler:
                     },
                     channels=["IN_APP", "PUSH", "WHATSAPP"],
                     priority=NotificationPriority.HIGH,
-                    action_url=f"/schedule/{schedule.id}",
+                    action_url=action_url,
                     action_text="View Schedule",
                     background_tasks=background_tasks
                 )

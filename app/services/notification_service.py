@@ -841,39 +841,69 @@ class NotificationService:
     
     # ✅ UPDATED: WhatsApp with i18n support
     async def _send_whatsapp_message(
-        self, 
-        notification: Notification, 
+        self,
+        notification: Notification,
         template: Optional[NotificationTemplate],
         template_data: Dict[str, Any]
     ) -> bool:
         """Send WhatsApp message via Twilio with i18n support"""
         user = self.db.get(User, notification.recipient_user_id)
-        if not user or not user.whatsapp_number:
-            print(f"⚠️ No WhatsApp number for user {user.email if user else 'unknown'}")
+        if not user:
+            print(f"⚠️ User not found for notification {notification.id}")
             return False
+
+        # Try to get WhatsApp number from user, fallback to staff phone
+        whatsapp_number = user.whatsapp_number
+
+        if not whatsapp_number:
+            # Try to find staff member and use their phone
+            staff = self.db.exec(
+                select(Staff).where(Staff.email == user.email)
+            ).first()
+
+            if staff and staff.phone:
+                whatsapp_number = staff.phone
+                logger.info(f"📱 Using staff phone number as WhatsApp fallback: {staff.phone}")
+            else:
+                print(f"⚠️ No WhatsApp number or phone for user {user.email}")
+                return False
         
         # Check Twilio configuration
         if not all([settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN, settings.TWILIO_WHATSAPP_NUMBER]):
+            logger.warning(f"⚠️ Twilio WhatsApp not configured. SID: {bool(settings.TWILIO_ACCOUNT_SID)}, Token: {bool(settings.TWILIO_AUTH_TOKEN)}, Number: {bool(settings.TWILIO_WHATSAPP_NUMBER)}")
             print("⚠️ Twilio WhatsApp not configured, skipping WhatsApp message")
             return False
-        
+
         # ✅ UPDATED: Use i18n-aware template rendering
         user_locale = self._get_user_locale(user.id)
-        
+
+        # Debug: Log notification details
+        logger.info(f"📱 Notification details:")
+        logger.info(f"   notification.action_url = {notification.action_url}")
+        logger.info(f"   notification.action_text = {notification.action_text}")
+        logger.info(f"   notification.title = {notification.title}")
+
+        # ✅ Add action_url to template_data so it's available in i18n templates
+        template_data_with_url = {**template_data, "action_url": notification.action_url or "#"}
+
         if template and template.whatsapp_template:
-            whatsapp_message = self._render_template(template.whatsapp_template, template_data, user.id)
+            whatsapp_message = self._render_template(template.whatsapp_template, template_data_with_url, user.id)
         else:
             # Try to get WhatsApp template from i18n
             whatsapp_key = f"notifications.templates.{notification.notification_type.value.lower()}.whatsapp"
             whatsapp_template = i18n_service.resolve_template_key(whatsapp_key, user_locale)
-            
+
             if whatsapp_template != whatsapp_key:  # Found translation
-                whatsapp_message = self._render_template(whatsapp_template, template_data, user.id)
+                whatsapp_message = self._render_template(whatsapp_template, template_data_with_url, user.id)
+                logger.info(f"📱 Using i18n template with action_url={notification.action_url}")
             else:
                 # Create a formatted WhatsApp message
                 whatsapp_message = f"*{notification.title}*\n\n{notification.message}"
-                if notification.action_url:
+                # Use action_url from notification, not template defaults
+                logger.info(f"📱 Building WhatsApp message. action_url={notification.action_url}, is #={notification.action_url == '#'}")
+                if notification.action_url and notification.action_url != "#":
                     whatsapp_message += f"\n\n{notification.action_text or 'View Details'}: {notification.action_url}"
+                    logger.info(f"📱 Added action URL to message")
         
         # ✅ Add PDF attachment link to WhatsApp message
         if notification.data.get("pdf_attachment_url"):
@@ -882,18 +912,32 @@ class NotificationService:
             print(f"📱 Including PDF attachment in WhatsApp: {pdf_url}")
         
         # Ensure phone number has country code
-        phone_number = user.whatsapp_number
+        phone_number = whatsapp_number
+        logger.info(f"📱 Original WhatsApp number: {whatsapp_number}")
+
         if not phone_number.startswith('+'):
             default_cc = getattr(settings, 'DEFAULT_COUNTRY_CODE', '+39')
             phone_number = f"{default_cc}{phone_number}"
-        
+            logger.info(f"📱 Added country code {default_cc}, final number: {phone_number}")
+        else:
+            logger.info(f"📱 Phone number already has country code: {phone_number}")
+
         # Twilio API payload
         payload = {
             "From": f"whatsapp:{settings.TWILIO_WHATSAPP_NUMBER}",
             "To": f"whatsapp:{phone_number}",
             "Body": whatsapp_message
         }
-        
+
+        # Debug logging
+        logger.info(f"📱 Sending WhatsApp via Twilio:")
+        logger.info(f"   User: {user.email}")
+        logger.info(f"   From: whatsapp:{settings.TWILIO_WHATSAPP_NUMBER}")
+        logger.info(f"   To: whatsapp:{phone_number}")
+        logger.info(f"   Account SID: {settings.TWILIO_ACCOUNT_SID[:10]}... (length: {len(settings.TWILIO_ACCOUNT_SID) if settings.TWILIO_ACCOUNT_SID else 0})")
+        logger.info(f"   Auth Token: {'*' * 10}... (length: {len(settings.TWILIO_AUTH_TOKEN) if settings.TWILIO_AUTH_TOKEN else 0})")
+        logger.info(f"   Message preview: {whatsapp_message[:100]}...")
+
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(

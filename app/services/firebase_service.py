@@ -275,6 +275,19 @@ class FirebaseService:
     def _webpush_cfg(action_url: Optional[str]):
         if not action_url:
             return None
+
+        # Firebase requires HTTPS URLs for WebpushFCMOptions
+        # Convert relative URLs to full HTTPS URLs
+        if action_url.startswith('/'):
+            settings = get_settings()
+            # Use frontend URL from settings or default to localhost
+            base_url = getattr(settings, 'FRONTEND_URL', 'https://localhost:3000')
+            action_url = f"{base_url}{action_url}"
+
+        # Only include webpush config if URL is HTTPS
+        if not action_url.startswith('https://'):
+            return None
+
         return messaging.WebpushConfig(
             fcm_options=messaging.WebpushFCMOptions(
                 link=action_url

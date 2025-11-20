@@ -20,9 +20,10 @@ from app.services.scheduler import create_schedule, validate_schedule_constraint
 from app.services.schedule_solver import (
     generate_weekly_schedule, ScheduleConstraints, constraints_from_config
 )
-from app.models import NotificationPriority, NotificationType, Staff, Schedule, ScheduleConfig, Facility, ShiftAssignment, StaffInvitation, User, ZoneAssignment
+from app.models import NotificationPriority, NotificationType, Staff, Schedule, ScheduleConfig, Facility, ShiftAssignment, StaffInvitation, User, ZoneAssignment, FacilityShift, FacilityZone
 from app.deps import get_db, get_current_user
-from ...services.pdf_service import PDFService 
+from ...services.pdf_service import PDFService
+from ...services.puppeteer_pdf_service import PuppeteerPDFService 
 
 from pydantic import BaseModel
 
@@ -379,55 +380,188 @@ async def generate_monthly_schedule(
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Monthly scheduling failed: {str(e)}")
     
-@router.delete("/{schedule_id}")
-async def delete_schedule(
+@router.get("/{schedule_id}/delete-validation")
+async def validate_schedule_deletion(
     schedule_id: UUID,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Delete a schedule and all its assignments"""
-    
+    """
+    Validate if a schedule can be deleted and show impact
+    """
     # Get the schedule
     schedule = db.get(Schedule, schedule_id)
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
-    
+
     # Verify facility access
     facility = db.get(Facility, schedule.facility_id)
     if not facility or facility.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
+    # Get assignment count
+    assignments = db.exec(
+        select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule_id)
+    ).all()
+
+    # Get unique staff count
+    unique_staff = len(set(a.staff_id for a in assignments))
+
+    # Build warnings
+    warnings = []
+    errors = []
+
+    if schedule.is_published:
+        warnings.append(f"This schedule has been published to {unique_staff} staff member(s)")
+        if schedule.published_at:
+            warnings.append(f"Published on {schedule.published_at.strftime('%B %d, %Y at %I:%M %p')}")
+
+    if len(assignments) > 0:
+        warnings.append(f"This will delete {len(assignments)} shift assignment(s)")
+
+    # Check for related data
+    zone_assignments = db.exec(
+        select(ZoneAssignment).where(ZoneAssignment.schedule_id == schedule_id)
+    ).all()
+
+    if len(zone_assignments) > 0:
+        warnings.append(f"This will delete {len(zone_assignments)} zone assignment(s)")
+
+    return {
+        "can_delete": True,  # Managers can always delete schedules
+        "warnings": warnings,
+        "errors": errors,
+        "impact": {
+            "assignments": len(assignments),
+            "zone_assignments": len(zone_assignments),
+            "affected_staff": unique_staff,
+            "is_published": schedule.is_published,
+            "published_at": schedule.published_at.isoformat() if schedule.published_at else None
+        }
+    }
+
+@router.delete("/{schedule_id}")
+async def delete_schedule(
+    schedule_id: UUID,
+    force: bool = False,
+    notify_staff: bool = False,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Delete a schedule and all its assignments
+
+    Parameters:
+    - force: If True, delete even if published (requires manager)
+    - notify_staff: If True and schedule was published, notify staff of deletion
+    """
+
+    # Require manager access
+    if not current_user.is_manager:
+        raise HTTPException(status_code=403, detail="Manager access required to delete schedules")
+
+    # Get the schedule
+    schedule = db.get(Schedule, schedule_id)
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+
+    # Verify facility access
+    facility = db.get(Facility, schedule.facility_id)
+    if not facility or facility.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Check if published and force flag
+    if schedule.is_published and not force:
+        raise HTTPException(
+            status_code=400,
+            detail="This schedule has been published. Use force=true to confirm deletion or unpublish it first."
+        )
+
     try:
-        print(f" Deleting schedule {schedule_id}")
-        
-        # Get assignment count for logging
+        print(f"🗑️  Deleting schedule {schedule_id} (force={force}, notify={notify_staff})")
+
+        # Get affected staff for notifications
         assignments = db.exec(
             select(ShiftAssignment).where(ShiftAssignment.schedule_id == schedule_id)
         ).all()
-        
+
+        affected_staff_ids = list(set(a.staff_id for a in assignments))
         assignment_count = len(assignments)
-        print(f" Found {assignment_count} assignments to delete")
-        
-        # Delete all assignments first
+
+        print(f"📊 Found {assignment_count} assignments affecting {len(affected_staff_ids)} staff members")
+
+        # Delete zone assignments first
+        zone_assignments = db.exec(
+            select(ZoneAssignment).where(ZoneAssignment.schedule_id == schedule_id)
+        ).all()
+
+        for zone_assignment in zone_assignments:
+            db.delete(zone_assignment)
+
+        print(f"🗺️  Deleted {len(zone_assignments)} zone assignments")
+
+        # Delete shift assignments
         for assignment in assignments:
             db.delete(assignment)
-        
-        print(f" Deleted {assignment_count} assignments")
-        
+
+        print(f"✅ Deleted {assignment_count} shift assignments")
+
+        # Store info for notifications before deleting schedule
+        was_published = schedule.is_published
+        week_start = schedule.week_start
+
         # Delete the schedule
         db.delete(schedule)
         db.commit()
-        
-        print(f" Successfully deleted schedule {schedule_id}")
-        
+
+        print(f"✅ Successfully deleted schedule {schedule_id}")
+
+        # Send notifications if requested and was published
+        if notify_staff and was_published and len(affected_staff_ids) > 0:
+            try:
+                notification_service = NotificationService(db)
+
+                for staff_id in affected_staff_ids:
+                    staff = db.get(Staff, staff_id)
+                    if not staff:
+                        continue
+
+                    user = db.exec(select(User).where(User.email == staff.email)).first()
+                    if not user:
+                        continue
+
+                    await notification_service.send_notification(
+                        notification_type=NotificationType.SCHEDULE_UPDATED,
+                        recipient_user_id=user.id,
+                        template_data={
+                            "staff_name": staff.full_name,
+                            "facility_name": facility.name,
+                            "week_start": week_start.strftime("%B %d, %Y"),
+                            "message": "The schedule has been deleted by a manager."
+                        },
+                        channels=["IN_APP", "PUSH"],
+                        priority=NotificationPriority.HIGH
+                    )
+
+                print(f"📧 Sent deletion notifications to {len(affected_staff_ids)} staff members")
+            except Exception as e:
+                print(f"⚠️  Failed to send notifications: {e}")
+                # Don't fail the deletion if notifications fail
+
         return {
             "success": True,
             "schedule_id": str(schedule_id),
             "deleted_assignments": assignment_count,
+            "deleted_zone_assignments": len(zone_assignments),
+            "affected_staff": len(affected_staff_ids),
+            "notifications_sent": notify_staff and was_published,
             "message": f"Schedule and {assignment_count} assignments deleted successfully"
         }
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
+        db.rollback()
         print(f"❌ Failed to delete schedule: {str(e)}")
         import traceback
         traceback.print_exc()
@@ -1989,17 +2123,47 @@ async def publish_schedule(
     pdf_url = None
     if notification_options.get('generate_pdf', False):
         try:
-            pdf_service = PDFService()
-            # Convert assignments and staff to the format expected by PDF service
+            # Use the new Puppeteer-based PDF service for better quality
+            pdf_service = PuppeteerPDFService()
+
+            # Fetch facility shifts and zones
+            facility_shifts = db.exec(
+                select(FacilityShift).where(
+                    FacilityShift.facility_id == facility.id,
+                    FacilityShift.is_active == True
+                )
+            ).all()
+
+            facility_zones = db.exec(
+                select(FacilityZone).where(
+                    FacilityZone.facility_id == facility.id,
+                    FacilityZone.is_active == True
+                )
+            ).all()
+
+            # Convert assignments to dicts with zone_id
             assignment_dicts = []
             for assignment in assignments:
+                # Get zone assignment if exists
+                # ZoneAssignment uses schedule_id, staff_id, day, shift (not assignment_id)
+                zone_assignment = db.exec(
+                    select(ZoneAssignment).where(
+                        ZoneAssignment.schedule_id == assignment.schedule_id,
+                        ZoneAssignment.staff_id == assignment.staff_id,
+                        ZoneAssignment.day == assignment.day,
+                        ZoneAssignment.shift == assignment.shift
+                    )
+                ).first()
+
                 assignment_dicts.append({
                     'staff_id': str(assignment.staff_id),
                     'day': assignment.day,
                     'shift': assignment.shift,
+                    'zone_id': str(zone_assignment.zone_id) if zone_assignment else None,
                     'id': str(assignment.id)
                 })
-            
+
+            # Convert staff to dicts
             staff_dicts = []
             for staff_member in staff_members:
                 staff_dicts.append({
@@ -2007,29 +2171,49 @@ async def publish_schedule(
                     'full_name': staff_member.full_name,
                     'role': staff_member.role
                 })
-            
+
+            # Convert facility to dict
             facility_dict = {
                 'name': facility.name,
-                'facility_type': facility.facility_type,
-                'zones': getattr(facility, 'zones', []),
-                'shifts': [
-                    {'shift_index': 0, 'name': 'Morning', 'start_time': '6:00 AM', 'end_time': '2:00 PM'},
-                    {'shift_index': 1, 'name': 'Afternoon', 'start_time': '2:00 PM', 'end_time': '10:00 PM'},
-                    {'shift_index': 2, 'name': 'Evening', 'start_time': '10:00 PM', 'end_time': '6:00 AM'}
-                ]
+                'facility_type': facility.facility_type
             }
-            
+
+            # Convert shifts to dicts
+            shifts_dicts = []
+            for shift in facility_shifts:
+                shifts_dicts.append({
+                    'shift_index': shift.shift_order,
+                    'shift_name': shift.shift_name,
+                    'start_time': shift.start_time,
+                    'end_time': shift.end_time
+                })
+
+            # Convert zones to dicts
+            zones_dicts = []
+            for zone in facility_zones:
+                zones_dicts.append({
+                    'id': str(zone.id),
+                    'zone_id': zone.zone_id,
+                    'zone_name': zone.zone_name
+                })
+
+            # Generate PDF using Puppeteer service
             pdf_data = await pdf_service.generate_schedule_pdf(
                 schedule=schedule,
                 assignments=assignment_dicts,
                 staff=staff_dicts,
-                facility=facility_dict
+                facility=facility_dict,
+                shifts=shifts_dicts,
+                zones=zones_dicts
             )
-            
-            # Save PDF and get URL (implement your file storage logic)
+
+            # Save PDF and get URL
             pdf_url = await pdf_service.save_pdf(pdf_data, f"schedule_{schedule_id}.pdf")
+            print(f"✅ PDF generated successfully: {pdf_url}")
         except Exception as e:
-            print(f"PDF generation failed: {e}")
+            print(f"❌ PDF generation failed: {e}")
+            import traceback
+            traceback.print_exc()
             pdf_url = None
     
     # Send notifications
@@ -2193,12 +2377,16 @@ async def send_schedule_notification(
         'custom_message': notification_options.get('custom_message', '')
     }
     
+    # Build absolute URL for email links
+    settings = get_settings()
+    action_url = f"{settings.FRONTEND_URL}/schedule?week={schedule.week_start}"
+
     await notification_service.send_notification(
         notification_type=NotificationType.SCHEDULE_PUBLISHED,
         recipient_user_id=user.id,
         template_data=template_data,
         channels=channels,
-        action_url=f"/schedule?week={schedule.week_start}",
+        action_url=action_url,
         action_text="View Schedule",
         background_tasks=background_tasks,
         pdf_attachment_url=pdf_url

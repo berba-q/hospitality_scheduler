@@ -254,6 +254,11 @@ class InvitationService:
             user.is_active = True
             user.tenant_id = invitation.tenant_id  # Update tenant if needed
 
+            # Auto-populate WhatsApp number from staff phone if not already set
+            if not user.whatsapp_number and staff.phone:
+                user.whatsapp_number = staff.phone
+                logger.info(f"📱 Auto-populated WhatsApp number from staff phone: {staff.phone}")
+
             if signup_method == "credentials" and password:
                 from ..core.security import hash_password
                 user.hashed_password = hash_password(password)
@@ -266,7 +271,12 @@ class InvitationService:
                 is_active=True,
                 tenant_id=invitation.tenant_id,
                 hashed_password="",
+                # Auto-populate WhatsApp number from staff phone
+                whatsapp_number=staff.phone if staff.phone else None
             )
+
+            if staff.phone:
+                logger.info(f"📱 Auto-populated WhatsApp number from staff phone: {staff.phone}")
 
             if signup_method == "credentials" and password:
                 from ..core.security import hash_password
