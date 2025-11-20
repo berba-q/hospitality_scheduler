@@ -1063,8 +1063,38 @@ export class ApiClient {
     })
   }
 
-  async deleteSchedule(scheduleId: string) {
-    return this.request<{ success: boolean }>(`/v1/schedule/${scheduleId}`, { method: 'DELETE' })
+  async validateScheduleDeletion(scheduleId: string) {
+    return this.request<{
+      can_delete: boolean
+      warnings: string[]
+      errors: string[]
+      impact: {
+        assignments: number
+        zone_assignments: number
+        affected_staff: number
+        is_published: boolean
+        published_at: string | null
+      }
+    }>(`/v1/schedule/${scheduleId}/delete-validation`)
+  }
+
+  async deleteSchedule(scheduleId: string, options?: { force?: boolean; notifyStaff?: boolean }) {
+    const params = new URLSearchParams()
+    if (options?.force) params.append('force', 'true')
+    if (options?.notifyStaff) params.append('notify_staff', 'true')
+
+    const queryString = params.toString()
+    const url = `/v1/schedule/${scheduleId}${queryString ? `?${queryString}` : ''}`
+
+    return this.request<{
+      success: boolean
+      schedule_id: string
+      deleted_assignments: number
+      deleted_zone_assignments: number
+      affected_staff: number
+      notifications_sent: boolean
+      message: string
+    }>(url, { method: 'DELETE' })
   }
 
   // acessc facility schedules

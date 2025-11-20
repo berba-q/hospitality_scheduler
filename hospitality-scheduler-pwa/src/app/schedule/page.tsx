@@ -2303,7 +2303,50 @@ export default function SchedulePage() {
     try {
       console.log('Deleting schedule:', scheduleId)
 
-      await apiClient.deleteSchedule(scheduleId)
+      // First, validate the deletion
+      const validation = await apiClient.validateScheduleDeletion(scheduleId)
+
+      // Build confirmation message
+      let confirmMessage = t('schedule.deleteScheduleConfirmation', {
+        defaultValue: 'Are you sure you want to delete this schedule?'
+      })
+
+      if (validation.warnings.length > 0) {
+        confirmMessage += '\n\n⚠️ Warnings:\n' + validation.warnings.join('\n')
+      }
+
+      // For published schedules, ask about notifications
+      let notifyStaff = false
+      if (validation.impact.is_published) {
+        confirmMessage += '\n\n' + t('schedule.publishedScheduleWarning', {
+          defaultValue: 'This schedule has been published to staff.'
+        })
+
+        const notifyConfirm = window.confirm(
+          confirmMessage + '\n\n' + t('schedule.notifyStaffQuestion', {
+            defaultValue: 'Do you want to notify affected staff about this deletion?'
+          })
+        )
+
+        if (!notifyConfirm && !window.confirm(t('schedule.confirmDeleteWithoutNotify', {
+          defaultValue: 'Delete without notifying staff?'
+        }))) {
+          return // User canceled
+        }
+
+        notifyStaff = notifyConfirm
+      } else {
+        // Simple confirmation for unpublished schedules
+        if (!window.confirm(confirmMessage)) {
+          return
+        }
+      }
+
+      // Delete the schedule with appropriate options
+      await apiClient.deleteSchedule(scheduleId, {
+        force: validation.impact.is_published,
+        notifyStaff
+      })
 
       // Remove from local state
       setSchedules(schedules.filter(s => s.id !== scheduleId))
@@ -2314,10 +2357,24 @@ export default function SchedulePage() {
         setUnsavedChanges(false)
       }
 
-      toast.success(t('schedule.schedule') + ' ' + t('common.deletedSuccessfully'))
+      const successMessage = notifyStaff
+        ? t('schedule.scheduleDeletedWithNotifications', {
+            defaultValue: 'Schedule deleted and staff notified'
+          })
+        : t('schedule.schedule') + ' ' + t('common.deletedSuccessfully')
+
+      toast.success(successMessage)
     } catch (error) {
       console.error('Failed to delete schedule:', error)
-      toast.error(t('common.failedToDelete') + ' schedule')
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+      if (errorMessage.includes('force=true')) {
+        toast.error(t('schedule.publishedScheduleRequiresForce', {
+          defaultValue: 'This published schedule requires confirmation to delete'
+        }))
+      } else {
+        toast.error(t('common.failedToDelete') + ' schedule')
+      }
     }
   }
 

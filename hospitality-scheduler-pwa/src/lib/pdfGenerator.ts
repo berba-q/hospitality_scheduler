@@ -3,25 +3,6 @@ import autoTable from 'jspdf-autotable'
 import { Schedule, Staff } from '@/types/schedule'
 import { Facility, FacilityShift, FacilityZone } from '@/types/facility'
 
-// Define the UserOptions type locally since it's not exported from jspdf-autotable
-interface UserOptions {
-    startY?: number
-    head?: string[][]
-    body?: (string | { content: string; styles?: { fillColor?: [number, number, number] } })[][]
-    theme?: 'striped' | 'grid' | 'plain'
-    headStyles?: {
-        fillColor?: [number, number, number]
-        textColor?: [number, number, number]
-        fontSize?: number
-        fontStyle?: 'bold' | 'normal' | 'italic'
-        halign?: 'left' | 'center' | 'right'
-    }
-    styles?: Record<string, unknown>
-    columnStyles?: Record<string, unknown>
-    didDrawPage?: (data: { settings: { margin: { left: number } }; doc: jsPDF }) => void
-    margin?: { top: number }
-}
-
 export const generateSchedulePDF = (
     schedule: Schedule,
     facility: Facility,
@@ -139,7 +120,7 @@ export const generateSchedulePDF = (
         },
         // Add footer with page numbers
         didDrawPage: (data: { settings: { margin: { left: number } }; doc: jsPDF }) => {
-            const str = 'Page ' + (doc as any).internal.getNumberOfPages()
+            const str = `Page ${doc.getNumberOfPages()}`
             doc.setFontSize(10)
             const pageSize = doc.internal.pageSize
             const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight()
