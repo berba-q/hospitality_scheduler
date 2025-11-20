@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule - {{ facility_name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @page {
+            size: A4 landscape;
+            margin: 15mm;
+        }
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 10pt;
+            color: #282828;
+            line-height: 1.4;
+        }
+
+        .header {
+            text-align: left;
+            margin-bottom: 25px;
+        }
+
+        .header h1 {
+            font-size: 22pt;
+            color: #282828;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .header h2 {
+            font-size: 14pt;
+            color: #646464;
+            margin-bottom: 4px;
+            font-weight: normal;
+        }
+
+        .header .meta {
+            font-size: 10pt;
+            color: #646464;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            page-break-inside: auto;
+        }
+
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+
+        th {
+            background-color: #4285F4;
+            color: white;
+            padding: 10px 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 10pt;
+            border: 1px solid #ddd;
+        }
+
+        td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 9pt;
+        }
+
+        td:first-child {
+            text-align: left;
+            font-weight: bold;
+            width: 140px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .shift-info {
+            display: block;
+            margin: 2px 0;
+        }
+
+        .zone-info {
+            display: block;
+            font-size: 8pt;
+            color: #666;
+            font-style: italic;
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10pt;
+            color: #666;
+            page-break-inside: avoid;
+        }
+
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ facility_name }}</h1>
+        <h2>Weekly Schedule: {{ week_start_formatted }} - {{ week_end_formatted }}</h2>
+        <div class="meta">Generated on: {{ generated_date }}</div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Staff Member</th>
+                {% for date in date_headers %}
+                <th>{{ date }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for staff in staff_list %}
+            <tr>
+                <td>{{ staff.full_name }}</td>
+                {% for day in range(7) %}
+                <td>
+                    {% if staff.id in assignments_by_staff and day in assignments_by_staff[staff.id] %}
+                        {% for assignment in assignments_by_staff[staff.id][day] %}
+                        <span class="shift-info">{{ assignment.shift_name }}</span>
+                        {% if assignment.zone_name %}
+                        <span class="zone-info">[{{ assignment.zone_name }}]</span>
+                        {% endif %}
+                        {% endfor %}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Page <span class="page-number"></span>
+    </div>
+</body>
+</html>
