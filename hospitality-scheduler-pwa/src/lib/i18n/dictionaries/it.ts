@@ -22,7 +22,7 @@ export const it = {
     signing: 'Accesso in corso...',
     notSigned: 'Non autenticato',
     welcomeBack: 'Bentornato',
-    signInToManage: 'Accedi per gestire la tua pianificazione ospitalità',
+    signInToManage: 'Accedi per gestire la tua pianificazione',
     signWithCredentials: 'Accedi con le tue credenziali',
     invalidCredentials: 'Email o password non validi',
     loginFailed: 'Accesso fallito. Riprova.',
@@ -66,7 +66,7 @@ export const it = {
     tokenVerificationFailed: "Verifica del token di ripristino fallita",
     verifyingResetLink: "Verifica del link di ripristino...",
     requestNewResetLink: "Richiedi nuovo link di ripristino",
-    
+
     // Sign up
     signUp: "Registrati",
     signUpTitle: "Crea il tuo account",
@@ -87,7 +87,7 @@ export const it = {
     emailVerificationRequired: "Verifica email richiesta",
     checkEmailVerification: "Controlla la tua email e clicca sul link di verifica per attivare il tuo account.",
     resendVerification: "Reinvia email di verifica",
-    
+
     // Account Linking
     accountLinking: "Collegamento account",
     accountsLinked: "Account collegati con successo",
@@ -133,10 +133,18 @@ export const it = {
     unableToUnlinkAccount: "Impossibile scollegare l'account. Riprova più tardi.",
     emailMismatchError: "Impossibile collegare gli account: Email non corrispondente. Il tuo account Google ({{email}}) non corrisponde al tuo account di sistema. Contatta il tuo amministratore.",
     unableToLinkAccounts: "Impossibile collegare gli account. Riprova più tardi.",
-    
+
     // Development notes
     developmentNote: "Nota di Sviluppo",
     emailMatchRequirement: "Il collegamento account richiede che la tua email Gmail corrisponda al tuo account di sistema ({{systemEmail}}). Se le email non corrispondono, il collegamento fallirà e dovrai contattare il tuo amministratore.",
+
+    // New Signup Page Keys
+    manageYourStaff: "Gestisci il tuo personale con sicurezza.",
+    joinThousands: "Unisciti a migliaia di aziende che si affidano a Schedula per una pianificazione efficiente e senza stress.",
+    allRightsReserved: "Tutti i diritti riservati.",
+    passwordStrengthWeak: "Password debole",
+    passwordStrengthMedium: "Password media",
+    passwordStrengthStrong: "Password forte",
   },
 
   invitations: {
@@ -211,7 +219,7 @@ export const it = {
     hide: 'Nascondi',
     showAll: 'Mostra Tutto',
     hideAll: 'Nascondi Tutto',
-    
+
     // Azioni di selezione
     select: 'Seleziona',
     selected: 'Selezionata',
@@ -220,7 +228,7 @@ export const it = {
     clearAll: 'Cancella Tutto',
     clearSelection: 'Cancella Selezione',
     clearFilters: 'Cancella Filtri',
-    
+
     // ============================================================================
     // TERMINI DI STATO COMUNI (riutilizzabili)
     // ============================================================================
@@ -256,7 +264,7 @@ export const it = {
     weekOf: 'Settimana del',
     schedulesShown: 'pianificazioni mostrate',
     of: 'di',
-    
+
     // ============================================================================
     // TERMINI GENERICI (riutilizzabili tra domini)
     // ============================================================================
@@ -315,7 +323,7 @@ export const it = {
     zone: 'Zona',
     zones: 'Zone',
     roles: 'Ruoli',
-    
+
     // ============================================================================
     // ELEMENTI UI COMUNI
     // ============================================================================
@@ -336,17 +344,17 @@ export const it = {
     dropFile: 'Rilascia il file qui',
     dropFileorChoose: 'Rilascia il file qui or premi Scegli File per caricare il tuo file.',
     releaseFile: 'Rilascia per importare dati dal tuo file',
-    fileSupport: 'Supporta file .xlsx e .csv fino a 10MB', 
+    fileSupport: 'Supporta file .xlsx e .csv fino a 10MB',
     uploadExcelOrCsv: 'Si prega di caricare un file Excel (.xlsx) o CSV.',
-    
-    
+
+
     // Elementi modulo
     required: 'Obbligatorio',
     optional: 'Opzionale',
     placeholder: 'Inserisci...',
     chooseFile: 'Scegli File',
     uploadFile: 'Carica File',
-    
+
     // ============================================================================
     // MESSAGGI E STATI COMUNI
     // ============================================================================
@@ -365,13 +373,13 @@ export const it = {
     conflictsAttention: 'conflitti che servono attenzione',
     override: 'Sovrascrivere i conflitti',
     actionCannotBeUndone: 'Questo azione non puo essere annullata',
-    
+
     // Messaggi di successo
     savedSuccessfully: 'Salvato con successo',
     createdSuccessfully: 'Creato con successo',
     updatedSuccessfully: 'Aggiornato con successo',
     deletedSuccessfully: 'Eliminato con successo',
-    
+
     // Messaggi di errore
     failed: 'Fallito',
     failedToLoad: 'Impossibile caricare',
@@ -381,7 +389,7 @@ export const it = {
     failedToDelete: 'Impossibile eliminare',
     somethingWentWrong: 'Qualcosa è andato storto',
     tryAgain: 'Riprova',
-    
+
     // Messaggi di conferma
     areYouSure: 'Sei sicuro?',
     areYouSureDelete: 'Sei sicuro di voler eliminare',
@@ -397,7 +405,7 @@ export const it = {
     errorLoadingData: 'Impossibile caricare i dati di disponibilità del personale',
     past: 'Passato',
     upcoming: 'Prossimo',
-    
+
     // Stati generici
     empty: 'Vuoto',
     full: 'Pieno',
@@ -406,7 +414,7 @@ export const it = {
     none: 'Nessuno',
     all: 'Tutto',
     issues: 'Problemi',
-    
+
     // ============================================================================
     // TERMINI TEMPORALI
     // ============================================================================
@@ -425,12 +433,12 @@ export const it = {
     // ============================================================================
     monday: 'Lunedì',
     tuesday: 'Martedì',
-    wednesday: 'Mercoledì', 
+    wednesday: 'Mercoledì',
     thursday: 'Giovedì',
     friday: 'Venerdì',
     saturday: 'Sabato',
     sunday: 'Domenica',
-    
+
     // Short day names (for calendar headers, mobile views, etc.)
     mon: 'Lun',
     tue: 'Mar',
@@ -439,38 +447,38 @@ export const it = {
     fri: 'Ven',
     sat: 'Sab',
     sun: 'Dom',
-  
-  // ============================================================================
-  // TIME PERIODS (reusable across components)
-  // ============================================================================
+
+    // ============================================================================
+    // TIME PERIODS (reusable across components)
+    // ============================================================================
     day: 'Giorno',
     week: 'Settimana',
-    month: 'Mese', 
+    month: 'Mese',
     year: 'Anno',
     years: 'anni',
     lastMonth: 'Mese Scorso',
-  
-  // ============================================================================
-  // SHIFTS (reusable across schedule, swaps, staff components)
-  // ============================================================================
+
+    // ============================================================================
+    // SHIFTS (reusable across schedule, swaps, staff components)
+    // ============================================================================
     morning: 'Mattina',
     afternoon: 'Pomeriggio',
-    evening: 'Sera', 
+    evening: 'Sera',
     night: 'Notte',
-  
+
     // Shift references
     morningShift: 'Turno del Mattino',
     afternoonShift: 'Turno del Pomeriggio',
     eveningShift: 'Turno della Sera',
     nightShift: 'Turno di Notte',
-    
+
     // Unità di tempo
     hours: 'ore',
     minutes: 'minuti',
     days: 'giorni',
     weeks: 'settimane',
     months: 'mesi',
-    
+
     // ============================================================================
     // NUMERI E QUANTITÀ
     // ============================================================================
@@ -480,7 +488,7 @@ export const it = {
     average: 'Media',
     minimum: 'Minimo',
     maximum: 'Massimo',
-    
+
     // ============================================================================
     // TERMINI STRUTTURA (generici, riutilizzabili)
     // ============================================================================
@@ -491,7 +499,7 @@ export const it = {
     detailedFacility: 'Analisi Dettagliata Della Struttura',
     systemPerformance: 'Prestazioni del sistema',
     analytics: 'Analytica',
-    
+
     // ============================================================================
     // FRASI RIUTILIZZABILI
     // ============================================================================
@@ -502,21 +510,21 @@ export const it = {
     notSet: 'Non impostato',
     notSpecified: 'Non specificato',
     noAddress: 'Nessun indirizzo',
-    
+
     // Aiuti di navigazione
     goBack: 'Torna indietro',
     backToDashboard: 'Torna alla Dashboard',
-    
+
     // Permessi/accesso generici
     accessDenied: 'Accesso Negato',
     permissionRequired: 'Permesso richiesto',
     unauthorized: 'Non autorizzato',
-    
+
     // Assegnazioni/allocazioni generiche
     assigned: 'Assegnato',
     unassigned: 'Non Assegnato',
     assignments: 'Assegnazioni',
-    
+
     // ============================================================================
     // TERMINI LEGACY (da pulire/spostare)
     // ============================================================================
@@ -552,12 +560,12 @@ export const it = {
     swaps: 'Scambi',
     settings: 'Impostazioni',
     profile: 'Il Mio Profilo',
-    
+
     // Azioni di navigazione
     manageSchedules: 'Gestisci Pianificazioni',
     manageStaff: 'Gestisci Personale',
     manageFacilities: 'Gestisci Strutture',
-    
+
     // Identità app
     hospitalityScheduler: 'Schedula',
     welcomeToHospitalityScheduler: 'Benvenuto in Schedula',
@@ -580,7 +588,7 @@ export const it = {
     weekOverview: 'Panoramica Settimanale',
     upcomingShifts: 'Prossimi Turni',
     teamInsights: 'Insights del Team',
-    
+
     // Azioni rapide (specifiche dashboard)
     viewMySchedule: 'Visualizza la Mia Pianificazione',
     createAndEditSchedules: 'Crea e modifica pianificazioni del personale',
@@ -588,7 +596,7 @@ export const it = {
     approveAndManageChanges: 'Approva e gestisci i cambiamenti di turno',
     checkUpcomingShifts: 'Controlla i tuoi prossimi turni',
     checkBackSoon: 'Torna presto per nuovi incarichi',
-    
+
     // Statistiche e metriche
     teamPerformance: 'Prestazioni del Team',
     teamHelped: 'Team Aiutato',
@@ -598,7 +606,7 @@ export const it = {
     currentStreak: 'Serie Attuale',
     avgResponseTime: 'Tempo di Risposta Medio',
     teamCoverage: 'Copertura del Team',
-    
+
     // Stati dashboard
     noUpcomingShifts: 'Nessun turno programmato',
     noRecentSwapRequests: 'Nessuna richiesta di scambio recente',
@@ -628,7 +636,7 @@ export const it = {
     noScheduleForThisWeek: 'Nessuna pianificazione per questa settimana',
     noScheduleCreatedYet: 'Non è stata ancora creata una pianificazione per questa settimana',
     generateNewScheduleOrAssign: 'Genera una nuova pianificazione o assegna manualmente il personale ai turni',
-    
+
     // Viste pianificazione
     viewPeriod: 'Periodo di Visualizzazione',
     daily: 'Giornaliero',
@@ -671,7 +679,7 @@ export const it = {
     distributeHoursEvenly: 'Distribuisci ore uniformemente',
     allowOvertime: 'Permetti Straordinari',
     permitOvertimeScheduling: 'Permetti pianificazione straordinari',
-    
+
     // Coverage and optimization
     coveragePriority: 'Priorità Copertura',
     minimalCoverage: 'Copertura Minima',
@@ -681,24 +689,24 @@ export const it = {
     higherValuesIncrease: 'Valori più alti aumentano la preferenza di personale per quel turno',
     prioritizeSkillMatching: 'Priorità Corrispondenza Competenze',
     matchStaffSkillsToZone: 'Abbina competenze del personale ai requisiti delle zone',
-    
+
     // Zone configuration
     staffPerShift: 'Personale per Turno',
     coverage: 'Copertura',
     availableStaff: 'Personale Disponibile',
     requiredRoles: 'Ruoli Richiesti',
     allRolesAccepted: 'Tutti i ruoli accettati',
-    
+
     // Preview and feasibility
     totalAssignmentsNeeded: 'Assegnazioni Totali Necessarie',
     feasibility: 'Fattibilità',
     optimal: 'Ottimale',
     challenging: 'Impegnativo',
     zoneCoverageSummary: 'Riepilogo Copertura Zone',
-    
+
     // AI description
     aiScheduleDescription: 'Il sistema assegnerà automaticamente il personale alle zone basandosi su ruoli, competenze e i vincoli configurati. Il personale sarà distribuito ottimalmente nei periodi {periodType} con bilanciamento intelligente del carico di lavoro.',
-    
+
     // Configuration modal specific
     timeHoursConstraints: 'Vincoli di Tempo e Ore',
     staffingRequirements: 'Requisiti del Personale',
@@ -723,7 +731,7 @@ export const it = {
     noUnavailabilityFound: 'Nessuna indisponibilità trovata per il periodo selezionato.',
     period: 'periodo',
     showingStaffWith: 'Mostrando {{staffCount}} membri del personale con {{periodCount}} periodi di indisponibilità',
-    
+
     // Field labels
     minimumRestHours: 'Ore di Riposo Minime',
     hoursBetweenShifts: 'Ore tra i turni',
@@ -732,11 +740,11 @@ export const it = {
     defaultMaxWeeklyHours: 'Ore Settimanali Massime Predefinite',
     whenStaffMaxHoursNotSet: 'Quando le ore massime del personale non sono impostate',
     requireManagerOnEveryShift: 'Richiedi manager in ogni turno',
-    
+
     // Shift requirements
     minimumSkillLevel: 'Livello Minimo di Competenza',
     clickRolesToRequire: 'Clicca sui ruoli per richiederli per questo turno',
-    
+
     // Shift names and times
     morningShift: 'Turno del Mattino',
     afternoonShift: 'Turno del Pomeriggio',
@@ -744,11 +752,11 @@ export const it = {
     morningTime: '6:00 - 14:00',
     afternoonTime: '14:00 - 22:00',
     eveningTime: '22:00 - 6:00',
-    
+
     // Status messages
     configurationDescription: 'Tutti i vincoli sono configurati correttamente e verranno applicati durante la generazione della pianificazione',
-    
-    
+
+
     // Schedule Status
     empty: 'Vuoto',
     partial: 'Parziale',
@@ -767,27 +775,27 @@ export const it = {
     shiftReminders: 'Promemoria Turni',
     upcomingShifts: 'Prossimi Turni',
     unknownShift: 'Turno Sconosciuto',
-    
+
     // Creazione/gestione pianificazione
     createSchedule: 'Crea Pianificazione',
     publishSchedule: 'Pubblica Pianificazione',
     publishChanges: 'Pubblica Modifiche',
     smartGenerate: 'Generazione Intelligente',
-    
+
     // Stati pianificazione
     fullyStaffed: 'Completamente Dotato di Personale',
     partiallyStaffed: 'Parzialmente Dotato di Personale',
     scheduleExists: 'La pianificazione esiste',
-    
+
     // Specifico AI/Automazione
     aiPoweredScheduling: 'Pianificazione basata su AI con ottimizzazione per zone',
     poweredGeneration: 'Generazione Basata su AI',
-    
+
     // Strutture/zone specifiche pianificazione
     facilityAndZones: 'Struttura e Zone',
     activeZones: 'Zone Attive',
     zoneBasedStaff: 'Assegnazione Personale Basata su Zone',
-    
+
     // Assegnazione personale (contesto pianificazione)
     assignStaff: 'Assegna personale',
     maxStaff: 'Personale Massimo',
@@ -847,13 +855,13 @@ export const it = {
     unknownDate: 'Data sconosciuta',
     weekRange: 'Periodo Settimanale',
     dateRange: 'Periodo Date',
-    
+
     // Additional UI Elements
     searchSchedules: 'Cerca pianificazioni per data...',
     allStatus: 'Tutti gli Stati',
     noSchedulesFound: 'Nessuna pianificazione trovata',
     tryAdjustingFilters: 'Prova ad aggiustare la ricerca o i filtri',
-    
+
     // Smart Generation Options
     useConstraints: 'Usa Vincoli',
     autoAssignByZone: 'Assegnazione Automatica per Zona',
@@ -866,32 +874,32 @@ export const it = {
     afternoonMultiplier: 'Moltiplicatore Pomeriggio',
     eveningMultiplier: 'Moltiplicatore Sera',
     allConstraintsAre: 'Tutti i vincoli sono configurati correttamente e verranno applicati durante la generazione della pianificazione',
-    
+
     // Zone Management
     requiresManager: 'Richiede Manager',
-    
+
     // Additional Actions
     resetChanges: 'Reimposta Modifiche',
     resetDefaults: 'Ripristina Impostazioni',
-    
+
     // Messages and Confirmations
     areYouSure: 'Sei sicuro di voler eliminare la pianificazione per la settimana?',
     deleteScheduleWarning: 'Questa azione non può essere annullata.',
     scheduleDeletedSuccessfully: 'Pianificazione eliminata con successo',
-    
+
     // Period Types
     periodType: 'Tipo Periodo',
     generateDaily: 'Genera Giornaliero',
     generateWeekly: 'Genera Settimanale',
     generateMonthly: 'Genera Mensile',
-    
+
     // Messaggi specifici pianificazione
     yourManagerHasntCreated: 'Il tuo manager non ha ancora creato una pianificazione per questo periodo.',
     viewYourWorkSchedule: 'Visualizza la tua pianificazione di lavoro e richiedi scambi di turno',
     chooseFacilityFromDropdown: 'Scegli una struttura dal menu a tendina sopra per visualizzare e gestire le pianificazioni',
     loadingScheduleData: 'Caricamento dati pianificazione...',
     deleteScheduleConfirmation: 'Sei sicuro di voler eliminare la pianificazione per la settimana del {weekDate}?\n\nQuesto rimuoverà permanentemente {assignmentCount} assegnazioni e non può essere annullato.',
-    
+
     // Integrazione scambi (contesto pianificazione)
     requestSwap: 'Richiedi Scambio',
     mySwapRequests: 'Le Mie Richieste di Scambio',
@@ -905,15 +913,15 @@ export const it = {
 
     // You indicator
     you: 'Tu',
-    
+
     // Business Rules
     allowOvertimeScheduling: 'Permetti pianificazione straordinari',
     applyWeekendRestrictions: 'Applica restrizioni weekend',
-    
+
     // Swap Integration
     swapActivity: 'Attività scambi',
     swapAssignments: 'Assegnazioni Scambi',
-    
+
     // Additional management terms
     allFacilityAssignments: 'Tutte le assegnazioni della struttura',
     assignmentsAndCannot: 'assegnazioni e non può essere annullata',
@@ -977,7 +985,7 @@ export const it = {
     deleteConfirmation: 'Sei sicuro di voler eliminare {{name}}? Questa azione non può essere annullata.',
     deletingWillCause: 'L\'eliminazione di questo personale:',
     removeFromSchedules: 'Rimuovili da qualsiasi programma',
-    cancelPendingSwaps: 'Annulla eventuali scambio in sospeso', 
+    cancelPendingSwaps: 'Annulla eventuali scambio in sospeso',
     deleteAvailability: 'Cancella loro registi di disponibilita',
     uploadingFile: 'Caricamento File...',
     readingExcelFile: 'Lettura del tuo file Excel',
@@ -999,8 +1007,8 @@ export const it = {
     allZones: 'Tutte le Zone',
     dragDropAssignment: 'Assegnazione Trascina e Rilascia',
     dragStaffToCalendar: 'Trascina i membri del personale da questo pannello e rilasciali sugli slot del calendario per creare assegnazioni',
-    
-      
+
+
     // File import specific
     expectedExcelFormat: 'Formato Excel Previsto:',
     columnNamesFlexible: 'I nomi delle colonne sono flessibili - rileveremo automaticamente le varianti comuni',
@@ -1010,7 +1018,7 @@ export const it = {
     validRecords: 'Record Validi',
     invalidRecords: 'Record Non Validi',
     totalRecords: 'Record Totali',
-    
+
     // Action buttons
     chooseDifferentFile: 'Scegli File Diverso',
     importStaffMembers: 'Importa {{count}} Membri del Personale',
@@ -1029,23 +1037,23 @@ export const it = {
     sousChef: 'Sous Chef',
     uniqueRoles: 'Ruoli Unici',
     managerOnlyAccess: 'Solo Accesso Manager',
-    
+
     // Azioni specifiche personale
     searchStaff: 'Cerca personale...',
     searchStaffByNameRole: 'Cerca il personale per nome o ruolo',
     showInactiveStaff: 'Mostra personale inattivo',
     addNewStaff: 'Aggiungi Nuovo Membro del Personale',
-    
+
     // Stati personale
     activeStaffMember: 'Membro del personale attivo',
     noStaffFound: 'Nessun personale trovato',
-    
+
     // Gestione personale
     workDetails: 'Dettagli Lavoro',
     roleSkills: 'Ruolo e Competenze',
     skillLevel: 'Livello di Competenza',
     maxWeeklyHours: 'Ore Settimanali Massime',
-    
+
     // Prestazioni personale
     staffPerformanceLeaderboard: 'Classifica Prestazioni Personale',
     teamPlayer: 'Giocatore di Squadra',
@@ -1086,7 +1094,7 @@ export const it = {
     basicInformation: 'Informazioni di Base',
     addNewStaffMember: 'Aggiungi Nuovo Membro del Personale',
     adding: 'Aggiunta...',
-    
+
     // Success/Error messages for ADDING with templates
     staffAddedSuccessfully: '{{name}} aggiunto con successo!',
     failedAddStaff: 'Impossibile aggiungere il membro del personale',
@@ -1118,11 +1126,11 @@ export const it = {
     skillExpert: 'Esperto',
     levelNumber: 'Livello {{level}}',
     hours: 'Ore settimanali',
-    
+
     // Placeholders and selects
     customRolePlaceholder: 'O inserisci ruolo personalizzato...',
     selectFacility: 'Seleziona una struttura',
-    
+
     // Status and actions
     updating: 'Aggiornamento...',
     noChanges: 'Nessuna Modifica',
@@ -1155,7 +1163,7 @@ export const it = {
     },
     failedToValidateDeletion: 'Impossibile validare l\'eliminazione',
     unableToValidateDeletion: 'Impossibile validare l\'eliminazione',
-    chooseAction: 'Scegli Azione', 
+    chooseAction: 'Scegli Azione',
     removesAssignmentsAndDeactivates: 'Rimuove {{count}} assegnazioni future e disattiva il personale',
     historyPreservedShiftsCleared: 'Cronologia preservata • Turni futuri cancellati • ⚠️ I turni saranno non assegnati',
     advancedOptions: 'Opzioni Avanzate',
@@ -1177,7 +1185,7 @@ export const it = {
     invitationExpiry: 'Validità Invito',
     invitationExpiryOptions: {
       '24': '24 ore',
-      '72': '3 giorni', 
+      '72': '3 giorni',
       '168': '1 settimana (raccomandato)',
       '336': '2 settimane',
       '720': '30 giorni'
@@ -1206,26 +1214,26 @@ export const it = {
     invitationsSentComplete: '{{count}} inviti inviati con successo!',
     invitationsFailedToSend: 'Impossibile inviare alcuni inviti',
     invitationSendError: 'Errore nell\'invio degli inviti: {{error}}',
-    
+
     // Staff without email handling
     staffWithoutEmail: 'Personale Senza Email',
     staffWithoutEmailCount: '{{count}} membri del personale non hanno indirizzi email e non riceveranno inviti',
     staffWithoutEmailList: 'Personale senza email: {{names}}',
-    
+
     // Invitation status messages
     invitationAlreadyExists: 'Alcuni membri del personale hanno già inviti in sospeso',
     invitationDuplicateWarning: 'Saltati {{count}} membri del personale che hanno già inviti attivi',
-    
+
     // Invitation management
     manageInvitations: 'Gestisci Inviti',
     viewInvitationStatus: 'Visualizza Stato Invito',
     resendInvitation: 'Reinvia Invito',
     cancelInvitation: 'Annulla Invito',
-    
+
     // Import with invitations combined
     importAndInvite: 'Importa e Invita Personale',
     importCompleteNextStep: 'Importazione Completata - Prossimo: Invia Inviti',
-    
+
     // Success/Error messages with templates
     fillRequiredFields: 'Si prega di compilare tutti i campi obbligatori',
     noChangesToSave: 'Nessuna modifica da salvare',
@@ -1253,17 +1261,17 @@ export const it = {
     staffAutoAssignedByRoles: 'Il personale sarà automaticamente assegnato in base ai loro ruoli e requisiti di zona',
     zonesSelected: '{{count}} zona selezionate',
 
-    
+
     // Descrizioni delle pagine
     configureFacilitiesDescription: 'Configura strutture, turni, ruoli e zone operative',
-    
+
     // Istruzioni per l\'importazione
     dragDropInstructions: 'Trascina e rilascia file Excel ovunque per importare strutture istantaneamente. Colonne supportate: Nome, Indirizzo, Tipo (Hotel/Ristorante/Resort/Cafe/Bar).',
-    
+
     // Ricerca e filtri
     searchFacilities: 'Cerca strutture per nome o indirizzo...',
     allTypes: 'Tutti i Tipi',
-    
+
     // Tipi di struttura
     hotel: 'Hotel',
     restaurant: 'Ristorante',
@@ -1271,14 +1279,14 @@ export const it = {
     cafe: 'Caffè',
     bar: 'Bar',
     barLounge: 'Bar/Lounge',
-    
+
     // Descrizioni dei tipi di struttura
     fullServiceHotel: 'Hotel a servizio completo con reception, pulizie e servizi per gli ospiti',
     largeResortProperty: 'Struttura resort di grandi dimensioni con servizi e amenità multiple',
     diningEstablishmentWith: 'Locale di ristorazione con operazioni di cucina, servizio e bar',
     barLoungeWith: 'Bar o lounge con servizio bevande e cibo leggero',
     coffeeShopCasual: 'Caffetteria o ristorazione casual con servizio al banco',
-    
+
     // Nomi delle zone
     frontDesk: 'Reception',
     housekeeping: 'Pulizie',
@@ -1296,7 +1304,7 @@ export const it = {
     maintenance: 'Manutenzione',
     serviceCounter: 'Banco Servizi',
     prepArea: 'Area Preparazione',
-    
+
     // Nomi dei turni
     dayShift: 'Turno Diurno',
     eveningShift: 'Turno Serale',
@@ -1312,7 +1320,7 @@ export const it = {
     lateNight: 'Tarda Notte',
     morning: 'Mattina',
     afternoon: 'Pomeriggio',
-    
+
     // Ruoli comuni
     manager: 'Manager',
     frontDeskAgent: 'Addetto Reception',
@@ -1331,32 +1339,32 @@ export const it = {
     baker: 'Panettiere',
     server: 'Cameriere',
     dj: 'DJ',
-    
+
     // Statistiche e conteggi
     staff: 'Personale',
     shifts: 'Turni',
     schedules: 'Programmi',
     activeZones: 'Zone Attive',
     activeFacilities: 'Strutture Attive',
-    
+
     // Azioni di gestione
     roles: 'Ruoli',
     zones: 'Zone',
-    
+
     // Gestione zone
     zonesDepartments: 'Zone e Dipartimenti',
     unnamedZone: 'Zona Senza Nome',
-    
+
     // Gestione ruoli
     defaultRoles: 'Ruoli Predefiniti',
     addNewRole: 'Aggiungi Nuovo Ruolo',
-    
+
     // Stati vuoti
     noFacilitiesYet: 'Nessuna struttura ancora',
     noFacilitiesFound: 'Nessuna struttura trovata',
     getStartedMessage: 'Inizia aggiungendo la tua prima struttura o importando da Excel',
     tryAdjustingFilters: 'Prova ad adattare la ricerca o i filtri',
-    
+
     // Processo di importazione
     dropToImport: 'Rilascia per Importare Strutture',
     releaseToImport: 'Rilascia per importare strutture da file Excel/CSV',
@@ -1365,27 +1373,27 @@ export const it = {
     processingFacilities: 'Elaborazione strutture...',
     importComplete: 'Importazione completata!',
     successfullyImported: '{{count}} strutture importate con successo',
-    
+
     // Caricamento file
     pleaseUploadExcel: 'Carica un file Excel (.xlsx) o CSV',
     failedToImportCheck: 'Impossibile importare strutture. Controlla il formato del file.',
-    
+
     // Messaggi di autorizzazione
     managerPermissionsRequired: 'Permessi manager richiesti.',
     checkingPermissions: 'Controllo permessi...',
     loadingFacilities: 'Caricamento strutture...',
     accessDeniedMessage: 'Hai bisogno dei permessi manager per accedere alla gestione strutture.',
-    
+
     // Conferma eliminazione
     areYouSureDelete: 'Sei sicuro di voler eliminare "{{name}}"? Questa azione non può essere annullata.',
     deletedSuccessfully: '{{name}} eliminato con successo',
     failedToDeleteFacility: 'Impossibile eliminare la struttura',
-    
+
     // Altri messaggi strutture
     briefDescriptionThe: 'Breve descrizione della struttura...',
     more: 'altro',
     unnamedFacility: 'Struttura Senza Nome',
-    
+
     // Etichette modali e form
     facilityDetails: 'Dettagli Struttura',
     contactInformation: 'Informazioni di Contatto',
@@ -1393,46 +1401,46 @@ export const it = {
     facilityConfiguration: 'Configurazione Struttura',
     importFacilities: 'Importa Strutture',
     columnNamesFlexible: 'I nomi delle colonne sono flessibili - il sistema rileva automaticamente le varianti comuni.',
-  processingFile: 'Elaborazione file...',
-  previewImportData: 'Anteprima Dati Importazione',
-  facilitiesFound: 'strutture trovate',
-  selected: 'selezionate',
-  checkingDuplicates: 'Controllo duplicati...',
-  foundConflicts: 'Trovati {{count}} conflitti che richiedono attenzione.',
-  overrideConflicts: 'Sovrascrivi conflitti (crea duplicati)',
-  backToUpload: 'Torna al Caricamento',
-  importFacilitiesCount: 'Importa {{count}} Strutture',
-  
-  // Duplicate Detection
-  exactNameMatch: 'Corrispondenza nome esatta:',
-  similarNamesFound: 'Nomi simili trovati:',
-  addressMatches: 'Indirizzi corrispondenti:',
-  duplicateDetected: 'Duplicato rilevato. Controlla e agisci.',
-  
-  // Validation Messages
-  facilityNameRequired: 'Nome struttura richiesto (minimo 2 caratteri)',
-  unknownFacilityType: 'Tipo struttura sconosciuto "{{type}}", predefinito a Hotel',
-  invalidEmailFormat: 'Formato email non valido',
-  
-  // File Processing
-  noDataFound: 'Nessun dato trovato nel file',
-  failedToParseExcel: 'Impossibile analizzare il file Excel',
-  
-  // Import Results (for toast messages in page)
-  skippedDuplicates: '{{count}} strutture duplicate saltate',
-  facilitiesHadErrors: '{{count}} strutture hanno avuto errori',
-  potentialDuplicatesDetected: 'Potenziali duplicati rilevati: {{facilities}}',
-  failedToImportFacilities: 'Impossibile importare strutture. Controlla i tuoi dati e riprova.',
-  
-  // Column Labels (when detected)
-  nameColumn: 'Nome',
-  typeColumn: 'Tipo',
-  locationColumn: 'Località', 
-  addressColumn: 'Indirizzo',
-  phoneColumn: 'Telefono',
-  emailColumn: 'Email',
-  descriptionColumn: 'Descrizione',
-    
+    processingFile: 'Elaborazione file...',
+    previewImportData: 'Anteprima Dati Importazione',
+    facilitiesFound: 'strutture trovate',
+    selected: 'selezionate',
+    checkingDuplicates: 'Controllo duplicati...',
+    foundConflicts: 'Trovati {{count}} conflitti che richiedono attenzione.',
+    overrideConflicts: 'Sovrascrivi conflitti (crea duplicati)',
+    backToUpload: 'Torna al Caricamento',
+    importFacilitiesCount: 'Importa {{count}} Strutture',
+
+    // Duplicate Detection
+    exactNameMatch: 'Corrispondenza nome esatta:',
+    similarNamesFound: 'Nomi simili trovati:',
+    addressMatches: 'Indirizzi corrispondenti:',
+    duplicateDetected: 'Duplicato rilevato. Controlla e agisci.',
+
+    // Validation Messages
+    facilityNameRequired: 'Nome struttura richiesto (minimo 2 caratteri)',
+    unknownFacilityType: 'Tipo struttura sconosciuto "{{type}}", predefinito a Hotel',
+    invalidEmailFormat: 'Formato email non valido',
+
+    // File Processing
+    noDataFound: 'Nessun dato trovato nel file',
+    failedToParseExcel: 'Impossibile analizzare il file Excel',
+
+    // Import Results (for toast messages in page)
+    skippedDuplicates: '{{count}} strutture duplicate saltate',
+    facilitiesHadErrors: '{{count}} strutture hanno avuto errori',
+    potentialDuplicatesDetected: 'Potenziali duplicati rilevati: {{facilities}}',
+    failedToImportFacilities: 'Impossibile importare strutture. Controlla i tuoi dati e riprova.',
+
+    // Column Labels (when detected)
+    nameColumn: 'Nome',
+    typeColumn: 'Tipo',
+    locationColumn: 'Località',
+    addressColumn: 'Indirizzo',
+    phoneColumn: 'Telefono',
+    emailColumn: 'Email',
+    descriptionColumn: 'Descrizione',
+
     // Gestione turni
     shiftManagement: 'Gestione Turni',
     shiftConfiguration: 'Configurazione Turni',
@@ -1462,7 +1470,7 @@ export const it = {
     warningOverlap: 'Attenzione: I turni "{{name1}}" e "{{name2}}" hanno lo stesso orario di inizio',
     atLeastOneStaff: 'Turno {{index}}: È richiesto almeno 1 membro del personale',
     templateApplied: 'Template {{type}} applicato',
-    
+
     // Gestione ruoli
     roleManagement: 'Gestione Ruoli',
     addRole: 'Aggiungi Ruolo',
@@ -1481,7 +1489,7 @@ export const it = {
     isActive: 'È Attivo',
     deleteRoleConfirm: 'Sei sicuro di voler eliminare il ruolo "{{name}}"?',
     roleLevel: 'Livello Ruolo',
-    
+
     // Gestione zone
     zoneManagement: 'Gestione Zone',
     addNewZone: 'Aggiungi Nuova Zona',
@@ -1498,21 +1506,21 @@ export const it = {
     preferredRolesDesc: 'Ruoli preferiti ma non richiesti',
     deleteZoneConfirm: 'Sei sicuro di voler eliminare la zona "{{name}}"?',
     reorderZone: 'Riordina Zona',
-    
+
     // Validazione form e azioni
     createNew: 'Crea Nuovo',
     updateExisting: 'Aggiorna Esistente',
     saveConfiguration: 'Salva Configurazione',
     cancelChanges: 'Annulla Modifiche',
     preview: 'Anteprima',
-    
+
     // Tipi template
     hotelTemplate: 'Hotel',
     restaurantTemplate: 'Ristorante',
     resortTemplate: 'Resort',
     cafeTemplate: 'Caffè',
     barTemplate: 'Bar',
-    
+
     // Traduzioni aggiuntive per i form
     fillRequiredFields: 'Compila i campi obbligatori',
     facilityWillBeConfigured: 'Questa struttura sarà configurata con i seguenti valori predefiniti:',
@@ -1565,7 +1573,7 @@ export const it = {
     timesHelped: 'Volte che hai Aiutato',
     everyBitHelps: 'Ogni aiuto conta',
     supportingTeammates: 'Supportare i compagni di squadra costruisce un team più forte e affidabile per tutti.',
-    
+
     // New translations for SwapRequestsList
     searchRequests: 'Cerca richieste...',
     filterByStatus: 'Filtra per stato',
@@ -1574,13 +1582,13 @@ export const it = {
     mostUrgent: 'Più Urgenti',
     noSwapRequests: 'Nessuna richiesta di scambio',
     noRequestsFound: 'Nessuna richiesta trovata',
-    
+
     // Request types and actions
     actionRequired: 'Azione Richiesta',
     myRequest: 'La Mia Richiesta',
     requestedForMe: 'Richiesto per Me',
     teamRequest: 'Richiesta del Team',
-    
+
     // Time and shift info
     anyDay: 'Qualsiasi Giorno',
     anyShift: 'Qualsiasi Turno',
@@ -1599,31 +1607,31 @@ export const it = {
     autoSwap: 'Scambio Automatico',
     emergencySwap: 'Scambio di Emergenza',
     auto: 'Auto',
-    
+
     // Stati scambio
     swapPending: 'Scambio in Attesa',
     swapApproved: 'Scambio Approvato',
     swapDenied: 'Scambio Rifiutato',
     swapExecuted: 'Scambio Eseguito',
-    
+
     // Partecipanti scambio
     requestingStaff: 'Personale Richiedente',
     targetStaff: 'Personale Target',
     staffMemberRequesting: 'Membro del Personale che Richiede Scambio',
     requester: 'richiedente',
-    
+
     // Azioni gestione scambi
     createSwapRequest: 'Crea Richiesta di Scambio',
     approveSwapRequest: 'Approva Richiesta di Scambio',
     executeSwap: 'Esegui Scambio',
     retryAssignment: 'Riprova Assegnazione',
-    
+
     // Priorità scambi
     highPriority: 'Alta Priorità',
     normalPriority: 'Priorità Normale',
     lowPriority: 'Bassa Priorità',
     emergencyPriority: 'Priorità di Emergenza',
-    
+
     // Copertura scambi
     autoCoverage: 'Copertura Automatica',
     systemCoverage: 'Copertura Sistema',
@@ -1635,21 +1643,21 @@ export const it = {
     manageShiftsSubtitle: 'Gestisci i tuoi turni e supporta il tuo team',
     managingSwaps: 'Gestione scambi per',
     viewHistory: 'Visualizza Cronologia',
-    
+
     // Messaggi specifici scambi
     swapAccepted: 'Scambio accettato!',
     swapExecutedSuccessfully: 'Scambio eseguito con successo!',
     swapApprovedFinding: 'Scambio approvato! Ricerca copertura...',
     requestAutomaticCoverage: 'Richiedi assegnazione copertura automatica. Il sistema troverà personale disponibile per coprire il tuo turno.',
     manageYourShifts: 'Gestisci i tuoi turni e supporta il tuo team',
-    
+
     // Analytics scambi
     successRate: 'Tasso di Successo',
     responseRate: 'Tasso di Risposta',
     completionRate: 'Tasso di Completamento',
     reliabilityScore: 'Punteggio di Affidabilità',
 
-     // Urgency and timing
+    // Urgency and timing
     urgent: 'Urgente',
     emergency: 'Emergenza',
     normal: 'Normale',
@@ -1660,23 +1668,23 @@ export const it = {
     noCoverageFound: 'Nessuna Copertura Trovata',
     automaticCoverage: 'Copertura Automatica',
     manualAssignment: 'Assegnazione Manuale',
-    
+
     // Analytics and reporting
     swapAnalytics: 'Analisi Scambi',
     averageResponseTime: 'Tempo di Risposta Medio',
     totalSwaps: 'Scambi Totali',
-    
+
     // Export and reports
     exportSwaps: 'Esporta Scambi',
     swapReport: 'Report Scambi',
     generateReport: 'Genera Report',
-    
+
     // Workflow and process
     workflowStatus: 'Stato del Workflow',
     nextStep: 'Prossimo Passo',
     processSwap: 'Elabora Scambio',
     finalizeSwap: 'Finalizza Scambio',
-    
+
     // Cronologia e timeline scambi
     swapHistory: 'Cronologia Scambi',
     actionTimeline: 'Timeline Azioni',
@@ -1809,7 +1817,7 @@ export const it = {
     dateTo: 'Data Fine',
     applyFilters: 'Applica Filtri',
 
-     // AnalyticsTab specific translations
+    // AnalyticsTab specific translations
     recentSwaps: 'Recenti',
     thisMonth: 'Questo Mese',
     activeFacilities: 'Strutture Attive',
@@ -1932,7 +1940,7 @@ export const it = {
 
     // Swap history analytics
     yourSwapAnalytics: 'Le Tue Analisi Scambi',
-    myRequestsBreakdown: 'Ripartizione Mie Richieste', 
+    myRequestsBreakdown: 'Ripartizione Mie Richieste',
     helpingOthers: 'Aiutare Altri',
     noResponseYet: 'Nessuna Risposta Ancora',
     monthlyRequestTrend: 'Tendenza Richieste Mensili',
@@ -2016,7 +2024,7 @@ export const it = {
     // SwapStatusIndicator specific translations
     swapped: 'Scambiato',
     urgentSwap: 'Scambio Urgente',
-    
+
     // Stati senza dati
     noSwapRequestsYet: 'Nessuna richiesta di scambio ancora',
     noCompletedSwaps: 'Nessun scambio completato',
@@ -2044,7 +2052,7 @@ export const it = {
     assignmentFailed: 'Assegnazione Fallita',
     declined: 'Rifiutato',
     cancelled: 'Annullato',
-    
+
     // Action labels - complete set
     approve: 'Approva',
     decline: 'Rifiuta',
@@ -2059,7 +2067,7 @@ export const it = {
     viewDetails: 'Visualizza Dettagli',
     update: 'Aggiorna',
     cancel: 'Annulla',
-    
+
     // UI labels and sections
     workflowStatus: 'Stato del Flusso di Lavoro',
     progress: 'Progresso',
@@ -2072,12 +2080,12 @@ export const it = {
     required: 'Richiesto',
     assigned: 'Assegnato',
     target: 'Destinatario',
-    
+
     // Actor types
     manager: 'Manager',
     staff: 'Personale',
     system: 'Sistema',
-    
+
     // Priority and type labels
     emergency: 'Emergenza',
     roleOverride: 'Override Ruolo',
@@ -2087,17 +2095,17 @@ export const it = {
     highPriority: 'Alta Priorità',
     normalPriority: 'Priorità Normale',
     lowPriority: 'Bassa Priorità',
-    
+
     // Stepper labels
     awaitingStaff: 'In Attesa del Personale',
     done: '✓ Fatto',
     active: '● Attivo',
-    
+
     // Success messages
     assignmentAcceptedSuccess: 'Assegnazione accettata con successo!',
     swapRequestApproved: 'Richiesta di scambio approvata!',
     swapExecutedSuccess: 'Scambio eseguito con successo!',
-    
+
     // Error messages
     actionNotAvailable: 'Azione non disponibile - nessun client API configurato',
     processingAction: 'Elaborazione {{action}}...',
@@ -2107,7 +2115,7 @@ export const it = {
     cannotDeclineSwap: 'Impossibile rifiutare lo scambio nello stato: {{status}} con tipo: {{type}}',
     failedAcceptAssignment: 'Impossibile accettare l\'assegnazione',
     failedDeclineAssignment: 'Impossibile rifiutare l\'assegnazione',
-    
+
     // PotentialAssignmentCard labels
     coverageAssignment: 'Assegnazione di Copertura',
     needsResponse: 'Richiede Risposta',
@@ -2118,7 +2126,7 @@ export const it = {
     addNotesPlaceholder: 'Aggiungi note sulla tua disponibilità o preoccupazioni...',
     accepting: 'Accettando...',
     declining: 'Rifiutando...',
-    
+
     // Day names
     monday: 'Lunedì',
     tuesday: 'Martedì',
@@ -2128,7 +2136,7 @@ export const it = {
     saturday: 'Sabato',
     sunday: 'Domenica',
     day: 'Giorno {{day}}',
-    
+
     // Shift names
     morning: 'Mattino',
     afternoon: 'Pomeriggio',
@@ -2171,34 +2179,34 @@ export const it = {
 
     // States and counts
     new: 'nuova',
-    newPlural: 'nuove', 
+    newPlural: 'nuove',
     youreAllCaughtUp: 'Sei aggiornato!',
     loadingNotifications: 'Caricamento notifiche...',
     failedToLoad: 'Impossibile caricare le notifiche',
     failedToMarkAllAsRead: 'Impossibile segnare tutto come letto',
-    
+
     // Tipi di notifica
     pushNotifications: 'Notifiche Push',
     emailNotifications: 'Notifiche Email',
     whatsappNotifications: 'Notifiche WhatsApp',
     desktopNotifications: 'Notifiche Desktop',
-    
+
     // Tipi di contenuto notifiche
     scheduleChanges: 'Modifiche Pianificazione',
     schedulePublished: 'Pianificazione Pubblicata',
     shiftReminders: 'Promemoria Turni',
     swapRequests: 'Richieste di Scambio',
     emergencyCoverage: 'Copertura di Emergenza',
-    
+
     // Stati notifiche
     enableNotifications: 'Abilita Notifiche',
     notificationsEnabled: 'Notifiche abilitate!',
     notificationsBlocked: 'Le notifiche sono bloccate',
-    
+
     // Azioni notifiche
     markAllRead: 'Segna tutto come letto',
     markRead: 'Segna come Letto',
-    
+
     // Messaggi notifiche
     youHaveNew: 'Hai una nuova notifica',
     noNotifications: 'Nessuna notifica',
@@ -2271,12 +2279,12 @@ export const it = {
       safariDialogInfo: "Quando fai clic su \"Riabilita Notifiche\", Safari mostrerà una finestra di dialogo per i permessi.",
       reEnableButton: "Riabilita Notifiche",
       skipButton: "Salta per ora",
-      
+
       // Time formatting
       justNow: "Ora",
       hoursAgo: "o fa",
       daysAgo: "g fa",
-      
+
       // Toast messages
       apiNotAvailable: "Client API non disponibile",
       reenabledSuccess: "🔔 Notifiche riabilitate per {{count}} dispositivo(i)!",
@@ -2297,31 +2305,31 @@ export const it = {
         message: "Ciao $staff_name! Il tuo turno per la settimana del $week_start è ora disponibile.",
         whatsapp: "*Avviso Turno*\n\nCiao $staff_name! Il tuo turno per la settimana del $week_start è pronto.\n\n🏢 $facility_name\n\nVedi turno: $action_url",
       },
-      
+
       swap_request: {
         title: "🔄 Richiesta Scambio Turno",
         message: "$requester_name vuole scambiare il suo turno di $original_day $original_shift con te.",
         whatsapp: "*Richiesta Scambio*\n\n$requester_name vorrebbe scambiare turni con te:\n\n📅 $original_day\n⏰ $original_shift\n📝 Motivo: $reason\n\nRispondi qui: $action_url",
       },
-      
+
       swap_approved: {
         title: "✅ Richiesta Scambio Approvata",
         message: "Ottime notizie! La tua richiesta di scambio per $original_day $original_shift è stata approvata da $approver_name.",
         whatsapp: "✅ *Scambio Approvato!*\n\nIl tuo scambio turno è stato approvato:\n\n📅 $original_day\n⏰ $original_shift\n👤 Approvato da: $approver_name\n\nVedi orario aggiornato: $action_url",
       },
-      
+
       swap_assignment: {
         title: "🎯 Assegnazione Turno",
         message: "Ti è stato assegnato di coprire il turno di $requester_name di $original_day $original_shift presso $facility_name. Motivo: $reason",
         whatsapp: "🎯 *Assegnazione Turno*\n\nCiao $assigned_staff_name!\n\nTi è stato assegnato di coprire un turno:\n\n👤 Originariamente: $requester_name\n📅 $original_day\n⏰ $original_shift\n🏢 $facility_name\n📝 Motivo: $reason\n\nAccetta o rifiuta: $action_url",
       },
-      
+
       emergency_coverage: {
         title: "🚨 Copertura Urgente Necessaria",
         message: "$requester_name presso $facility_name ha bisogno di copertura urgente per $original_day $original_shift. Motivo: $reason",
         whatsapp: "🚨 *URGENTE: Copertura Necessaria*\n\n🏢 $facility_name\n👤 $requester_name\n📅 $original_day\n⏰ $original_shift\n📝 Motivo: $reason\n\nEsamina richiesta: $action_url",
       },
-      
+
       email_verification: {
         title: "Verifica Email Richiesta",
         message: "Verifica il tuo indirizzo email utilizzando il codice che ti è stato inviato.",
@@ -2392,7 +2400,7 @@ Questa email è stata inviata a $target_email come parte del processo di collega
 Se hai domande, contatta il nostro team di supporto.`,
         whatsapp: "🔐 *Verifica Collegamento Account*\n\nCiao $user_name!\n\nIl tuo codice di verifica per collegare l'account $provider_name è: *$verification_code*\n\nQuesto codice scade tra $expires_in.\n\nNon condividere questo codice con nessuno.",
       },
-      
+
       password_reset: {
         title: "Richiesta Reimpostazione Password",
         message: "È stata richiesta una reimpostazione password per il tuo account. Clicca il link nell'email per reimpostare la password.",
@@ -2467,7 +2475,7 @@ Questa email è stata inviata perché è stata richiesta una reimpostazione pass
 Se hai domande, contatta il nostro team di supporto.`,
         whatsapp: "🔐 *Reimpostazione Password*\n\nCiao $user_name!\n\nQualcuno ha richiesto una reimpostazione password per il tuo account. Se sei stato tu, usa questo link per reimpostare la password:\n\n$reset_url\n\n⚠️ Questo link scade tra $expires_in.\n\nSe non hai fatto questa richiesta, ignora questo messaggio.",
       },
-      
+
       staff_invitation: {
         title: "Sei Invitato a Unirti a $organization_name",
         message: "Sei stato invitato a unirti a $organization_name come $role presso $facility_name.",
@@ -2614,21 +2622,21 @@ Se hai domande, contatta il nostro team di supporto.`,
     // ============================================================================
     // IMPOSTAZIONI E CONFIGURAZIONE
     // ============================================================================
-    
+
     // Sezioni principali
     settings: 'Impostazioni',
     system: 'Sistema',
     systemSettings: 'Impostazioni della Sistema',
     notifications: 'Notifiche',
     security: 'Sicurezza',
-    
+
     // Intestazioni pagina e descrizioni
     manageSystemConfiguration: 'Gestisci la configurazione del sistema, le notifiche e le preferenze',
     unsavedChanges: 'Modifiche Non Salvate',
     resetToDefaults: 'Ripristina Valori Predefiniti',
     resetToDefaultsConfirm: 'Sei sicuro di voler ripristinare tutte le impostazioni ai valori predefiniti? Questa azione non può essere annullata.',
     myProfile: 'Il Mio Profilo',
-    
+
     // Azienda e Localizzazione
     companyAndLocalization: 'Azienda e Localizzazione',
     companyName: 'Nome Azienda',
@@ -2645,7 +2653,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     timeFormat: 'Formato Ora',
     format24h: 'Formato 24 ore',
     format12h: 'Formato 12 ore',
-    
+
     // Unità di tempo
     hours: '{{count}} ore',
     hour: '{{count}} ora',
@@ -2653,7 +2661,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     days: '{{count}} giorni',
     week: '{{count}} settimana',
     year: '{{count}} anno',
-    
+
     // Impostazioni Pianificazione
     schedulingSettings: 'Impostazioni Pianificazione',
     defaultShiftDuration: 'Durata Turno Predefinita',
@@ -2664,7 +2672,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     balanceWorkloadDesc: 'Distribuisci i turni equamente tra il personale',
     allowOvertime: 'Permetti Straordinari',
     allowOvertimeDesc: 'Consenti la pianificazione di straordinari',
-    
+
     // Impostazioni Email
     emailSettings: 'Impostazioni Email',
     sendEmailNotifications: 'Invia Notifiche Email',
@@ -2680,7 +2688,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     fromEmail: 'Email Mittente',
     fromEmailPlaceholder: 'noreply@tuaazienda.com',
     testConnection: 'Testa Connessione',
-    
+
     // Impostazioni WhatsApp
     whatsappSettings: 'Impostazioni WhatsApp',
     sendWhatsappMessages: 'Invia Messaggi WhatsApp',
@@ -2689,7 +2697,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     twilioAuthToken: 'Twilio Auth Token',
     twilioAuthTokenPlaceholder: 'Il tuo token di autenticazione Twilio',
     twilioWhatsappNumber: 'Numero WhatsApp Twilio',
-    
+
     // Notifiche Push
     pushNotifications: 'Notifiche Push',
     sendPushNotifications: 'Invia Notifiche Push',
@@ -2697,7 +2705,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     firebaseServerKey: 'Chiave Server Firebase',
     firebaseServerKeyPlaceholder: 'La tua chiave server Firebase',
     firebaseCredentialsRequired: 'Le credenziali Firebase sono richieste per le notifiche push. Contatta il tuo amministratore per configurare le credenziali Firebase.',
-    
+
     // Tipi di Notifica Predefiniti
     defaultNotificationTypes: 'Tipi di Notifica Predefiniti',
     schedulePublished: 'Pianificazione Pubblicata',
@@ -2708,7 +2716,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     urgentSwapsDesc: 'Notifica riguardo alle richieste di scambio urgenti',
     shiftReminders: 'Promemoria Turni',
     shiftRemindersDesc: 'Invia promemoria prima dell\'inizio dei turni',
-    
+
     // Impostazioni Sicurezza
     securityPolicies: 'Politiche di Sicurezza',
     requireTwoFactor: 'Richiedi Autenticazione a Due Fattori',
@@ -2721,7 +2729,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     // Notifications settings
     "notificationChannels": "Canali di Notifica",
     "chooseHowTeamReceivesNotifications": "Scegli come il tuo team riceve le notifiche",
-    "emailNotifications": "Notifiche Email", 
+    "emailNotifications": "Notifiche Email",
     "whatsappMessages": "Messaggi WhatsApp",
     "active": "Attivo",
     "setupRequired": "Configurazione Richiesta",
@@ -2733,7 +2741,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     "notificationTypes": "Tipi di Notifica",
     "chooseWhatEventsTriggersNotifications": "Scegli quali eventi attivano le notifiche per il tuo team",
     "notifyStaffWhenSchedulesPublished": "Notifica al personale quando vengono pubblicati nuovi orari",
-    "shiftSwapRequests": "Richieste di Scambio Turni", 
+    "shiftSwapRequests": "Richieste di Scambio Turni",
     "notifyManagersAndStaffAboutSwapRequests": "Notifica ai manager e al personale le richieste di scambio",
     "urgentCoverageNeeded": "Copertura Urgente Necessaria",
     "immediateAlertsForEmergencyShiftCoverage": "Avvisi immediati per copertura turni d'emergenza",
@@ -2747,7 +2755,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     "technicalConfigurationRequiresAdminAccess": "Queste impostazioni richiedono conoscenze tecniche e sono tipicamente configurate dagli amministratori di sistema.",
     "currentStatus": "Stato Attuale",
     "emailService": "Servizio Email",
-    "whatsappService": "Servizio WhatsApp", 
+    "whatsappService": "Servizio WhatsApp",
     "pushService": "Servizio Push",
     "configured": "Configurato",
     "requiresSetup": "Richiede Configurazione",
@@ -2775,7 +2783,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     // Success messages
     systemSettingsSavedSuccessfully: "Impostazioni di sistema salvate con successo",
     notificationSettingsSavedSuccessfully: "Impostazioni di notifica salvate con successo",
-    allChangesSaved: "Tutte le Modifiche Salvate", 
+    allChangesSaved: "Tutte le Modifiche Salvate",
     systemSettingsSaved: "Impostazioni di Sistema Salvate",
     notificationSettingsSaved: "Impostazioni di Notifica Salvate",
 
@@ -2784,24 +2792,24 @@ Se hai domande, contatta il nostro team di supporto.`,
     failedToSaveNotificationSettings: "Impossibile salvare le impostazioni di notifica",
   },
 
-   profile: {
+  profile: {
     // ============================================================================
     // TERMINI SPECIFICI PAGINA PROFILO
     // ============================================================================
-    
+
     // Intestazione pagina e navigazione
     myProfile: 'Il Mio Profilo',
     managePersonalInformation: 'Gestisci le tue informazioni personali, preferenze e impostazioni account',
     systemSettings: 'Impostazioni Sistema',
     backToProfile: 'Torna al Profilo',
-    
+
     // Navigazione schede
     personalTab: 'Personale',
     avatarTab: 'Avatar',
     preferencesTab: 'Preferenze',
     notificationsTab: 'Notifiche',
     linkAccounts: 'Account Collegati',
-    
+
     // Sezione informazioni personali
     basicInformation: 'Informazioni di Base',
     displayName: 'Nome Visualizzato',
@@ -2818,7 +2826,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     phoneNumber: 'Numero di Telefono',
     phoneNumberPlaceholder: '+39 123 456 7890',
     savePersonalInformation: 'Salva Informazioni Personali',
-    
+
     // Sezione avatar
     avatarPreview: 'Anteprima Avatar',
     currentAvatarType: 'Tipo avatar attuale:',
@@ -2836,7 +2844,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     orDragAndDrop: 'o trascina e rilascia',
     pngJpgGifUpTo5mb: 'PNG, JPG, GIF fino a 5MB',
     uploading: 'Caricamento...',
-    
+
     // Sezione preferenze
     appearance: 'Aspetto',
     theme: 'Tema',
@@ -2847,21 +2855,21 @@ Se hai domande, contatta il nostro team di supporto.`,
     dateFormat: 'Formato Data',
     timeFormat: 'Formato Ora',
     savePreferences: 'Salva Preferenze',
-    
+
     // Opzioni tema
     systemTheme: 'Sistema',
     lightTheme: 'Chiaro',
     darkTheme: 'Scuro',
-    
+
     // Opzioni formato data
     dateFormatUS: 'MM/GG/AAAA (US)',
     dateFormatEU: 'GG/MM/AAAA (EU)',
     dateFormatISO: 'AAAA-MM-GG (ISO)',
-    
+
     // Opzioni formato ora
     timeFormat12h: '12 Ore (AM/PM)',
     timeFormat24h: '24 Ore',
-    
+
     // Sezione notifiche
     notificationPreferences: 'Preferenze Notifiche',
     desktopNotifications: 'Notifiche Desktop',
@@ -2875,13 +2883,13 @@ Se hai domande, contatta il nostro team di supporto.`,
     weekendNotifications: 'Notifiche Weekend',
     receiveNotificationsOnWeekends: 'Ricevi notifiche nei weekend',
     saveNotificationSettings: 'Salva Impostazioni Notifiche',
-    
+
     // Stati di caricamento ed errore
     loadingProfile: 'Caricamento profilo...',
     pleaseSelectValidImageFile: 'Si prega di selezionare un file immagine valido',
     fileSizeMustBeLessThan5mb: 'La dimensione del file deve essere inferiore a 5MB',
     avatarUploadedSuccessfully: 'Avatar caricato con successo!',
-    
+
     // Azioni generali profilo
     profileUpdatedSuccessfully: 'Profilo aggiornato con successo!',
     failedToUpdateProfile: 'Impossibile aggiornare il profilo',
@@ -2889,13 +2897,13 @@ Se hai domande, contatta il nostro team di supporto.`,
     failedToUpdatePreferences: 'Impossibile aggiornare le preferenze',
     notificationSettingsUpdated: 'Impostazioni notifiche aggiornate con successo!',
     failedToUpdateNotificationSettings: 'Impossibile aggiornare le impostazioni notifiche',
-    
+
     // Messaggi specifici avatar
     avatarSettingsUpdated: 'Impostazioni avatar aggiornate con successo!',
     failedToUpdateAvatarSettings: 'Impossibile aggiornare le impostazioni avatar',
     avatarDeleted: 'Avatar eliminato con successo!',
     failedToDeleteAvatar: 'Impossibile eliminare l\'avatar',
-    
+
     // Messaggi di validazione
     displayNameTooLong: 'Il nome visualizzato deve essere inferiore a 100 caratteri',
     bioTooLong: 'La biografia deve essere inferiore a 500 caratteri',
@@ -2934,11 +2942,11 @@ Se hai domande, contatta il nostro team di supporto.`,
     connectionTestSuccessful: 'Test di connessione riuscito!',
     importComplete: 'Importazione completata!',
     dataRefreshed: 'Dati aggiornati!',
-    
+
     // Messaggi di errore specifici
     importFailed: 'Importazione Fallita',
     searchFailed: 'Ricerca fallita',
-    
+
     // Tipi di avviso
     alert: 'Avviso',
     highAlert: 'Avviso Elevato',
@@ -2950,7 +2958,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     teamReliabilityRecognition: 'Riconoscimento Affidabilità del Team',
     yourEarnedRecognition: 'I tuoi riconoscimenti ottenuti:',
     nextRecognitionToEarn: 'Prossimo riconoscimento da ottenere:',
-    
+
     // Badge Names
     reliableResponder: 'Risponditore Affidabile',
     teamPlayer: 'Giocatore di Squadra',
@@ -2958,7 +2966,7 @@ Se hai domande, contatta il nostro team di supporto.`,
     streakMaster: 'Maestro delle Serie',
     alwaysThere: 'Sempre Presente',
     teamHero: 'Eroe del Team',
-    
+
     // Badge Descriptions
     reliableResponderDesc: 'Risponde alle richieste entro 2 ore',
     teamPlayerDesc: 'Accetta l\'80%+ delle richieste di scambio',
@@ -2971,13 +2979,13 @@ Se hai domande, contatta il nostro team di supporto.`,
     teamReliability: 'Affidabilità del Team',
     timesHelped: 'Volte Aiutato',
     inARow: 'di fila',
-    
+
     // Performance Level Badges
     exceptional: 'Eccezionale',
     reliable: 'Affidabile',
     developing: 'In Sviluppo',
     building: 'In Costruzione',
-    
+
     // Encouragement Messages
     valuedTeamMember: '🌟 Sei un membro prezioso del team!',
     buildingRelationships: '💪 Costruendo solide relazioni di squadra',
@@ -2987,13 +2995,13 @@ Se hai domande, contatta il nostro team di supporto.`,
   availability: {
     // Modal Title
     requestTimeOff: 'Richiedi Permesso',
-    
+
     // Request Type
     requestType: 'Tipo di Richiesta',
     singleDate: 'Singola Data',
     consecutiveDays: 'Più giorni consecutivi',
     selectDate: 'Seleziona Data',
-    
+
     // Time Patterns
     timePeriod: 'Periodo di Tempo',
     morningShiftTime: '6:00 - 14:00',
@@ -3001,29 +3009,29 @@ Se hai domande, contatta il nostro team di supporto.`,
     eveningShiftTime: '22:00 - 6:00',
     entireDay: 'Intero periodo di 24 ore',
     setTimeRange: 'Imposta intervallo di tempo specifico',
-    
+
     // Recurring Option
     recurringUnavailability: 'Rendila una indisponibilità ricorrente (stesso orario ogni settimana)',
-    
+
     // Reason Section
     reasonOptional: 'Motivazione (Opzionale)',
     reasonPlaceholder: 'Opzionale: Fai sapere al tuo manager perché hai bisogno di questo permesso...',
-    
+
     // Info Notes
     infoNote1: 'Le richieste di permesso influenzano la programmazione futura',
     infoNote2: 'Il tuo manager sarà notificato di questa richiesta',
     infoNote3: 'Questo non annulla automaticamente i turni esistenti',
     infoNote4: 'Per i turni esistenti, usa invece il sistema di scambi',
-    
+
     // Buttons
     submitRequest: 'Invia Richiesta',
     submitting: 'Invio in corso...',
-    
+
     // Error Messages
     selectDateError: 'Si prega di selezionare una data',
     selectDatesError: 'Si prega di selezionare le date di inizio e fine',
     endTimeAfterStartError: 'L\'orario di fine deve essere successivo a quello di inizio',
-    
+
     // Success Messages
     requestSubmittedSuccess: 'Richiesta di permesso inviata con successo!',
     requestSubmitError: 'Impossibile inviare la richiesta di permesso',
@@ -3034,7 +3042,7 @@ Se hai domande, contatta il nostro team di supporto.`,
       title: "Installa Schedula",
       descriptionMobile: "Aggiungi alla schermata home per accesso rapido e programmazione offline",
       descriptionDesktop: "Aggiungi al desktop per accesso rapido e programmazione offline",
-      descriptionIOS: "Tocca Condividi, poi \"Aggiungi a Home\" per accesso rapido", 
+      descriptionIOS: "Tocca Condividi, poi \"Aggiungi a Home\" per accesso rapido",
       buttonInstall: "Installa",
       buttonInstallFull: "Installa App",
       buttonLater: "Più tardi",
@@ -3042,7 +3050,7 @@ Se hai domande, contatta il nostro team di supporto.`,
       installed: "Schedula installata con successo!",
       installPromptAvailable: "Prompt di installazione PWA disponibile",
       userAccepted: "L'utente ha accettato l'installazione di Schedula",
-      userDismissed: "L'utente ha rifiutato l'installazione di Schedula", 
+      userDismissed: "L'utente ha rifiutato l'installazione di Schedula",
       installFailed: "Installazione di Schedula fallita"
     },
     status: {

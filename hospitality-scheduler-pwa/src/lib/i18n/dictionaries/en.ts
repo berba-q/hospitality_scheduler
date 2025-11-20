@@ -23,7 +23,7 @@ export const en = {
     signing: 'Signing in...',
     notSigned: 'Not signed in',
     welcomeBack: 'Welcome Back',
-    signInToManage: 'Sign in to manage your hospitality schedule',
+    signInToManage: 'Sign in to manage your schedules',
     signWithCredentials: 'Sign in with your credentials',
     invalidCredentials: 'Invalid email or password',
     loginFailed: 'Login failed. Please try again.',
@@ -59,7 +59,7 @@ export const en = {
     passwordResetSuccessDescription: "Your password has been reset. You can now sign in with your new password.",
     signInWithNewPassword: "Sign In with New Password",
     passwordResetFailed: "Failed to reset password. Please try again.",
-    
+
     // Token Validation
     invalidResetLink: "Invalid Reset Link",
     invalidResetLinkDescription: "This password reset link is invalid or has expired. Please request a new one.",
@@ -127,10 +127,18 @@ export const en = {
     unableToUnlinkAccount: "Unable to unlink account. Please try again later.",
     emailMismatchError: "Cannot link accounts: Email mismatch. Your Google account ({{email}}) doesn't match your system account. Please contact your administrator.",
     unableToLinkAccounts: "Unable to link accounts. Please try again later.",
-    
+
     // Development notes
     developmentNote: "Development Note",
     emailMatchRequirement: "Account linking requires your Gmail email to match your system account ({{systemEmail}}). If emails don't match, linking will fail and you'll need to contact your administrator.",
+
+    // New Signup Page Keys
+    manageYourStaff: "Manage your staff with confidence.",
+    joinThousands: "Join thousands of businesses that trust Schedula for efficient, stress-free scheduling and team management.",
+    allRightsReserved: "All rights reserved.",
+    passwordStrengthWeak: "Weak password",
+    passwordStrengthMedium: "Medium password",
+    passwordStrengthStrong: "Strong password",
   },
 
   invitations: {
@@ -206,7 +214,7 @@ export const en = {
     hideAll: 'Hide All',
     saving: 'Saving...',
     apiClientNotInitialized: 'API client not initialized',
-    
+
     // Selection actions
     select: 'Select',
     selected: 'Selected',
@@ -245,7 +253,7 @@ export const en = {
     unknown: 'Unknown',
     emergency: 'Emergency',
     accepted: 'Accepted',
-    
+
     // ============================================================================
     // GENERIC TERMS (reusable across domains)
     // ============================================================================
@@ -310,7 +318,7 @@ export const en = {
     zone: 'Zone',
     zones: 'Zones',
     roles: 'Roles',
-    
+
     // ============================================================================
     // COMMON UI ELEMENTS
     // ============================================================================
@@ -333,14 +341,14 @@ export const en = {
     releaseFile: 'Release to import data from your file',
     fileSupport: 'Supports .xlsx and .csv files',
     uploadExcelOrCsv: 'Please upload an Excel (.xlsx) or CSV file.',
-    
+
     // Form elements
     required: 'Required',
     optional: 'Optional',
     placeholder: 'Enter...',
     chooseFile: 'Choose File',
     uploadFile: 'Upload File',
-    
+
     // ============================================================================
     // COMMON MESSAGES & STATES
     // ============================================================================
@@ -359,13 +367,13 @@ export const en = {
     conflictsAttention: 'conflicts that need attention.',
     override: 'Override conflicts (create duplicates)',
     actionCannotBeUndone: 'This action cannot be undone',
-    
+
     // Success messages
     savedSuccessfully: 'Saved successfully',
     createdSuccessfully: 'Created successfully',
     updatedSuccessfully: 'Updated successfully',
     deletedSuccessfully: 'Deleted successfully',
-    
+
     // Error messages
     failed: 'Failed',
     failedToLoad: 'Failed to load',
@@ -375,13 +383,13 @@ export const en = {
     failedToDelete: 'Failed to delete',
     somethingWentWrong: 'Something went wrong',
     tryAgain: 'Try Again',
-    
+
     // Confirmation messages
     areYouSure: 'Are you sure?',
     areYouSureDelete: 'Are you sure you want to delete',
     areYouSureCancel: 'Are you sure you want to cancel',
     cannotBeUndone: 'This action cannot be undone',
-    
+
     // Generic states
     empty: 'Empty',
     full: 'Full',
@@ -389,7 +397,7 @@ export const en = {
     none: 'None',
     all: 'All',
     issues: 'Issues',
-    
+
     // ============================================================================
     // TIME & DATE TERMS
     // ============================================================================
@@ -405,7 +413,7 @@ export const en = {
     weekOf: 'Week of',
     schedulesShown: 'schedules shown',
     of: 'of',
-    
+
     // Time units
     hours: 'hours',
     minutes: 'minutes',
@@ -413,13 +421,13 @@ export const en = {
     months: 'months',
 
     monday: 'Monday',
-    tuesday: 'Tuesday', 
+    tuesday: 'Tuesday',
     wednesday: 'Wednesday',
     thursday: 'Thursday',
     friday: 'Friday',
     saturday: 'Saturday',
     sunday: 'Sunday',
-  
+
     // Short day names (for calendar headers, mobile views, etc.)
     mon: 'Mon',
     tue: 'Tue',
@@ -433,27 +441,27 @@ export const en = {
     year: 'Year',
     years: 'years',
     lastMonth: 'Last Month',
-    
-  // ============================================================================
-  // SHIFTS (reusable across schedule, swaps, staff components)
-  // ============================================================================
+
+    // ============================================================================
+    // SHIFTS (reusable across schedule, swaps, staff components)
+    // ============================================================================
     morning: 'Morning',
-    afternoon: 'Afternoon', 
+    afternoon: 'Afternoon',
     evening: 'Evening',
     night: 'Night',
-  
+
     // Shift references
     morningShift: 'Morning Shift',
     afternoonShift: 'Afternoon Shift',
     eveningShift: 'Evening Shift',
     nightShift: 'Night Shift',
-    
+
     // SwapNotificationDialog additional keys
     swapDetails: 'Swap Details',
     requester: 'Requester',
     original: 'Original',
     target: 'Target',
-    
+
     // ============================================================================
     // NUMBERS & QUANTITIES
     // ============================================================================
@@ -463,7 +471,7 @@ export const en = {
     average: 'Average',
     minimum: 'Minimum',
     maximum: 'Maximum',
-    
+
     // ============================================================================
     // FACILITY TERMS (generic, reusable)
     // ============================================================================
@@ -474,7 +482,7 @@ export const en = {
     detailedFacility: 'Detailed Facility Analysis',
     systemPerformance: 'System Performance',
     analytics: 'Analytics',
-    
+
     // ============================================================================
     // REUSABLE PHRASES
     // ============================================================================
@@ -495,21 +503,21 @@ export const en = {
     errorLoadingData: 'Failed to load staff availability data',
     past: 'Past',
     upcoming: 'Upcoming',
-    
+
     // Navigation helpers
     goBack: 'Go back',
     backToDashboard: 'Back to Dashboard',
-    
+
     // Generic permissions/access
     accessDenied: 'Access Denied',
     permissionRequired: 'Permission required',
     unauthorized: 'Unauthorized',
-    
+
     // Generic assignments/allocations
     assigned: 'Assigned',
     unassigned: 'Unassigned',
     assignments: 'Assignments',
-    
+
     // ============================================================================
     // LEGACY TERMS (to be cleaned up/moved)
     // ============================================================================
@@ -546,12 +554,12 @@ export const en = {
     swaps: 'Swaps',
     settings: 'Settings',
     profile: 'My Profile',
-    
+
     // Navigation actions
     manageSchedules: 'Manage Schedules',
     manageStaff: 'Manage Staff',
     manageFacilities: 'Manage Facilities',
-    
+
     // App identity
     hospitalityScheduler: 'Schedula',
     welcomeToHospitalityScheduler: 'Welcome to Schedula',
@@ -574,7 +582,7 @@ export const en = {
     weekOverview: 'Week Overview',
     upcomingShifts: 'Upcoming Shifts',
     teamInsights: 'Team Insights',
-    
+
     // Quick actions (dashboard-specific)
     viewMySchedule: 'View My Schedule',
     createAndEditSchedules: 'Create and edit staff schedules',
@@ -582,7 +590,7 @@ export const en = {
     approveAndManageChanges: 'Approve and manage shift changes',
     checkUpcomingShifts: 'Check your upcoming shifts',
     checkBackSoon: 'Check back soon for new assignments',
-    
+
     // Stats and metrics
     teamPerformance: 'Team Performance',
     teamHelped: 'Team Helped',
@@ -592,7 +600,7 @@ export const en = {
     currentStreak: 'Current Streak',
     avgResponseTime: 'Avg Response Time',
     teamCoverage: 'Team Coverage',
-    
+
     // Dashboard states
     noUpcomingShifts: 'No upcoming shifts scheduled',
     noRecentSwapRequests: 'No recent swap requests',
@@ -619,7 +627,7 @@ export const en = {
     scheduleSettings: 'Schedule Settings',
     scheduleManagement: 'Schedule Management',
     smartScheduleManagement: 'Smart Schedule Management',
-    
+
     // Schedule views
     viewPeriod: 'View Period',
     daily: 'Daily',
@@ -639,7 +647,7 @@ export const en = {
     generateSmartSchedule: 'Generate Smart Schedule',
     generatingSmartSchedule: 'Generating Smart Schedule...',
     smartGeneration: 'Smart Generation',
-    
+
     // Generation specific
     zoneSetup: 'Zone Setup',
     aiOptimization: 'AI Optimization',
@@ -650,7 +658,7 @@ export const en = {
     aiPoweredGeneration: 'AI-Powered Generation',
     dropHere: "Drop staff here to assign them to a shift",
     constraints: "Constraints",
-    
+
     // Smart constraints
     useSmartConstraints: 'Use Smart Constraints',
     applyBusinessRules: 'Apply business rules and regulations',
@@ -659,7 +667,7 @@ export const en = {
     distributeHoursEvenly: 'Distribute hours evenly',
     allowOvertime: 'Allow Overtime',
     permitOvertimeScheduling: 'Permit overtime scheduling',
-    
+
     // Coverage and optimization
     coveragePriority: 'Coverage Priority',
     minimalCoverage: 'Minimal Coverage',
@@ -669,19 +677,19 @@ export const en = {
     higherValuesIncrease: 'Higher values increase staffing preference for that shift',
     prioritizeSkillMatching: 'Prioritize Skill Matching',
     matchStaffSkillsToZone: 'Match staff skills to zone requirements',
-    
+
     // Zone configuration
     coverage: 'Coverage',
     requiredRoles: 'Required Roles',
     allRolesAccepted: 'All roles accepted',
-    
+
     // Preview and feasibility
     totalAssignmentsNeeded: 'Total Assignments Needed',
     feasibility: 'Feasibility',
     optimal: 'Optimal',
     challenging: 'Challenging',
     zoneCoverageSummary: 'Zone Coverage Summary',
-    
+
     // AI description
     aiScheduleDescription: 'The system will automatically assign staff to zones based on roles, skills, and your configured constraints. Staff will be optimally distributed across {periodType} periods with intelligent workload balancing.',
 
@@ -692,7 +700,7 @@ export const en = {
     configurationValid: 'Configuration Valid',
     resetToDefaults: 'Reset to Defaults',
     noChanges: 'No Changes',
-    
+
     // Field labels
     minimumRestHours: 'Minimum Rest Hours',
     hoursBetweenShifts: 'Hours between shifts',
@@ -701,11 +709,11 @@ export const en = {
     defaultMaxWeeklyHours: 'Default Max Weekly Hours',
     whenStaffMaxHoursNotSet: 'When staff max hours not set',
     requireManagerOnEveryShift: 'Require manager on every shift',
-    
+
     // Shift requirements
     minimumSkillLevel: 'Minimum Skill Level',
     clickRolesToRequire: 'Click roles to require them for this shift',
-    
+
     // Shift names and times
     morningShift: 'Morning Shift',
     afternoonShift: 'Afternoon Shift',
@@ -713,12 +721,12 @@ export const en = {
     morningTime: '6:00 AM - 2:00 PM',
     afternoonTime: '2:00 PM - 10:00 PM',
     eveningTime: '10:00 PM - 6:00 AM',
-    
+
     // Status messages
     configurationDescription: 'All constraints are properly configured and will be applied during schedule generation',
-    
-    
-    
+
+
+
     // Schedule Status
     empty: 'Empty',
     partial: 'Partial',
@@ -732,7 +740,7 @@ export const en = {
     shiftReminders: 'Shift Reminders',
     upcomingShifts: 'Upcoming Shifts',
     unknownShift: 'Unknown Shift',
-    
+
     // Schedule creation/management
     createSchedule: 'Create Schedule',
     publishSchedule: 'Publish Schedule',
@@ -742,22 +750,22 @@ export const en = {
     noScheduleForThisWeek: 'No schedule available for this week',
     noScheduleCreatedYet: 'No schedule created for this week',
     generateNewScheduleOrAssign: 'Generate a new schedule automatically or manually create assignments.',
-    
+
     // Schedule states
     fullyStaffed: 'Fully Staffed',
     partiallyStaffed: 'Partially Staffed',
     scheduleExists: 'Schedule exists',
-    
+
     // AI/Automation specific
     aiPoweredScheduling: 'AI-powered scheduling with zone-based optimization',
     smartScheduleGeneration: 'Smart Schedule Generation',
     poweredGeneration: 'AI-Powered Generation',
-    
+
     // Schedule-specific facilities/zones
     facilityAndZones: 'Facility & Zones',
     activeZones: 'Active Zones',
     zoneBasedStaff: 'Zone-Based Staff Assignment',
-    
+
     // Staff assignment (schedule context)
     assignStaff: 'Assign staff',
     staffPerShift: 'Staff per Shift',
@@ -793,14 +801,14 @@ export const en = {
     configurationSavedSuccessfully: 'Configuration saved successfully!',
     failedSaveConfiguration: 'Failed to save configuration',
     failedLoadConfiguration: 'Failed to load configuration',
-    
+
     // Messages specific to scheduling
     yourManagerHasntCreated: "Your manager hasn't created a schedule for this period yet.",
     viewYourWorkSchedule: 'View your work schedule and request shift swaps',
     chooseFacilityFromDropdown: 'Choose a facility from the dropdown above to view and manage schedules',
     loadingScheduleData: 'Loading schedule data...',
     deleteScheduleConfirmation: 'Are you sure you want to delete the schedule for the week of {weekDate}?\n\nThis will permanently remove {assignmentCount} assignments and cannot be undone.',
-    
+
     // Swap integration (schedule context)
     requestSwap: 'Request Swap',
     mySwapRequests: 'My Swap Requests',
@@ -839,13 +847,13 @@ export const en = {
     unknownDate: 'Unknown date',
     weekRange: 'Week Range',
     dateRange: 'Date Range',
-    
+
     // Additional UI Elements
     searchSchedules: 'Search schedules by date...',
     allStatus: 'All Status',
     noSchedulesFound: 'No schedules found',
     tryAdjustingFilters: 'Try adjusting your search or filters',
-    
+
     // Smart Generation Options
     useConstraints: 'Use Constraints',
     autoAssignByZone: 'Auto-assign by Zone',
@@ -859,19 +867,19 @@ export const en = {
     afternoonMultiplier: 'Afternoon Multiplier',
     eveningMultiplier: 'Evening Multiplier',
     allConstraintsAre: 'All constraints are properly configured and will be applied during schedule generation',
-    
+
     // Zone Management
     requiresManager: 'Requires Manager',
-    
+
     // Additional Actions
     resetChanges: 'Reset Changes',
     resetDefaults: 'Reset to Defaults',
-    
+
     // Messages and Confirmations
     areYouSure: 'Are you sure you want to delete the schedule for the week?',
     deleteScheduleWarning: 'This action cannot be undone.',
     scheduleDeletedSuccessfully: 'Schedule deleted successfully',
-    
+
     // Period Types
     periodType: 'Period Type',
     generateDaily: 'Generate Daily',
@@ -881,13 +889,13 @@ export const en = {
     // Business Rules
     allowOvertimeScheduling: 'Allow overtime scheduling',
     applyWeekendRestrictions: 'Apply weekend restrictions',
-    
+
     // Swap Integration
     swapActivity: 'Swap activity',
     swapAssignments: 'Swap Assignments',
 
     you: 'You',
-    
+
     // Additional management terms
     allFacilityAssignments: 'All facility assignments',
     assignmentsAndCannot: 'assignments and cannot be undone',
@@ -907,7 +915,7 @@ export const en = {
     staffAvailability: 'Staff Availability',
     staffAvailabilityOverview: 'Staff Availability Overview',
     thisWeek: 'This Week',
-    nextWeek: 'Next Week', 
+    nextWeek: 'Next Week',
     thisMonth: 'This Month',
     next30Days: 'Next 30 Days',
     recurringOnly: 'Recurring Only',
@@ -968,7 +976,7 @@ export const en = {
     deleteConfirmation: 'Are you sure you want to delete {{name}}? This action cannot be undone.',
     deletingWillCause: 'Deleting this staff member will:',
     removeFromSchedules: 'Remove them from all schedules',
-    cancelPendingSwaps: 'Cancel any pending shift swaps', 
+    cancelPendingSwaps: 'Cancel any pending shift swaps',
     deleteAvailability: 'Delete their availability records',
     uploadingFile: 'Uploading File...',
     readingExcelFile: 'Reading your Excel file',
@@ -995,7 +1003,7 @@ export const en = {
     allZones: 'All Zones',
     dragDropAssignment: 'Drag & Drop Assignment',
     dragStaffToCalendar: 'Drag staff members from this panel and drop them onto calendar slots to create assignments',
-    
+
     // Staff roles
     manager: 'Manager',
     assistantManager: 'Assistant Manager',
@@ -1003,31 +1011,31 @@ export const en = {
     lineCook: 'Line Cook',
     sousChef: 'Sous Chef',
     uniqueRoles: 'Unique Roles',
-    
+
     // Staff-specific actions
     searchStaff: 'Search staff...',
     searchStaffByNameRole: 'Search staff by name or role',
     showInactiveStaff: 'Show inactive staff',
     addNewStaff: 'Add New Staff Member',
-    
+
     // Staff states
     activeStaffMember: 'Active staff member',
     noStaffFound: 'No staff found',
-    
+
     // Staff management
     workDetails: 'Work Details',
     roleSkills: 'Role & Skills',
     skillLevel: 'Skill Level',
     maxWeeklyHours: 'Max Weekly Hours',
     managerOnlyAccess: 'Manager access only',
-    
+
     // Staff performance
     staffPerformanceLeaderboard: 'Staff Performance Leaderboard',
     teamPlayer: 'Team Player',
     topPerformer: 'Top performer',
     coverageHeroes: 'Coverage Heroes',
     reliabilityScore: 'Reliability Score',
-    
+
     // Staff-specific messages
     manageYourTeam: 'Manage your team and facilities',
     couldNotLink: 'Could not link your user account to a staff profile. Please contact your manager.',
@@ -1095,7 +1103,7 @@ export const en = {
     nameFound: 'Similar names found:',
     phoneExists: 'Phone may exist:',
     duplicateDetectedOverride: 'Duplicate detected. Please check and take action.',
-    
+
     // Form fields
     fullName: 'Name',
     fullNamePlaceholder: 'John Doe',
@@ -1109,19 +1117,19 @@ export const en = {
     skillLevelPlaceholder: '3',
     // Skill levels
     skillBeginner: 'Beginner',
-    skillBasic: 'Basic', 
+    skillBasic: 'Basic',
     skillIntermediate: 'Intermediate',
     skillAdvanced: 'Advanced',
     skillExpert: 'Expert',
     levelNumber: 'Level {{level}}',
 
     hours: 'Weekly hours',
-    
+
     // Placeholders and selects
     customRolePlaceholder: 'Or enter custom role...',
     selectFacility: 'Select a facility',
     columnNamesFlexible: 'Column names are flexible - the system automatically detects common variations',
-    
+
     // Status and actions
     updating: 'Updating...',
     noChanges: 'No Changes',
@@ -1138,7 +1146,7 @@ export const en = {
     invitationExpiry: 'Invitation Validity',
     invitationExpiryOptions: {
       '24': '24 hours',
-      '72': '3 days', 
+      '72': '3 days',
       '168': '1 week (recommended)',
       '336': '2 weeks',
       '720': '30 days',
@@ -1183,19 +1191,19 @@ export const en = {
     deleteError: {
       hasAssignments: "Cannot remove staff member. They have active assignments that need to be handled first.",
       tryRemoveAndClear: "Try using 'Remove and Clear Schedule' option instead.",
-      },
+    },
     failedToValidateDeletion: 'Failed to validate deletion',
-    unableToValidateDeletion: 'Unable to validate deletion', 
+    unableToValidateDeletion: 'Unable to validate deletion',
     chooseAction: 'Choose Action',
     removesAssignmentsAndDeactivates: 'Removes {{count}} future assignments and deactivates staff',
     historyPreservedShiftsCleared: 'History preserved • Future shifts cleared • ⚠️ Shifts will be unassigned',
-    advancedOptions: 'Advanced Options', 
+    advancedOptions: 'Advanced Options',
     completeRemoval: 'Complete Removal',
     adminOnly: 'Admin Only',
     permanentlyDeletesAllData: 'Permanently deletes all data - cannot be undone',
     dataEntryErrorsOnly: '⚠️ For data entry errors or privacy requests only',
     wontAppearInScheduling: "Won't appear in future scheduling • ✓ All past data preserved • ⚠️ Future shifts will need coverage",
-    
+
     // Invitation sending progress/results
     sendingInvitations: 'Sending Invitations...',
     invitationsSentSuccessfully: 'Invitations sent successfully!',
@@ -1203,26 +1211,26 @@ export const en = {
     invitationsSentComplete: '{{count}} invitations sent successfully!',
     invitationsFailedToSend: 'Failed to send some invitations',
     invitationSendError: 'Error sending invitations: {{error}}',
-    
+
     // Staff without email handling
     staffWithoutEmail: 'Staff Without Email',
     staffWithoutEmailCount: '{{count}} staff members don\'t have email addresses and won\'t receive invitations',
     staffWithoutEmailList: 'Staff without email: {{names}}',
-    
+
     // Invitation status messages
     invitationAlreadyExists: 'Some staff already have pending invitations',
     invitationDuplicateWarning: 'Skipped {{count}} staff members who already have active invitations',
-    
+
     // Invitation management
     manageInvitations: 'Manage Invitations',
     viewInvitationStatus: 'View Invitation Status',
     resendInvitation: 'Resend Invitation',
     cancelInvitation: 'Cancel Invitation',
-    
+
     // Import with invitations combined
     importAndInvite: 'Import & Invite Staff',
     importCompleteNextStep: 'Import Complete - Next: Send Invitations',
-    
+
     // Success/Error messages with templates
     fillRequiredFields: 'Please fill in all required fields',
     noChangesToSave: 'No changes to save',
@@ -1250,32 +1258,32 @@ export const en = {
     staffAutoAssignedByRoles: 'Staff will be automatically assigned based on their roles and zone requirements.',
     zonesSelected: '{{count}} zone(s) selected',
 
-    
+
     // Page descriptions
     configureFacilitiesDescription: 'Configure facilities, shifts, roles, and operational zones',
-    
+
     // Import instructions
     dragDropInstructions: 'Drag & Drop Excel files anywhere to instantly import facilities. Support columns: Name, Address, Type (Hotel/Restaurant/Resort/Cafe/Bar).',
-    
+
     // Search and filters
     searchFacilities: 'Search facilities by name or address...',
     allTypes: 'All Types',
-    
+
     // Facility types
     hotel: 'Hotel',
-    restaurant: 'Restaurant', 
+    restaurant: 'Restaurant',
     resort: 'Resort',
     cafe: 'Cafe',
     bar: 'Bar',
     barLounge: 'Bar/Lounge',
-    
+
     // Facility type descriptions
     fullServiceHotel: 'Full-service hotel with front desk, housekeeping, and guest services',
     largeResortProperty: 'Large resort property with multiple amenities and services',
     diningEstablishmentWith: 'Dining establishment with kitchen, service, and bar operations',
     barLoungeWith: 'Bar or lounge with beverage service and light food',
     coffeeShopCasual: 'Coffee shop or casual dining with counter service',
-    
+
     // Zone names
     frontDesk: 'Front Desk',
     housekeeping: 'Housekeeping',
@@ -1293,7 +1301,7 @@ export const en = {
     maintenance: 'Maintenance',
     serviceCounter: 'Service Counter',
     prepArea: 'Prep Area',
-    
+
     // Shift names
     dayShift: 'Day Shift',
     eveningShift: 'Evening Shift',
@@ -1309,7 +1317,7 @@ export const en = {
     lateNight: 'Late Night',
     morning: 'Morning',
     afternoon: 'Afternoon',
-    
+
     // Common roles
     manager: 'Manager',
     frontDeskAgent: 'Front Desk Agent',
@@ -1328,32 +1336,32 @@ export const en = {
     baker: 'Baker',
     server: 'Server',
     dj: 'DJ',
-    
+
     // Stats and counts
     staff: 'Staff',
     shifts: 'Shifts',
     schedules: 'Schedules',
     activeZones: 'Active Zones',
     activeFacilities: 'Active Facilities',
-    
+
     // Management actions
     roles: 'Roles',
     zones: 'Zones',
-    
+
     // Zone management
     zonesDepartments: 'Zones & Departments',
     unnamedZone: 'Unnamed Zone',
-    
+
     // Role management  
     defaultRoles: 'Default Roles',
     addNewRole: 'Add New Role',
-    
+
     // Empty states
     noFacilitiesYet: 'No facilities yet',
     noFacilitiesFound: 'No facilities found',
     getStartedMessage: 'Get started by adding your first facility or importing from Excel',
     tryAdjustingFilters: 'Try adjusting your search or filters',
-    
+
     // Import process
     dropToImport: 'Drop to Import Facilities',
     releaseToImport: 'Release to import facilities from Excel/CSV file',
@@ -1362,27 +1370,27 @@ export const en = {
     processingFacilities: 'Processing facilities...',
     importComplete: 'Import complete!',
     successfullyImported: 'Successfully imported {{count}} facilities',
-    
+
     // File upload
     pleaseUploadExcel: 'Please upload an Excel (.xlsx) or CSV file',
     failedToImportCheck: 'Failed to import facilities. Please check the file format.',
-    
+
     // Permission messages
     managerPermissionsRequired: 'Manager permissions required.',
     checkingPermissions: 'Checking permissions...',
     loadingFacilities: 'Loading facilities...',
     accessDeniedMessage: 'You need manager permissions to access facilities management.',
-    
+
     // Delete confirmation
     areYouSureDelete: 'Are you sure you want to delete "{{name}}"? This action cannot be undone.',
     deletedSuccessfully: '{{name}} deleted successfully',
     failedToDeleteFacility: 'Failed to delete facility',
-    
+
     // Other facility messages
     briefDescriptionThe: 'Brief description of the facility...',
     more: 'more',
     unnamedFacility: 'Unnamed Facility',
-    
+
     // Modal and form labels
     facilityDetails: 'Facility Details',
     contactInformation: 'Contact Information',
@@ -1390,46 +1398,46 @@ export const en = {
     facilityConfiguration: 'Facility Configuration',
     importFacilities: 'Import Facilities',
     columnNamesFlexible: 'Column names are flexible - the system automatically detects common variations.',
-  processingFile: 'Processing file...',
-  previewImportData: 'Preview Import Data',
-  facilitiesFound: 'facilities found',
-  selected: 'selected',
-  checkingDuplicates: 'Checking duplicates...',
-  foundConflicts: 'Found {{count}} conflicts that need attention.',
-  overrideConflicts: 'Override conflicts (create duplicates)',
-  backToUpload: 'Back to Upload',
-  importFacilitiesCount: 'Import {{count}} Facilities',
-  
-  // Duplicate Detection
-  exactNameMatch: 'Exact name match:',
-  similarNamesFound: 'Similar names found:',
-  addressMatches: 'Address matches:',
-  duplicateDetected: 'Duplicate detected. Please check and take action.',
-  
-  // Validation Messages
-  facilityNameRequired: 'Facility name is required (minimum 2 characters)',
-  unknownFacilityType: 'Unknown facility type "{{type}}", defaulting to Hotel',
-  invalidEmailFormat: 'Invalid email format',
-  
-  // File Processing
-  noDataFound: 'No data found in file',
-  failedToParseExcel: 'Failed to parse Excel file',
-  
-  // Import Results (for toast messages in page)
-  skippedDuplicates: 'Skipped {{count}} duplicate facilities',
-  facilitiesHadErrors: '{{count}} facilities had errors',
-  potentialDuplicatesDetected: 'Potential duplicates detected: {{facilities}}',
-  failedToImportFacilities: 'Failed to import facilities. Please check your data and try again.',
-  
-  // Column Labels (when detected)
-  nameColumn: 'Name',
-  typeColumn: 'Type', 
-  locationColumn: 'Location',
-  addressColumn: 'Address',
-  phoneColumn: 'Phone',
-  emailColumn: 'Email',
-  descriptionColumn: 'Description',
-    
+    processingFile: 'Processing file...',
+    previewImportData: 'Preview Import Data',
+    facilitiesFound: 'facilities found',
+    selected: 'selected',
+    checkingDuplicates: 'Checking duplicates...',
+    foundConflicts: 'Found {{count}} conflicts that need attention.',
+    overrideConflicts: 'Override conflicts (create duplicates)',
+    backToUpload: 'Back to Upload',
+    importFacilitiesCount: 'Import {{count}} Facilities',
+
+    // Duplicate Detection
+    exactNameMatch: 'Exact name match:',
+    similarNamesFound: 'Similar names found:',
+    addressMatches: 'Address matches:',
+    duplicateDetected: 'Duplicate detected. Please check and take action.',
+
+    // Validation Messages
+    facilityNameRequired: 'Facility name is required (minimum 2 characters)',
+    unknownFacilityType: 'Unknown facility type "{{type}}", defaulting to Hotel',
+    invalidEmailFormat: 'Invalid email format',
+
+    // File Processing
+    noDataFound: 'No data found in file',
+    failedToParseExcel: 'Failed to parse Excel file',
+
+    // Import Results (for toast messages in page)
+    skippedDuplicates: 'Skipped {{count}} duplicate facilities',
+    facilitiesHadErrors: '{{count}} facilities had errors',
+    potentialDuplicatesDetected: 'Potential duplicates detected: {{facilities}}',
+    failedToImportFacilities: 'Failed to import facilities. Please check your data and try again.',
+
+    // Column Labels (when detected)
+    nameColumn: 'Name',
+    typeColumn: 'Type',
+    locationColumn: 'Location',
+    addressColumn: 'Address',
+    phoneColumn: 'Phone',
+    emailColumn: 'Email',
+    descriptionColumn: 'Description',
+
     // Shift management
     shiftManagement: 'Shift Management',
     shiftConfiguration: 'Shift Configuration',
@@ -1459,7 +1467,7 @@ export const en = {
     warningOverlap: 'Warning: Shifts "{{name1}}" and "{{name2}}" have the same start time',
     atLeastOneStaff: 'Shift {{index}}: At least 1 staff member is required',
     templateApplied: 'Applied {{type}} template',
-    
+
     // Role management
     roleManagement: 'Role Management',
     addRole: 'Add Role',
@@ -1478,7 +1486,7 @@ export const en = {
     isActive: 'Is Active',
     deleteRoleConfirm: 'Are you sure you want to delete the role "{{name}}"?',
     roleLevel: 'Role Level',
-    
+
     // Zone management  
     zoneManagement: 'Zone Management',
     addNewZone: 'Add New Zone',
@@ -1495,21 +1503,21 @@ export const en = {
     preferredRolesDesc: 'Roles that are preferred but not required',
     deleteZoneConfirm: 'Are you sure you want to delete the zone "{{name}}"?',
     reorderZone: 'Reorder Zone',
-    
+
     // Form validation and actions
     createNew: 'Create New',
     updateExisting: 'Update Existing',
     saveConfiguration: 'Save Configuration',
     cancelChanges: 'Cancel Changes',
     preview: 'Preview',
-    
+
     // Template types
     hotelTemplate: 'Hotel',
-    restaurantTemplate: 'Restaurant', 
+    restaurantTemplate: 'Restaurant',
     resortTemplate: 'Resort',
     cafeTemplate: 'Cafe',
     barTemplate: 'Bar',
-    
+
     // Additional translations for forms
     fillRequiredFields: 'Please fill in required fields',
     facilityWillBeConfigured: 'This facility will be configured with the following defaults:',
@@ -1563,7 +1571,7 @@ export const en = {
     timesHelped: 'Times Helped',
     everyBitHelps: 'Every bit of help counts',
     supportingTeammates: 'Supporting your teammates builds a stronger, more reliable team for everyone.',
-    
+
     searchRequests: 'Search requests...',
     filterByStatus: 'Filter by status',
     allStatuses: 'All Statuses',
@@ -1571,14 +1579,14 @@ export const en = {
     mostUrgent: 'Most Urgent',
     noSwapRequests: 'No swap requests',
     noRequestsFound: 'No requests found',
-    
+
 
     // Request types and actions
     actionRequired: 'Action Required',
     myRequest: 'My Request',
     requestedForMe: 'Requested for Me',
     teamRequest: 'Team Request',
-    
+
     // Time and shift info
     anyDay: 'Any Day',
     anyShift: 'Any Shift',
@@ -1597,31 +1605,31 @@ export const en = {
     autoSwap: 'Auto Swap',
     emergencySwap: 'Emergency Swap',
     auto: 'Auto',
-    
+
     // Swap states
     swapPending: 'Swap Pending',
     swapApproved: 'Swap Approved',
     swapDenied: 'Swap Denied',
     swapExecuted: 'Swap Executed',
-    
+
     // Swap participants
     requestingStaff: 'Requesting Staff',
     targetStaff: 'Target Staff',
     staffMemberRequesting: 'Staff Member Requesting Swap',
     requester: 'Requester',
-    
+
     // Swap management actions
     createSwapRequest: 'Create Swap Request',
     approveSwapRequest: 'Approve Swap Request',
     executeSwap: 'Execute Swap',
     retryAssignment: 'Retry Assignment',
-    
+
     // Swap priorities
     highPriority: 'High Priority',
     normalPriority: 'Normal Priority',
     lowPriority: 'Low Priority',
     emergencyPriority: 'Emergency Priority',
-    
+
     // Swap coverage
     autoCoverage: 'Auto Coverage',
     systemCoverage: 'System Coverage',
@@ -1633,48 +1641,48 @@ export const en = {
     manageShiftsSubtitle: 'Manage your shifts and support your team',
     managingSwaps: 'Managing swaps for',
     viewHistory: 'View History',
-    
+
     // Swap-specific messages
     swapAccepted: 'Swap accepted!',
     swapExecutedSuccessfully: 'Swap executed successfully!',
     swapApprovedFinding: 'Swap approved! Finding coverage...',
     requestAutomaticCoverage: 'Request automatic coverage assignment. The system will find available staff to cover your shift.',
     manageYourShifts: 'Manage your shifts and support your team',
-    
+
     // Swap analytics
     successRate: 'Success Rate',
     responseRate: 'Response Rate',
     completionRate: 'Completion Rate',
     reliabilityScore: 'Reliability Score',
 
-     // Coverage and assignments
+    // Coverage and assignments
     coverageFound: 'Coverage Found',
     noCoverageFound: 'No Coverage Found',
     automaticCoverage: 'Automatic Coverage',
     manualAssignment: 'Manual Assignment',
-    
+
     // Urgency and timing
     urgent: 'Urgent',
     emergency: 'Emergency',
     normal: 'Normal',
     low: 'Low',
-    
+
     // Analytics and reporting
     swapAnalytics: 'Swap Analytics',
     averageResponseTime: 'Average Response Time',
     totalSwaps: 'Total Swaps',
-    
+
     // Export and reports
     exportSwaps: 'Export Swaps',
     swapReport: 'Swap Report',
     generateReport: 'Generate Report',
-    
+
     // Workflow and process
     workflowStatus: 'Workflow Status',
     nextStep: 'Next Step',
     processSwap: 'Process Swap',
     finalizeSwap: 'Finalize Swap',
-    
+
     // Swap history & timeline
     swapHistory: 'Swap History',
     actionTimeline: 'Action Timeline',
@@ -1752,7 +1760,7 @@ export const en = {
     // FacilityDetailModal additional keys
     pendingReview: 'Pending Review',
     swapsWaitingApproval: 'Swaps waiting for your approval',
-    approvedActive: 'Approved & Active', 
+    approvedActive: 'Approved & Active',
     approvedSwapsInProgress: 'Approved swaps in progress',
     urgentRequests: 'Urgent Requests',
     highPrioritySwaps: 'High priority swaps',
@@ -1796,7 +1804,7 @@ export const en = {
 
     // Advanced serach modal
     advancedSearch: 'Advanced Search',
-    searchTerms: 'Search Terms', 
+    searchTerms: 'Search Terms',
     searchByStaffReasonNotes: 'Search by staff name, reason, notes...',
     selectFacility: 'Select Facility',
     selectStatus: 'Select Status',
@@ -1857,7 +1865,7 @@ export const en = {
     noScheduleForThisWeek: 'No schedule available for this week',
     noScheduleCreatedYet: 'No schedule created for this week',
     generateNewScheduleOrAssign: 'Generate a new schedule automatically or manually create assignments.',
-    
+
 
     // PersonalStatsCards specific translations
     helpfulnessScore: 'Helpfulness Score',
@@ -1925,7 +1933,7 @@ export const en = {
 
     // Swap request modal
     morningShift: 'Morning (6AM-2PM)',
-    afternoonShift: 'Afternoon (2PM-10PM)', 
+    afternoonShift: 'Afternoon (2PM-10PM)',
     eveningShift: 'Evening (10PM-6AM)',
     week: 'Week',
     currentSchedule: 'Current Schedule',
@@ -1936,7 +1944,7 @@ export const en = {
 
     // Swap history analytics
     yourSwapAnalytics: 'Your Swap Analytics',
-    myRequestsBreakdown: 'My Requests Breakdown', 
+    myRequestsBreakdown: 'My Requests Breakdown',
     helpingOthers: 'Helping Others',
     noResponseYet: 'No Response Yet',
     monthlyRequestTrend: 'Monthly Request Trend',
@@ -2019,7 +2027,7 @@ export const en = {
     // SwapStatusIndicator specific translations
     swapped: 'Swapped',
     urgentSwap: 'Urgent Swap',
-    
+
     // No data states
     noSwapRequestsYet: 'No swap requests yet',
     noCompletedSwaps: 'No completed swaps',
@@ -2044,7 +2052,7 @@ export const en = {
     assignmentFailed: 'Assignment Failed',
     declined: 'Declined',
     cancelled: 'Cancelled',
-    
+
     // Action labels - complete set
     approve: 'Approve',
     decline: 'Decline',
@@ -2059,7 +2067,7 @@ export const en = {
     viewDetails: 'View Details',
     update: 'Update',
     cancel: 'Cancel',
-    
+
     // UI labels and sections
     workflowStatus: 'Workflow Status',
     progress: 'Progress',
@@ -2072,12 +2080,12 @@ export const en = {
     required: 'Required',
     assigned: 'Assigned',
     target: 'Target',
-    
+
     // Actor types
     manager: 'Manager',
     staff: 'Staff',
     system: 'System',
-    
+
     // Priority and type labels
     emergency: 'Emergency',
     roleOverride: 'Role Override',
@@ -2087,17 +2095,17 @@ export const en = {
     highPriority: 'High Priority',
     normalPriority: 'Normal Priority',
     lowPriority: 'Low Priority',
-    
+
     // Stepper labels
     awaitingStaff: 'Awaiting Staff',
     done: '✓ Done',
     active: '● Active',
-    
+
     // Success messages
     assignmentAcceptedSuccess: 'Assignment accepted successfully!',
     swapRequestApproved: 'Swap request approved!',
     swapExecutedSuccess: 'Swap executed successfully!',
-    
+
     // Error messages
     actionNotAvailable: 'Action not available - no API client configured',
     processingAction: 'Processing {{action}}...',
@@ -2107,7 +2115,7 @@ export const en = {
     cannotDeclineSwap: 'Cannot decline swap in status: {{status}} with type: {{type}}',
     failedAcceptAssignment: 'Failed to accept assignment',
     failedDeclineAssignment: 'Failed to decline assignment',
-    
+
     // PotentialAssignmentCard labels
     coverageAssignment: 'Coverage Assignment',
     needsResponse: 'Needs Response',
@@ -2118,7 +2126,7 @@ export const en = {
     addNotesPlaceholder: 'Add any notes about your availability or concerns...',
     accepting: 'Accepting...',
     declining: 'Declining...',
-    
+
     // Day names
     monday: 'Monday',
     tuesday: 'Tuesday',
@@ -2128,7 +2136,7 @@ export const en = {
     saturday: 'Saturday',
     sunday: 'Sunday',
     day: 'Day {{day}}',
-    
+
     // Shift names
     morning: 'Morning',
     afternoon: 'Afternoon',
@@ -2144,7 +2152,7 @@ export const en = {
     notificationSettings: 'Notification Settings',
     notificationPreferences: 'Notification Preferences',
     pushOn: 'Push On',
-    pushOff: 'Push Off', 
+    pushOff: 'Push Off',
     enablePushNotifications: 'Enable Push Notifications',
     getNotifiedEvenWhenClosed: 'Get notified even when the app is closed',
     enabling: 'Enabling...',
@@ -2166,7 +2174,7 @@ export const en = {
     // Time expressions
     justNow: 'Just now',
     minutesAgo: 'm ago',
-    hoursAgo: 'h ago', 
+    hoursAgo: 'h ago',
     daysAgo: 'd ago',
 
     // States and counts
@@ -2176,29 +2184,29 @@ export const en = {
     loadingNotifications: 'Loading notifications...',
     failedToLoad: 'Failed to load notifications',
     failedToMarkAllAsRead: 'Failed to mark all as read',
-    
+
     // Notification types
     pushNotifications: 'Push Notifications',
     emailNotifications: 'Email Notifications',
     whatsappNotifications: 'WhatsApp Notifications',
     desktopNotifications: 'Desktop Notifications',
-    
+
     // Notification content types
     scheduleChanges: 'Schedule Changes',
     schedulePublished: 'Schedule Published',
     shiftReminders: 'Shift Reminders',
     swapRequests: 'Swap Requests',
     emergencyCoverage: 'Emergency Coverage',
-    
+
     // Notification states
     enableNotifications: 'Enable Notifications',
     notificationsEnabled: 'Notifications enabled!',
     notificationsBlocked: 'Notifications are blocked',
-    
+
     // Notification actions
     markAllRead: 'Mark all read',
     markRead: 'Mark Read',
-    
+
     // Notification messages
     youHaveNew: 'You have a new notification',
     noNotifications: 'No notifications',
@@ -2271,12 +2279,12 @@ export const en = {
       safariDialogInfo: "When you click \"Re-enable Notifications\", Safari will show a permission dialog.",
       reEnableButton: "Re-enable Notifications",
       skipButton: "Skip for now",
-      
+
       // Time formatting
       justNow: "Just now",
-      hoursAgo: "h ago", 
+      hoursAgo: "h ago",
       daysAgo: "d ago",
-      
+
       // Toast messages
       apiNotAvailable: "API client not available",
       reenabledSuccess: "🔔 Notifications re-enabled for {{count}} device(s)!",
@@ -2298,31 +2306,31 @@ export const en = {
         message: "Hi $staff_name! Your schedule for the week of $week_start is now available.",
         whatsapp: "*Schedule Alert*\n\nHi $staff_name! Your schedule for the week of $week_start is ready.\n\n🏢 $facility_name\n\nView schedule: $action_url",
       },
-      
+
       swap_request: {
         title: "🔄 Shift Swap Request",
         message: "$requester_name wants to swap their $original_day $original_shift shift with you.",
         whatsapp: "*Swap Request*\n\n$requester_name would like to swap shifts with you:\n\n📅 $original_day\n⏰ $original_shift\n📝 Reason: $reason\n\nRespond here: $action_url",
       },
-      
+
       swap_approved: {
         title: "✅ Swap Request Approved",
         message: "Great news! Your swap request for $original_day $original_shift has been approved by $approver_name.",
         whatsapp: "✅ *Swap Approved!*\n\nYour shift swap has been approved:\n\n📅 $original_day\n⏰ $original_shift\n👤 Approved by: $approver_name\n\nView updated schedule: $action_url",
       },
-      
+
       swap_assignment: {
         title: "🎯 Shift Assignment",
         message: "You've been assigned to cover $requester_name's $original_day $original_shift shift at $facility_name. Reason: $reason",
         whatsapp: "🎯 *Shift Assignment*\n\nHi $assigned_staff_name!\n\nYou've been assigned to cover a shift:\n\n👤 Originally: $requester_name\n📅 $original_day\n⏰ $original_shift\n🏢 $facility_name\n📝 Reason: $reason\n\nPlease accept or decline: $action_url",
       },
-      
+
       emergency_coverage: {
         title: "🚨 Urgent Coverage Needed",
         message: "$requester_name at $facility_name needs urgent coverage for $original_day $original_shift. Reason: $reason",
         whatsapp: "🚨 *URGENT: Coverage Needed*\n\n🏢 $facility_name\n👤 $requester_name\n📅 $original_day\n⏰ $original_shift\n📝 Reason: $reason\n\nReview request: $action_url",
       },
-      
+
       email_verification: {
         title: "Email Verification Required",
         message: "Please verify your email address using the code sent to you.",
@@ -2393,7 +2401,7 @@ This email was sent to $target_email as part of the account linking process.
 If you have any questions, please contact our support team.`,
         whatsapp: "🔐 *Account Linking Verification*\n\nHi $user_name!\n\nYour verification code to link your $provider_name account is: *$verification_code*\n\nThis code expires in $expires_in.\n\nDo not share this code with anyone.",
       },
-      
+
       password_reset: {
         title: "Password Reset Request",
         message: "A password reset has been requested for your account. Click the link in the email to reset your password.",
@@ -2468,7 +2476,7 @@ This email was sent because a password reset was requested for your account.
 If you have any questions, please contact our support team.`,
         whatsapp: "🔐 *Password Reset*\n\nHi $user_name!\n\nSomeone requested a password reset for your account. If this was you, use this link to reset your password:\n\n$reset_url\n\n⚠️ This link expires in $expires_in.\n\nIf you didn't request this, please ignore this message.",
       },
-      
+
       staff_invitation: {
         title: "You're Invited to Join $organization_name",
         message: "You've been invited to join $organization_name as a $role at $facility_name.",
@@ -2621,27 +2629,27 @@ If you have any questions, please contact our support team.`,
         whatsapp: "🎉 *Welcome to $organization_name!*\n\nHi $user_name!\n\nYour hospitality management account is ready! 🚀\n\nAccess your dashboard: $login_url\n\nYou can now:\n📅 Manage schedules\n👥 Invite team members\n🔄 Handle shift swaps\n📊 Track performance\n\nWelcome to the team! 🎊",
       },
     },
-    },
-  
-    settings: {
+  },
+
+  settings: {
     // ============================================================================
     // SETTINGS & CONFIGURATION
     // ============================================================================
-    
+
     // Main sections
     settings: 'Settings',
     system: 'System',
     systemSettings: 'System Settings',
     notifications: 'Notifications',
     security: 'Security',
-    
+
     // Page headers and descriptions
     manageSystemConfiguration: 'Manage your system configuration, notifications, and preferences',
     unsavedChanges: 'Unsaved Changes',
     resetToDefaults: 'Reset to Defaults',
     resetToDefaultsConfirm: 'Are you sure you want to reset all settings to defaults? This cannot be undone.',
     myProfile: 'My Profile',
-    
+
     // Company & Localization
     companyAndLocalization: 'Company & Localization',
     companyName: 'Company Name',
@@ -2658,7 +2666,7 @@ If you have any questions, please contact our support team.`,
     timeFormat: 'Time Format',
     format24h: '24-hour format',
     format12h: '12-hour format',
-    
+
     // Time units
     hours: '{{count}} hours',
     hour: '{{count}} hour',
@@ -2666,7 +2674,7 @@ If you have any questions, please contact our support team.`,
     days: '{{count}} days',
     week: '{{count}} week',
     year: '{{count}} year',
-    
+
     // Scheduling Settings
     schedulingSettings: 'Scheduling Settings',
     defaultShiftDuration: 'Default Shift Duration',
@@ -2677,7 +2685,7 @@ If you have any questions, please contact our support team.`,
     balanceWorkloadDesc: 'Distribute shifts evenly among staff',
     allowOvertime: 'Allow Overtime',
     allowOvertimeDesc: 'Permit overtime scheduling',
-    
+
     // Email Settings
     emailSettings: 'Email Settings',
     sendEmailNotifications: 'Send Email Notifications',
@@ -2697,7 +2705,7 @@ If you have any questions, please contact our support team.`,
     // Notifications settings
     "notificationChannels": "Notification Channels",
     "chooseHowTeamReceivesNotifications": "Choose how your team receives notifications",
-    "emailNotifications": "Email Notifications", 
+    "emailNotifications": "Email Notifications",
     "whatsappMessages": "WhatsApp Messages",
     "active": "Active",
     "setupRequired": "Setup Required",
@@ -2705,25 +2713,25 @@ If you have any questions, please contact our support team.`,
     "sendUrgentNotificationsViaWhatsApp": "Send urgent notifications via WhatsApp",
     "sendInstantNotificationsToMobileDevices": "Send instant notifications to mobile devices",
     "contactSystemAdminToConfigureNotifications": "Contact your system administrator to configure notification services.",
-    
+
     "notificationTypes": "Notification Types",
     "chooseWhatEventsTriggersNotifications": "Choose what events trigger notifications to your team",
     "notifyStaffWhenSchedulesPublished": "Notify staff when new schedules are published",
-    "shiftSwapRequests": "Shift Swap Requests", 
+    "shiftSwapRequests": "Shift Swap Requests",
     "notifyManagersAndStaffAboutSwapRequests": "Notify managers and staff about swap requests",
     "urgentCoverageNeeded": "Urgent Coverage Needed",
     "immediateAlertsForEmergencyShiftCoverage": "Immediate alerts for emergency shift coverage",
     "remindStaffAboutUpcomingShifts24hBefore": "Remind staff about upcoming shifts (24h before)",
     "systemAlerts": "System Alerts",
     "importantSystemUpdatesAndMaintenanceNotices": "Important system updates and maintenance notices",
-    
+
     "technicalConfiguration": "Technical Configuration",
     "advancedSettingsForSystemAdministrators": "Advanced settings for system administrators",
     "contactAdmin": "Contact Admin",
     "technicalConfigurationRequiresAdminAccess": "These settings require technical knowledge and are typically configured by system administrators.",
     "currentStatus": "Current Status",
     "emailService": "Email Service",
-    "whatsappService": "WhatsApp Service", 
+    "whatsappService": "WhatsApp Service",
     "pushService": "Push Service",
     "configured": "Configured",
     "requiresSetup": "Requires Setup",
@@ -2739,7 +2747,7 @@ If you have any questions, please contact our support team.`,
     twilioAuthToken: 'Twilio Auth Token',
     twilioAuthTokenPlaceholder: 'Your Twilio auth token',
     twilioWhatsappNumber: 'Twilio WhatsApp Number',
-    
+
     // Push Notifications
     pushNotifications: 'Push Notifications',
     sendPushNotifications: 'Send Push Notifications',
@@ -2747,7 +2755,7 @@ If you have any questions, please contact our support team.`,
     firebaseServerKey: 'Firebase Server Key',
     firebaseServerKeyPlaceholder: 'Your Firebase server key',
     firebaseCredentialsRequired: 'Firebase credentials are required for push notifications. Contact your administrator to set up Firebase credentials.',
-    
+
     // Default Notification Types
     defaultNotificationTypes: 'Default Notification Types',
     schedulePublished: 'Schedule Published',
@@ -2758,7 +2766,7 @@ If you have any questions, please contact our support team.`,
     urgentSwapsDesc: 'Notify about urgent swap requests',
     shiftReminders: 'Shift Reminders',
     shiftRemindersDesc: 'Send reminders before shifts start',
-    
+
     // Security Settings
     securityPolicies: 'Security Policies',
     requireTwoFactor: 'Require Two-Factor Authentication',
@@ -2767,7 +2775,7 @@ If you have any questions, please contact our support team.`,
     minimumPasswordLength: 'Minimum Password Length',
     requirePasswordComplexity: 'Require Password Complexity',
     requirePasswordComplexityDesc: 'Require uppercase, lowercase, numbers, and special characters',
-    
+
     // Audit & Logging
     auditAndLogging: 'Audit & Logging',
     enableAuditLogging: 'Enable Audit Logging',
@@ -2777,7 +2785,7 @@ If you have any questions, please contact our support team.`,
     logSensitiveDataDesc: 'Include sensitive information in audit logs (not recommended)',
 
     systemSettingsSavedSuccessfully: "System settings saved successfully",
-    notificationSettingsSavedSuccessfully: "Notification settings saved successfully", 
+    notificationSettingsSavedSuccessfully: "Notification settings saved successfully",
     allChangesSaved: "All Changes Saved",
     systemSettingsSaved: "System Settings Saved",
     notificationSettingsSaved: "Notification Settings Saved",
@@ -2802,20 +2810,20 @@ If you have any questions, please contact our support team.`,
     // ============================================================================
     // PROFILE PAGE SPECIFIC TERMS
     // ============================================================================
-    
+
     // Page header and navigation
     myProfile: 'My Profile',
     managePersonalInformation: 'Manage your personal information, preferences, and account settings',
     systemSettings: 'System Settings',
     backToProfile: 'Back to Profile',
-    
+
     // Tab navigation
     personalTab: 'Personal',
     avatarTab: 'Avatar',
     preferencesTab: 'Preferences',
     notificationsTab: 'Notifications',
     linkAccounts: "Linked Accounts",
-    
+
     // Personal Information section
     basicInformation: 'Basic Information',
     displayName: 'Display Name',
@@ -2832,7 +2840,7 @@ If you have any questions, please contact our support team.`,
     phoneNumber: 'Phone Number',
     phoneNumberPlaceholder: '+1 (555) 123-4567',
     savePersonalInformation: 'Save Personal Information',
-    
+
     // Avatar section
     avatarPreview: 'Avatar Preview',
     currentAvatarType: 'Current avatar type:',
@@ -2850,7 +2858,7 @@ If you have any questions, please contact our support team.`,
     orDragAndDrop: 'or drag and drop',
     pngJpgGifUpTo5mb: 'PNG, JPG, GIF up to 5MB',
     uploading: 'Uploading...',
-    
+
     // Preferences section
     appearance: 'Appearance',
     theme: 'Theme',
@@ -2861,21 +2869,21 @@ If you have any questions, please contact our support team.`,
     dateFormat: 'Date Format',
     timeFormat: 'Time Format',
     savePreferences: 'Save Preferences',
-    
+
     // Theme options
     systemTheme: 'System',
     lightTheme: 'Light',
     darkTheme: 'Dark',
-    
+
     // Date format options
     dateFormatUS: 'MM/DD/YYYY (US)',
     dateFormatEU: 'DD/MM/YYYY (EU)',
     dateFormatISO: 'YYYY-MM-DD (ISO)',
-    
+
     // Time format options
     timeFormat12h: '12 Hour (AM/PM)',
     timeFormat24h: '24 Hour',
-    
+
     // Notifications section
     notificationPreferences: 'Notification Preferences',
     desktopNotifications: 'Desktop Notifications',
@@ -2889,13 +2897,13 @@ If you have any questions, please contact our support team.`,
     weekendNotifications: 'Weekend Notifications',
     receiveNotificationsOnWeekends: 'Receive notifications on weekends',
     saveNotificationSettings: 'Save Notification Settings',
-    
+
     // Loading and error states
     loadingProfile: 'Loading profile...',
     pleaseSelectValidImageFile: 'Please select a valid image file',
     fileSizeMustBeLessThan5mb: 'File size must be less than 5MB',
     avatarUploadedSuccessfully: 'Avatar uploaded successfully!',
-    
+
     // General profile actions
     profileUpdatedSuccessfully: 'Profile updated successfully!',
     failedToUpdateProfile: 'Failed to update profile',
@@ -2903,13 +2911,13 @@ If you have any questions, please contact our support team.`,
     failedToUpdatePreferences: 'Failed to update preferences',
     notificationSettingsUpdated: 'Notification settings updated successfully!',
     failedToUpdateNotificationSettings: 'Failed to update notification settings',
-    
+
     // Avatar specific messages
     avatarSettingsUpdated: 'Avatar settings updated successfully!',
     failedToUpdateAvatarSettings: 'Failed to update avatar settings',
     avatarDeleted: 'Avatar deleted successfully!',
     failedToDeleteAvatar: 'Failed to delete avatar',
-    
+
     // Validation messages
     displayNameTooLong: 'Display name must be less than 100 characters',
     bioTooLong: 'Bio must be less than 500 characters',
@@ -2949,11 +2957,11 @@ If you have any questions, please contact our support team.`,
     connectionTestSuccessful: 'Connection test successful!',
     importComplete: 'Import complete!',
     dataRefreshed: 'Data refreshed!',
-    
+
     // Specific error messages
     importFailed: 'Import Failed',
     searchFailed: 'Search failed',
-    
+
     // Alert types
     alert: 'Alert',
     highAlert: 'High Alert',
@@ -2965,7 +2973,7 @@ If you have any questions, please contact our support team.`,
     teamReliabilityRecognition: 'Team Reliability Recognition',
     yourEarnedRecognition: 'Your earned recognition:',
     nextRecognitionToEarn: 'Next recognition to earn:',
-    
+
     // Badge Names
     reliableResponder: 'Reliable Responder',
     teamPlayer: 'Team Player',
@@ -2973,7 +2981,7 @@ If you have any questions, please contact our support team.`,
     streakMaster: 'Streak Master',
     alwaysThere: 'Always There',
     teamHero: 'Team Hero',
-    
+
     // Badge Descriptions
     reliableResponderDesc: 'Responds to requests within 2 hours',
     teamPlayerDesc: 'Accepts 80%+ of swap requests',
@@ -2987,13 +2995,13 @@ If you have any questions, please contact our support team.`,
     teamReliability: 'Team Reliability',
     timesHelped: 'Times Helped',
     inARow: 'in a row',
-    
+
     // Performance Level Badges
     exceptional: 'Exceptional',
     reliable: 'Reliable',
     developing: 'Developing',
     building: 'Building',
-    
+
     // Encouragement Messages
     valuedTeamMember: '🌟 You\'re a valued team member!',
     buildingRelationships: '💪 Building strong team relationships',
@@ -3003,43 +3011,43 @@ If you have any questions, please contact our support team.`,
   availability: {
     // Modal Title
     requestTimeOff: 'Request Time Off',
-    
+
     // Request Type
     requestType: 'Request Type',
     singleDate: 'Single Date',
     consecutiveDays: 'Multiple consecutive days',
     selectDate: 'Select Date',
-    
+
     // Time Patterns
     timePeriod: 'Time Period',
     morningShiftTime: '6:00 AM - 2:00 PM',
-    afternoonShiftTime: '2:00 PM - 10:00 PM', 
+    afternoonShiftTime: '2:00 PM - 10:00 PM',
     eveningShiftTime: '10:00 PM - 6:00 AM',
     entireDay: 'Entire 24-hour period',
     setTimeRange: 'Set specific time range',
-    
+
     // Recurring Option
     recurringUnavailability: 'Make this a recurring unavailability (same time every week)',
-    
+
     // Reason Section
     reasonOptional: 'Reason (Optional)',
     reasonPlaceholder: 'Optional: Let your manager know why you need this time off...',
-    
+
     // Info Notes
     infoNote1: 'Time off requests affect future scheduling',
     infoNote2: 'Your manager will be notified of this request',
     infoNote3: 'This does not automatically cancel existing shifts',
     infoNote4: 'For existing shifts, use the swap system instead',
-    
+
     // Buttons
     submitRequest: 'Submit Request',
     submitting: 'Submitting...',
-    
+
     // Error Messages
     selectDateError: 'Please select a date',
     selectDatesError: 'Please select start and end dates',
     endTimeAfterStartError: 'End time must be after start time',
-    
+
     // Success Messages
     requestSubmittedSuccess: 'Time off request submitted successfully!',
     requestSubmitError: 'Failed to submit time off request',
@@ -3049,7 +3057,7 @@ If you have any questions, please contact our support team.`,
     install: {
       title: "Install Schedula",
       descriptionMobile: "Add to your home screen for quick access and offline scheduling",
-      descriptionDesktop: "Add to your desktop for quick access and offline scheduling", 
+      descriptionDesktop: "Add to your desktop for quick access and offline scheduling",
       descriptionIOS: "Tap Share, then \"Add to Home Screen\" for quick access",
       buttonInstall: "Install",
       buttonInstallFull: "Install App",

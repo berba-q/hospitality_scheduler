@@ -3,17 +3,27 @@
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useTranslations } from '@/hooks/useTranslations'
-import Link from 'next/link'
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  ArrowLeft
+} from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const [showCredentials, setShowCredentials] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [credentials, setCredentials] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const { data: session, status } = useSession()
@@ -75,10 +85,7 @@ export default function LoginPage() {
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">{t('common.loading')}</p>
-        </div>
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -87,180 +94,191 @@ export default function LoginPage() {
   if (status === 'authenticated' && session?.user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">
-            {t('auth.welcome')}, {session.user.name || session.user.email}!
-          </p>
-          <p className="text-gray-500 text-sm mt-2">{t('auth.redirecting')}</p>
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div>
+            <p className="text-gray-900 font-medium">
+              {t('auth.welcome')}, {session.user.name || session.user.email}!
+            </p>
+            <p className="text-gray-500 text-sm">{t('auth.redirecting')}</p>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md relative backdrop-blur-sm bg-white/80 border border-white/20 shadow-xl">
-        <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4">
-            <span className="text-2xl">🏨</span>
+    <div className="min-h-screen flex bg-white">
+      {/* Left Side - Decorative */}
+      <div className="hidden lg:flex lg:w-1/2 bg-slate-900 relative flex-col justify-between p-12 text-white overflow-hidden">
+        {/* Modern Abstract Background */}
+        <div className="absolute inset-0 bg-slate-900">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-500/20 via-slate-900 to-slate-900" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-indigo-500/20 via-slate-900 to-slate-900" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        </div>
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-white/10 backdrop-blur flex items-center justify-center border border-white/20">
+              <Image
+                src="/icons/icons/icon-512x512.png"
+                alt="Schedula Logo"
+                width={32}
+                height={32}
+                className="object-contain"
+              />
+            </div>
+            <span className="text-xl font-bold tracking-tight">Schedula</span>
           </div>
-          
-          <CardTitle className="text-2xl font-bold text-gray-900">
+        </div>
+
+        <div className="relative z-10 max-w-md space-y-6">
+          <h2 className="text-4xl font-bold leading-tight">
             {t('auth.welcomeBack')}
-          </CardTitle>
-          <CardDescription className="text-gray-600">
+          </h2>
+          <p className="text-lg text-slate-300">
             {t('auth.signInToManage')}
-          </CardDescription>
-        </CardHeader>
+          </p>
+        </div>
 
-        <CardContent className="space-y-4">
-          {!showCredentials ? (
-            <>
-              {/* Google Sign In Button */}
-              <Button
-                onClick={handleGoogleSignIn}
-                disabled={isLoading}
-                className="w-full h-12 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm"
-                variant="outline"
-              >
-                <div className="flex items-center justify-center gap-3">
-                  {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
-                  ) : (
-                    <svg className="w-5 h-5" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                      />
-                    </svg>
-                  )}
-                  <span className="font-medium">
-                    {isLoading ? t('auth.signing') : t('auth.continueWithGoogle')}
-                  </span>
-                </div>
-              </Button>
+        <div className="relative z-10 text-sm text-slate-400">
+          © {new Date().getFullYear()} Schedula Inc. {t('auth.allRightsReserved')}
+        </div>
+      </div>
 
-              {/* Divider */}
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-3 bg-white text-gray-500">{t('common.or')}</span>
-                </div>
+      {/* Right Side - Form */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 lg:p-12 bg-gray-50 lg:bg-white">
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center lg:text-left space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">{t('auth.sign')}</h1>
+            <p className="text-gray-500">
+              {t('auth.signInToManage')}
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <Button
+              onClick={handleGoogleSignIn}
+              variant="outline"
+              className="w-full h-12 text-base font-medium bg-white hover:bg-gray-50 border-gray-200 text-gray-700 flex items-center justify-center gap-3 transition-all"
+              disabled={isLoading}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+              {t('auth.continueWithGoogle')}
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
               </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-gray-50 lg:bg-white px-2 text-gray-500">
+                  {t('auth.orSignUpWith') || 'Or sign in with'}
+                </span>
+              </div>
+            </div>
 
-              {/* FastAPI Credentials option */}
-              <Button 
-                variant="ghost" 
-                className="w-full text-gray-600 hover:text-gray-900"
-                onClick={() => setShowCredentials(true)}
-              >
-                {t('auth.signWithCredentials')}
-              </Button>
-            </>
-          ) : (
-            <>
-              {/* Credentials Form */}
-              <form onSubmit={handleCredentialsLogin} className="space-y-4">
-                <div>
-                  <Label htmlFor="email">{t('auth.email')}</Label>
+            <form onSubmit={handleCredentialsLogin} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="email">{t('auth.email')}</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
                     id="email"
                     type="email"
-                    placeholder="manager@example.com"
                     value={credentials.email}
                     onChange={(e) => setCredentials(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="name@example.com"
+                    className="pl-10 h-11 bg-white"
                     required
+                    disabled={isLoading}
                   />
                 </div>
-                
-                <div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
                   <Label htmlFor="password">{t('auth.password')}</Label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm font-medium text-blue-600 hover:text-blue-500 hover:underline"
+                  >
+                    {t('auth.forgotPassword')}
+                  </Link>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
                     id="password"
-                    type="password"
-                    placeholder="changeme"
+                    type={showPassword ? 'text' : 'password'}
                     value={credentials.password}
                     onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="••••••••"
+                    className="pl-10 pr-10 h-11 bg-white"
                     required
+                    disabled={isLoading}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
+              </div>
 
-                {error && (
-                  <div className="text-red-600 text-sm text-center">{error}</div>
-                )}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="w-4 h-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
 
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={isLoading}
-                >
-                  {isLoading ? t('auth.signing') : t('auth.sign')}
-                </Button>
-
-                             {/* Forgotten password */}
-             <div className="text-center space-y-2">
-              <Link
-                href="/forgot-password"
-                className="text-sm text-blue-600 hover:text-blue-500 block"
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-medium bg-blue-600 hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
+                disabled={isLoading}
               >
-                {t('auth.forgotPassword')}
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                    {t('auth.signing')}
+                  </>
+                ) : (
+                  t('auth.sign')
+                )}
+              </Button>
+            </form>
+
+            {/* Demo Credentials Hint - Styled nicely */}
+
+            <div className="text-center space-y-4 pt-4">
+              <p className="text-sm text-gray-600">
+                {t('auth.dontHaveAccount')}{' '}
+                <Link href="/signup" className="text-blue-600 font-medium hover:underline hover:text-blue-700">
+                  {t('auth.createAccount')}
+                </Link>
+              </p>
+
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                {t('auth.backToHome')}
               </Link>
             </div>
-              </form>
-
-              <Button 
-                variant="ghost" 
-                className="w-full text-gray-600 hover:text-gray-900"
-                onClick={() => setShowCredentials(false)}
-             >
-               {t('auth.backToGoogle')}
-             </Button>
-
-             {/* Demo credentials hint */}
-             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
-               <p className="text-blue-800 text-xs font-medium">{t('auth.demoCredentials')}</p>
-               <p className="text-blue-700 text-xs">manager@example.com / changeme</p>
-               <p className="text-blue-700 text-xs">supervisor@example.com / changeme</p>
-             </div>
-           </>
-         )}
-
-         {/* Sign Up Link */}
-         <div className="pt-4 text-center border-t border-gray-200 mt-6">
-           <p className="text-sm text-gray-600 mb-2">
-             {t('auth.dontHaveAccount') || "Don't have an account?"}
-           </p>
-           <Link
-             href="/signup"
-             className="text-blue-600 hover:text-blue-700 font-medium text-sm hover:underline"
-           >
-             {t('auth.createAccount') || "Create a free account"}
-           </Link>
-         </div>
-
-         {/* Footer */}
-         <div className="pt-4 text-center">
-           <p className="text-xs text-gray-500">
-             {t('auth.signingYouAgree')}
-           </p>
-         </div>
-       </CardContent>
-     </Card>
-   </div>
- )
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
