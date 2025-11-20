@@ -153,16 +153,26 @@ export default function SignUpPage() {
   // Show success state
   if (status === 'success') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-green-600" />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
+        <Card className="w-full max-w-lg">
+          <CardHeader className="text-center space-y-4">
+            {/* Brand Logo/Name */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">
+                <span className="text-2xl font-bold text-white">S</span>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900">Schedula</h1>
             </div>
-            <CardTitle className="text-2xl">{t('auth.accountCreated')}</CardTitle>
-            <CardDescription>
-              {t('auth.checkEmailVerification')}
-            </CardDescription>
+
+            <div className="pt-2">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              </div>
+              <CardTitle className="text-2xl">{t('auth.accountCreated')}</CardTitle>
+              <CardDescription>
+                {t('auth.checkEmailVerification')}
+              </CardDescription>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>
@@ -193,13 +203,24 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">{t('auth.signUpTitle')}</CardTitle>
-          <CardDescription>
-            {t('auth.signUpDescription')}
-          </CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
+      <Card className="w-full max-w-lg">
+        <CardHeader className="text-center space-y-4">
+          {/* Brand Logo/Name */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center">
+              <span className="text-2xl font-bold text-white">S</span>
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">Schedula</h1>
+            <p className="text-sm text-gray-500">{t('navigation.modernPwaFor')}</p>
+          </div>
+
+          <div className="pt-2">
+            <CardTitle className="text-2xl">{t('auth.signUpTitle')}</CardTitle>
+            <CardDescription>
+              {t('auth.signUpDescription')}
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Google Sign Up */}

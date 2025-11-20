@@ -42,6 +42,7 @@ export const en = {
     resetLinkFailed: "Failed to send reset link. Please try again.",
     backToLogin: "Back to Login",
     sendAnotherLink: "Send Another Link",
+    goToLogin: "Go to Login",
 
     // Reset Password
     resetPassword: "Reset Password",
@@ -71,7 +72,7 @@ export const en = {
     // Sign Up
     signUp: "Sign Up",
     signUpTitle: "Create Your Account",
-    signUpDescription: "Join thousands of businesses managing their staff schedules efficiently.",
+    signUpDescription: "Join smart businesses managing their staff schedules efficiently.",
     createAccount: "Create Account",
     creatingAccount: "Creating Account...",
     organizationName: "Organization Name",
@@ -115,6 +116,11 @@ export const en = {
     networkError: "Network error. Please check your connection and try again.",
     emailPlaceholder: "Enter your email address",
     passwordPlaceholder: "Enter your password",
+    backToHome: "Back to Home",
+    signIn: "Sign In",
+    termsOfService: "Terms of Service",
+    and: "and",
+    privacyPolicy: "Privacy Policy",
 
     // Error messages
     featureNotAvailable: "Account linking feature is not yet available. Please contact your administrator.",
@@ -125,6 +131,11 @@ export const en = {
     // Development notes
     developmentNote: "Development Note",
     emailMatchRequirement: "Account linking requires your Gmail email to match your system account ({{systemEmail}}). If emails don't match, linking will fail and you'll need to contact your administrator.",
+  },
+
+  invitations: {
+    invalidInvitation: 'Invalid Invitation',
+    invalidInvitationDescription: 'This invitation link is invalid or has expired. Please contact your administrator for a new invitation.',
   },
 
   common: {
@@ -147,6 +158,7 @@ export const en = {
     viewMore: 'View More',
     add: 'Add',
     create: 'Create',
+    created: 'Created',
     update: 'Update',
     updating: 'Updating...',
     updateExisting: 'Update Existing',
@@ -178,6 +190,15 @@ export const en = {
     enable: 'Enable',
     or: 'or',
     primary: 'Primary',
+    with: 'with',
+    without: 'without',
+    complete: 'Complete',
+    successful: 'Successful',
+    skipped: 'Skipped',
+    csv: 'CSV',
+    excel: 'Excel',
+    pdf: 'PDF',
+    from: 'From',
     // Show/Hide actions
     show: 'Show',
     hide: 'Hide',
@@ -259,6 +280,7 @@ export const en = {
     medium: 'Medium',
     high: 'High',
     urgent: 'Urgent',
+    normal: 'Normal',
     recommended: "Recommended",
     processing: "Processing...",
     yes: 'Yes',
@@ -266,6 +288,14 @@ export const en = {
     working: 'Working...',
     note: 'Note',
     levelNumber: 'L{{level}}',
+    attention: 'Attention',
+    advanced: 'Advanced',
+    management: 'Management',
+    detailed: 'Detailed',
+    workload: 'Workload',
+    reports: 'Reports',
+    minStaff: 'Min Staff',
+    maxStaff: 'Max Staff',
 
     // Generic entities
     facility: 'Facility',
@@ -496,6 +526,13 @@ export const en = {
     encounteredUnexpectedError: 'We encountered an unexpected error. Please try again.',
     reloadPage: 'Reload Page',
     oopsSomethingWent: 'Oops! Something went wrong',
+    apiClientNotInitialized: 'API client not initialized',
+    failedToLoad: 'Failed to load data',
+    swapNotFound: 'Swap request not found',
+    cannotRespond: 'Cannot respond to swap request',
+    failedToRespond: 'Failed to respond to swap request',
+    failedToCancelSwap: 'Failed to cancel swap request',
+    failedToCreateSwap: 'Failed to create swap request',
   },
 
   navigation: {
@@ -516,9 +553,9 @@ export const en = {
     manageFacilities: 'Manage Facilities',
     
     // App identity
-    hospitalityScheduler: 'Hospitality Scheduler',
-    welcomeToHospitalityScheduler: 'Welcome to Hospitality Scheduler',
-    modernPwaFor: 'Modern PWA for hospitality staff scheduling',
+    hospitalityScheduler: 'Schedula',
+    welcomeToHospitalityScheduler: 'Welcome to Schedula',
+    modernPwaFor: 'Professional hospitality scheduling made simple',
   },
 
   dashboard: {
@@ -544,6 +581,7 @@ export const en = {
     addEditOrganizeTeam: 'Add, edit, and organize team members',
     approveAndManageChanges: 'Approve and manage shift changes',
     checkUpcomingShifts: 'Check your upcoming shifts',
+    checkBackSoon: 'Check back soon for new assignments',
     
     // Stats and metrics
     teamPerformance: 'Team Performance',
@@ -1044,7 +1082,9 @@ export const en = {
     helpful: 'helpful',
     opportunities: 'opportunities',
     leadsTeamInHelping: '{{name}} leads the team in helping colleagues with swap coverage.',
-    
+    teamCoverage: 'Team Coverage',
+    yourContribution: 'Your Contribution',
+
     // Success/Error messages for ADDING with templates
     staffAddedSuccessfully: '{{name}} added successfully!',
     failedAddStaff: 'Failed to add staff member',
@@ -1121,7 +1161,7 @@ export const en = {
     statusNoAccount: '⚠ No Account',
 
     // Delete confirmation
-    removeStaffMember: "Remove {name}",
+    removeStaffMember: "Remove {{name}}",
     chooseRemovalMethod: "Choose how to handle this staff member's removal",
     checkingImpact: "Checking impact...",
     impactAssessment: "Impact Assessment",
@@ -1134,12 +1174,12 @@ export const en = {
     uniqueSkills: "Unique Skills",
     removeFromActiveStaff: "Remove from Active Staff",
     requiredForDeletion: "Required",
-    deactivateDescription: "Deactivates {name} but keeps all history for reporting",
+    deactivateDescription: "Deactivates {{name}} but keeps all history for reporting",
     deactivateStaffMember: "Deactivate Staff Member",
     removeAndClearSchedule: "Remove and Clear Schedule",
     permanentlyDelete: "Permanently Delete",
-    deactivatedSuccessfully: "{name} has been deactivated successfully",
-    removedWithSchedulesCleared: "{name} has been removed and {count} schedules cleared",
+    deactivatedSuccessfully: "{{name}} has been deactivated successfully",
+    removedWithSchedulesCleared: "{{name}} has been removed and {{count}} schedules cleared",
     deleteError: {
       hasAssignments: "Cannot remove staff member. They have active assignments that need to be handled first.",
       tryRemoveAndClear: "Try using 'Remove and Clear Schedule' option instead.",
@@ -1542,7 +1582,12 @@ export const en = {
     // Time and shift info
     anyDay: 'Any Day',
     anyShift: 'Any Shift',
-    
+    oneSpecificDay: 'One specific day',
+    pickDate: 'Pick a date',
+    startHour: 'Start Hour',
+    endHour: 'End Hour',
+    importantNotes: 'Important Notes',
+
     // Timeline
     requested: 'Requested',
     updated: 'Updated',
@@ -1581,8 +1626,13 @@ export const en = {
     autoCoverage: 'Auto Coverage',
     systemCoverage: 'System Coverage',
     teamCoverage: 'Team Coverage',
+    teamSwapCoverage: 'of team swap coverage this month',
     findingCoverage: 'Finding Coverage',
     couldNotFindCoverage: 'Could not find coverage',
+    shiftManagement: 'Shift Management',
+    manageShiftsSubtitle: 'Manage your shifts and support your team',
+    managingSwaps: 'Managing swaps for',
+    viewHistory: 'View History',
     
     // Swap-specific messages
     swapAccepted: 'Swap accepted!',

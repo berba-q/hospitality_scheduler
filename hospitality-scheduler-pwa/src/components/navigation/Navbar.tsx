@@ -1,18 +1,19 @@
 //components/navigation/Navbar.tsx
-// Navigation bar component for the Hospitality Scheduler PWA
+// Navigation bar component for the Schedula PWA
 'use client'
 
 import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  LayoutDashboard, 
-  Users, 
-  Calendar, 
-  Settings, 
-  Building, 
+import {
+  LayoutDashboard,
+  Users,
+  Calendar,
+  Settings,
+  Building,
   RefreshCw,
   ChevronDown,
   LogOut,
@@ -88,15 +89,19 @@ export function Navbar() {
           {/* Logo and Navigation */}
           <div className="flex items-center gap-8">
             {/* Logo */}
-            <div 
+            <div
               className="flex items-center gap-3 cursor-pointer"
               onClick={() => router.push('/dashboard')}
             >
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm font-bold">🏨</span>
-              </div>
+              <Image
+                src="/icons/icons/icon-96x96.png"
+                alt="Schedula"
+                width={32}
+                height={32}
+                className="rounded-lg"
+              />
               <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                HospitalityScheduler
+                Schedula
               </span>
             </div>
 

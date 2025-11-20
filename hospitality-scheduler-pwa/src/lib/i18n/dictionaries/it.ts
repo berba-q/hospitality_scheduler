@@ -70,7 +70,7 @@ export const it = {
     // Sign up
     signUp: "Registrati",
     signUpTitle: "Crea il tuo account",
-    signUpDescription: "Unisciti a migliaia di aziende che gestiscono i turni del personale in modo efficiente.",
+    signUpDescription: "Unisciti le aziende che gestiscono i turni del personale in modo efficiente.",
     createAccount: "Crea account",
     creatingAccount: "Creazione account...",
     organizationName: "Nome organizzazione",
@@ -122,6 +122,7 @@ export const it = {
     authenticationErrorDescription: "Si è verificato un problema durante l'autenticazione.",
     goToLogin: "Vai al login",
     tryAgain: "Riprova",
+    signIn: "Accedi",
     termsOfService: "Termini di servizio",
     privacyPolicy: "Privacy Policy",
     and: "e",
@@ -136,6 +137,11 @@ export const it = {
     // Development notes
     developmentNote: "Nota di Sviluppo",
     emailMatchRequirement: "Il collegamento account richiede che la tua email Gmail corrisponda al tuo account di sistema ({{systemEmail}}). Se le email non corrispondono, il collegamento fallirà e dovrai contattare il tuo amministratore.",
+  },
+
+  invitations: {
+    invalidInvitation: 'Invito non valido',
+    invalidInvitationDescription: 'Questo link di invito non è valido o è scaduto. Contatta il tuo amministratore per un nuovo invito.',
   },
 
   common: {
@@ -161,6 +167,7 @@ export const it = {
     viewMore: 'Visualizza Altro',
     add: 'Aggiungi',
     create: 'Crea',
+    created: 'Creato',
     update: 'Aggiorna',
     updating: 'Aggiornamento...',
     updateExisting: 'Aggiorna esistente',
@@ -189,6 +196,15 @@ export const it = {
     primary: 'Primario',
     declined: 'Rifiutato',
     apiClientNotInitialized: 'API client non inizializzato',
+    with: 'con',
+    without: 'senza',
+    complete: 'Completo',
+    successful: 'Riuscito',
+    skipped: 'Saltato',
+    csv: 'CSV',
+    excel: 'Excel',
+    pdf: 'PDF',
+    from: 'Da',
 
     // Azioni mostra/nascondi
     show: 'Mostra',
@@ -276,6 +292,15 @@ export const it = {
     working: 'Lavorazione...',
     note: 'Nota',
     levelNumber: 'L{{level}}',
+    normal: 'Normale',
+    attention: 'Attenzione',
+    advanced: 'Avanzato',
+    management: 'Gestione',
+    detailed: 'Dettagliato',
+    workload: 'Carico di lavoro',
+    reports: 'Rapporti',
+    minStaff: 'Min Personale',
+    maxStaff: 'Max Personale',
 
     // Entità generiche
     facility: 'Struttura',
@@ -507,6 +532,13 @@ export const it = {
     encounteredUnexpectedError: 'Abbiamo riscontrato un errore imprevisto. Riprova.',
     reloadPage: 'Ricarica Pagina',
     oopsSomethingWent: 'Ops! Qualcosa è andato storto',
+    apiClientNotInitialized: 'Client API non inizializzato',
+    failedToLoad: 'Impossibile caricare i dati',
+    swapNotFound: 'Richiesta di scambio non trovata',
+    cannotRespond: 'Impossibile rispondere alla richiesta di scambio',
+    failedToRespond: 'Impossibile rispondere alla richiesta di scambio',
+    failedToCancelSwap: 'Impossibile annullare la richiesta di scambio',
+    failedToCreateSwap: 'Impossibile creare la richiesta di scambio',
   },
 
   navigation: {
@@ -527,9 +559,9 @@ export const it = {
     manageFacilities: 'Gestisci Strutture',
     
     // Identità app
-    hospitalityScheduler: 'Scheduler Ospitalità',
-    welcomeToHospitalityScheduler: 'Benvenuto in Scheduler Ospitalità',
-    modernPwaFor: 'PWA moderno per la pianificazione del personale alberghiero',
+    hospitalityScheduler: 'Schedula',
+    welcomeToHospitalityScheduler: 'Benvenuto in Schedula',
+    modernPwaFor: 'Pianificazione professionale per ospitalità resa semplice',
   },
 
   dashboard: {
@@ -555,6 +587,7 @@ export const it = {
     addEditOrganizeTeam: 'Aggiungi, modifica e organizza i membri del team',
     approveAndManageChanges: 'Approva e gestisci i cambiamenti di turno',
     checkUpcomingShifts: 'Controlla i tuoi prossimi turni',
+    checkBackSoon: 'Torna presto per nuovi incarichi',
     
     // Statistiche e metriche
     teamPerformance: 'Prestazioni del Team',
@@ -1040,7 +1073,9 @@ export const it = {
     opportunities: 'opportunità',
     leadsTeamInHelping: '{{name}} guida il team nell\'aiutare i colleghi con la copertura degli scambi.',
     reliabilityScore: 'Punteggio di Affidabilità',
-    
+    teamCoverage: 'Copertura del Team',
+    yourContribution: 'Il Tuo Contributo',
+
     // Messaggi specifici personale
     manageYourTeam: 'Gestisci il tuo team e le strutture',
     couldNotLink: 'Impossibile collegare il tuo account utente a un profilo del personale. Contatta il tuo manager.',
@@ -1093,7 +1128,7 @@ export const it = {
     noChanges: 'Nessuna Modifica',
 
     // Delete confirmation
-    removeStaffMember: "Rimuovi {name}",
+    removeStaffMember: "Rimuovi {{name}}",
     chooseRemovalMethod: "Scegli come gestire la rimozione di questo membro del personale",
     checkingImpact: "Controllo impatto...",
     impactAssessment: "Valutazione dell'Impatto",
@@ -1106,12 +1141,12 @@ export const it = {
     uniqueSkills: "Competenze Uniche",
     removeFromActiveStaff: 'Rimuovi dal Personale Attivo',
     requiredForDeletion: "Richiesto",
-    deactivateDescription: 'Disattiva {name} ma mantiene tutta la cronologia per i report',
+    deactivateDescription: 'Disattiva {{name}} ma mantiene tutta la cronologia per i report',
     deactivateStaffMember: 'Disattiva Membro del Personale',
     removeAndClearSchedule: 'Rimuovi e Cancella Pianificazione',
     permanentlyDelete: 'Elimina Permanentemente',
-    deactivatedSuccessfully: '{name} è stato disattivato con successo',
-    removedWithSchedulesCleared: '{name} è stato rimosso e {count} pianificazioni cancellate',
+    deactivatedSuccessfully: '{{name}} è stato disattivato con successo',
+    removedWithSchedulesCleared: '{{name}} è stato rimosso e {{count}} pianificazioni cancellate',
 
     // Delete validation and errors
     deleteError: {
@@ -1549,7 +1584,12 @@ export const it = {
     // Time and shift info
     anyDay: 'Qualsiasi Giorno',
     anyShift: 'Qualsiasi Turno',
-    
+    oneSpecificDay: 'Un giorno specifico',
+    pickDate: 'Scegli una data',
+    startHour: 'Ora di Inizio',
+    endHour: 'Ora di Fine',
+    importantNotes: 'Note Importanti',
+
     // Timeline
     requested: 'Richiesto',
     updated: 'Aggiornato',
@@ -1588,8 +1628,13 @@ export const it = {
     autoCoverage: 'Copertura Automatica',
     systemCoverage: 'Copertura Sistema',
     teamCoverage: 'Copertura Team',
+    teamSwapCoverage: 'di copertura scambi del team questo mese',
     findingCoverage: 'Ricerca Copertura',
     couldNotFindCoverage: 'Impossibile trovare copertura',
+    shiftManagement: 'Gestione Turni',
+    manageShiftsSubtitle: 'Gestisci i tuoi turni e supporta il tuo team',
+    managingSwaps: 'Gestione scambi per',
+    viewHistory: 'Visualizza Cronologia',
     
     // Messaggi specifici scambi
     swapAccepted: 'Scambio accettato!',
