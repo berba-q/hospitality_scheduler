@@ -186,7 +186,7 @@ def interactive_setup():
     """Interactive setup wizard"""
     print_header("ENCRYPTION SETUP WIZARD")
     
-    print("Welcome to the Hospitality Scheduler encryption setup!")
+    print("Welcome to the Schedula encryption setup!")
     print("This wizard will help you configure encryption for sensitive data.")
     
     # Step 1: Check current setup

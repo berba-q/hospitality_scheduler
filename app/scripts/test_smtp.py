@@ -51,7 +51,7 @@ def test_smtp_configuration():
         
         # Create message (using same logic as your NotificationService)
         msg = MIMEMultipart()
-        from_name = "Hospitality Scheduler"
+        from_name = "Schedula"
         from_email = smtp_username
         
         msg['From'] = f"{from_name} <{from_email}>"
@@ -80,7 +80,7 @@ def test_smtp_configuration():
                 <div class="success">
                     <p><strong>Congratulations!</strong> Your SMTP configuration is working perfectly.</p>
                 </div>
-                <p>Your Hospitality Scheduler application can now send real emails for:</p>
+                <p>Your Schedula application can now send real emails for:</p>
                 <ul>
                     <li>✅ User signup confirmations</li>
                     <li>✅ Password reset links</li>
@@ -96,7 +96,7 @@ def test_smtp_configuration():
                 </ul>
             </div>
             <div class="footer">
-                <p>This test email was sent by your Hospitality Scheduler SMTP configuration.</p>
+                <p>This test email was sent by your Schedula SMTP configuration.</p>
             </div>
         </body>
         </html>
@@ -108,7 +108,7 @@ def test_smtp_configuration():
 
 Congratulations! Your SMTP configuration is working perfectly.
 
-Your Hospitality Scheduler application can now send real emails for:
+Your Schedula application can now send real emails for:
 ✅ User signup confirmations
 ✅ Password reset links  
 ✅ Staff invitations
@@ -120,7 +120,7 @@ Configuration used:
 - Port: {smtp_port}
 - Username: {smtp_username}
 
-This test email was sent by your Hospitality Scheduler SMTP configuration.
+This test email was sent by your Schedula SMTP configuration.
         """
         
         msg.attach(MIMEText(html_body, 'html'))

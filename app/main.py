@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager with security features"""
     # Startup
-    logger.info("🚀 Starting Hospitality Scheduler API with enhanced security")
+    logger.info("🚀 Starting Schedula API with enhanced security")
     
     # Initialize Redis for rate limiting
     try:
@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logger.info("🛑 Shutting down Hospitality Scheduler API")
+    logger.info("🛑 Shutting down Schedula API")
     cleanup_task.cancel()
     try:
         await cleanup_task
@@ -90,8 +90,8 @@ async def session_cleanup_task():
 
 # Create FastAPI app with lifespan
 app = FastAPI(
-    title="Hospitality Scheduler API",
-    description="Enhanced API with comprehensive security features",
+    title="Schedula API",
+    description="Professional hospitality scheduling API with comprehensive security features",
     version="2.0.0",
     lifespan=lifespan,
     docs_url="/docs",
@@ -321,9 +321,9 @@ app.include_router(api_router, prefix="/api/v1")
 async def root():
     """API root with information"""
     return {
-        "name": "Hospitality Scheduler API",
+        "name": "Schedula API",
         "version": "2.0.0",
-        "description": "Enhanced hospitality management API with enterprise security",
+        "description": "Professional hospitality scheduling API with enterprise security",
         "features": [
             "Multi-tenant architecture",
             "Staff scheduling",

@@ -377,7 +377,7 @@ def test_smtp_connection(
         msg = MIMEMultipart()
         msg['From'] = smtp_from_email
         msg['To'] = current_user.email
-        msg['Subject'] = "SMTP Configuration Test - Hospitality Scheduler"
+        msg['Subject'] = "SMTP Configuration Test - Schedula"
         
         body = f"""
         Hello {current_user.email},
@@ -387,7 +387,7 @@ def test_smtp_connection(
         Tested at: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
         
         Best regards,
-        Hospitality Scheduler
+        Schedula
         """
         
         msg.attach(MIMEText(body, 'plain'))

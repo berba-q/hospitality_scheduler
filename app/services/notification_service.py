@@ -480,7 +480,7 @@ class NotificationService:
             {action_button_html}
         </div>
         <div class="footer">
-            <p>This email was sent by Hospitality Scheduler.</p>
+            <p>This email was sent by Schedula.</p>
         </div>
     </body>
     </html>"""
@@ -1073,7 +1073,7 @@ class NotificationService:
             {action_button_html}
         </div>
         <div class="footer">
-            <p>This email was sent by Hospitality Scheduler.</p>
+            <p>This email was sent by Schedula.</p>
         </div>
     </body>
     </html>"""
