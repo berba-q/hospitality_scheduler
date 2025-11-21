@@ -422,106 +422,167 @@ class NotificationService:
             logger.info("💡 Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD in your .env file")
             return False
 
-        try:
-            # Create message
-            msg = MIMEMultipart()
-            from_name = settings.SMTP_FROM_NAME or "Schedula"
-            from_email = settings.SMTP_FROM_EMAIL
+        # Retry configuration
+        max_retries = 3
+        base_delay = 1.0  # seconds
 
-            if not from_email:
-                logger.error(f"❌ SMTP_FROM_EMAIL not configured")
-                return False
+        for attempt in range(max_retries):
+            try:
+                # Run blocking SMTP call in a separate thread
+                logger.info(f"📧 Attempt {attempt + 1}/{max_retries}: Sending email to {to_email}")
+                
+                await asyncio.to_thread(
+                    self._send_smtp_message_sync,
+                    to_email,
+                    subject,
+                    message,
+                    settings,
+                    action_url,
+                    action_text,
+                    pdf_attachment_url
+                )
+                
+                logger.info(f"✅ EMAIL SENT: {subject} to {to_email}")
+                return True
 
-            msg['From'] = f"{from_name} <{from_email}>"
-            msg['To'] = to_email
-            msg['Subject'] = subject
+            except Exception as e:
+                logger.warning(f"⚠️ Attempt {attempt + 1}/{max_retries} failed for {to_email}: {e}")
+                
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)  # Exponential backoff
+                    logger.info(f"⏳ Retrying in {delay}s...")
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(f"❌ Failed to send email to {to_email} after {max_retries} attempts: {e}")
+                    return False
 
-            logger.info(f"📧 Preparing email message for {to_email}")
+    def _send_smtp_message_sync(
+        self,
+        to_email: str,
+        subject: str,
+        message: str,
+        settings: Any,
+        action_url: Optional[str] = None,
+        action_text: Optional[str] = None,
+        pdf_attachment_url: Optional[str] = None
+    ):
+        """Blocking SMTP sending logic to be run in a thread"""
+        
+        # Create message
+        msg = MIMEMultipart()
+        from_name = settings.SMTP_FROM_NAME or "Schedula"
+        from_email = settings.SMTP_FROM_EMAIL
 
-            # Pre-process the message content
-            html_message = message.replace('\n', '<br>')
-            action_button_html = ""
+        if not from_email:
+            raise ValueError("SMTP_FROM_EMAIL not configured")
 
-            # Pre-build action button HTML if needed
-            if action_url and action_text:
-                action_button_html = f"""
-                    <div style="text-align: center; margin: 20px 0;">
-                        <a href="{action_url}" class="button">{action_text}</a>
-                    </div>
-                """
+        msg['From'] = f"{from_name} <{from_email}>"
+        msg['To'] = to_email
+        msg['Subject'] = subject
 
-            # Build HTML body with pre-processed content
-            html_body = f"""<!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{subject}</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }}
-            .header {{ color: #333; text-align: center; margin-bottom: 30px; }}
-            .content {{ background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }}
-            .footer {{ border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }}
-            .button {{
-                display: inline-block;
-                background-color: #007bff;
-                color: white;
-                padding: 12px 24px;
-                text-decoration: none;
-                border-radius: 5px;
-                margin: 20px 0;
-            }}
-        </style>
-    </head>
-    <body>
-        <h2 class="header">{subject}</h2>
-        <div class="content">
-            {html_message}
-            {action_button_html}
-        </div>
-        <div class="footer">
-            <p>This email was sent by Schedula.</p>
-        </div>
-    </body>
-    </html>"""
+        # Pre-process the message content
+        html_message = message.replace('\n', '<br>')
+        action_button_html = ""
 
-            # Attach HTML and plain text
-            msg.attach(MIMEText(html_body, 'html'))
-            msg.attach(MIMEText(message, 'plain'))
+        # Pre-build action button HTML if needed
+        if action_url and action_text:
+            action_button_html = f"""
+                <div style="text-align: center; margin: 20px 0;">
+                    <a href="{action_url}" class="button">{action_text}</a>
+                </div>
+            """
 
-            # Handle PDF attachment if provided
-            if pdf_attachment_url:
-                await self._attach_pdf_to_email(msg, pdf_attachment_url)
+        # Build HTML body with pre-processed content
+        html_body = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{subject}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333; }}
+        .header {{ color: #333; text-align: center; margin-bottom: 30px; }}
+        .content {{ background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+        .footer {{ border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; text-align: center; color: #666; font-size: 12px; }}
+        .button {{
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }}
+    </style>
+</head>
+<body>
+    <h2 class="header">{subject}</h2>
+    <div class="content">
+        {html_message}
+        {action_button_html}
+    </div>
+    <div class="footer">
+        <p>This email was sent by Schedula.</p>
+    </div>
+</body>
+</html>"""
 
-            # Connect to SMTP server and send
-            smtp_host = settings.SMTP_HOST
-            smtp_port = settings.SMTP_PORT or 587
-            smtp_password = settings.SMTP_PASSWORD
+        # Attach HTML and plain text
+        msg.attach(MIMEText(html_body, 'html'))
+        msg.attach(MIMEText(message, 'plain'))
 
-            logger.info(f"📧 Connecting to SMTP: {smtp_host}:{smtp_port}")
+        # Handle PDF attachment if provided
+        # Note: _attach_pdf_to_email is async, so we can't call it directly here easily.
+        # However, since we are in a thread, we should download the PDF content before calling this sync method
+        # OR we can use a sync HTTP client here. 
+        # Given the architecture, it's better to handle PDF downloading in the async wrapper if possible, 
+        # BUT _attach_pdf_to_email is a method on self. 
+        # Let's use a sync approach for PDF downloading inside this thread or use requests/httpx sync.
+        
+        if pdf_attachment_url:
+            # We need to download the PDF synchronously here
+            import httpx
+            try:
+                # Use httpx for synchronous download
+                response = httpx.get(pdf_attachment_url, timeout=10.0)
+                response.raise_for_status()
+                pdf_data = response.content
+                
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(pdf_data)
+                encoders.encode_base64(part)
+                part.add_header(
+                    'Content-Disposition',
+                    f'attachment; filename="{pdf_attachment_url.split("/")[-1]}"'
+                )
+                msg.attach(part)
+                print(f"✅ PDF attached from {pdf_attachment_url}")
+            except Exception as e:
+                print(f"❌ Failed to attach PDF from {pdf_attachment_url}: {e}")
 
-            # Use STARTTLS for port 587 (Resend's recommended method)
-            server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
-            server.set_debuglevel(0)  # Set to 1 for debugging
-            server.ehlo()
-            server.starttls(context=ssl.create_default_context())
-            server.ehlo()
+        # Connect to SMTP server and send
+        smtp_host = settings.SMTP_HOST
+        smtp_port = settings.SMTP_PORT or 587
+        smtp_password = settings.SMTP_PASSWORD
 
-            # Login
-            logger.info(f"📧 Authenticating with SMTP server...")
-            server.login(settings.SMTP_USERNAME, smtp_password)
+        logger.info(f"📧 Connecting to SMTP: {smtp_host}:{smtp_port}")
 
-            # Send message
-            logger.info(f"📧 Sending email to {to_email}...")
-            server.send_message(msg)
-            server.quit()
+        # Use STARTTLS for port 587 (Resend's recommended method)
+        # INCREASED TIMEOUT to 30 seconds
+        server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
+        server.set_debuglevel(0)  # Set to 1 for debugging
+        server.ehlo()
+        server.starttls(context=ssl.create_default_context())
+        server.ehlo()
 
-            logger.info(f"✅ EMAIL SENT: {subject} to {to_email}")
-            return True
+        # Login
+        logger.info(f"📧 Authenticating with SMTP server...")
+        server.login(settings.SMTP_USERNAME, smtp_password)
 
-        except Exception as e:
-            logger.error(f"❌ Failed to send email to {to_email}: {e}")
-            return False
+        # Send message
+        logger.info(f"📧 Sending email to {to_email}...")
+        server.send_message(msg)
+        server.quit()
 
     #  Basic notification with i18n support
     async def _create_basic_notification(

@@ -19,7 +19,8 @@ class ScheduleNotificationHandler:
     async def notify_schedule_published(
         self, 
         schedule: Schedule, 
-        background_tasks: BackgroundTasks
+        background_tasks: BackgroundTasks,
+        pdf_url: str = None
     ):
         """Notify all staff when a new schedule is published"""
         
@@ -62,7 +63,8 @@ class ScheduleNotificationHandler:
                     priority=NotificationPriority.HIGH,
                     action_url=action_url,
                     action_text="View Schedule",
-                    background_tasks=background_tasks
+                    background_tasks=background_tasks,
+                    pdf_attachment_url=pdf_url
                 )
             else:
                 print(f"No user account found for staff {staff.email}")

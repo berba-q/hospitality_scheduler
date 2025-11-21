@@ -2238,6 +2238,7 @@ async def publish_schedule(
         if user and user.is_active:
             # ✅ HAPPY PATH: User exists and is active
             try:
+                # Send notifications
                 await send_schedule_notification(
                     user, 
                     staff_member, 
