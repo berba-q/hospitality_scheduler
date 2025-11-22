@@ -2,13 +2,13 @@ import type { NextConfig } from "next";
 import withPWA from 'next-pwa';
 
 const nextConfig: NextConfig = {
-  eslint: {
-    // Ignore ESLint errors during build to allow debug files
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     // Ignore TypeScript errors during build to allow debug files
     ignoreBuildErrors: true,
+  },
+  turbopack: {
+    // Empty config to silence the Turbopack warning
+    // Most applications work fine under Turbopack with no configuration
   },
   async rewrites() {
     return [
