@@ -2966,13 +2966,13 @@ async importSettings(data: unknown, options: {
 
 // Create API client instance
 export const apiClient = new ApiClient({
-  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
+  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
 })
 
 // Helper to create authenticated API client
 export function createAuthenticatedApiClient(accessToken: string) {
   return new ApiClient({
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },

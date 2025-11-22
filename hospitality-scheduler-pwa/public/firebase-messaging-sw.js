@@ -105,10 +105,13 @@ self.addEventListener('notificationclick', (event) => {
   // Handle quick actions for swap requests
   if (action === 'approve' && data.notification_id) {
     console.log('Quick approve action triggered');
-    
+
+    // Get API URL from data or use default
+    const apiUrl = data.api_url || self.location.origin.replace(':3000', ':8000');
+
     event.waitUntil(
       // Make API call to approve the swap request
-      fetch(`http://localhost:8000/api/v1/swaps/${data.swap_id}/approve`, {
+      fetch(`${apiUrl}/api/v1/swaps/${data.swap_id}/approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,9 +138,12 @@ self.addEventListener('notificationclick', (event) => {
   
   if (action === 'decline' && data.notification_id) {
     console.log('Quick decline action triggered');
-    
+
+    // Get API URL from data or use default
+    const apiUrl = data.api_url || self.location.origin.replace(':3000', ':8000');
+
     event.waitUntil(
-      fetch(`http://localhost:8000/api/v1/swaps/${data.swap_id}/decline`, {
+      fetch(`${apiUrl}/api/v1/swaps/${data.swap_id}/decline`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -17,7 +17,7 @@ function decodeJWT(token: string) {
 // Helper function to check for account linking suggestions
 async function checkAccountLinking(provider: string, email: string) {
   try {
-    const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/account/suggest-linking`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1/account/suggest-linking`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider, provider_email: email }),
@@ -46,7 +46,7 @@ interface AccountLinkRequest {
 // to work from the NextAuth events context.
 // async function linkAccount(linkRequest: AccountLinkRequest, accessToken: string) {
 //   try {
-//     const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/account/link-provider`, {
+//     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1/account/link-provider`, {
 //       method: 'POST',
 //       headers: {
 //         'Content-Type': 'application/json',
@@ -82,7 +82,7 @@ export const { auth, signIn, signOut } = NextAuth({
 
           console.log('AUTH DEBUG: Attempting login for:', credentials.email)
 
-          const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/auth/login`, {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
@@ -188,7 +188,7 @@ export const { auth, signIn, signOut } = NextAuth({
           // Exchange OAuth credentials for backend token
           try {
             console.log('Calling backend OAuth login for:', profile.email)
-            const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/auth/oauth-login`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1/auth/oauth-login`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
