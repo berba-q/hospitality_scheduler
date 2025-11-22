@@ -12,7 +12,7 @@ import { FileSpreadsheet, Check, X, AlertTriangle, Building2, Eye, EyeOff } from
 import { useTranslations } from '@/hooks/useTranslations'
 import { useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import React from 'react'
 import * as FacilityTypes from '@/types/facility'
 
@@ -145,27 +145,60 @@ export function ImportFacilitiesModal({ open, onClose, onSuccess, initialFile }:
     setProcessing(true)
     try {
       const arrayBuffer = await file.arrayBuffer()
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' })
-      const sheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[sheetName]
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (string | number | boolean | null)[][]
+      const workbook = new ExcelJS.Workbook()
+      await workbook.xlsx.load(arrayBuffer)
+      const worksheet = workbook.worksheets[0]
 
-      if (jsonData.length === 0) {
+      if (!worksheet || worksheet.rowCount === 0) {
         throw new Error(t('facilities.noDataFound'))
       }
 
-      const headers = jsonData[0] as string[]
       const detectedCols = new Set<string>()
       const originalNames: Record<string, string> = {}
 
-      // Map headers to standard column names
+      // Helper function to extract cell value as string
+      const getCellValue = (cell: ExcelJS.Cell): string => {
+        const value = cell.value
+        if (value === null || value === undefined) return ''
+
+        // Handle rich text
+        if (typeof value === 'object' && 'richText' in value) {
+          return value.richText.map((rt: { text: string }) => rt.text).join('')
+        }
+
+        // Handle formula results
+        if (typeof value === 'object' && 'result' in value) {
+          return String(value.result || '')
+        }
+
+        // Handle hyperlinks
+        if (typeof value === 'object' && 'text' in value) {
+          return String(value.text || '')
+        }
+
+        // Handle dates
+        if (value instanceof Date) {
+          return value.toLocaleDateString()
+        }
+
+        // Default: convert to string
+        return String(value)
+      }
+
+      // Get headers from first row
+      const headerRow = worksheet.getRow(1)
+      const headers: string[] = []
       const columnMapping: Record<number, string> = {}
-      headers.forEach((header, index) => {
-        const standardName = detectColumn(header)
+
+      headerRow.eachCell((cell, colNumber) => {
+        const headerValue = getCellValue(cell)
+        headers[colNumber - 1] = headerValue
+
+        const standardName = detectColumn(headerValue)
         if (standardName) {
-          columnMapping[index] = standardName
+          columnMapping[colNumber - 1] = standardName
           detectedCols.add(standardName)
-          originalNames[standardName] = header
+          originalNames[standardName] = headerValue
         }
       })
 
@@ -174,17 +207,22 @@ export function ImportFacilitiesModal({ open, onClose, onSuccess, initialFile }:
 
       // Process data rows
       const facilities: FacilityTypes.ParsedFacility[] = []
-      for (let i = 1; i < jsonData.length; i++) {
-        const row = jsonData[i]
-        if (!row || row.every(cell => !cell)) continue // Skip empty rows
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return // Skip header row
+
+        // Check if row is empty
+        let hasData = false
+        row.eachCell(() => { hasData = true })
+        if (!hasData) return
 
         const facilityData: Partial<FacilityTypes.CreateFacilityInput> = {}
-        
+
         // Map row data using column mapping
         Object.entries(columnMapping).forEach(([colIndex, fieldName]) => {
-          const value = row[parseInt(colIndex)]
+          const cell = row.getCell(parseInt(colIndex) + 1) // ExcelJS is 1-indexed
+          const value = getCellValue(cell)
           if (value !== undefined && value !== null && value !== '') {
-            const trimmedValue = String(value).trim()
+            const trimmedValue = value.trim()
             if (trimmedValue) {
               (facilityData as Record<string, string>)[fieldName] = trimmedValue
             }
@@ -193,17 +231,17 @@ export function ImportFacilitiesModal({ open, onClose, onSuccess, initialFile }:
 
         // Validate and process the facility
         const errors: string[] = []
-        
+
         if (!facilityData.name || facilityData.name.length < 2) {
           errors.push(t('facilities.facilityNameRequired'))
         }
 
         // Map facility type
         let facilityType = facilityData.facility_type
-        const typeMatch = FACILITY_TYPES.find(ft => 
+        const typeMatch = FACILITY_TYPES.find(ft =>
           ft.name.toLowerCase() === (facilityType || '').toLowerCase()
         )
-        
+
         if (!typeMatch) {
           if (facilityType) {
             errors.push(t('facilities.unknownFacilityType', { type: facilityType }))
@@ -233,11 +271,11 @@ export function ImportFacilitiesModal({ open, onClose, onSuccess, initialFile }:
           duplicateSeverity: 'none',
           canImport: true,
           forceCreate: false,
-          rowIndex: i
+          rowIndex: rowNumber
         }
 
         facilities.push(parsedFacility)
-      }
+      })
 
       setParsedData(facilities)
       

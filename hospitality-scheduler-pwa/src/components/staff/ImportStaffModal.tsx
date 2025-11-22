@@ -11,7 +11,7 @@ import { Upload, FileSpreadsheet, Check, X, AlertTriangle, Users, Eye, EyeOff } 
 import { useTranslations } from '@/hooks/useTranslations'
 import { useApiClient } from '@/hooks/useApi'
 import { toast } from 'sonner'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import React from 'react'
 import * as ApiTypes from '@/types/api'
 import * as FacilityTypes from '@/types/facility'
@@ -147,10 +147,66 @@ export function ImportStaffModal({ open, onClose, facilities, onImport, initialF
   const parseExcelFile = useCallback(async (file: File) => {
     try {
       const arrayBuffer = await file.arrayBuffer()
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' })
-      const sheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[sheetName]
-      const jsonData = XLSX.utils.sheet_to_json(worksheet)
+      const workbook = new ExcelJS.Workbook()
+      await workbook.xlsx.load(arrayBuffer)
+      const worksheet = workbook.worksheets[0]
+
+      // Convert worksheet to JSON format similar to xlsx
+      const jsonData: Record<string, unknown>[] = []
+      const headers: string[] = []
+
+      // Helper function to extract cell value as string
+      const getCellValue = (cell: ExcelJS.Cell): string => {
+        const value = cell.value
+        if (value === null || value === undefined) return ''
+
+        // Handle rich text
+        if (typeof value === 'object' && 'richText' in value) {
+          return value.richText.map((rt: { text: string }) => rt.text).join('')
+        }
+
+        // Handle formula results
+        if (typeof value === 'object' && 'result' in value) {
+          return String(value.result || '')
+        }
+
+        // Handle hyperlinks
+        if (typeof value === 'object' && 'text' in value) {
+          return String(value.text || '')
+        }
+
+        // Handle dates
+        if (value instanceof Date) {
+          return value.toLocaleDateString()
+        }
+
+        // Default: convert to string
+        return String(value)
+      }
+
+      // Get headers from first row
+      const headerRow = worksheet.getRow(1)
+      headerRow.eachCell((cell, colNumber) => {
+        headers[colNumber - 1] = getCellValue(cell)
+      })
+
+      // Process data rows
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return // Skip header row
+
+        const rowData: Record<string, unknown> = {}
+        row.eachCell((cell, colNumber) => {
+          const header = headers[colNumber - 1]
+          if (header) {
+            rowData[header] = getCellValue(cell)
+          }
+        })
+
+        // Only add non-empty rows
+        if (Object.keys(rowData).length > 0) {
+          jsonData.push(rowData)
+        }
+      })
       
       const detectedColumns = new Set<string>()
       const originalColumnNames: Record<string, string> = {}
