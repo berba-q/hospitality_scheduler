@@ -1070,6 +1070,7 @@ export const en = {
     showInactiveStaff: 'Show inactive staff',
     staffFound: 'No staff found',
     staffMembers: 'Staff Members',
+    tryAdjustingCriteria: 'Try adjusting your search criteria',
     considerOneOne: 'Consider one-on-one meetings with highlighted staff to understand their challenges and provide support.',
     staffPerformanceLeaderboard: 'Staff Performance Leaderboard',
     upcomingShiftsScheduled: 'No upcoming shifts scheduled',

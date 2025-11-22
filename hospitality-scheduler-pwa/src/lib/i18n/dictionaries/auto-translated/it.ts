@@ -1077,6 +1077,7 @@ export const it = {
     showInactiveStaff: 'Mostra personale inattivo',
     staffFound: 'Nessun personale trovato',
     staffMembers: 'Membri dello staff!',
+    tryAdjustingCriteria: 'Prova a modificare i criteri di ricerca',
     considerOneOne: 'Considera gli incontri individuali con il personale evidenziato per comprendere le loro sfide e fornire supporto.',
     staffPerformanceLeaderboard: 'Casa di prestazioni del personale',
     upcomingShiftsScheduled: 'Nessun cambio imminente in programma',
