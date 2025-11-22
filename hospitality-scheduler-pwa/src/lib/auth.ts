@@ -62,8 +62,7 @@ interface AccountLinkRequest {
 //   }
 // }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true, // Trust the host from the request (required for localhost and production)
+export const { auth, signIn, signOut } = NextAuth({
 
   providers: [
     Google({
@@ -79,6 +78,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         try {
+          if (!credentials?.email || !credentials?.password) return null
+
           console.log('AUTH DEBUG: Attempting login for:', credentials.email)
 
           const response = await fetch(`${process.env.FASTAPI_URL || 'http://localhost:8000'}/v1/auth/login`, {
