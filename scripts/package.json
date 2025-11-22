@@ -1,0 +1,19 @@
+{
+  "name": "hospitality-scheduler-pdf-generator",
+  "version": "1.0.0",
+  "description": "PDF generation service using Puppeteer for hospitality scheduler",
+  "main": "generate_pdf.js",
+  "scripts": {
+    "test": "node generate_pdf.js test.html test.pdf"
+  },
+  "keywords": [
+    "pdf",
+    "puppeteer",
+    "schedule"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^21.0.0"
+  }
+}
