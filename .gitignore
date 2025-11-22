@@ -237,3 +237,17 @@ staff_accounts.json
 /staff_accounts.json
 .vscode/launch.json
 .vscode/tasks.json
+
+# outputs
+*.pdf
+logs/uvicorn_access.log.1
+logs/uvicorn_access.log.2
+logs/uvicorn_access.log.3
+logs/uvicorn_access.log.4
+logs/uvicorn_access.log.5
+hospitality-scheduler-pwa/build-output.txt
+user_staff_audit_report.json
+notification_delivery_analysis.json
+demo_accounts.json
+current_dependencies.txt
+.claude/settings.local.json
